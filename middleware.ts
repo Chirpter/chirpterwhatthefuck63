@@ -1,50 +1,24 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { getAuthAdmin } from '@/lib/firebase-admin';
 
-// This line is crucial to tell Next.js to use the Node.js runtime,
-// which is required for the Firebase Admin SDK.
-export const runtime = 'nodejs';
-
-export async function middleware(request: NextRequest) {
+// This middleware is now much simpler and faster.
+// It ONLY checks for the presence of a session cookie.
+// The actual verification of the cookie's validity is handled
+// by a background API route, which is a non-blocking approach.
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const authAdmin = getAuthAdmin(); // Get admin instance inside the middleware
-
-  // ✅ FIXED: Now verifies session cookie with Admin SDK
-  const sessionCookie = request.cookies.get('__session')?.value;
-  let isAuthenticated = false;
   
-  if (sessionCookie) {
-    try {
-      // Verify the session cookie with Firebase Admin
-      // checkRevoked: true ensures the session hasn't been revoked
-      await authAdmin.verifySessionCookie(sessionCookie, true);
-      isAuthenticated = true;
-    } catch (error) {
-      // Cookie is invalid, expired, or revoked
-      console.log('⚠️ Invalid session cookie detected');
-      isAuthenticated = false;
-      
-      // Optional: Clear invalid cookie
-      const response = NextResponse.next();
-      response.cookies.set('__session', '', {
-        maxAge: 0,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        sameSite: 'lax',
-      });
-    }
-  }
+  // 1. Check for the session cookie's existence.
+  const sessionCookie = request.cookies.get('__session')?.value;
+  const isAuthenticated = !!sessionCookie;
 
-  // Define routes that are public and accessible without authentication.
+  // 2. Define public and protected routes.
   const publicRoutes = ['/login'];
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
-  // Define all route prefixes that require a user to be authenticated.
   const protectedPrefixes = [
     '/library',
-    '/create', 
+    '/create',
     '/profile',
     '/settings',
     '/achievements',
@@ -58,30 +32,26 @@ export async function middleware(request: NextRequest) {
   ];
   const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix));
 
-  // --- REDIRECTION LOGIC ---
+  // --- REDIRECTION LOGIC (UNCHANGED, BUT NOW FASTER) ---
 
-  // Case 1: An unauthenticated user tries to access a protected route.
-  // They are redirected to the login page.
+  // Case 1: Unauthenticated user tries to access a protected route.
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('next', pathname); // Pass the original path to redirect back after login.
+    loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Case 2: An authenticated user tries to access a public page like /login.
-  // They are redirected to their default app page.
+  // Case 2: Authenticated user tries to access a public page like /login.
   if (isPublicRoute && isAuthenticated) {
     return NextResponse.redirect(new URL('/library/book', request.url));
   }
-
-  // Case 3: A user visits the root path ('/').
+  
+  // Case 3: User visits the root path ('/').
   if (pathname === '/') {
     if (isAuthenticated) {
-      // If logged in, redirect to the default library page.
       return NextResponse.redirect(new URL('/library/book', request.url));
     } else {
-      // If not logged in, allow access to landing page
-      return NextResponse.next(); 
+      return NextResponse.next();
     }
   }
 
