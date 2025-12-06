@@ -146,7 +146,7 @@ const TimelinePost = ({ icon, title, description, children }: { icon: any, title
 
 
 export default function ProfileView() {
-    const { user, reloadUser } = useUser();
+    const { user, loading, reloadUser } = useUser();
     const { toast } = useToast();
     const [isUploading, setIsUploading] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -188,7 +188,7 @@ export default function ProfileView() {
     };
 
 
-    if (!user) {
+    if (loading || !user) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Icon name="Loader2" className="h-12 w-12 animate-spin text-primary" />

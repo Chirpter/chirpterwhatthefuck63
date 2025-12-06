@@ -1,66 +1,59 @@
 
 "use client";
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { auth } from '@/lib/firebase';
 import { 
   onAuthStateChanged, 
   signOut, 
   type User as FirebaseUser, 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword 
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
 } from 'firebase/auth';
 import { logAuthEvent } from '@/lib/analytics';
+import { checkRateLimit, recordFailedAttempt, clearFailedAttempts } from '@/lib/rate-limit';
 
 interface AuthContextType {
-  authUser: FirebaseUser | null; 
+  authUser: FirebaseUser | null;
   loading: boolean;
+  error: string | null;
+  isSigningIn: boolean;
+  signUpWithEmail: (email: string, pass: string) => Promise<boolean>;
+  signInWithEmail: (email: string, pass: string) => Promise<boolean>;
+  signInWithGoogle: () => Promise<boolean>;
   logout: () => Promise<void>;
-  signUpWithEmail: (email: string, pass: string) => Promise<FirebaseUser>;
-  signInWithEmail: (email: string, pass: string) => Promise<FirebaseUser>;
+  clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ IMPROVED: Better error handling and retry logic
 async function setSessionCookie(idToken: string, retries = 3): Promise<boolean> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`🔄 Attempting to set session cookie (attempt ${'${attempt}'}/${'${retries}'})`);
-      
       const response = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
-      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Session creation failed: ${'${errorData.error || response.statusText}'}`);
+        throw new Error(`Session creation failed: ${errorData.error || response.statusText}`);
       }
-      
-      console.log('✅ Session cookie set successfully');
       return true;
     } catch (error) {
-      console.error(`❌ Session cookie attempt ${'${attempt}'} failed:`, error);
-      
-      // If this was the last attempt, throw the error
-      if (attempt === retries) {
-        throw error;
-      }
-      
-      // Wait before retrying (exponential backoff)
+      console.error(`Session cookie attempt ${attempt} failed:`, error);
+      if (attempt === retries) throw error;
       await new Promise(resolve => setTimeout(resolve, attempt * 1000));
     }
   }
-  
   return false;
 }
 
 async function clearSessionCookie(): Promise<void> {
   try {
     await fetch('/api/auth/session', { method: 'DELETE' });
-    console.log('✅ Session cookie cleared');
   } catch (error) {
     console.error('⚠️ Failed to clear session cookie:', error);
   }
@@ -69,112 +62,124 @@ async function clearSessionCookie(): Promise<void> {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const signUpWithEmail = async (email: string, pass: string) => {
-    let userCredential;
-    
-    try {
-      console.log('📝 Creating new user account...');
-      userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-      
-      console.log('🔑 Getting ID token...');
-      const idToken = await userCredential.user.getIdToken();
-      
-      console.log('🍪 Setting session cookie...');
-      await setSessionCookie(idToken);
-      
-      logAuthEvent('sign_up', { method: 'email' });
-      console.log('✅ Sign up completed successfully');
-      return userCredential.user;
-      
-    } catch (error: any) {
-      console.error('❌ Sign up failed:', error);
-      
-      // Rollback: Delete the user account if session creation failed
-      if (userCredential) {
-        console.warn('⚠️ Rolling back user creation...');
-        try {
-          await userCredential.user.delete();
-          console.log('✅ User account rolled back successfully');
-        } catch (deleteError) {
-          console.error('❌ Failed to rollback user creation:', deleteError);
-        }
-      }
-      
-      throw error;
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentAuthUser) => {
+      setAuthUser(currentAuthUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleAuthError = (err: any) => {
+    let message = 'An unexpected error occurred. Please try again.';
+    switch (err.code) {
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
+        message = 'Invalid email or password. Please try again.';
+        logAuthEvent('login_failed', { reason: 'invalid_credentials' });
+        break;
+      case 'auth/email-already-in-use':
+        message = 'This email address is already registered. Please sign in.';
+        break;
+      case 'auth/weak-password':
+        message = 'Password should be at least 6 characters long.';
+        break;
+      case 'auth/invalid-email':
+        message = 'Please enter a valid email address.';
+        break;
+      case 'auth/too-many-requests':
+        message = 'Too many failed attempts. Please try again later.';
+        logAuthEvent('rate_limit_hit', { reason: 'too_many_requests' });
+        break;
+      case 'auth/popup-closed-by-user':
+        message = 'Sign-in was cancelled. Please try again.';
+        break;
+      case 'auth/popup-blocked':
+        message = 'Popup was blocked. Please allow popups and try again.';
+        break;
+      default:
+        console.error("Authentication Error:", err);
+        logAuthEvent('auth_error', { error: err.code || err.message || 'unknown' });
     }
+    setError(message);
   };
   
-  const signInWithEmail = async (email: string, pass: string) => {
-    let userCredential;
+  const performAuthOperation = async (operation: () => Promise<FirebaseUser | null>, emailForRateLimit?: string): Promise<boolean> => {
+    if (emailForRateLimit) {
+      const rateLimitCheck = checkRateLimit(emailForRateLimit);
+      if (!rateLimitCheck.allowed) {
+        setError(`Too many failed attempts. Please try again in ${Math.ceil(rateLimitCheck.waitTime / 60)} minutes.`);
+        return false;
+      }
+    }
+    
+    setIsSigningIn(true);
+    setError(null);
     
     try {
-      console.log('🔐 Signing in user...');
-      userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      
-      console.log('🔑 Getting ID token...');
-      const idToken = await userCredential.user.getIdToken();
-      
-      console.log('🍪 Setting session cookie...');
-      await setSessionCookie(idToken);
-      
-      logAuthEvent('login', { method: 'email' });
-      console.log('✅ Sign in completed successfully');
-      return userCredential.user;
-      
-    } catch (error: any) {
-      console.error('❌ Sign in failed:', error);
-      
-      // Rollback: Sign out if session creation failed
-      if (userCredential) {
-        console.warn('⚠️ Rolling back sign in...');
-        try {
-          await signOut(auth);
-          console.log('✅ Sign in rolled back successfully');
-        } catch (signOutError) {
-          console.error('❌ Failed to rollback sign in:', signOutError);
-        }
+      const user = await operation();
+      if (!user) { // Operation might be cancelled (e.g. Google popup closed)
+          setIsSigningIn(false);
+          return false;
       }
       
-      throw error;
+      const idToken = await user.getIdToken();
+      await setSessionCookie(idToken);
+      
+      if (emailForRateLimit) clearFailedAttempts(emailForRateLimit);
+      
+      return true; // Success
+    } catch (err: any) {
+      if (emailForRateLimit) recordFailedAttempt(emailForRateLimit);
+      handleAuthError(err);
+      return false; // Failure
+    } finally {
+      setIsSigningIn(false);
     }
   };
+
+  const signUpWithEmail = (email: string, pass: string) => 
+    performAuthOperation(() => createUserWithEmailAndPassword(auth, email, pass).then(cred => cred.user), email);
+
+  const signInWithEmail = (email: string, pass: string) => 
+    performAuthOperation(() => signInWithEmailAndPassword(auth, email, pass).then(cred => cred.user), email);
+
+  const signInWithGoogle = () => 
+    performAuthOperation(() => {
+        const provider = new GoogleAuthProvider();
+        return signInWithPopup(auth, provider).then(cred => cred.user).catch(err => {
+            handleAuthError(err);
+            return null; // Return null on popup close/block
+        });
+    });
 
   const logout = async () => {
     try {
-      console.log('👋 Logging out...');
       await signOut(auth);
       await clearSessionCookie();
       logAuthEvent('logout');
-      console.log('✅ Logout completed successfully');
     } catch (error) {
       console.error('❌ Logout failed:', error);
-      // Fallback: Force redirect to login
       window.location.href = '/login';
     }
   };
 
-  useEffect(() => {
-    console.log('👂 Setting up auth state listener...');
-    
-    const unsubscribe = onAuthStateChanged(auth, (currentAuthUser) => {
-      console.log('🔄 Auth state changed:', currentAuthUser ? 'User logged in' : 'No user');
-      setAuthUser(currentAuthUser);
-      setLoading(false);
-    });
-
-    return () => {
-      console.log('🔇 Cleaning up auth state listener');
-      unsubscribe();
-    };
-  }, []);
+  const clearAuthError = () => setError(null);
 
   const value = { 
     authUser, 
     loading, 
+    error,
+    isSigningIn,
     logout, 
     signUpWithEmail, 
-    signInWithEmail, 
+    signInWithEmail,
+    signInWithGoogle,
+    clearAuthError,
   };
 
   return (

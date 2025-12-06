@@ -2,8 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -11,8 +9,6 @@ import { Icon } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
 import { AuthForm } from '@/features/auth/components/AuthForm';
 import { Logo } from '@/components/ui/Logo';
-import { logAuthEvent } from '@/lib/analytics';
-import { checkRateLimit, recordFailedAttempt, clearFailedAttempts } from '@/lib/rate-limit';
 
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px">
@@ -25,33 +21,32 @@ const GoogleIcon = () => (
 
 export default function LoginView() {
   const router = useRouter();
-  const { authUser, loading, signUpWithEmail, signInWithEmail } = useAuth();
+  const { 
+    authUser, 
+    loading: isAuthLoading, 
+    error: authError, 
+    isSigningIn,
+    signUpWithEmail, 
+    signInWithEmail,
+    signInWithGoogle,
+    clearAuthError,
+  } = useAuth();
   const { toast } = useToast();
   
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [error, setError] = useState('');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
-  // ✅ SIMPLIFIED: Single useEffect with better timing control
   useEffect(() => {
-    // Don't do anything while auth is loading
-    if (loading) return;
-    
-    // If user is authenticated, redirect after a small delay to ensure cookie is set
-    if (authUser) {
+    if (!isAuthLoading && authUser) {
       console.log('✅ User authenticated, redirecting to library...');
-      
-      // Small delay to ensure session cookie propagation
       const redirectTimer = setTimeout(() => {
         router.replace('/library/book');
-      }, 500);
+      }, 100); // Shorter delay is fine now
       
       return () => clearTimeout(redirectTimer);
     }
-  }, [authUser, loading, router]);
+  }, [authUser, isAuthLoading, router]);
 
-  // Show loading state while checking auth or redirecting
-  if (loading || authUser) {
+  if (isAuthLoading || authUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Logo className="h-12 w-12 animate-pulse text-primary" />
@@ -59,95 +54,29 @@ export default function LoginView() {
     );
   }
 
-  const handleAuthError = (err: any) => {
-    switch (err.code) {
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-      case 'auth/invalid-credential':
-        setError('Invalid email or password. Please try again.');
-        logAuthEvent('login_failed', { reason: 'invalid_credentials' });
-        break;
-      case 'auth/email-already-in-use':
-        setError('This email address is already registered. Please sign in.');
-        break;
-      case 'auth/weak-password':
-        setError('Password should be at least 6 characters long.');
-        break;
-      case 'auth/invalid-email':
-        setError('Please enter a valid email address.');
-        break;
-      case 'auth/too-many-requests':
-        setError('Too many failed attempts. Please try again later.');
-        logAuthEvent('rate_limit_hit', { reason: 'too_many_requests' });
-        break;
-      default:
-        setError(err.message || 'An unexpected error occurred. Please try again.');
-        console.error("Authentication Error:", err);
-        logAuthEvent('auth_error', { error: err.code || err.message || 'unknown' });
-    }
-  };
-
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
     e.preventDefault();
+    const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
     
-    const rateLimitCheck = checkRateLimit(email);
-    if (!rateLimitCheck.allowed) {
-      setError(`Too many failed attempts. Please try again in ${Math.ceil(rateLimitCheck.waitTime / 60)} minutes.`);
-      return;
-    }
+    const success = await authOperation(email, pass);
     
-    setIsSigningIn(true);
-    setError('');
-    
-    try {
-      const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
-      
-      await authOperation(email, pass);
-      
-      clearFailedAttempts(email);
-      
+    if (success) {
       toast({ 
         title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
         description: authMode === 'signup' ? "Welcome! You're now signed in." : "Welcome back!" 
       });
-      
-      // The useEffect will handle the redirect
-    } catch (err: any) {
-      recordFailedAttempt(email);
-      handleAuthError(err);
-      setIsSigningIn(false); // Only reset on error
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setIsSigningIn(true);
-    setError('');
-    
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-
-      logAuthEvent('login', { method: 'google' });
+    const success = await signInWithGoogle();
+    if (success) {
       toast({ title: "Login Successful", description: "Welcome!" });
-      
-      // The useEffect will handle the redirect
-    } catch (error: any) {
-      if (error.code === 'auth/popup-closed-by-user') {
-        setError('Sign-in was cancelled. Please try again.');
-      } else if (error.code === 'auth/popup-blocked') {
-        setError('Popup was blocked. Please allow popups and try again.');
-      } else {
-        setError('Could not sign in with Google. Please try again.');
-      }
-      
-      console.error("Google sign-in error:", error);
-      logAuthEvent('login_failed', { method: 'google', reason: error.code || 'unknown' });
-      setIsSigningIn(false);
     }
   };
 
   const toggleAuthMode = () => {
-    setError('');
+    clearAuthError();
     setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
   };
 
@@ -165,9 +94,9 @@ export default function LoginView() {
             <>
               <AuthForm 
                 isSignUp={false}
-                onSubmit={(e, email, pass) => handleEmailAuth(e, email, pass)}
+                onSubmit={handleEmailAuth}
                 isSigningIn={isSigningIn}
-                error={error}
+                error={authError}
               />
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
@@ -180,9 +109,9 @@ export default function LoginView() {
             <>
               <AuthForm 
                 isSignUp={true}
-                onSubmit={(e, email, pass) => handleEmailAuth(e, email, pass)}
+                onSubmit={handleEmailAuth}
                 isSigningIn={isSigningIn}
-                error={error}
+                error={authError}
               />
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Already have an account?{' '}
