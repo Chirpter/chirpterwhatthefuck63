@@ -1,73 +1,99 @@
-// src/hooks/useSessionVerification.ts
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useRouter } from 'next/navigation';
 
 const VERIFY_INTERVAL = 5 * 60 * 1000; // 5 minutes
-
-// ✅ CRITICAL FIX: Increased grace period and smarter check logic
-const INITIAL_GRACE_PERIOD = 3000; // 3 seconds grace period after mount
+const INITIAL_GRACE_PERIOD = 5000; // 5 seconds - enough time for session creation
 
 export function useSessionVerification() {
   const { authUser, logout } = useAuth();
+  const router = useRouter();
   const lastVerifyRef = useRef<number>(0);
-  const initialCheckTimer = useRef<NodeJS.Timeout | null>(null);
+  const hasRunInitialCheck = useRef(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
-    // Cleanup any existing timers when auth state changes or component unmounts
-    if (initialCheckTimer.current) {
-        clearTimeout(initialCheckTimer.current);
-    }
-    
     if (!authUser) {
+      hasRunInitialCheck.current = false;
       return;
     }
 
     const verifySession = async (isInitialCheck = false) => {
       const now = Date.now();
       
-      // ✅ FIX: More robust check. Don't verify if it has been checked recently.
-      if (!isInitialCheck && (now - lastVerifyRef.current < VERIFY_INTERVAL)) {
+      // Prevent duplicate checks
+      if (!isInitialCheck && (now - lastVerifyRef.current < VERIFY_INTERVAL - 1000)) {
         return;
       }
 
-      console.log(`[useSessionVerification] 🧐 Verifying session... (Initial: ${isInitialCheck})`);
-      lastVerifyRef.current = now; // Mark as "attempted" to prevent spamming
+      // Prevent verification spam
+      if (isVerifying) {
+        console.log('[Session] Already verifying, skipping...');
+        return;
+      }
+
+      console.log(`[Session] 🔍 Verifying session... (Initial: ${isInitialCheck})`);
+      setIsVerifying(true);
+      lastVerifyRef.current = now;
 
       try {
         const response = await fetch('/api/auth/verify', { 
           method: 'POST',
-          cache: 'no-store'
+          cache: 'no-store',
+          credentials: 'include'
         });
         
         if (!response.ok) {
-          console.warn('[useSessionVerification] ⚠️ Session verification failed, logging out...');
-          await logout();
+          console.warn('[Session] ⚠️ Verification failed, status:', response.status);
+          
+          // Only logout if it's not the initial check or if session is truly invalid
+          if (!isInitialCheck || response.status === 401) {
+            console.log('[Session] 🚪 Logging out due to invalid session...');
+            await logout();
+            router.replace('/login');
+          }
         } else {
-           console.log('[useSessionVerification] ✅ Session verified successfully.');
+          console.log('[Session] ✅ Session valid');
         }
         
       } catch (error) {
-        console.error('[useSessionVerification] ❌ Session verification request failed:', error);
+        console.error('[Session] ❌ Verification error:', error);
+        // Don't logout on network errors during initial check
+        if (!isInitialCheck) {
+          await logout();
+          router.replace('/login');
+        }
+      } finally {
+        setIsVerifying(false);
       }
     };
     
-    // ✅ FIX: Schedule the *first* verification after a grace period.
-    // This is the key change to prevent the race condition after login.
-    initialCheckTimer.current = setTimeout(() => {
+    // Initial check with grace period (only once per auth session)
+    if (!hasRunInitialCheck.current) {
+      hasRunInitialCheck.current = true;
+      
+      const initialTimer = setTimeout(() => {
         verifySession(true);
-    }, INITIAL_GRACE_PERIOD);
+      }, INITIAL_GRACE_PERIOD);
 
-    // Set up the recurring interval for subsequent checks
-    const interval = setInterval(() => verifySession(false), VERIFY_INTERVAL);
+      // Set up recurring checks
+      const interval = setInterval(() => {
+        verifySession(false);
+      }, VERIFY_INTERVAL);
 
-    // Cleanup function
-    return () => {
-      if (initialCheckTimer.current) {
-        clearTimeout(initialCheckTimer.current);
-      }
-      clearInterval(interval);
-    };
-  }, [authUser, logout]);
+      return () => {
+        clearTimeout(initialTimer);
+        clearInterval(interval);
+      };
+    } else {
+      // If already checked, just set up the interval
+      const interval = setInterval(() => {
+        verifySession(false);
+      }, VERIFY_INTERVAL);
+
+      return () => clearInterval(interval);
+    }
+  }, [authUser, logout, router, isVerifying]);
 }

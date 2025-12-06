@@ -12,7 +12,7 @@ interface AuthFormProps {
     isSignUp: boolean;
     onSubmit: (e: React.FormEvent, email: string, pass: string) => void;
     isSigningIn: boolean;
-    error: string;
+    error: string | null;
 }
 
 const validateEmail = (email: string): boolean => {

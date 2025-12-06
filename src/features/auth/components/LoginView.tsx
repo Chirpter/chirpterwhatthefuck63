@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
@@ -34,44 +34,65 @@ export default function LoginView() {
   const { toast } = useToast();
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
-    if (!isAuthLoading && authUser) {
-      console.log('✅ User authenticated, redirecting to library...');
+    // Only redirect if user is authenticated and we haven't redirected yet
+    if (!isAuthLoading && authUser && !hasRedirected.current) {
+      console.log('[LoginView] ✅ User authenticated, preparing redirect...');
+      hasRedirected.current = true;
+      
+      // Small delay to ensure session cookie is fully set
       const redirectTimer = setTimeout(() => {
+        console.log('[LoginView] Redirecting to /library/book...');
         router.replace('/library/book');
-      }, 100); // Shorter delay is fine now
+      }, 1500); // 1.5 second delay
       
       return () => clearTimeout(redirectTimer);
     }
+    
+    // Reset redirect flag when user logs out
+    if (!authUser) {
+      hasRedirected.current = false;
+    }
   }, [authUser, isAuthLoading, router]);
 
-  if (isAuthLoading || authUser) {
+  // Show loading state while auth is initializing or redirecting
+  if (isAuthLoading || (authUser && !hasRedirected.current)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Logo className="h-12 w-12 animate-pulse text-primary" />
+        <div className="text-center">
+          <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">
+            {authUser ? 'Redirecting...' : 'Loading...'}
+          </p>
+        </div>
       </div>
     );
   }
 
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
     e.preventDefault();
-    const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
     
+    const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
     const success = await authOperation(email, pass);
     
     if (success) {
       toast({ 
         title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
-        description: authMode === 'signup' ? "Welcome! You're now signed in." : "Welcome back!" 
+        description: authMode === 'signup' ? "Welcome! Setting up your account..." : "Welcome back! Redirecting..." 
       });
     }
   };
 
   const handleGoogleSignIn = async () => {
     const success = await signInWithGoogle();
+    
     if (success) {
-      toast({ title: "Login Successful", description: "Welcome!" });
+      toast({ 
+        title: "Login Successful", 
+        description: "Welcome! Redirecting..." 
+      });
     }
   };
 
@@ -81,7 +102,7 @@ export default function LoginView() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-blue-50 to-blue-100 dark:from-background dark:via-blue-900/20 dark:via-blue-900/30 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-blue-50 to-blue-100 dark:from-background dark:via-blue-900/20 dark:to-blue-900/30 p-4">
       <Card className="w-full max-w-sm shadow-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex items-center gap-2">
@@ -100,7 +121,11 @@ export default function LoginView() {
               />
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
-                <button onClick={toggleAuthMode} className="font-semibold text-primary hover:underline focus:outline-none">
+                <button 
+                  onClick={toggleAuthMode} 
+                  className="font-semibold text-primary hover:underline focus:outline-none"
+                  disabled={isSigningIn}
+                >
                   Sign Up
                 </button>
               </p>
@@ -115,7 +140,11 @@ export default function LoginView() {
               />
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Already have an account?{' '}
-                <button onClick={toggleAuthMode} className="font-semibold text-primary hover:underline focus:outline-none">
+                <button 
+                  onClick={toggleAuthMode} 
+                  className="font-semibold text-primary hover:underline focus:outline-none"
+                  disabled={isSigningIn}
+                >
                   Sign In
                 </button>
               </p>
