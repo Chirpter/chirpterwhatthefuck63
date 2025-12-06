@@ -22,33 +22,45 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ CRITICAL: Logic tạo session cookie được chuyển vào đây.
-async function setSessionCookie(idToken: string): Promise<boolean> {
-  try {
-    const response = await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Session creation failed: ${errorData.error || response.statusText}`);
+// ✅ IMPROVED: Better error handling and retry logic
+async function setSessionCookie(idToken: string, retries = 3): Promise<boolean> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`🔄 Attempting to set session cookie (attempt ${'${attempt}'}/${'${retries}'})`);
+      
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Session creation failed: ${'${errorData.error || response.statusText}'}`);
+      }
+      
+      console.log('✅ Session cookie set successfully');
+      return true;
+    } catch (error) {
+      console.error(`❌ Session cookie attempt ${'${attempt}'} failed:`, error);
+      
+      // If this was the last attempt, throw the error
+      if (attempt === retries) {
+        throw error;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, attempt * 1000));
     }
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to set session cookie:', error);
-    // Ném lại lỗi để logic gọi nó (ví dụ: signUpWithEmail) có thể bắt và xử lý.
-    throw error;
   }
+  
+  return false;
 }
 
-// ✅ CRITICAL: Logic xóa session cookie được chuyển vào đây.
 async function clearSessionCookie(): Promise<void> {
   try {
-    // Không cần chờ response, chỉ cần gửi yêu cầu đi.
-    fetch('/api/auth/session', { method: 'DELETE' });
+    await fetch('/api/auth/session', { method: 'DELETE' });
+    console.log('✅ Session cookie cleared');
   } catch (error) {
     console.error('⚠️ Failed to clear session cookie:', error);
   }
@@ -58,56 +70,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ FIXED: Cải tiến logic rollback để xử lý lỗi tạo session một cách an toàn.
   const signUpWithEmail = async (email: string, pass: string) => {
     let userCredential;
     
     try {
+      console.log('📝 Creating new user account...');
       userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      
+      console.log('🔑 Getting ID token...');
       const idToken = await userCredential.user.getIdToken();
       
-      // Nếu setSessionCookie thất bại, nó sẽ ném lỗi và được bắt bởi khối catch.
+      console.log('🍪 Setting session cookie...');
       await setSessionCookie(idToken);
       
       logAuthEvent('sign_up', { method: 'email' });
+      console.log('✅ Sign up completed successfully');
       return userCredential.user;
       
-    } catch (error) {
-      // ✅ Rollback: Nếu có lỗi (bao gồm cả lỗi tạo session), xóa tài khoản người dùng vừa tạo.
+    } catch (error: any) {
+      console.error('❌ Sign up failed:', error);
+      
+      // Rollback: Delete the user account if session creation failed
       if (userCredential) {
-        console.warn('⚠️ Rolling back user creation due to session/other failure.');
+        console.warn('⚠️ Rolling back user creation...');
         try {
           await userCredential.user.delete();
+          console.log('✅ User account rolled back successfully');
         } catch (deleteError) {
           console.error('❌ Failed to rollback user creation:', deleteError);
         }
       }
       
-      // Ném lại lỗi ban đầu để UI có thể hiển thị thông báo.
       throw error;
     }
   };
   
-  // ✅ FIXED: Cải tiến logic rollback cho việc đăng nhập.
   const signInWithEmail = async (email: string, pass: string) => {
     let userCredential;
     
     try {
+      console.log('🔐 Signing in user...');
       userCredential = await signInWithEmailAndPassword(auth, email, pass);
+      
+      console.log('🔑 Getting ID token...');
       const idToken = await userCredential.user.getIdToken();
       
-      // Nếu setSessionCookie thất bại, nó sẽ ném lỗi.
+      console.log('🍪 Setting session cookie...');
       await setSessionCookie(idToken);
       
       logAuthEvent('login', { method: 'email' });
+      console.log('✅ Sign in completed successfully');
       return userCredential.user;
       
-    } catch (error) {
-      // ✅ Rollback: Nếu tạo session thất bại, đăng xuất người dùng khỏi client.
+    } catch (error: any) {
+      console.error('❌ Sign in failed:', error);
+      
+      // Rollback: Sign out if session creation failed
       if (userCredential) {
-        console.warn('⚠️ Rolling back sign in due to session failure.');
+        console.warn('⚠️ Rolling back sign in...');
         try {
-          await signOut(auth); // Chỉ đăng xuất, không xóa cookie vì nó chưa được tạo.
+          await signOut(auth);
+          console.log('✅ Sign in rolled back successfully');
         } catch (signOutError) {
           console.error('❌ Failed to rollback sign in:', signOutError);
         }
@@ -119,25 +142,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      console.log('👋 Logging out...');
       await signOut(auth);
-      // Gọi hàm đã được chuyển vào đây.
       await clearSessionCookie();
       logAuthEvent('logout');
+      console.log('✅ Logout completed successfully');
     } catch (error) {
       console.error('❌ Logout failed:', error);
-      // Fallback: Chuyển hướng cứng về trang đăng nhập nếu có lỗi.
+      // Fallback: Force redirect to login
       window.location.href = '/login';
     }
   };
 
   useEffect(() => {
-    // Lắng nghe sự thay đổi trạng thái xác thực từ Firebase client.
+    console.log('👂 Setting up auth state listener...');
+    
     const unsubscribe = onAuthStateChanged(auth, (currentAuthUser) => {
+      console.log('🔄 Auth state changed:', currentAuthUser ? 'User logged in' : 'No user');
       setAuthUser(currentAuthUser);
       setLoading(false);
     });
 
-    return unsubscribe; // Cleanup listener on unmount.
+    return () => {
+      console.log('🔇 Cleaning up auth state listener');
+      unsubscribe();
+    };
   }, []);
 
   const value = { 

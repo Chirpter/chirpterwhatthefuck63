@@ -7,6 +7,9 @@ import { useAuth } from '@/contexts/auth-context';
 // Verify session every 5 minutes
 const VERIFY_INTERVAL = 5 * 60 * 1000;
 
+// ✅ CRITICAL: Initial grace period to allow session cookie to be set
+const INITIAL_GRACE_PERIOD = 3000; // 3 seconds
+
 /**
  * A client-side hook that periodically verifies the user's session
  * in the background. If the session becomes invalid, it triggers a logout.
@@ -14,15 +17,32 @@ const VERIFY_INTERVAL = 5 * 60 * 1000;
 export function useSessionVerification() {
   const { authUser, logout } = useAuth();
   const lastVerifyRef = useRef<number>(0);
+  const mountTimeRef = useRef<number>(Date.now());
+  const hasRunInitialCheck = useRef(false);
 
   useEffect(() => {
     // Only run if the user is authenticated on the client
-    if (!authUser) return;
+    if (!authUser) {
+      hasRunInitialCheck.current = false;
+      return;
+    }
 
     const verifySession = async () => {
       const now = Date.now();
       
-      // ✅ Only verify if it has been more than 5 minutes since the last check
+      // ✅ FIX 1: Skip initial check if we just mounted (give time for cookie to be set)
+      if (!hasRunInitialCheck.current) {
+        const timeSinceMount = now - mountTimeRef.current;
+        if (timeSinceMount < INITIAL_GRACE_PERIOD) {
+          console.log('⏳ Skipping initial session check - waiting for cookie setup');
+          hasRunInitialCheck.current = true;
+          lastVerifyRef.current = now;
+          return;
+        }
+        hasRunInitialCheck.current = true;
+      }
+      
+      // ✅ FIX 2: Only verify if it has been more than 5 minutes since the last check
       if (now - lastVerifyRef.current < VERIFY_INTERVAL) {
         return;
       }
@@ -30,32 +50,34 @@ export function useSessionVerification() {
       try {
         const response = await fetch('/api/auth/verify', { 
           method: 'POST',
-          cache: 'no-store' // Never cache this request
+          cache: 'no-store'
         });
         
-        // If the API returns a non-OK status (e.g., 401), the session is invalid.
         if (!response.ok) {
-          console.warn('Session verification failed, logging out...');
-          // Trigger the logout function from the auth context.
+          console.warn('⚠️ Session verification failed, logging out...');
           await logout();
+        } else {
+          console.log('✅ Session verified successfully');
         }
         
-        // Update the timestamp of the last verification
         lastVerifyRef.current = now;
       } catch (error) {
-        console.error('Session verification request failed:', error);
-        // In case of a network error, we might want to retry or handle it gracefully.
-        // For now, we'll let the user continue, and the next check will try again.
+        console.error('❌ Session verification request failed:', error);
+        // Don't logout on network errors - might be temporary
       }
     };
 
-    // Verify session immediately when the component mounts
-    verifySession();
+    // ✅ FIX 3: Don't verify immediately - wait for initial grace period
+    const initialTimeout = setTimeout(() => {
+      verifySession();
+    }, INITIAL_GRACE_PERIOD);
 
     // Set up a recurring interval to check the session
     const interval = setInterval(verifySession, VERIFY_INTERVAL);
 
-    // Cleanup the interval when the component unmounts or the user changes
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [authUser, logout]);
 }

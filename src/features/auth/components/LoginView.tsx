@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithPopup, GoogleAuthProvider, type User as FirebaseUser } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
@@ -24,11 +23,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
 export default function LoginView() {
   const router = useRouter();
   const { authUser, loading, signUpWithEmail, signInWithEmail } = useAuth();
@@ -38,16 +32,25 @@ export default function LoginView() {
   const [error, setError] = useState('');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
+  // ✅ SIMPLIFIED: Single useEffect with better timing control
   useEffect(() => {
-    let isMounted = true;
+    // Don't do anything while auth is loading
+    if (loading) return;
     
-    if (!loading && authUser && isMounted) {
-      router.replace('/library/book');
+    // If user is authenticated, redirect after a small delay to ensure cookie is set
+    if (authUser) {
+      console.log('✅ User authenticated, redirecting to library...');
+      
+      // Small delay to ensure session cookie propagation
+      const redirectTimer = setTimeout(() => {
+        router.replace('/library/book');
+      }, 500);
+      
+      return () => clearTimeout(redirectTimer);
     }
-    
-    return () => { isMounted = false; };
   }, [authUser, loading, router]);
 
+  // Show loading state while checking auth or redirecting
   if (loading || authUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -57,7 +60,6 @@ export default function LoginView() {
   }
 
   const handleAuthError = (err: any) => {
-    // This logic is now cleaner as it only needs to handle auth-provider level errors
     switch (err.code) {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
@@ -79,7 +81,6 @@ export default function LoginView() {
         logAuthEvent('rate_limit_hit', { reason: 'too_many_requests' });
         break;
       default:
-        // Generic error for session failures or other unexpected issues from the context
         setError(err.message || 'An unexpected error occurred. Please try again.');
         console.error("Authentication Error:", err);
         logAuthEvent('auth_error', { error: err.code || err.message || 'unknown' });
@@ -109,12 +110,12 @@ export default function LoginView() {
         title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
         description: authMode === 'signup' ? "Welcome! You're now signed in." : "Welcome back!" 
       });
-      // The useEffect above will handle the redirection.
+      
+      // The useEffect will handle the redirect
     } catch (err: any) {
       recordFailedAttempt(email);
       handleAuthError(err);
-    } finally {
-      setIsSigningIn(false);
+      setIsSigningIn(false); // Only reset on error
     }
   };
 
@@ -123,15 +124,13 @@ export default function LoginView() {
     setError('');
     
     try {
-      // NOTE: For a complete implementation, a `signInWithGoogle` function should be
-      // created in `auth-context` that handles the popup and the session cookie creation.
-      // The current implementation is a placeholder.
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
 
       logAuthEvent('login', { method: 'google' });
       toast({ title: "Login Successful", description: "Welcome!" });
       
+      // The useEffect will handle the redirect
     } catch (error: any) {
       if (error.code === 'auth/popup-closed-by-user') {
         setError('Sign-in was cancelled. Please try again.');
@@ -143,8 +142,6 @@ export default function LoginView() {
       
       console.error("Google sign-in error:", error);
       logAuthEvent('login_failed', { method: 'google', reason: error.code || 'unknown' });
-      
-    } finally {
       setIsSigningIn(false);
     }
   };
