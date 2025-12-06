@@ -1,0 +1,229 @@
+
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+import type { UserPlan, SrsState, VocabularyItem, LibraryItem } from "./types";
+import { LEARNING_THRESHOLD_DAYS, MASTERED_THRESHOLD_DAYS } from "./constants";
+import { Timestamp } from "firebase/firestore";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+export function getBcp47LangCode(shortCode: string | undefined): string | undefined {
+  if (!shortCode) return undefined;
+  if (shortCode.includes('-')) return shortCode;
+  
+  switch (shortCode.toLowerCase()) {
+    case 'vi': return 'vi-VN';
+    default: return shortCode;
+  }
+}
+
+let idCounter = 0;
+
+export const generateLocalUniqueId = (): string => {
+  idCounter = (idCounter + 1) % Number.MAX_SAFE_INTEGER;
+  return Date.now().toString(36) + idCounter.toString(36) + Math.random().toString(36).substring(2, 7);
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const removeUndefinedProps = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedProps).filter(v => v !== undefined);
+  }
+
+  const newObj: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined) {
+      const value = removeUndefinedProps(obj[key]);
+      if (value !== undefined) {
+        newObj[key] = value;
+      }
+    }
+  }
+  return newObj;
+};
+
+export function capitalizeFirstLetter(string: string): string {
+  if (!string) return string;
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+export const getFavoritesKey = (context: 'book' | 'piece'): string => `chirpter_favorites_${context}`;
+
+export type LevelTier = 'silver' | 'green' | 'blue' | 'purple' | 'pink' | 'gold';
+
+interface LevelStyles {
+  frameClasses: string;
+  badgeClasses: string;
+  tier: LevelTier;
+}
+
+export function getLevelStyles(level: number, plan: UserPlan, overrideTier?: LevelTier): LevelStyles {
+  let tier: LevelTier;
+
+  if (overrideTier) {
+      tier = overrideTier;
+  } else if (level >= 121) tier = 'pink';
+  else if (level >= 61) tier = 'purple';
+  else if (level >= 31) tier = 'blue';
+  else if (level >= 8) tier = 'green';
+  else tier = 'silver';
+  
+  const commonFrameClasses = "p-0.5";
+  const commonBadgeClasses = "border text-white";
+
+  if (plan === 'pro') {
+    return {
+      tier,
+      frameClasses: `${commonFrameClasses} bg-gradient-pro-${tier}`,
+      badgeClasses: `${commonBadgeClasses} bg-gradient-pro-${tier} border-white/50`,
+    };
+  }
+
+  return {
+    tier,
+    frameClasses: `${commonFrameClasses} bg-level-${tier}`,
+    badgeClasses: `${commonBadgeClasses} bg-level-${tier} border-white/50`,
+  };
+}
+
+export const calculateSrsProgress = (memoryStrength: number = 0, srsState: SrsState = 'new'): number => {
+  let lowerBound = 0;
+  let upperBound = 0;
+
+  switch (srsState) {
+    case 'new':
+      return 0;
+    case 'learning':
+      lowerBound = 0;
+      upperBound = LEARNING_THRESHOLD_DAYS;
+      break;
+    case 'short-term':
+      lowerBound = LEARNING_THRESHOLD_DAYS;
+      upperBound = MASTERED_THRESHOLD_DAYS;
+      break;
+    case 'long-term':
+      return 100;
+  }
+  
+  const totalRange = upperBound - lowerBound;
+  const progressInRange = memoryStrength - lowerBound;
+  
+  if (totalRange <= 0) return 0;
+
+  const percentage = (progressInRange / totalRange) * 100;
+
+  return Math.max(0, Math.min(percentage, 100));
+};
+
+export const getSrsColor = (state: SrsState | undefined) => {
+  switch (state) {
+    case 'learning':
+      return 'bg-rose-500';
+    case 'short-term':
+      return 'bg-amber-500';
+    case 'long-term':
+      return 'bg-sky-500';
+    case 'new':
+    default:
+      return 'bg-slate-400';
+  }
+};
+
+export const calculateVirtualMS = (item: VocabularyItem, currentDate: Date): number => {
+    const memoryStrength = item.memoryStrength || 0;
+    
+    if (item.srsState === 'long-term' || item.srsState === 'new' || !item.lastReviewed) {
+        return memoryStrength;
+    }
+
+    const today = new Date(currentDate);
+    today.setUTCHours(0, 0, 0, 0);
+
+    const lastReviewDate = new Date((item.lastReviewed as any).seconds ? 
+        (item.lastReviewed as any).seconds * 1000 : item.lastReviewed);
+    lastReviewDate.setUTCHours(0, 0, 0, 0);
+
+    const elapsedDays = (today.getTime() - lastReviewDate.getTime()) / (1000 * 3600 * 24);
+    
+    if (elapsedDays <= 0 || !isFinite(elapsedDays)) {
+        return memoryStrength;
+    }
+    
+    const halfLife = memoryStrength;
+    
+    if (halfLife <= 0 || !isFinite(halfLife)) {
+        return Math.max(1, memoryStrength);
+    }
+    
+    const virtualStrength = memoryStrength * Math.pow(0.5, elapsedDays / halfLife);
+
+    return Math.max(1, isFinite(virtualStrength) ? virtualStrength : memoryStrength);
+};
+
+export function convertTimestamps<T extends { [key: string]: any }>(obj: T): T {
+    if (!obj || typeof obj !== 'object') {
+        return obj;
+    }
+
+    // Create a shallow copy to avoid mutating the original object
+    const newObj: { [key: string]: any } = { ...obj };
+
+    // Iterate over the keys of the new object
+    for (const key in newObj) {
+        // Ensure we are only processing the object's own properties
+        if (Object.prototype.hasOwnProperty.call(newObj, key)) {
+            const value = newObj[key];
+            
+            // Check if the value is a Firestore Timestamp or a JavaScript Date
+            if (value instanceof Timestamp) {
+                newObj[key] = value.toDate().toISOString();
+            } else if (value instanceof Date) {
+                newObj[key] = value.toISOString();
+            }
+            // IMPORTANT: No recursive call here. This prevents stack overflow
+            // by only processing top-level properties. Deeper objects are left as-is.
+        }
+    }
+    
+    return newObj as T;
+}
+
+
+// REMOVED: retryOperation is temporarily disabled to make auth errors more direct.
+/*
+export async function retryOperation<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      if (attempt === maxRetries) throw error;
+      
+      if (error.code?.includes('unavailable') || 
+          error.code?.includes('deadline-exceeded') ||
+          error.code?.includes('resource-exhausted') ||
+          error.code?.includes('network-request-failed')) {
+        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("Retry operation failed after all attempts.");
+}
+*/
+
+export function getFormattedDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}

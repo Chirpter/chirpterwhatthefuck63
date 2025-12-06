@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Danh sách phát",
+  "loadingPlaylist": "Đang tải danh sách phát...",
+  "emptyPlaylist": "Danh sách phát của bạn trống",
+  "emptyPlaylistHint": "Thêm sách hoặc bộ từ vựng vào danh sách để bắt đầu nghe.",
+  "goToLibraryButton": "Khám phá thư viện",
+  "nowPlaying": {
+    "title": "Đang phát",
+    "selectItem": "Chọn một mục từ danh sách để bắt đầu."
+  },
+  "clearAllButton": "Xóa tất cả",
+  "repeatPlaylistButton": "Lặp lại danh sách phát",
+  "removeFromPlaylistConfirmation": "Bạn có chắc muốn xóa \"{{title}}\" khỏi danh sách phát không?",
+  "clearPlaylistConfirmation": "Bạn có chắc muốn xóa tất cả các mục khỏi danh sách phát không?",
+  "vocabFolder": "Bộ từ vựng"
+}

@@ -1,0 +1,101 @@
+{
+    "title": "Vocabulary",
+    "foldersTitle": "Folders",
+    "searchPlaceholder": "Search your vocabulary...",
+    "addNewTermButton": "Add New",
+    "quickAdd": {
+        "title": "Quick Add"
+    },
+    "noVocabularySaved": "No Vocabulary Saved",
+    "noVocabularyHint": "Save words from books and pieces to see them here.",
+    "noMatchingItems": "No Matching Items",
+    "noMatchingItemsHint": "Try a different search term or change your folder.",
+    "table": {
+        "term": "Term",
+        "meaning": "Meaning",
+        "example": "Example",
+        "folder": "Folder",
+        "actions": "Actions",
+        "pronounceAction": "Pronounce",
+        "goToSourceAction": "Go to source"
+    },
+    "addVocabDialog": {
+        "title": "Add New Term",
+        "description": "Manually add a new word or phrase to your collection.",
+        "termLabel": "Term",
+        "meaningLabel": "Meaning",
+        "exampleLabel": "Example",
+        "folderLabel": "Folder",
+        "saveButton": "Add Term",
+        "termRequiredError": "Term is required.",
+        "meaningRequiredError": "Meaning is required.",
+        "createFolderOption": "Create a new folder...",
+        "newFolderLabel": "New Folder Name",
+        "newFolderPlaceholder": "e.g., French Verbs",
+        "termLangLabel": "Term Language",
+        "meaningLangLabel": "Meaning Language"
+    },
+    "editVocabDialog": {
+        "title": "Edit Vocabulary Item",
+        "description": "Make changes to this vocabulary item.",
+        "saveButton": "Save Changes"
+    },
+    "deleteVocabAlert": {
+        "description": "This will permanently delete the term \"{{term}}\" from your vocabulary."
+    },
+    "backToVocabulary": "Back to Vocabulary",
+    "flashcardsTitle": "Flashcards",
+    "loadingFlashcards": "Loading your flashcards...",
+    "sessionComplete": "Session Complete!",
+    "noFlashcardSetSelectedTitle": "No Flashcard Set Selected",
+    "noFlashcardSetSelectedDescription": "Please go back and choose a folder to study.",
+    "chooseAFlashcardSet": "Choose a Set",
+    "flashcardSetEmptyTitle": "This Deck is Empty",
+    "flashcardSetEmptyDescription": "There are no cards to study in this folder. Add some words to get started!",
+    "chooseAnotherFlashcardSet": "Choose Another Set",
+    "flipHint": "Flip",
+    "forgotButton": "Forgot",
+    "rememberedButton": "Remembered",
+    "sessionCompleteTitle": "Great Job!",
+    "sessionCompleteDescription": "You've completed this study session. Keep practicing to strengthen your memory!",
+    "studyAgainButton": "Study Again",
+    "longTermFlashcard": {
+        "meaningLabel": "Meaning",
+        "inputPlaceholder": "What's the term?",
+        "checkButton": "Check Answer",
+        "correct": "That's right!",
+        "incorrect": "Not quite. The correct answer is:"
+    },
+    "learningProgress": {
+        "title": "Learning Progress"
+    },
+    "srsStates": {
+        "new": "New",
+        "learning": "Learning",
+        "shortTerm": "Reviewing",
+        "longTerm": "Mastered"
+    },
+    "noCardsInStage": {
+        "title": "Deck's Empty!",
+        "description": "You have no cards in the '{{stage}}' stage. Keep studying to move more cards here!"
+    },
+    "dailyGoal": {
+        "inProgressTitle": "Daily Goal",
+        "inProgressDescription": "Review your flashcards every day to build a strong vocabulary.",
+        "completedTitle": "Goal Reached!",
+        "completedDescription": "You've met your daily goal. Fantastic work!"
+    },
+    "srsPopover": {
+        "title": "How Spaced Repetition Works",
+        "explanation": "**New:** Cards you haven't seen yet.\n**Learning:** Just introduced. You'll see these frequently.\n**Reviewing:** You're getting the hang of it! Reviews are less frequent.\n**Mastered:** You know this! Cards are shown rarely to lock them in long-term memory."
+    },
+    "dayResetsSoon": "Day resets soon...",
+    "resetsIn": "Resets in {{hours}}:{{minutes}}:{{seconds}}",
+    "folderCard": {
+        "item": "{{count}} item",
+        "item_plural": "{{count}} items"
+    },
+    "playAll": "Play All",
+    "vocabTabTitle": "Vocab",
+    "flashcardsButton": "Flashcards"
+}

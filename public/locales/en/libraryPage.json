@@ -1,0 +1,12 @@
+{
+    "library": "Library",
+    "searchPlaceholder": "Search in your library...",
+    "createNewContentButton": "Create New",
+    "noItemsFound": "No items found",
+    "noItemsHint": "Try adjusting your filters or create something new!",
+    "libraryBookTitle": "Books",
+    "libraryPieceTitle": "Pieces",
+    "toastFailedToLoadItems": "Failed to load library items.",
+    "toastFailedToDelete": "Failed to delete {{title}}.",
+    "diaryButton": "Diary"
+}

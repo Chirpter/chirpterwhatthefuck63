@@ -1,0 +1,15 @@
+{
+  "fromSource": "From",
+  "sourceTypeBook": "Book",
+  "sourceTypePiece": "Piece",
+  "sourceDeleted": "deleted",
+  "addedManually": "Added manually",
+  "goToSource": "Go to source",
+  "pronounceLabel": "Pronounce",
+  "srsState": {
+    "new": "New",
+    "learning": "Learning",
+    "short-term": "Reviewing",
+    "long-term": "Mastered"
+  }
+}

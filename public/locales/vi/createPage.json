@@ -1,0 +1,120 @@
+
+{
+    "createContentTitle": "Sáng tạo Nội dung",
+    "addChaptersTitle": "Thêm chương mới",
+    "tabs": {
+      "book": "Sách",
+      "piece": "Tác phẩm ngắn"
+    },
+    "aiPrompt": {
+      "bookLabel": "Mô tả cuốn sách bạn muốn tạo",
+      "addChaptersBookLabel": "Mô tả những gì sẽ xảy ra trong các chương mới",
+      "pieceLabel": "Mô tả nội dung bạn muốn tạo"
+    },
+    "coverImage": {
+      "title": "Ảnh bìa",
+      "selectOptionPlaceholder": "Chọn một tùy chọn bìa",
+      "optionNone": "Không - Sử dụng bìa văn bản mặc định",
+      "optionUpload": "Tải ảnh lên",
+      "optionAi": "Tạo bằng AI (1 Tín dụng)",
+      "uploadFileLabel": "Tải lên ảnh bìa của bạn",
+      "aiPromptLabel": "Prompt tạo ảnh bìa bằng AI",
+      "aiPromptPlaceholder": "VD: Một bức tranh trừu tượng về một con rồng",
+      "proFeatureTooltip": "Tính năng Pro! Nâng cấp để tải lên hình ảnh của riêng bạn."
+    },
+    "advancedSettings": {
+      "title": "Cài đặt nâng cao",
+      "bookLengthTitle": "Độ dài sách",
+      "bookLength": {
+        "short-story": "Truyện ngắn",
+        "short-storyDescription": "~600 từ",
+        "mini-book": "Sách nhỏ",
+        "mini-bookDescription": "~1500 từ",
+        "standard-book": "Sách tiêu chuẩn",
+        "standard-bookDescription": "~4500 từ",
+        "long-book": "Sách dài",
+        "long-bookDescription": "~5000+ từ"
+      },
+      "chapterCountLabel": "Số chương",
+      "generationScopeTitle": "Phạm vi tạo",
+      "scopeFirstFew": "Dàn ý & Vài chương đầu",
+      "scopeFirstFewDesc": "Tạo dàn ý cho tất cả các chương, nhưng chỉ viết nội dung cho vài chương đầu tiên.",
+      "scopeFull": "Toàn bộ nội dung",
+      "scopeFullDesc": "Tạo nội dung cho tất cả các chương được yêu cầu cùng một lúc."
+    },
+    "languageSettings": {
+      "title": "Cài đặt ngôn ngữ",
+      "bilingualSwitch": "Nội dung song ngữ",
+      "primaryLabel": "Ngôn ngữ chính",
+      "secondaryLabel": "Ngôn ngữ phụ",
+      "selectLanguagePlaceholder": "Chọn ngôn ngữ",
+      "bilingualFormatTitle": "Định dạng song ngữ",
+      "sentenceFormat": "Từng câu một",
+      "sentenceFormatDesc": "Bản dịch xuất hiện trên một dòng mới.",
+      "phraseFormat": "Từng cụm từ",
+      "phraseFormatDesc": "Bản dịch xuất hiện bên cạnh cụm từ gốc.",
+      "languageConflictToastTitle": "Xung đột ngôn ngữ",
+      "languageConflictToastDescription": "Ngôn ngữ chính và phụ không được giống nhau.",
+      "languageConflictPiece": "Xung đột ngôn ngữ"
+    },
+    "presentationStyle": {
+      "title": "Kiểu trình bày",
+      "book": "Sách",
+      "card1x1": "Thẻ (1:1)",
+      "card3x4": "Thẻ (3:4)",
+      "card4x3": "Thẻ (4:3)"
+    },
+    "generateButton": {
+      "default": "Tạo",
+      "addChapters": "Thêm chương",
+      "viewBook": "Xem sách",
+      "viewWork": "Xem tác phẩm",
+      "loading": "Đang tạo..."
+    },
+    "formErrors": {
+      "prompt": {
+        "empty": "Prompt không được để trống.",
+        "tooLong": "Prompt quá dài."
+      },
+      "language": {
+        "secondaryMissing": "Vui lòng chọn ngôn ngữ phụ cho nội dung song ngữ.",
+        "sameLanguage": "Ngôn ngữ chính và phụ phải khác nhau."
+      },
+      "chapters": {
+        "outOfRange": "Số chương phải từ {{min}} đến {{max}}."
+      },
+      "cover": {
+        "uploadMissing": "Vui lòng chọn một tệp để tải lên."
+      }
+    },
+    "previewArea": {
+      "bookPlaceholder": "Bìa sách của bạn sẽ xuất hiện ở đây.",
+      "bookTitle": "Sách của tôi",
+      "bookAuthor": "Bởi Bạn",
+      "mobilePiecePlaceholderTitle": "Bản xem trước",
+      "mobilePiecePlaceholderDescription": "Nội dung ngắn của bạn sẽ được xem trước ở đây trên màn hình lớn hơn.",
+      "piecePlaceholderDesktopHint": "Nội dung ngắn của bạn sẽ xuất hiện ở đây.",
+      "pieceTitleDesktop": "Xem trước nội dung",
+      "pieceCreatedTitle": "Đã tạo nội dung!",
+      "openFullBookButton": "Mở trong Trình đọc"
+    },
+    "status": {
+      "contentProcessing": "Đang viết câu chuyện của bạn...",
+      "coverProcessing": "Đang tạo ảnh bìa của bạn...",
+      "finishing": "Đang hoàn tất tác phẩm của bạn..."
+    },
+    "finalState": {
+      "allSuccessTitle": "Tạo xong!",
+      "allSuccessDesc": "Tác phẩm mới của bạn đã sẵn sàng trong thư viện.",
+      "contentSuccessCoverFailTitle": "Nội dung xong, Bìa thất bại",
+      "contentSuccessCoverFailDesc": "Nội dung sách của bạn đã sẵn sàng, nhưng ảnh bìa không tạo được.",
+      "contentFailCoverSuccessTitle": "Bìa xong, Nội dung thất bại",
+      "contentFailCoverSuccessDesc": "Ảnh bìa của bạn đã sẵn sàng, nhưng nội dung sách không tạo được.",
+      "allFailTitle": "Tạo thất bại",
+      "allFailDesc": "Rất tiếc, cả việc tạo nội dung và bìa đều thất bại."
+    },
+    "addChapters": {
+      "summaryLabel": "Tóm tắt các chương trước (Tự động điền)",
+      "summaryPlaceholder": "Đang tải tóm tắt..."
+    }
+}

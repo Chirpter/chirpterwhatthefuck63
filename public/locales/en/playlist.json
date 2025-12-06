@@ -1,0 +1,17 @@
+
+{
+    "pageTitle": "Playlist",
+    "emptyPlaylist": "Your Playlist is Empty",
+    "emptyPlaylistHint": "Add books from your library to start listening.",
+    "clearAllButton": "Clear All",
+    "clearPlaylistConfirmation": "Are you sure you want to clear your entire playlist?",
+    "removeFromPlaylistConfirmation": "Are you sure you want to remove \"{{title}}\" from your playlist?",
+    "repeatPlaylistButton": "Repeat Playlist",
+    "nowPlaying": {
+        "selectItem": "Select an item from the list to play."
+    },
+    "emptyDeckTitle": "This folder is empty.",
+    "emptyDeckDesc": "Add some vocabulary words to this folder to listen to them.",
+    "playDeckError": "Could not play this vocabulary deck.",
+    "addDeckError": "Could not add this vocabulary deck to the playlist."
+}

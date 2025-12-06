@@ -1,0 +1,7 @@
+
+{
+    "notFoundTitle": "Content Not Found",
+    "notFoundDescription": "We couldn't find the content you were looking for. It might have been deleted.",
+    "failedToLoadContent": "Failed to load the content.",
+    "pageOf": "Page {{currentPage}} of {{totalPages}}"
+}

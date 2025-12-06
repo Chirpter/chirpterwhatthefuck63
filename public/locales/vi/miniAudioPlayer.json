@@ -1,0 +1,35 @@
+
+{
+    "previousItem": "Mục trước",
+    "skipBackwardTooltip": "Tua lại",
+    "skipForwardTooltip": "Tua tới",
+    "nextItem": "Mục kế tiếp",
+    "progressTooltip": "Tìm trong nội dung",
+    "audioSettings": {
+      "title": "Cài đặt âm thanh",
+      "play": "Phát",
+      "pause": "Tạm dừng",
+      "rateLabel": "Tốc độ",
+      "pitchLabel": "Cao độ",
+      "voiceLabel": "Giọng đọc ({{lang}})",
+      "voiceLabelPrimary": "Giọng đọc ({{lang}})",
+      "voiceLabelSecondary": "Giọng đọc ({{lang}})",
+      "selectVoice": "Chọn một giọng đọc",
+      "noVoicesForLang": "Không có giọng đọc cho ngôn ngữ này",
+      "repeatModeLabel": "Chế độ lặp lại",
+      "repeatOff": "Tắt lặp lại",
+      "repeatOffShort": "Tắt",
+      "repeatItem": "Lặp lại mục",
+      "repeatItemShort": "Mục",
+      "autoplayLabel": "Tự động phát mục tiếp theo",
+      "autoplayDescription": "Tự động phát mục tiếp theo trong danh sách phát khi mục hiện tại kết thúc."
+    },
+    "sleepTimer": {
+      "title": "Hẹn giờ ngủ",
+      "off": "Tắt",
+      "option10min": "10 phút",
+      "option15min": "15 phút",
+      "option30min": "30 phút",
+      "option60min": "60 phút"
+    }
+}

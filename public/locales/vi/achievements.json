@@ -1,0 +1,64 @@
+{
+  "title": "Thành Tích",
+  "dailyTasks": "Nhiệm Vụ Hàng Ngày",
+  "milestones": "Cột Mốc",
+  "claim": "Nhận",
+  "claimWithCount": "Nhận {{count}}",
+  "claimed": "Đã nhận",
+  "tabs": {
+    "missions": "Nhiệm Vụ",
+    "superBadges": "Huy Hiệu Siêu Cấp"
+  },
+  "claimSuccess": {
+    "title": "Đã nhận phần thưởng!",
+    "description": "Bạn đã nhận được {{count}} credits!"
+  },
+  "claimError": {
+    "description": "Không thể nhận phần thưởng. Vui lòng thử lại."
+  },
+  "daily_login": {
+    "name": "Đăng Nhập Hàng Ngày",
+    "tierName": "Ngày {{count}}",
+    "description": "Đăng nhập mỗi ngày để duy trì chuỗi và nhận thưởng."
+  },
+  "consistent_creator": {
+    "name": "Nhà Sáng Tạo Kiên Trì",
+    "tierName": "Chuỗi {{count}} ngày",
+    "description": "Duy trì chuỗi ngày đăng nhập."
+  },
+  "ai_author": {
+    "name": "Tác Giả AI",
+    "tierName": "Tạo {{count}} cuốn sách",
+    "description": "Dùng sự sáng tạo của bạn để tạo sách với AI."
+  },
+  "piece_by_piece": {
+    "name": "Từng Mảnh Ghép",
+    "tierName": "Tạo {{count}} tác phẩm",
+    "description": "Tạo các nội dung ngắn đa dạng."
+  },
+  "word_collector": {
+    "name": "Nhà Sưu Tầm Từ Vựng",
+    "tierName": "Lưu {{count}} từ",
+    "description": "Mở rộng vốn từ vựng của bạn bằng cách lưu từ mới."
+  },
+  "memory_constructor": {
+    "name": "Kiến Trúc Sư Trí Nhớ",
+    "tierName": "Thuần thục {{count}} flashcard",
+    "description": "Củng cố trí nhớ của bạn bằng cách học flashcard."
+  },
+  "audio_learner": {
+    "name": "Thính Giả Ham Học",
+    "tierName": "Thêm {{count}} bộ từ vựng vào playlist",
+    "description": "Nghe và học bằng cách thêm từ vựng vào playlist."
+  },
+  "ai_painter": {
+    "name": "Họa Sĩ AI",
+    "tierName": "Tạo {{count}} bìa sách bằng AI",
+    "description": "Thổi hồn vào những cuốn sách của bạn bằng ảnh bìa AI."
+  },
+  "language_bridge": {
+    "name": "Cầu Nối Ngôn Ngữ",
+    "tierName": "Tạo {{count}} tác phẩm song ngữ",
+    "description": "Kết nối các thế giới bằng cách tạo nội dung song ngữ."
+  }
+}

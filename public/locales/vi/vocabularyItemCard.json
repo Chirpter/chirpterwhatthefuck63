@@ -1,0 +1,15 @@
+{
+  "fromSource": "Từ",
+  "sourceTypeBook": "Sách",
+  "sourceTypePiece": "Tác phẩm",
+  "sourceDeleted": "đã xóa",
+  "addedManually": "Thêm thủ công",
+  "goToSource": "Đi đến nguồn",
+  "pronounceLabel": "Phát âm",
+  "srsState": {
+    "new": "Mới",
+    "learning": "Đang học",
+    "short-term": "Đang ôn",
+    "long-term": "Thành thạo"
+  }
+}

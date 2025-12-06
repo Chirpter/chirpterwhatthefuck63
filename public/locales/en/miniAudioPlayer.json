@@ -1,0 +1,35 @@
+
+{
+    "previousItem": "Previous item",
+    "skipBackwardTooltip": "Skip Backward",
+    "skipForwardTooltip": "Skip Forward",
+    "nextItem": "Next Item",
+    "progressTooltip": "Seek in content",
+    "audioSettings": {
+      "title": "Audio Settings",
+      "play": "Play",
+      "pause": "Pause",
+      "rateLabel": "Speed",
+      "pitchLabel": "Pitch",
+      "voiceLabel": "Voice ({{lang}})",
+      "voiceLabelPrimary": "Voice ({{lang}})",
+      "voiceLabelSecondary": "Voice ({{lang}})",
+      "selectVoice": "Select a voice",
+      "noVoicesForLang": "No voices for this language",
+      "repeatModeLabel": "Repeat Mode",
+      "repeatOff": "Repeat Off",
+      "repeatOffShort": "Off",
+      "repeatItem": "Repeat Item",
+      "repeatItemShort": "Item",
+      "autoplayLabel": "Autoplay Next Item",
+      "autoplayDescription": "Automatically play the next item in the playlist when the current one finishes."
+    },
+    "sleepTimer": {
+      "title": "Sleep Timer",
+      "off": "Off",
+      "option10min": "10 minutes",
+      "option15min": "15 minutes",
+      "option30min": "30 minutes",
+      "option60min": "60 minutes"
+    }
+}

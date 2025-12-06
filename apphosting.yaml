@@ -1,0 +1,23 @@
+# Settings to manage and configure a Firebase App Hosting backend.
+# https://firebase.google.com/docs/app-hosting/configure
+
+# NEW: Configure a longer timeout for server-side functions (Flows).
+# The default is 60s. We increase it to 120s to safely handle longer tasks
+# like AI generation or web scraping, which is a key advantage over platforms
+# with very short timeouts (e.g., Supabase Edge Functions at ~15s).
+timeoutSeconds: 120
+
+runConfig:
+  # Increase this value if you'd like to automatically spin up
+  # more instances in response to increased traffic.
+  maxInstances: 1
+# Add rate limiting to prevent abuse of resource-intensive functions.
+# This helps prevent users from cheating achievements by running scripts.
+rateLimits:
+  - maxConcurrentRequests: 100 # Allow up to 100 concurrent requests globally.
+  - bucketId: "create-content" # A specific bucket for content creation functions.
+    maxRequests: 10 # Limit users to 10 creation requests...
+    intervalSeconds: 60 # ...per minute to prevent spamming.
+  - bucketId: "claim-achievement" # A specific bucket for claiming achievements.
+    maxRequests: 5 # Limit users to 5 claim requests...
+    intervalSeconds: 60 # ...per minute to prevent abuse.

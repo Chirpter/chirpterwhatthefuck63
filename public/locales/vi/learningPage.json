@@ -1,0 +1,44 @@
+
+{
+    "learningTools": "Công cụ học tập",
+    "learningToolsHint": "Nâng cao kỹ năng ngôn ngữ của bạn với các công cụ được hỗ trợ bởi AI.",
+    "launchTool": "Khởi chạy",
+    "vocabClips": {
+      "title": "Từ vựng trong Video",
+      "description": "Tìm kiếm một từ và xem các clip YouTube thực tế sử dụng từ đó trong ngữ cảnh.",
+      "searchPlaceholder": "Nhập một từ hoặc cụm từ...",
+      "searching": "Đang tìm clip cho bạn...",
+      "initialTitle": "Tìm từ trong ngữ cảnh",
+      "initialDescription": "Nhập một từ hoặc cụm từ ở trên để xem cách nó được sử dụng trong các cuộc trò chuyện thực tế từ YouTube.",
+      "noResultsTitle": "Không tìm thấy Clip nào",
+      "noResultsDescription": "Chúng tôi không thể tìm thấy bất kỳ video clip nào cho \"{{term}}\". Vui lòng thử một từ khác.",
+      "previousButton": "Trước",
+      "nextButton": "Tiếp",
+      "searchNoticeTitle": "Lưu ý về Tìm kiếm Clip",
+      "searchNoticeDescription": "Công cụ này đang trong giai đoạn thử nghiệm và chỉ tìm kiếm trong một bộ video được lập chỉ mục giới hạn. Kết quả có thể khác nhau."
+    },
+    "youtubeTranscript": {
+      "pageTitle": "Trích xuất phụ đề YouTube",
+      "urlPlaceholder": "Dán URL video YouTube vào đây...",
+      "getTranscriptButton": "Lấy phụ đề",
+      "loading": "Đang lấy phụ đề...",
+      "errorTitle": "Không thể lấy phụ đề",
+      "initialTitle": "Lấy bất kỳ phụ đề YouTube nào",
+      "initialDescription": "Dán URL video YouTube ở trên để nhận ngay bản ghi đầy đủ của nó. Tuyệt vời cho việc học tập và phân tích.",
+      "transcriptTitle": "Bản ghi phụ đề",
+      "copyButton": "Sao chép"
+    },
+    "haiku": {
+      "title": "Đảo chính Haiku",
+      "description": "Biến bất kỳ ý tưởng hoặc văn bản nào thành một bài thơ haiku có cấu trúc đẹp. Một cách thú vị để luyện tập ngôn ngữ ngắn gọn."
+    },
+    "ielts": {
+      "title": "Huấn luyện viên IELTS",
+      "description": "Luyện tập các câu hỏi nói IELTS với một huấn luyện viên AI, người cung cấp phản hồi về sự trôi chảy, ngữ pháp và từ vựng."
+    },
+    "settingsPage": {
+        "learningTools": {
+          "wordLookupDescription": "Nhấp vào bất kỳ từ nào khi đang đọc để nhận bản dịch và định nghĩa tức thì."
+        }
+    }
+}

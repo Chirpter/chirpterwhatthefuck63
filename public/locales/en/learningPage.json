@@ -1,0 +1,37 @@
+{
+    "learningTools": "Learning Tools",
+    "learningToolsHint": "Practice and master your vocabulary.",
+    "vocabClips": {
+        "title": "Vocab in Clips",
+        "description": "Learn words with short video contexts.",
+        "pageTitle": "Vocabulary in Video Clips",
+        "searchPlaceholder": "Search for a word...",
+        "initialStateTitle": "Find any word in context",
+        "initialStateDescription": "Enter a word above to find video clips where it's used.",
+        "noClipsFound": "No clips found for \"{{term}}\"",
+        "videoPlaceholderTitle": "Video Player",
+        "videoPlaceholderDescription": "Clips will appear here once you search for a term.",
+        "seeTranslation": "See Translation",
+        "translationError": "Could not get translation at this time.",
+        "nextClip": "Next Clip",
+        "previousClip": "Previous Clip"
+    },
+    "shadowing": {
+        "title": "Shadowing",
+        "description": "Practice pronunciation by mimicking native speakers.",
+        "initialStateTitle": "Start Your Shadowing Practice",
+        "initialStateDescription": "Paste a YouTube URL above to load a transcript and begin.",
+        "videoPlaceholderTitle": "Video Player",
+        "videoPlaceholderDescription": "Your video will appear here once a transcript is loaded.",
+        "notesTitle": "Notes & Analysis",
+        "analysisComingSoon": "AI-powered analysis of your speech is coming soon.",
+        "hideText": "Hide transcript",
+        "showText": "Show transcript",
+        "checkAnswer": "Check",
+        "editAnswer": "Edit"
+    },
+    "flashcards": {
+        "title": "Flashcards",
+        "description": "Review your saved words with spaced repetition."
+    }
+}

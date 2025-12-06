@@ -1,0 +1,99 @@
+
+{
+  "title": "Kho từ vựng",
+  "description": "Quản lý các từ bạn đã lưu.",
+  "searchPlaceholder": "Tìm kiếm từ vựng...",
+  "addNewTermButton": "Thêm từ mới",
+  "addFolderButton": "Thêm thư mục",
+  "allFolders": "Tất cả thư mục",
+  "table": {
+    "term": "Từ",
+    "meaning": "Nghĩa",
+    "example": "Ví dụ",
+    "folder": "Thư mục",
+    "actions": "Hành động",
+    "pronounceAction": "Phát âm",
+    "goToSourceAction": "Đi đến nguồn"
+  },
+  "addVocabDialog": {
+    "title": "Thêm từ vựng mới",
+    "description": "Thêm một từ hoặc cụm từ mới vào bộ sưu tập của bạn.",
+    "termLabel": "Từ/Cụm từ",
+    "termLangLabel": "Ngôn ngữ của từ",
+    "meaningLabel": "Nghĩa",
+    "meaningLangLabel": "Ngôn ngữ của nghĩa",
+    "exampleLabel": "Ví dụ",
+    "folderLabel": "Thư mục",
+    "saveButton": "Lưu từ",
+    "createFolderOption": "Tạo thư mục mới...",
+    "newFolderLabel": "Tên thư mục mới",
+    "newFolderPlaceholder": "Nhập tên thư mục mới",
+    "termRequiredError": "Từ hoặc cụm từ là bắt buộc.",
+    "meaningRequiredError": "Nghĩa của từ là bắt buộc."
+  },
+  "editVocabDialog": {
+    "title": "Chỉnh sửa từ vựng",
+    "description": "Cập nhật thông tin cho từ vựng này.",
+    "saveButton": "Lưu thay đổi"
+  },
+  "deleteVocabAlert": {
+    "description": "Hành động này sẽ xóa vĩnh viễn từ \"{{term}}\" khỏi kho từ vựng của bạn."
+  },
+  "noVocabularySaved": "Chưa có từ vựng nào được lưu",
+  "noVocabularyHint": "Hãy bắt đầu bằng cách đọc sách và lưu lại các từ mới!",
+  "noMatchingItems": "Không tìm thấy từ vựng",
+  "noMatchingItemsHint": "Hãy thử một từ khóa khác hoặc xóa bộ lọc.",
+  "quickAdd": {
+    "title": "Thêm nhanh"
+  },
+  "foldersTitle": "Thư mục",
+  "flashcardsButton": "Flashcards",
+  "backToVocabulary": "Quay lại Kho từ vựng",
+  "flashcardsTitle": "Học từ vựng",
+  "loadingFlashcards": "Đang tải flashcards...",
+  "noFlashcardSetSelectedTitle": "Chưa chọn bộ flashcard",
+  "noFlashcardSetSelectedDescription": "Vui lòng quay lại và chọn một bộ từ vựng để bắt đầu học.",
+  "chooseAFlashcardSet": "Chọn một bộ flashcard",
+  "sessionComplete": "Hoàn thành phiên học!",
+  "sessionCompleteTitle": "Xuất sắc!",
+  "sessionCompleteDescription": "Bạn đã hoàn thành tất cả các thẻ trong phiên này. Hãy tiếp tục luyện tập nhé!",
+  "studyAgainButton": "Học lại",
+  "chooseAnotherFlashcardSet": "Chọn bộ flashcard khác",
+  "flipHint": "Nhấn để lật",
+  "forgotButton": "Quên",
+  "rememberedButton": "Nhớ",
+  "longTermFlashcard": {
+    "meaningLabel": "Nghĩa là:",
+    "inputPlaceholder": "Nhập từ tương ứng...",
+    "checkButton": "Kiểm tra",
+    "correct": "Chính xác!",
+    "incorrect": "Chưa đúng. Đáp án là:"
+  },
+  "dailyGoal": {
+    "inProgressTitle": "Mục tiêu hàng ngày",
+    "inProgressDescription": "Tiếp tục học để hoàn thành mục tiêu hôm nay!",
+    "completedTitle": "Đã hoàn thành mục tiêu!",
+    "completedDescription": "Làm tốt lắm! Hãy quay lại vào ngày mai."
+  },
+  "learningProgress": {
+    "title": "Tiến trình học tập"
+  },
+  "resetsIn": "Làm mới sau {{hours}}:{{minutes}}:{{seconds}}",
+  "dayResetsSoon": "Ngày học sẽ sớm được làm mới!",
+  "srsPopover": {
+    "title": "Hệ thống Lặp lại ngắt quãng (SRS) hoạt động như thế nào?",
+    "explanation": "**Học (Learning):** Bạn đang tích cực học từ này. Nó sẽ xuất hiện thường xuyên.\n**Ngắn hạn (Short-term):** Bạn đã nhớ từ này. Nó sẽ xuất hiện ít thường xuyên hơn.\n**Dài hạn (Long-term):** Bạn đã nắm vững từ này! Nó sẽ được kiểm tra lại sau một thời gian dài."
+  },
+  "srsStates": {
+    "new": "Mới",
+    "learning": "Đang học",
+    "shortTerm": "Ngắn hạn",
+    "longTerm": "Dài hạn"
+  },
+  "noCardsInStage": {
+    "title": "Không có thẻ nào",
+    "description": "Không có thẻ nào trong giai đoạn '{{stage}}'. Hãy tiếp tục học để lấp đầy nó!"
+  },
+  "vocabTabTitle": "Từ vựng",
+  "playAll": "Phát tất cả"
+}

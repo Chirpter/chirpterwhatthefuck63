@@ -1,0 +1,64 @@
+{
+  "title": "Achievements",
+  "dailyTasks": "Daily Missions",
+  "milestones": "Milestones",
+  "claim": "Claim",
+  "claimWithCount": "Claim {{count}}",
+  "claimed": "Claimed",
+  "tabs": {
+    "missions": "Missions",
+    "superBadges": "Super Badges"
+  },
+  "claimSuccess": {
+    "title": "Reward Claimed!",
+    "description": "You have received {{count}} credits!"
+  },
+  "claimError": {
+    "description": "Could not claim the reward. Please try again."
+  },
+  "daily_login": {
+    "name": "Daily Login",
+    "tierName": "Day {{count}}",
+    "description": "Log in every day to keep the streak and earn rewards."
+  },
+  "consistent_creator": {
+    "name": "Consistent Creator",
+    "tierName": "{{count}} day streak",
+    "description": "Maintain a login streak."
+  },
+  "ai_author": {
+    "name": "AI Author",
+    "tierName": "Create {{count}} books",
+    "description": "Use your creativity to generate books with AI."
+  },
+  "piece_by_piece": {
+    "name": "Piece by Piece",
+    "tierName": "Create {{count}} pieces",
+    "description": "Create various short-form content."
+  },
+  "word_collector": {
+    "name": "Word Collector",
+    "tierName": "Save {{count}} words",
+    "description": "Expand your vocabulary by saving new words."
+  },
+  "memory_constructor": {
+    "name": "Memory Constructor",
+    "tierName": "Master {{count}} flashcards",
+    "description": "Strengthen your memory by mastering flashcards."
+  },
+  "audio_learner": {
+    "name": "Audio Learner",
+    "tierName": "Add {{count}} vocab set to playlist",
+    "description": "Listen and learn by adding vocabulary to your playlist."
+  },
+  "ai_painter": {
+    "name": "AI Painter",
+    "tierName": "Generate {{count}} cover with AI",
+    "description": "Bring your books to life with AI-generated cover art."
+  },
+  "language_bridge": {
+    "name": "Language Bridge",
+    "tierName": "Create {{count}} bilingual creations",
+    "description": "Connect worlds by creating bilingual content."
+  }
+}

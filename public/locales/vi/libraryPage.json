@@ -1,0 +1,14 @@
+
+{
+  "library": "Thư viện",
+  "searchPlaceholder": "Tìm kiếm sách, tác phẩm...",
+  "searchPlaceholderAria": "Tìm kiếm trong thư viện của bạn",
+  "createNewContentButton": "Tạo Nội dung Mới",
+  "noItemsFound": "Không tìm thấy nội dung",
+  "noItemsHint": "Hãy thử tạo một cuốn sách hoặc tác phẩm mới!",
+  "toastFailedToLoadItems": "Không thể tải nội dung. Vui lòng thử lại.",
+  "toastFailedToDelete": "Xóa \"{{title}}\" thất bại.",
+  "libraryBookTitle": "Sách",
+  "libraryPieceTitle": "Tác phẩm",
+  "diaryButton": "Nhật ký"
+}

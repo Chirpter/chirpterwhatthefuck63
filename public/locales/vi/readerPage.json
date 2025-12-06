@@ -1,0 +1,7 @@
+
+{
+    "notFoundTitle": "Không tìm thấy nội dung",
+    "notFoundDescription": "Chúng tôi không thể tìm thấy nội dung bạn đang tìm. Nó có thể đã bị xóa.",
+    "failedToLoadContent": "Không thể tải nội dung.",
+    "pageOf": "Trang {{currentPage}} / {{totalPages}}"
+}

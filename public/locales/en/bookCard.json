@@ -1,0 +1,25 @@
+
+{
+    "byAuthor": "By {{author}}",
+    "coverProcessing": "Creating cover...",
+    "coverError": "Cover Failed",
+    "retryUpload": "Re-upload",
+    "fixAndRetryCover": "Fix & Retry",
+    "contentError": "Content Failed",
+    "retryContent": "Retry",
+    "fixAndRetryContent": "Fix & Retry",
+    "processing": "Processing...",
+    "processingFailedBoth": "Content & Cover Failed",
+    "processingFailedContent": "Content generation failed.",
+    "processingFailedCover": "Cover generation failed.",
+    "untitled": "Untitled",
+    "deleteBook": "Delete",
+    "addToPlaylist": "Add to Playlist",
+    "regenerateCover": "Regenerate Cover",
+    "uploadCover": "Upload Cover",
+    "originalPromptLabel": "Original Prompt",
+    "fixAndRetryDescription": "The AI model may have refused the prompt due to safety filters. Please adjust the prompt and try again.",
+    "lastErrorLabel": "Last Error",
+    "regenerateButton": "Regenerate",
+    "toastBookmarkError": "Failed to save bookmark choice."
+}
