@@ -122,7 +122,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
         primaryLanguage: bookFormData.primaryLanguage,
         availableLanguages: [...new Set(availableLanguages)],
-        bilingualFormat: bookFormData.isBilingual ? bookFormData.bilingualFormat : 'sentence',
+        bilingualFormat: bookFormData.bilingualFormat,
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
         intendedLength: bookFormData.bookLength,

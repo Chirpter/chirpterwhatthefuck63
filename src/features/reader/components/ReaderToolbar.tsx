@@ -31,10 +31,9 @@ interface ReaderToolbarProps {
   settings: EditorSettings;
   onSettingsChange: (updates: Partial<EditorSettings>) => void;
   onClose: () => void;
-  // --- Language Control Props ---
-  availableLanguages: string[]; // e.g., ['en', 'vi', 'ko']
-  displayLang1: string; // The selected primary display language code
-  displayLang2: string; // The selected secondary display language code ('none' if monolingual)
+  availableLanguages: string[];
+  displayLang1: string;
+  displayLang2: string;
   onDisplayLang1Change: (langCode: string) => void;
   onDisplayLang2Change: (langCode: string) => void;
   onTranslateRequest?: (targetLang: string) => void;
@@ -49,7 +48,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
   displayLang2,
   onDisplayLang1Change,
   onDisplayLang2Change,
-  onTranslateRequest, // Placeholder for future feature
+  onTranslateRequest,
 }) => {
   const { t } = useTranslation('readerPage');
   
@@ -88,15 +87,12 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     return LANGUAGES.find(l => l.value === code)?.label || code;
   };
 
-  // Languages available for the secondary display slot, excluding the primary selection.
   const secondaryDisplayOptions = LANGUAGES.filter(lang => lang.value !== displayLang1);
 
   const handleSecondaryLanguageSelect = (langCode: string) => {
     if (availableLanguages.includes(langCode) || langCode === 'none') {
       onDisplayLang2Change(langCode);
     } else {
-      // This is where the translation would be triggered.
-      // For now, we'll call the placeholder function.
       if (onTranslateRequest) {
         onTranslateRequest(langCode);
       } else {
@@ -160,7 +156,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                                 <DropdownMenuRadioItem key={`l2-${lang.value}`} value={lang.value}>
                                     <div className="flex items-center justify-between w-full">
                                         <span>{lang.label}</span>
-                                        {!isAlreadyAvailable && (
+                                        {!isAlreadyAvailable && onTranslateRequest && (
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <div className="p-1" onClick={(e) => { e.stopPropagation(); handleSecondaryLanguageSelect(lang.value); }}>

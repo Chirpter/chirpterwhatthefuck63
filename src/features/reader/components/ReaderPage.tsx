@@ -27,7 +27,7 @@ import { getItemSegments } from '@/services/MarkdownParser';
 import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { getLibraryItemById } from '@/services/library-service';
+import { getLibraryItemById } from '@/services/client/library-service';
 import { PageContentRenderer } from './PageContentRenderer';
 
 const LookupPopover = dynamic(() => import('@/features/reader/components/LookupPopover'), { ssr: false });
@@ -79,31 +79,15 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [displayLang1, setDisplayLang1] = useState(item?.primaryLanguage || 'en');
   const [displayLang2, setDisplayLang2] = useState('none'); // 'none' means monolingual view
   
-  // The languages available in the book data (e.g., ['en', 'vi'])
-  const availableLanguages = useMemo(() => {
-    if (!item?.content) return [];
-    const firstSegment = getItemSegments(item, 0)[0];
-    if (!firstSegment) return [item.primaryLanguage].filter(Boolean) as string[];
-    
-    // Check both content and phrases for language keys
-    const langKeys = new Set<string>();
-    if (firstSegment.content) {
-        Object.keys(firstSegment.content).forEach(k => langKeys.add(k));
-    }
-    if (firstSegment.phrases && firstSegment.phrases[0]) {
-        Object.keys(firstSegment.phrases[0]).forEach(k => langKeys.add(k));
-    }
-    
-    return Array.from(langKeys);
-  }, [item]);
+  // The languages available in the book data (e.g., ['vi', 'en', 'fr'])
+  const availableLanguages = useMemo(() => item?.availableLanguages || [], [item]);
 
   // When the item loads, set the initial display languages
   useEffect(() => {
     if (item) {
         setDisplayLang1(item.primaryLanguage || 'en');
-        // If the book is bilingual, automatically select the secondary language for display.
-        // Otherwise, default to 'none' for a monolingual view.
-        setDisplayLang2(item.isBilingual ? (item.secondaryLanguage || 'none') : 'none');
+        // Default to monolingual view. The user can choose a secondary language.
+        setDisplayLang2('none');
     }
   }, [item]);
   
@@ -469,14 +453,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                           displayLang1={displayLang1}
                           displayLang2={displayLang2}
                           onDisplayLang1Change={setDisplayLang1}
-                          onDisplayLang2Change={(lang) => {
-                            // FUTURE: This is where we would trigger the on-demand translation flow.
-                            // If `availableLanguages` does not include the new `lang`,
-                            // we would show a confirmation to the user and then call a server action
-                            // like `translateAndUpgradeBook(book.id, lang)`.
-                            // For now, we just set the state.
-                            setDisplayLang2(lang);
-                          }}
+                          onDisplayLang2Change={setDisplayLang2}
                       />
                     </div>
                   )}
