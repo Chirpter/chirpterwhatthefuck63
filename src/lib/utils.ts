@@ -1,4 +1,5 @@
 
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { UserPlan, SrsState, VocabularyItem, LibraryItem } from "./types";
@@ -165,28 +166,29 @@ export const calculateVirtualMS = (item: VocabularyItem, currentDate: Date): num
     return Math.max(1, isFinite(virtualStrength) ? virtualStrength : memoryStrength);
 };
 
-export function convertTimestamps<T extends { [key: string]: any }>(obj: T): T {
+/**
+ * Deeply converts any Firestore Timestamp or Date objects in an object or array to ISO strings.
+ * This is crucial for passing data from Server Components to Client Components.
+ * @param obj - The object or array to process.
+ * @returns A new object or array with all timestamps converted to strings.
+ */
+export function convertTimestamps<T>(obj: T): T {
     if (!obj || typeof obj !== 'object') {
         return obj;
     }
 
-    // Create a shallow copy to avoid mutating the original object
-    const newObj: { [key: string]: any } = { ...obj };
+    if (obj instanceof Timestamp || obj instanceof Date) {
+        return (obj as any).toDate().toISOString();
+    }
 
-    // Iterate over the keys of the new object
-    for (const key in newObj) {
-        // Ensure we are only processing the object's own properties
-        if (Object.prototype.hasOwnProperty.call(newObj, key)) {
-            const value = newObj[key];
-            
-            // Check if the value is a Firestore Timestamp or a JavaScript Date
-            if (value instanceof Timestamp) {
-                newObj[key] = value.toDate().toISOString();
-            } else if (value instanceof Date) {
-                newObj[key] = value.toISOString();
-            }
-            // IMPORTANT: No recursive call here. This prevents stack overflow
-            // by only processing top-level properties. Deeper objects are left as-is.
+    if (Array.isArray(obj)) {
+        return obj.map(item => convertTimestamps(item)) as any;
+    }
+
+    const newObj: { [key: string]: any } = {};
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            newObj[key] = convertTimestamps(obj[key]);
         }
     }
     

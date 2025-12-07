@@ -110,7 +110,8 @@ export async function updateLibraryItem(userId: string, itemId: string, updates:
  * Server-side function to fetch global books.
  */
 export async function getGlobalBooks(
-  options: { limit?: number; startAfter?: DocumentData | null; all?: boolean, forSale?: boolean }
+  options: { limit?: number; startAfter?: DocumentData | null; all?: boolean, forSale?: boolean },
+  signal?: AbortSignal
 ): Promise<{ items: Book[]; lastDoc: DocumentData | null }> {
   
   const { limit: queryLimit = 20, startAfter: startAfterDoc = null, all = false, forSale = false } = options;
@@ -132,6 +133,8 @@ export async function getGlobalBooks(
     query = query.limit(queryLimit);
 
     const querySnapshot = await query.get();
+
+    if (signal?.aborted) throw new Error("Aborted");
 
     const items = querySnapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
@@ -166,4 +169,24 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 
     // In a real scenario, you would trigger the background generation pipeline here.
     // For this mock, we'll just update the status.
+}
+
+
+export async function getLibraryItemById(userId: string, itemId: string): Promise<LibraryItem | null> {
+    if (!userId || !itemId) return null;
+    const adminDb = getAdminDb();
+    const docRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(itemId);
+    
+    try {
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+            const rawData = docSnap.data();
+            const item = { id: docSnap.id, ...rawData };
+            return convertTimestamps(item) as LibraryItem;
+        }
+        return null;
+    } catch (error) {
+        console.error(`Error fetching item ${itemId} (server):`, error);
+        throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE', error as Error);
+    }
 }

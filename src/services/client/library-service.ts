@@ -10,6 +10,33 @@ import { ApiServiceError } from '@/lib/errors';
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
 /**
+ * Fetches a single library item by its ID from the client side.
+ * @param userId - The user's UID.
+ * @param itemId - The ID of the item to fetch.
+ * @returns A promise that resolves to the LibraryItem object or null if not found.
+ */
+export async function getLibraryItemById(userId: string, itemId: string): Promise<LibraryItem | null> {
+    if (!userId || !itemId) return null;
+
+    const docRef = doc(db, getLibraryCollectionPath(userId), itemId);
+
+    try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const rawData = docSnap.data();
+            const item = { id: docSnap.id, ...rawData };
+            // Ensure any timestamp objects are converted before returning
+            return convertTimestamps(item) as LibraryItem;
+        }
+        return null;
+    } catch (error) {
+        console.error(`Error in getLibraryItemById (client) for item ${itemId}:`, error);
+        throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE', error as Error);
+    }
+}
+
+
+/**
  * Fetches multiple library items by their IDs from the client side.
  * @param userId - The user's UID.
  * @param itemIds - An array of item IDs to fetch.

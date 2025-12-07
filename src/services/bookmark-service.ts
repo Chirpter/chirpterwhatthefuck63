@@ -1,8 +1,10 @@
 
+
 import { collection, getDocs, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SystemBookmark, BookmarkMetadata } from '@/lib/types';
 import { ApiServiceError } from '@/lib/errors';
+import { convertTimestamps } from '@/lib/utils';
 
 /**
  * Fetches all system-defined bookmarks from Firestore.
@@ -12,7 +14,7 @@ export async function getSystemBookmarks(): Promise<SystemBookmark[]> {
     try {
         const q = query(collection(db, 'systemBookmarks'));
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SystemBookmark));
+        return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() }) as SystemBookmark);
     } catch (error) {
         console.error("Error fetching system bookmarks:", error);
         throw new ApiServiceError('Failed to fetch system bookmarks.', 'FIRESTORE', error as Error);
@@ -27,7 +29,7 @@ export async function getBookmarkMetadata(): Promise<BookmarkMetadata[]> {
     try {
         const q = query(collection(db, 'bookmarkMetadata'));
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BookmarkMetadata));
+        return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() }) as BookmarkMetadata);
     } catch (error) {
         console.error("Error fetching bookmark metadata:", error);
         throw new ApiServiceError('Failed to fetch bookmark metadata.', 'FIRESTORE', error as Error);
