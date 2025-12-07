@@ -37,40 +37,23 @@ export default function LoginView() {
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
-  // Display toast messages based on logout reasons from URL, handled by middleware.
   useEffect(() => {
     const reason = searchParams.get('reason');
     if (reason === 'logged_out') {
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out.",
-        duration: 3000,
-      });
+      toast({ title: "Logged Out", description: "You have been successfully logged out." });
     } else if (reason === 'session_expired' || reason === 'session_revoked') {
-      toast({
-        title: "Session Expired",
-        description: "Please log in again.",
-        variant: "destructive",
-        duration: 4000,
-      });
+      toast({ title: "Session Expired", description: "Please log in again.", variant: "destructive" });
     }
   }, [searchParams, toast]);
   
-  // This effect handles the redirection *after* a successful login.
-  // It no longer needs to check authUser, it just triggers a reload.
   const handleLoginSuccess = () => {
-    console.log("[LoginView] ✅ User authenticated, preparing redirect...");
     toast({ 
       title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
       description: "Redirecting you to the library...",
-      duration: 2000
     });
     
     const nextPath = searchParams.get('next') || '/library/book';
-    console.log(`[LoginView] Redirecting to ${nextPath}...`);
-    // A hard reload is the simplest way to ensure the new session cookie is sent
-    // to the middleware for all subsequent requests.
-    window.location.href = nextPath;
+    router.push(nextPath); // Use router.push for a smoother transition
   };
 
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
@@ -94,8 +77,9 @@ export default function LoginView() {
     setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
   };
 
-  // If Firebase is still checking the initial auth state, show a loader.
-  if (isAuthLoading) {
+  // If Firebase is still checking the initial auth state OR if the user is already authenticated, show a loader.
+  // The middleware will handle the redirection, so the loader just prevents a flash of the login page.
+  if (isAuthLoading || authUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Logo className="h-16 w-16 animate-pulse text-primary" />
