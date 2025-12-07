@@ -48,6 +48,11 @@ interface SpeakOptions {
   onError?: (event?: SpeechSynthesisErrorEvent) => void;
 }
 
+/**
+ * Speaks a given text using the browser's SpeechSynthesis API.
+ * Ensures that any currently speaking utterance is cancelled before starting a new one.
+ * @param options - The configuration for the speech synthesis.
+ */
 export function speak(options: SpeakOptions) {
   if (typeof window === 'undefined' || !window.speechSynthesis) {
     console.error('Speech Synthesis not supported.');
@@ -73,6 +78,8 @@ export function speak(options: SpeakOptions) {
     }
 
     utterance.onend = () => {
+      // Only fire the onEnd callback if this is still the active utterance.
+      // This prevents callbacks from cancelled utterances from firing.
       if (utterance === activeUtterance) {
           options.onEnd?.();
           activeUtterance = null;
@@ -97,27 +104,41 @@ export function speak(options: SpeakOptions) {
   });
 }
 
+/**
+ * Cancels the currently speaking or pending utterance.
+ * Returns a Promise that resolves when the cancellation is complete.
+ * This is crucial because `speechSynthesis.cancel()` can be asynchronous.
+ */
 export function cancel(): Promise<void> {
    return new Promise((resolve) => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
+        // If something is actively speaking or queued
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-            // Set a listener for the end of the current utterance, which also fires on cancel.
+            // The `onend` event of an utterance is reliably fired when it is cancelled.
+            // We set a one-time listener on the utterance that is currently active.
             const currentUtterance = activeUtterance;
             if (currentUtterance) {
                 currentUtterance.onend = () => {
-                    activeUtterance = null;
-                    resolve();
+                    activeUtterance = null; // Clean up reference
+                    resolve(); // Signal that cancellation is complete
                 };
             }
         }
-        activeUtterance = null; // Prevent any lingering callbacks from firing
+        
+        // Immediately nullify the active utterance reference to prevent any lingering
+        // callbacks (like onBoundary) from firing after cancel() has been called.
+        activeUtterance = null; 
+        
+        // Trigger the cancellation. The onend handler above will then resolve the promise.
         window.speechSynthesis.cancel();
-        // If nothing was speaking, resolve immediately.
+        
+        // If nothing was speaking in the first place, we can resolve immediately.
         if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
             resolve();
         }
       } else {
-        resolve(); // Resolve if speech synthesis is not available.
+        // If speech synthesis is not available, there's nothing to cancel.
+        resolve(); 
       }
    });
 }
