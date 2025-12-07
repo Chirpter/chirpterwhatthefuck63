@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useCallback, lazy, Suspense, useState, useEffect, useMemo } from 'react';
@@ -378,3 +379,4 @@ export default function LibraryView(props: LibraryViewProps) {
     </AudioPlayerProvider>
   );
 }
+
