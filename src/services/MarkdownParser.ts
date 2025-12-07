@@ -2,21 +2,18 @@
  * @fileoverview Enhanced Markdown Parser - Architecture Aligned
  * Converts AI markdown output into structured, unified segments.
  * Supports monolingual, and multilingual content by parsing structured pairs.
+ * NEW: Now supports phrase-by-phrase pairing for inline translation views.
  */
 
 import { remark } from 'remark';
-import type { Root, Content, ListItem } from 'mdast';
+import type { Root, Content } from 'mdast';
 import type { 
-  LibraryItem, 
   Book, 
-  Piece, 
-  Chapter, 
   BilingualFormat,
   Segment,
-  SegmentMetadata,
-  ChapterStats,
-  TextFormatting,
-  ChapterTitle
+  Chapter,
+  ChapterTitle,
+  PhraseMap
 } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
@@ -54,10 +51,10 @@ function splitIntoSentences(text: string): string[] {
 }
 
 /**
- * UPGRADED: A more robust bilingual content pairing logic.
+ * UPGRADED: A more robust bilingual content pairing logic for sentences.
  * It now uses a specific separator ` / ` to pair sentences.
  */
-function pairBilingualContent(sentences: string[], config: ParseConfig): { [langCode: string]: string }[] {
+function pairBilingualSentences(sentences: string[], config: ParseConfig): { [langCode: string]: string }[] {
     const { primaryLanguage, secondaryLanguage, isBilingual } = config;
 
     if (!isBilingual || !secondaryLanguage) {
@@ -74,12 +71,35 @@ function pairBilingualContent(sentences: string[], config: ParseConfig): { [lang
                 [secondaryLanguage]: parts.slice(1).join(' / ').trim()
             });
         } else {
-            // If there's no separator, assume it's a primary language line
             pairs.push({ [primaryLanguage]: line.trim() });
         }
     });
 
     return pairs;
+}
+
+/**
+ * NEW: Logic to pair bilingual phrases within a single sentence pair.
+ * This is a heuristic-based approach that splits by commas and punctuation.
+ * It's not perfect but works for many common cases.
+ */
+function pairBilingualPhrases(primarySentence: string, secondarySentence: string): PhraseMap[] {
+    // Regex to split by commas, semicolons, or colons, but keep the delimiter
+    const phraseSplitRegex = /([,;:]| - )/;
+    const primaryPhrases = primarySentence.split(phraseSplitRegex).map(p => p.trim()).filter(Boolean);
+    const secondaryPhrases = secondarySentence.split(phraseSplitRegex).map(p => p.trim()).filter(Boolean);
+
+    // If the number of phrases matches, we can map them directly.
+    if (primaryPhrases.length === secondaryPhrases.length) {
+        return primaryPhrases.map((phrase, index) => ({
+            primary: phrase,
+            secondary: secondaryPhrases[index],
+            order: index
+        }));
+    }
+
+    // Fallback: If they don't match, return the whole sentence as a single phrase.
+    return [{ primary: primarySentence, secondary: secondarySentence, order: 0 }];
 }
 
 
@@ -152,27 +172,34 @@ export function parseMarkdownToSegments(
               if (!paragraphText) break;
 
               const sentences = splitIntoSentences(paragraphText);
-              const contentObjects = pairBilingualContent(sentences, config);
+              const sentencePairs = pairBilingualSentences(sentences, config);
               
-              contentObjects.forEach((contentObj, index) => {
-                 const primaryText = contentObj[config.primaryLanguage];
+              sentencePairs.forEach((sentencePair, index) => {
+                 const primaryText = sentencePair[config.primaryLanguage];
                  if (!primaryText) return;
 
                  const isDialogue = detectDialogue(primaryText);
+                 let phrases: PhraseMap[] | undefined = undefined;
+
+                 // If format is 'phrase' and we have both languages, create phrase map
+                 if (config.bilingualFormat === 'phrase' && isBilingual && secondaryLanguage && sentencePair[secondaryLanguage]) {
+                     phrases = pairBilingualPhrases(primaryText, sentencePair[secondaryLanguage]);
+                 }
                  
                  segments.push({
                    id: generateLocalUniqueId(),
                    order: globalSegmentOrder++,
                    type: isDialogue ? 'dialog' : 'text',
-                   content: contentObj,
+                   content: sentencePair,
                    formatting: {},
                    metadata: {
                      isParagraphStart: isParagraphStart && index === 0 && !isListItem,
                      wordCount: Object.fromEntries(
-                        Object.entries(contentObj).map(([lang, text]) => [lang, calculateWordCount(text)])
+                        Object.entries(sentencePair).map(([lang, text]) => [lang, calculateWordCount(text)])
                      ),
                      primaryLanguage: config.primaryLanguage,
-                   }
+                   },
+                   phrases, // Add the generated phrases array
                  });
               });
               
@@ -352,8 +379,7 @@ export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Se
   console.log(`[getItemSegments] Called for item: ${item.id}, chapterIndex: ${chapterIndex}`);
   try {
     if (item.type === 'piece') {
-      const piece = item as Piece;
-      return piece.content || [];
+      return (item as any).content || [];
     } 
     
     if (item.type === 'book') {

@@ -56,6 +56,14 @@ export interface SegmentMetadata {
   style?: string; 
 }
 
+/**
+ * @interface PhraseMap
+ * @description Represents a pair of corresponding phrases in two languages.
+ * This is the data structure that enables the "inline phrase" learning mode.
+ * It is generated ONCE on the server and stored within a Segment.
+ * @example
+ * { primary: "The dragon flew", secondary: "Con rồng bay", order: 0 }
+ */
 export interface PhraseMap {
   primary: string;
   secondary: string;
@@ -66,8 +74,11 @@ export interface PhraseMap {
 /**
  * @interface Segment
  * @description The fundamental building block of all readable content in the application.
- * Think of it as a single "Lego" piece. It can be a sentence, a heading, an image, etc.
- * This granular structure is key to enabling advanced interactive features.
+ * It represents a single sentence or a similar semantic unit.
+ * ARCHITECTURAL NOTE: This is the smallest unit of data from the database. 
+ * For "inline phrase" mode, we pre-process and store an array of `phrases` within
+ * this segment. This keeps the data structure consistent and allows the client to be a "dumb"
+ * renderer, without needing to perform complex NLP tasks like splitting sentences into phrases.
  */
 export interface Segment {
   id: string;
@@ -78,12 +89,15 @@ export interface Segment {
    * @example
    * // For a bilingual text segment:
    * content: { en: "He opened the door.", vi: "Anh ấy đã mở cửa." }
-   * // For a monolingual heading:
-   * content: { en: "Chapter 1" }
    */
   content: MultilingualContent;
   formatting: TextFormatting;
   metadata: SegmentMetadata;
+  /**
+   * @property {PhraseMap[]} [phrases] - Optional array of paired phrases.
+   * This is ONLY populated if the bilingual format is 'phrase'.
+   * If present, the client should render the content phrase-by-phrase.
+   */
   phrases?: PhraseMap[];
 }
 
