@@ -18,6 +18,7 @@ import {
 interface AuthContextType {
   authUser: FirebaseUser | null;
   loading: boolean;
+  isSessionReady: boolean;
   isSigningIn: boolean;
   error: string | null;
   signUpWithEmail: (email: string, pass: string) => Promise<boolean>;
@@ -36,22 +37,20 @@ async function setSessionCookie(idToken: string): Promise<boolean> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error("[AuthContext] Failed to set session cookie:", errorData.error || response.statusText);
-    return false;
-  }
-  return true;
+  return response.ok;
 }
 
-async function clearSessionCookie(): Promise<void> {
-  await fetch('/api/auth/session', { method: 'DELETE' });
+async function clearSessionCookie(): Promise<boolean> {
+  const response = await fetch('/api/auth/session', { method: 'DELETE' });
+  return response.ok;
 }
+
 
 // --- Auth Provider Component ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -60,6 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setAuthUser(user);
       setLoading(false);
+      // Session is not ready until a new cookie is set after login
+      setIsSessionReady(!!user); 
     });
     return () => unsubscribe();
   }, []);
@@ -97,8 +98,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const idToken = await user.getIdToken(true);
       const cookieSet = await setSessionCookie(idToken);
       
-      if (!cookieSet) throw new Error("Could not create a server session.");
+      if (!cookieSet) {
+          throw new Error("Could not create a server session. Please try again.");
+      }
       
+      setIsSessionReady(true);
       return true;
     } catch (err: any) {
       handleAuthError(err);
@@ -125,22 +129,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
+      // Sign out from Firebase client first
       await signOut(auth);
-      await clearSessionCookie();
-      // Redirect to login page after successful server-side cookie clearing
-      router.push('/login?reason=logged_out');
+      // Then, clear the session cookie on the server
+      const cookieCleared = await clearSessionCookie();
+      if (!cookieCleared) {
+          console.warn("[AuthContext] Server-side session cookie clearing failed, but proceeding with client logout.");
+      }
     } catch (error) {
-      console.error('[AuthContext] Logout error:', error);
-      // Fallback redirect
-      router.push('/login?reason=logout_error');
+      console.error('[AuthContext] Error during logout process:', error);
+    } finally {
+      // Regardless of server success, redirect to login. Middleware will enforce auth.
+      setIsSessionReady(false);
+      window.location.href = '/login';
     }
-  }, [router]);
+  }, []);
 
   const clearAuthError = useCallback(() => setError(null), []);
 
   const value: AuthContextType = { 
     authUser, 
     loading, 
+    isSessionReady,
     isSigningIn,
     error,
     logout, 
