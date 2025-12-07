@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React from 'react';
@@ -233,5 +232,3 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     </div>
   );
 };
-
-  

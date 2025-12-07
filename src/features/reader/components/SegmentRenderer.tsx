@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -53,8 +54,8 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     return content;
   }
 
-  const primaryContent = segment.content[displayLang1];
-  const secondaryContent = displayLang2 !== 'none' ? segment.content[displayLang2] : undefined;
+  const primaryContent = segment.content?.[displayLang1];
+  const secondaryContent = displayLang2 !== 'none' ? segment.content?.[displayLang2] : undefined;
 
   const renderText = () => {
     const primarySpan = primaryContent && (
@@ -124,7 +125,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
       return (
         <div data-segment-id={segment.id} className="my-4 w-full">
           <Image
-            src={primaryContent}
+            src={primaryContent || ''}
             alt={secondaryContent || "content image"}
             width={500}
             height={300}
