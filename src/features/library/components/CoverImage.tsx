@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React from 'react';
@@ -59,13 +58,13 @@ export const CoverImage: React.FC<CoverImageProps> = ({
 
         return (
           <div className="w-full h-full bg-gradient-to-br from-destructive/20 to-background flex flex-col items-center justify-center p-4 text-center">
-            <Icon name="Info" className="h-10 w-10 text-destructive mb-2" />
+            <Icon name="AlertCircle" className="h-10 w-10 text-destructive mb-2" />
             <p className="text-xs font-semibold text-destructive mb-3">{t('coverError')}</p>
             {onRegenerate && (
                 <Button variant="destructive" size="sm" onClick={onRegenerate} disabled={isRetrying || retryCount >= 3}>
                     {isRetrying ? <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> : <Icon name="RotateCw" className="mr-2 h-4 w-4" />}
                     {buttonText}
-                    {cover?.type === 'ai' && retryCount > 0 && ` (${retryCount}/3)`}
+                    {cover?.type === 'ai' && !isPromptError && retryCount > 0 && ` (${retryCount}/3)`}
                 </Button>
             )}
           </div>
@@ -103,5 +102,3 @@ export const CoverImage: React.FC<CoverImageProps> = ({
     </div>
   );
 };
-
-  

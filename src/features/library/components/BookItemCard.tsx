@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Book, LibraryItem, BookmarkType, SystemBookmark } from "@/lib/types";
@@ -122,16 +123,19 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
   };
 
   const isContentPromptError = useMemo(() =>
-    book.contentError && /safety|invalid|blocked/i.test(book.contentError),
+    book.contentError && /safety|invalid|blocked|prompt/i.test(book.contentError),
     [book.contentError]
   );
   
   const handleContentRetry = () => {
+    if (isRetryingContent || !user) return;
+    
     setIsRetryingContent(true);
+    
     if (isContentPromptError) {
         setItemToRegenerateContent(book);
         setIsRetryingContent(false); 
-    } else if (user) {
+    } else {
         regenerateBookContent(user.uid, book.id)
             .then(() => toast({ title: t('toast:regenContentTitle'), description: t('toast:regenDesc') }))
             .catch(err => toast({ title: t('common:error'), description: (err as Error).message, variant: 'destructive'}))
@@ -140,24 +144,27 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
   };
 
   const isCoverPromptError = useMemo(() =>
-    book.coverError && /safety|invalid|blocked/i.test(book.coverError),
+    book.coverError && /safety|invalid|blocked|prompt/i.test(book.coverError),
     [book.coverError]
   );
   
   const handleCoverRetry = () => {
+    if (isRetryingCover || !user) return;
+
     setIsRetryingCover(true);
+    
     if (book.cover?.type === 'upload') {
         coverUploadInputRef.current?.click();
         setIsRetryingCover(false);
         return;
     }
     
-    if (user) {
-        regenerateBookCover(user.uid, book.id)
-            .then(() => toast({ title: t('toast:regenCoverTitle'), description: t('toast:regenDesc') }))
-            .catch(err => toast({ title: t('common:error'), description: (err as Error).message, variant: 'destructive'}))
-            .finally(() => setIsRetryingCover(false));
-    }
+    // If it's an AI prompt error, we don't have a UI for that here yet, so we just retry.
+    // A more advanced version could open a dialog to edit the prompt.
+    regenerateBookCover(user.uid, book.id)
+        .then(() => toast({ title: t('toast:regenCoverTitle'), description: t('toast:regenDesc') }))
+        .catch(err => toast({ title: t('common:error'), description: (err as Error).message, variant: 'destructive'}))
+        .finally(() => setIsRetryingCover(false));
   };
   
   const [newCoverPrompt, setNewCoverPrompt] = useState('');
@@ -350,7 +357,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
                       <button onClick={handleContentRetry} disabled={isRetryingContent || (book.contentRetryCount || 0) >= 3}>
                         {isRetryingContent ? <Icon name="Wand2" className="mr-1 h-3 w-3 animate-pulse" /> : <Icon name="RotateCw" className="mr-1 h-3 w-3" />}
                         {isContentPromptError ? t('fixAndRetryContent') : t('retryContent')}
-                        {(book.contentRetryCount || 0) > 0 && ` (${(book.contentRetryCount || 0)}/3)`}
+                        {(book.contentRetryCount || 0) > 0 && !isContentPromptError && ` (${(book.contentRetryCount || 0)}/3)`}
                       </button>
                     </Badge>
                   )}
