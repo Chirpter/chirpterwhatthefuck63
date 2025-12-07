@@ -1,3 +1,4 @@
+// src/components/layout/AppLayoutContent.tsx
 
 "use client";
 
@@ -11,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import AppHeader from './AppHeader';
 import { Logo } from '../ui/Logo';
 import { AppErrorManager } from '@/services/error-manager';
-import { useSessionVerification } from '@/hooks/useSessionVerification';
 
+// Lazy load the LevelUpDialog as it's not always needed
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
 
+// A simple loader component
 const InitialLoader = ({ message = "Loading..." }: { message?: string }) => (
     <div className="flex h-screen w-full items-center justify-center">
       <div className="text-center">
@@ -24,6 +26,7 @@ const InitialLoader = ({ message = "Loading..." }: { message?: string }) => (
     </div>
 );
 
+// A component to show when user profile fails to load
 const UserProfileError = ({ error, onRetry, onLogout }: { 
   error: string; 
   onRetry: () => void; 
@@ -49,7 +52,7 @@ const UserProfileError = ({ error, onRetry, onLogout }: {
 );
 
 export default function AppLayoutContent({ children }: { children: React.ReactNode }) {
-  const { authUser, isSessionReady, loading: isAuthLoading, logout } = useAuth();
+  const { authUser, loading: isAuthLoading, logout } = useAuth();
   const { 
     user, 
     loading: isUserLoading, 
@@ -59,22 +62,21 @@ export default function AppLayoutContent({ children }: { children: React.ReactNo
     retryUserFetch
   } = useUser();
 
-  useSessionVerification();
-
+  // Initialize global error manager once
   useEffect(() => {
     AppErrorManager.initialize();
   }, []);
   
-  if (isAuthLoading || (authUser && !isSessionReady)) {
-    return <InitialLoader message={isAuthLoading ? "Authenticating..." : "Securing session..."} />;
+  if (isAuthLoading) {
+    return <InitialLoader message="Authenticating..." />;
   }
 
-  if (isUserLoading) {
-    return <InitialLoader message="Loading your profile..." />;
-  }
-  
   if (!authUser) {
      return <InitialLoader message="Redirecting..." />;
+  }
+  
+  if (isUserLoading) {
+    return <InitialLoader message="Loading your profile..." />;
   }
 
   return (

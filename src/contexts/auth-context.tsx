@@ -1,3 +1,5 @@
+// src/contexts/auth-context.tsx
+
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
@@ -16,10 +18,9 @@ import { checkRateLimit, recordFailedAttempt, clearFailedAttempts } from '@/lib/
 
 interface AuthContextType {
   authUser: FirebaseUser | null;
-  isSessionReady: boolean;
-  loading: boolean;
+  loading: boolean; // True while Firebase is initializing its state
+  isSigningIn: boolean; // True ONLY during the async login/signup process
   error: string | null;
-  isSigningIn: boolean;
   signUpWithEmail: (email: string, pass: string) => Promise<boolean>;
   signInWithEmail: (email: string, pass: string) => Promise<boolean>;
   signInWithGoogle: () => Promise<boolean>;
@@ -29,161 +30,90 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolean> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[Auth] Setting session cookie (attempt ${attempt}/${maxRetries})...`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
-      const response = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-        credentials: 'include',
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-      
-      console.log('[Auth] ✅ Session cookie set successfully');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      return true;
-      
-    } catch (error) {
-      const isLastAttempt = attempt === maxRetries;
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      
-      console.error(`[Auth] ❌ Session cookie attempt ${attempt} failed:`, errorMsg);
-      
-      if (isLastAttempt) {
-        throw new Error(`Failed to set session after ${maxRetries} attempts: ${errorMsg}`);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+// Helper to call our API route to set the session cookie
+async function setSessionCookie(idToken: string): Promise<boolean> {
+  try {
+    console.log("[Auth] Attempting to set session cookie...");
+    const response = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `API responded with status ${response.status}`);
     }
+    
+    console.log("[Auth] ✅ Session cookie set successfully.");
+    return true;
+  } catch (error) {
+    console.error("[Auth] ❌ Failed to set session cookie:", error);
+    return false;
   }
-  return false;
 }
 
+// Helper to call our API route to clear the session cookie
 async function clearSessionCookie(): Promise<void> {
   try {
-    console.log('[Auth] Clearing session cookie...');
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    await fetch('/api/auth/session', { 
-      method: 'DELETE',
-      credentials: 'include',
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
-    console.log('[Auth] ✅ Session cookie cleared');
-    
+    console.log("[Auth] Attempting to clear session cookie...");
+    await fetch('/api/auth/session', { method: 'DELETE' });
+    console.log("[Auth] ✅ Session cookie cleared request sent.");
   } catch (error) {
-    console.warn('[Auth] ⚠️  Failed to clear session cookie:', error);
+    console.warn("[Auth] ⚠️  Failed to clear session cookie:", error);
   }
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
-  const [isSessionReady, setIsSessionReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Subscribe to Firebase Auth state changes
   useEffect(() => {
-    console.log('[Auth] 👂 Setting up auth state listener');
-    
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      const status = currentUser ? `✅ User: ${currentUser.uid}` : '🚫 No user';
-      console.log(`[Auth] State changed: ${status}`);
-      
-      setAuthUser(currentUser);
-      
-      if (!currentUser) {
-        setIsSessionReady(false);
-      }
-      
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log(`[Auth] State changed. User: ${user ? user.uid : 'null'}`);
+      setAuthUser(user);
       setLoading(false);
     });
-    
-    return () => {
-      console.log('[Auth] 🔌 Cleaning up auth listener');
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   const handleAuthError = useCallback((err: any) => {
     let message = 'An unexpected error occurred. Please try again.';
-    let eventData: Record<string, any> = {};
-    
     switch (err.code) {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
-        message = 'Invalid email or password. Please try again.';
-        eventData = { reason: 'invalid_credentials' };
-        logAuthEvent('login_failed', eventData);
+        message = 'Invalid email or password.';
         break;
-        
       case 'auth/email-already-in-use':
-        message = 'This email is already registered. Please sign in instead.';
+        message = 'This email is already registered. Please sign in.';
         break;
-        
       case 'auth/weak-password':
         message = 'Password must be at least 6 characters long.';
         break;
-        
-      case 'auth/invalid-email':
-        message = 'Please enter a valid email address.';
-        break;
-        
       case 'auth/too-many-requests':
         message = 'Too many failed attempts. Please try again later.';
-        eventData = { reason: 'too_many_requests' };
-        logAuthEvent('rate_limit_hit', eventData);
         break;
-        
-      case 'auth/popup-closed-by-user':
-        message = 'Sign-in cancelled. Please try again if needed.';
-        break;
-        
-      case 'auth/popup-blocked':
-        message = 'Popup blocked. Please allow popups and try again.';
-        break;
-        
-      case 'auth/network-request-failed':
-        message = 'Network error. Please check your connection and try again.';
-        break;
-        
+      // Add other common Firebase error codes as needed
       default:
-        console.error('[Auth] ❌ Unhandled error:', err);
-        eventData = { error: err.code || err.message || 'unknown' };
-        logAuthEvent('auth_error', eventData);
+        console.error('[Auth] Unhandled auth error:', err);
     }
-    
     setError(message);
+    logAuthEvent('login_failed', { error_code: err.code, error_message: message });
   }, []);
-  
+
   const performAuthOperation = useCallback(async (
     operation: () => Promise<FirebaseUser | null>, 
     emailForRateLimit?: string
   ): Promise<boolean> => {
+    // Rate limit check
     if (emailForRateLimit) {
-      const rateLimitCheck = checkRateLimit(emailForRateLimit);
-      if (!rateLimitCheck.allowed) {
-        const waitMinutes = Math.ceil(rateLimitCheck.waitTime / 60);
-        setError(`Too many failed attempts. Try again in ${waitMinutes} minute${waitMinutes > 1 ? 's' : ''}.`);
+      const { allowed, waitTime } = checkRateLimit(emailForRateLimit);
+      if (!allowed) {
+        setError(`Too many attempts. Try again in ${Math.ceil(waitTime / 60)} minutes.`);
         return false;
       }
     }
@@ -192,40 +122,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      console.log('[Auth] 🔐 Starting authentication...');
+      // 1. Perform the Firebase auth operation (e.g., signInWithEmailAndPassword)
       const user = await operation();
-      
       if (!user) {
-        console.warn('[Auth] ⚠️  Auth operation returned no user');
-        return false;
+        throw new Error("Authentication failed: No user returned.");
       }
       
-      console.log(`[Auth] ✅ User authenticated: ${user.uid}`);
-      console.log('[Auth] 🎫 Getting ID token...');
-      
+      // 2. Get the ID token from the authenticated user
       const idToken = await user.getIdToken(true);
       
-      console.log('[Auth] 🍪 Creating session cookie...');
-      await setSessionCookie(idToken);
+      // 3. Send the token to our API to create a session cookie
+      const cookieSet = await setSessionCookie(idToken);
+      if (!cookieSet) {
+        throw new Error("Could not create a server session.");
+      }
       
-      setIsSessionReady(true);
-      
+      // 4. On success, clear any previous failed attempts
       if (emailForRateLimit) {
         clearFailedAttempts(emailForRateLimit);
       }
       
-      console.log('[Auth] 🎉 Authentication completed successfully');
+      console.log("[Auth] ✅ Full auth flow successful.");
       return true;
-      
+
     } catch (err: any) {
-      console.error('[Auth] ❌ Authentication failed:', err);
-      
       if (emailForRateLimit) {
         recordFailedAttempt(emailForRateLimit);
       }
-      
       handleAuthError(err);
-      setIsSessionReady(false);
       return false;
       
     } finally {
@@ -233,76 +157,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [handleAuthError]);
 
+  // --- Public API Functions ---
+
   const signUpWithEmail = useCallback((email: string, pass: string) => 
-    performAuthOperation(
-      () => createUserWithEmailAndPassword(auth, email, pass).then(c => c.user), 
-      email
-    ), [performAuthOperation]);
+    performAuthOperation(() => createUserWithEmailAndPassword(auth, email, pass).then(c => c.user), email),
+    [performAuthOperation]
+  );
 
   const signInWithEmail = useCallback((email: string, pass: string) => 
-    performAuthOperation(
-      () => signInWithEmailAndPassword(auth, email, pass).then(c => c.user), 
-      email
-    ), [performAuthOperation]);
-
+    performAuthOperation(() => signInWithEmailAndPassword(auth, email, pass).then(c => c.user), email),
+    [performAuthOperation]
+  );
+  
   const signInWithGoogle = useCallback(() => 
-    performAuthOperation(
-      () => signInWithPopup(auth, new GoogleAuthProvider())
-        .then(c => c.user)
-        .catch(err => {
-          handleAuthError(err);
-          return null;
-        })
-    ), [performAuthOperation, handleAuthError]);
+    performAuthOperation(() => signInWithPopup(auth, new GoogleAuthProvider()).then(c => c.user)),
+    [performAuthOperation]
+  );
 
   const logout = useCallback(async () => {
-    console.log('[Auth] 🚪 Starting logout sequence...');
-    
+    console.log('[Auth] 🚪 Starting logout...');
     try {
-      // 🔥 CRITICAL: Clear local state FIRST to prevent redirects
-      console.log('[Auth] 1️⃣ Clearing local auth state...');
-      setAuthUser(null);
-      setIsSessionReady(false);
-      setError(null);
-      
-      // 2. Clear session cookie (non-blocking, best effort)
-      console.log('[Auth] 2️⃣ Clearing session cookie...');
-      await clearSessionCookie().catch(err => {
-        console.warn('[Auth] Cookie clear failed (non-critical):', err);
-      });
-      
-      // 3. Sign out from Firebase
-      console.log('[Auth] 3️⃣ Signing out from Firebase...');
+      // 1. Sign out from Firebase client-side SDK
       await signOut(auth);
       
-      console.log('[Auth] ✅ Logout completed');
+      // 2. Clear the server-side session cookie by calling our API
+      await clearSessionCookie();
       
-      // 4. Hard redirect to login (bypass Next.js router to prevent state issues)
-      console.log('[Auth] 4️⃣ Redirecting to login...');
-      window.location.replace('/login?reason=logged_out');
-      
+      // 3. Force a reload. The middleware will see no session and redirect to /login.
+      // This is the most reliable way to clear all state.
+      window.location.href = '/login?reason=logged_out';
     } catch (error) {
       console.error('[Auth] ❌ Logout error:', error);
-      
-      // Nuclear option: Force clear everything and redirect
-      setAuthUser(null);
-      setIsSessionReady(false);
-      
-      // Use replace instead of href to avoid back button issues
-      window.location.replace('/login?reason=logout_error');
+      // Fallback: still try to redirect
+      window.location.href = '/login?reason=logout_error';
     }
   }, []);
 
-  const clearAuthError = useCallback(() => {
-    setError(null);
-  }, []);
+  const clearAuthError = useCallback(() => setError(null), []);
 
   const value: AuthContextType = { 
     authUser, 
-    isSessionReady,
     loading, 
-    error,
     isSigningIn,
+    error,
     logout, 
     signUpWithEmail, 
     signInWithEmail,
@@ -310,11 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearAuthError,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {

@@ -1,380 +1,292 @@
-"use client";
+'use client';
 
-import React, { useCallback, lazy, Suspense, useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useEffect, useState, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icons';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useLibrary } from '@/features/library/hooks/useLibrary';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { STATUS_FILTERS } from '@/lib/constants';
-import Link from 'next/link';
-import type { LibraryItem, Book, Piece, VocabularyItem, BookmarkType, OverallStatus, CombinedBookmark } from '@/lib/types';
-import { cn } from '@/lib/utils';
-import { AnimatePresence, motion } from 'framer-motion';
-import { LibraryContext } from '../contexts/LibraryContext';
-import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import { useToast } from '@/hooks/useToast';
-import { useVocabulary } from '@/features/vocabulary/hooks/useVocabulary';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { BookmarkStyleProvider } from './BookmarkStyleProvider';
-import { AudioPlayerProvider } from '@/contexts/audio-player-context';
-import { getSystemBookmarks, getBookmarkMetadata } from '@/services/bookmark-service';
+import { AuthForm } from '@/features/auth/components/AuthForm';
+import { Logo } from '@/components/ui/Logo';
 
-// Lazy load components
-const BookItemCard = dynamic(() => import('./BookItemCard').then(mod => mod.BookItemCard), {
-    loading: () => <Skeleton className="h-80 w-full" />,
-});
-const PieceItemCard = dynamic(() => import('./PieceItemCard').then(mod => mod.PieceItemCard), {
-    loading: () => <Skeleton className="h-64 w-full" />,
-});
-const ProcessingBookItemCard = dynamic(() => import('./ProcessingBookItemCard').then(mod => mod.ProcessingBookItemCard), {
-    loading: () => <Skeleton className="h-80 w-full" />,
-});
-const AddVocabDialog = dynamic(() => import('@/features/vocabulary/components/dialogs/AddVocabDialog'), { ssr: false });
-const AddFolderDialog = dynamic(() => import('@/features/vocabulary/components/dialogs/AddFolderDialog'), { ssr: false });
-const VocabularyView = dynamic(() => import('@/features/vocabulary/components/vocab/VocabularyView'), { ssr: false });
+const GoogleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px">
+    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.99,34.556,44,29.865,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
+  </svg>
+);
 
-interface LibraryViewProps {
-  contentType: 'book' | 'piece' | 'vocabulary';
-}
+type RedirectState = 'idle' | 'waiting_session' | 'redirecting' | 'blocked';
 
-function LibraryViewContent({ contentType }: LibraryViewProps) {
-  const { t } = useTranslation(['libraryPage', 'common', 'bookCard', 'vocabularyPage', 'toast', 'presets']);
+export default function LoginView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { 
+    authUser, 
+    isSessionReady,
+    loading: isAuthLoading, 
+    error: authError, 
+    isSigningIn,
+    signUpWithEmail, 
+    signInWithEmail,
+    signInWithGoogle,
+    clearAuthError,
+  } = useAuth();
   const { toast } = useToast();
   
-  const [availableBookmarks, setAvailableBookmarks] = useState<CombinedBookmark[]>([]);
-  const [bookmarksLoading, setBookmarksLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [redirectState, setRedirectState] = useState<RedirectState>('idle');
+  const hasRedirectedRef = useRef(false);
+  const mountTimeRef = useRef(Date.now());
 
+  // 🔥 Debug: Log all state changes
   useEffect(() => {
-    const fetchBookmarks = async () => {
-        try {
-            const [systemBookmarks, metadata] = await Promise.all([
-                getSystemBookmarks(),
-                getBookmarkMetadata()
-            ]);
-            const metadataMap = new Map(metadata.map(m => [m.id, m]));
-            const combined = systemBookmarks.map(bookmark => ({
-                ...bookmark,
-                ...(metadataMap.get(bookmark.id) || {}),
-            }));
-            setAvailableBookmarks(combined);
-        } catch (error) {
-            console.error("Failed to load global bookmark data:", error);
-        } finally {
-            setBookmarksLoading(false);
-        }
-    };
-    fetchBookmarks();
-  }, []);
+    console.log('[LoginView] 🔍 State:', {
+      authUser: authUser?.uid,
+      isSessionReady,
+      redirectState,
+      hasRedirected: hasRedirectedRef.current,
+      timeSinceMount: Date.now() - mountTimeRef.current,
+      reason: searchParams.get('reason'),
+    });
+  }, [authUser, isSessionReady, redirectState, searchParams]);
 
-  const [isAddVocabDialogOpen, setIsAddVocabDialogOpen] = useState(false);
-  const [isAddFolderDialogOpen, setIsAddFolderDialogOpen] = useState(false);
-  
-  const isVocabActive = contentType === 'vocabulary';
-  
-  // useLibrary no longer needs initialItems
-  const libraryHook = useLibrary({ 
-      contentType: isVocabActive ? 'book' : contentType,
-  });
-  
-  const vocabularyHook = useVocabulary({ enabled: isVocabActive });
-  
-  const {
-    filteredItems,
-    itemToDelete,
-    isDeleting,
-    handleDelete,
-    cancelDelete,
-    handleBookmarkChange,
-    confirmDelete,
-    isLoading 
-  } = libraryHook;
-  
-  const libraryContextValue = useMemo(() => ({
-    availableBookmarks,
-    onBookmarkChange: handleBookmarkChange,
-    onDelete: confirmDelete,
-  }), [availableBookmarks, handleBookmarkChange, confirmDelete]);
-  
-  const handleTabChange = (value: string) => {
-    router.push(`/library/${value}`);
-  };
-
-  const handleAddFolderSuccess = useCallback((newFolderName: string) => {
-    vocabularyHook.addTransientFolder(newFolderName);
-    vocabularyHook.setFolderFilter(newFolderName);
-    setIsAddFolderDialogOpen(false);
-  }, [vocabularyHook]);
-
-  const handleAddVocabSuccess = useCallback(async (newItemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memoryStrength' | 'streak' | 'attempts' | 'lastReviewed' | 'dueDate'>) => {
-    try {
-      await vocabularyHook.addItem(newItemData);
-      setIsAddVocabDialogOpen(false);
-      toast({ title: t('toast:addSuccessTitle'), description: t('toast:addSuccessDesc', { term: newItemData.term }) });
-    } catch (error: any) {
+  // Block redirect if user just logged out
+  useEffect(() => {
+    const reason = searchParams.get('reason');
+    
+    if (reason === 'logged_out' || reason === 'logout_error') {
+      console.log('[LoginView] 🛑 Blocking redirect - user just logged out');
+      setRedirectState('blocked');
+      hasRedirectedRef.current = true;
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to add vocabulary item",
-        variant: "destructive"
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+        duration: 3000,
+      });
+      
+      return;
+    }
+    
+    if (reason === 'session_expired') {
+      toast({
+        title: "Session Expired",
+        description: "Please log in again.",
+        variant: "destructive",
+        duration: 4000,
+      });
+    } else if (reason === 'invalid_session') {
+      toast({
+        title: "Session Invalid",
+        description: "Please log in again.",
+        variant: "destructive",
+        duration: 4000,
       });
     }
-  }, [vocabularyHook, toast, t]);
+  }, [searchParams, toast]);
 
-  const renderSearchAndFilters = () => {
-    const setSearchTerm = isVocabActive ? vocabularyHook.setSearchTerm : libraryHook.setSearchTerm;
-    const searchTerm = isVocabActive ? vocabularyHook.searchTerm : libraryHook.searchTerm;
+  // Normal redirect logic
+  useEffect(() => {
+    console.log('[LoginView] 🔄 Redirect check:', {
+      hasRedirected: hasRedirectedRef.current,
+      redirectState,
+      authUser: !!authUser,
+      isSessionReady,
+    });
+
+    // Don't redirect if already redirected or blocked
+    if (hasRedirectedRef.current) {
+      console.log('[LoginView] ⏭️  Skip: already redirected');
+      return;
+    }
+
+    if (redirectState === 'blocked') {
+      console.log('[LoginView] ⏭️  Skip: redirect blocked');
+      return;
+    }
+
+    // Don't redirect if no authenticated user
+    if (!authUser || !isSessionReady) {
+      console.log('[LoginView] ⏭️  Skip: no auth or session not ready');
+      return;
+    }
+
+    // 🔥 REMOVED: 2-second delay check
+    // This was causing issues with legitimate logins
     
-    const setStatusFilter = isVocabActive ? () => {} : (value: string) => libraryHook.setStatusFilter(value as OverallStatus | 'all');
-    const statusFilter = isVocabActive ? 'all' : libraryHook.statusFilter;
+    console.log('[LoginView] ✅ All checks passed, preparing redirect...');
+    setRedirectState('redirecting');
+    hasRedirectedRef.current = true;
+    
+    const nextPath = searchParams.get('next') || '/library/book';
+    
+    // Short delay to show success UI
+    const timer = setTimeout(() => {
+      console.log('[LoginView] 🚀 Redirecting to:', nextPath);
+      router.replace(nextPath);
+    }, 300);
 
+    return () => clearTimeout(timer);
+  }, [authUser, isSessionReady, router, searchParams, redirectState]);
+  
+  if (isAuthLoading) {
     return (
-      <div className="flex-grow flex flex-col md:flex-row items-center gap-2">
-        <div className="relative flex-grow w-full">
-          <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder={isVocabActive ? t('vocabularyPage:searchPlaceholder') : t('searchPlaceholder')}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="font-body pl-9 h-10"
-            aria-label={t('searchPlaceholderAria')}
-          />
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center">
+          <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Checking authentication...</p>
         </div>
-        {!isVocabActive && (
-             <div className="flex w-full md:w-auto items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-10 w-full" aria-label={t('statusFilters.all')}>
-                    <SelectValue placeholder={t('statusFilters.all')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                    {STATUS_FILTERS.map(f => <SelectItem key={f.value} value={f.value}>{t(f.labelKey)}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-            </div>
-        )}
       </div>
     );
-  };
-  
-  const renderCreateButton = () => {
-    if (contentType === 'book') {
-        return <Button asChild className="font-body h-10 w-full md:w-auto"><Link href="/create?mode=book">{t('createNewContentButton')}</Link></Button>
-    }
-    if (contentType === 'piece') {
-        return <Button asChild className="font-body h-10 w-full md:w-auto"><Link href="/create?mode=piece">{t('createNewContentButton')}</Link></Button>
-    }
-    if (contentType === 'vocabulary') {
-        return (
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button className="font-body h-10 w-full md:w-auto">
-                        <Icon name="PlusSquare" className="mr-2 h-5 w-5" />
-                        {t('vocabularyPage:addNewTermButton')}
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setIsAddVocabDialogOpen(true)}>
-                        <Icon name="ListChecks" className="mr-2 h-4 w-4" />
-                        {t('vocabularyPage:addVocabDialog.title')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setIsAddFolderDialogOpen(true)}>
-                        <Icon name="FolderPlus" className="mr-2 h-4 w-4" />
-                        {t('vocabularyPage:addFolderDialog.title')}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        )
-    }
-    return null;
   }
 
-  const renderContent = () => {
-    const isUiLoading = isVocabActive ? vocabularyHook.isLoading : isLoading;
-
-    if (isUiLoading || bookmarksLoading) {
-      return (
-        <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 2xl:columns-6 gap-6 space-y-6">
-          {[...Array(6)].map((_, i) => (
-             <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse h-64 w-full break-inside-avoid">
-                <Skeleton className="h-48 bg-muted rounded-md mb-4" />
-                <Skeleton className="h-6 w-3/4 bg-muted rounded-md mb-2" />
-            </div>
-          ))}
-        </div>
-      );
-    }
-    
-    if (contentType === 'vocabulary') {
-      return <VocabularyView hook={vocabularyHook} />;
-    }
-    
-    if (filteredItems.length === 0) {
-      return (
-        <div className="text-center py-12">
-          <Icon name="SearchX" className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-headline font-medium mb-2">{t('noItemsFound')}</h3>
-          <p className="text-muted-foreground font-body">{t('noItemsHint')}</p>
-        </div>
-      );
-    }
-    
-    const gridLayoutClasses = "columns-2 sm:columns-3 md:columns-4 lg:columns-4 xl:columns-5 2xl:columns-6 gap-6 space-y-6";
-
+  if (authUser && redirectState === 'waiting_session') {
     return (
-      <BookmarkStyleProvider items={filteredItems} availableBookmarks={availableBookmarks}>
-        <div className={gridLayoutClasses}>
-          <AnimatePresence>
-            {filteredItems.map((item: LibraryItem) => {
-                let cardContent;
-                if (item.type === 'book') {
-                    if (item.status === 'processing') {
-                    cardContent = <ProcessingBookItemCard book={item as Book} onDelete={confirmDelete}/>;
-                    } else {
-                    cardContent = <BookItemCard book={item as Book} />;
-                    }
-                } else if (item.type === 'piece') {
-                    cardContent = <PieceItemCard work={item as Piece} />;
-                }
-
-                return (
-                    <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                        {cardContent}
-                    </motion.div>
-                )
-            })}
-          </AnimatePresence>
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center">
+          <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Securing your session...</p>
+          <p className="text-xs text-muted-foreground/60 mt-2">This should only take a moment</p>
         </div>
-        {libraryHook.hasMore && !libraryHook.isLoadingMore && (
-          <div className="text-center mt-8">
-            <Button onClick={libraryHook.loadMoreItems} disabled={libraryHook.isLoadingMore}>
-              {libraryHook.isLoadingMore && <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" />}
-              {t('common:loadMore')}
-            </Button>
-          </div>
-        )}
-      </BookmarkStyleProvider>
+      </div>
     );
+  }
+
+  if (authUser && redirectState === 'redirecting') {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center">
+          <Icon name="Loader2" className="h-12 w-12 text-green-500 mx-auto mb-4 animate-bounce" />
+          <p className="text-sm font-medium">Success! Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
+    e.preventDefault();
+    
+    console.log('[LoginView] 📝 Starting email auth...');
+    
+    const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
+    const success = await authOperation(email, pass);
+    
+    console.log('[LoginView] Auth result:', success);
+    
+    if (success) {
+      setRedirectState('waiting_session');
+      toast({ 
+        title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
+        description: "Setting up your session...",
+        duration: 2000
+      });
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    console.log('[LoginView] 🔐 Starting Google sign in...');
+    
+    const success = await signInWithGoogle();
+    
+    console.log('[LoginView] Google sign in result:', success);
+    
+    if (success) {
+      setRedirectState('waiting_session');
+      toast({ 
+        title: "Login Successful", 
+        description: "Setting up your session...",
+        duration: 2000
+      });
+    }
+  };
+
+  const toggleAuthMode = () => {
+    clearAuthError();
+    setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
   };
 
   return (
-    <LibraryContext.Provider value={libraryContextValue}>
-      <AddVocabDialog
-        isOpen={isAddVocabDialogOpen}
-        onOpenChange={setIsAddVocabDialogOpen}
-        onSuccess={handleAddVocabSuccess}
-        allFolders={vocabularyHook.folders}
-        initialFolder={vocabularyHook.folderFilter !== 'unorganized' ? vocabularyHook.folderFilter : undefined}
-      />
-       <AddFolderDialog
-        isOpen={isAddFolderDialogOpen}
-        onOpenChange={setIsAddFolderDialogOpen}
-        onSuccess={handleAddFolderSuccess}
-        allFolders={vocabularyHook.folders}
-      />
-      <div>
-        <div className="flex justify-between items-center gap-4">
-            <div className="flex items-center gap-4">
-                <h2 className="text-xl md:text-2xl font-headline font-semibold">{t('library')}</h2>
-                <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleTabChange('book')} 
-                      className={cn("lib-tab-button", contentType === 'book' && 'active')}
-                    >
-                      <div className="lib-tab-content">
-                          <div className="lib-tab-text"><p className="font-semibold">{t('libraryBookTitle')}</p></div>
-                          <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact book-artifact" /></div>
-                      </div>
-                    </button>
-                    <button 
-                      onClick={() => handleTabChange('piece')} 
-                      className={cn("lib-tab-button", contentType === 'piece' && 'active')}
-                    >
-                      <div className="lib-tab-content">
-                          <div className="lib-tab-text"><p className="font-semibold">{t('libraryPieceTitle')}</p></div>
-                          <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact piece-artifact" /></div>
-                      </div>
-                    </button>
-                    <button 
-                      onClick={() => handleTabChange('vocabulary')}
-                      className={cn("lib-tab-button", contentType === 'vocabulary' && 'active')}
-                    >
-                       <div className="lib-tab-content">
-                          <div className="lib-tab-text"><p className="font-semibold">{t('vocabTabTitle', { ns: 'vocabularyPage' })}</p></div>
-                          <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact vocab-artifact" /></div>
-                      </div>
-                    </button>
-                </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link href="/diary" className="diary-tab-button">
-                <div className="lib-tab-content">
-                    <div className="lib-tab-text"><p className="font-semibold">{t('diaryButton')}</p></div>
-                    <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact diary-artifact" /></div>
-                </div>
-              </Link>
-            </div>
-        </div>
-
-        <div className="mt-4 p-2 bg-card rounded-lg shadow flex flex-col md:flex-row items-center gap-2">
-            {renderSearchAndFilters()}
-            {renderCreateButton()}
-        </div>
-
-        <div className="mt-6">
-            {renderContent()}
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-blue-50 to-blue-100 dark:from-background dark:via-blue-900/20 dark:to-blue-900/30 p-4">
+      <Card className="w-full max-w-sm shadow-2xl">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex items-center gap-2">
+            <Logo className="h-10 w-10 text-primary" />
+            <h1 className="text-4xl font-headline font-bold text-primary">Chirpter</h1>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {authMode === 'signin' ? (
+            <>
+              <AuthForm 
+                isSignUp={false}
+                onSubmit={handleEmailAuth}
+                isSigningIn={isSigningIn}
+                error={authError}
+              />
+              <p className="mt-4 text-center text-sm text-muted-foreground">
+                Don&apos;t have an account?{' '}
+                <button 
+                  onClick={toggleAuthMode} 
+                  className="font-semibold text-primary hover:underline focus:outline-none"
+                  disabled={isSigningIn}
+                >
+                  Sign Up
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <AuthForm 
+                isSignUp={true}
+                onSubmit={handleEmailAuth}
+                isSigningIn={isSigningIn}
+                error={authError}
+              />
+              <p className="mt-4 text-center text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <button 
+                  onClick={toggleAuthMode} 
+                  className="font-semibold text-primary hover:underline focus:outline-none"
+                  disabled={isSigningIn}
+                >
+                  Sign In
+                </button>
+              </p>
+            </>
+          )}
         
-        {itemToDelete && (
-          <Suspense fallback={null}>
-            <AlertDialog open={!!itemToDelete} onOpenChange={(open) => { if (!open) cancelDelete(); }}>
-              <AlertDialogContent className="font-body">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="font-headline">{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t('common:alertDialog.deleteWarning', { title: itemToDelete.title.primary })}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={cancelDelete} disabled={isDeleting}>{t('common:cancel')}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                    {isDeleting && <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" />}
-                    {t('common:alertDialog.delete')}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </Suspense>
-        )}
-      </div>
-    </LibraryContext.Provider>
-  );
-}
-
-export default function LibraryView(props: LibraryViewProps) {
-  // initialItems is no longer needed here as fetching is client-side
-  return (
-    <AudioPlayerProvider>
-      <LibraryViewContent {...props} />
-    </AudioPlayerProvider>
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Button 
+              onClick={handleGoogleSignIn} 
+              className="w-full font-body gap-2" 
+              variant="outline" 
+              disabled={isSigningIn}
+            >
+              {isSigningIn ? (
+                <Icon name="Loader2" className="animate-spin h-4 w-4" />
+              ) : (
+                <GoogleIcon />
+              )}
+              Google
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
