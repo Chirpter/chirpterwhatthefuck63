@@ -756,8 +756,8 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should toggle repeat mode', () => {
-      audioEngine.setRepeatMode('item');
-      expect(audioEngine.getState().settings.repeat.track).toBe('item');
+      audioEngine.setRepeatMode('one');
+      expect(audioEngine.getState().settings.repeat.track).toBe('one');
       
       audioEngine.setRepeatMode('off');
       expect(audioEngine.getState().settings.repeat.track).toBe('off');

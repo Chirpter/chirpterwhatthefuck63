@@ -64,7 +64,7 @@ export interface AudioPlayerContextType extends AudioEngineState {
   isPlaying: boolean;
   isPaused: boolean;
   isLoading: boolean;
-  currentPlayingItem: TPlaylistItem | null;
+  currentPlayingItem: (TPlaylistItem & { itemId: string }) | null;
   overallProgressPercentage: number;
   chapterProgressPercentage: number;
   canGoNext: boolean;
@@ -90,10 +90,7 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(
 // ============================================
 
 const ensurePlaylistItem = (item: LibraryItem | TPlaylistItem): TPlaylistItem => {
-  if ('type' in item && item.type === 'book' && (item as any).data) {
-    return item as TPlaylistItem;
-  }
-  if ('type' in item && item.type === 'vocab') {
+  if ('type' in item && (item.type === 'book' || item.type === 'vocab') && 'data' in item) {
     return item as TPlaylistItem;
   }
   
@@ -114,7 +111,9 @@ const ensurePlaylistItem = (item: LibraryItem | TPlaylistItem): TPlaylistItem =>
     type: 'book', 
     id: item.id, 
     title: title, 
-    data: bookData 
+    data: bookData,
+    primaryLanguage: bookData.primaryLanguage,
+    availableLanguages: bookData.availableLanguages,
   };
 };
 
@@ -162,10 +161,12 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
   const derivedState = useMemo(() => {
     const { status, playlist, position } = engineState;
 
-    const currentPlayingItem =
+    const rawCurrentItem =
       position.playlistIndex !== -1
         ? playlist[position.playlistIndex] || null
         : null;
+
+    const currentPlayingItem = rawCurrentItem ? { ...rawCurrentItem, itemId: rawCurrentItem.id } : null;
 
     const isPlaying = status.type === 'active' && status.state === 'playing';
     const isPaused = status.type === 'active' && status.state === 'paused';

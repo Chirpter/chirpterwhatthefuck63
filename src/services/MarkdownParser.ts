@@ -23,10 +23,9 @@ import { generateLocalUniqueId } from '@/lib/utils';
 
 // Enhanced configuration for parsing
 interface ParseConfig {
-  isBilingual: boolean;
+  availableLanguages: string[];
   bilingualFormat: BilingualFormat;
   primaryLanguage: string;
-  secondaryLanguage?: string;
 }
 
 // Helper to extract all text from a node and its children
@@ -69,9 +68,14 @@ function splitSentenceIntoPhrases(sentence: string): string[] {
  * It now uses a specific separator ` / ` to pair sentences.
  */
 function pairBilingualSentences(sentences: string[], config: ParseConfig): { [langCode: string]: string }[] {
-    const { primaryLanguage, secondaryLanguage, isBilingual } = config;
+    const { primaryLanguage, availableLanguages } = config;
 
-    if (!isBilingual || !secondaryLanguage) {
+    if (availableLanguages.length < 2) {
+        return sentences.map(s => ({ [primaryLanguage]: s }));
+    }
+
+    const secondaryLanguage = availableLanguages.find(l => l !== primaryLanguage);
+    if (!secondaryLanguage) {
         return sentences.map(s => ({ [primaryLanguage]: s }));
     }
 
@@ -130,10 +134,9 @@ function detectDialogue(text: string): boolean {
  */
 export function parseMarkdownToSegments(
   markdown: string, 
-  isBilingual: boolean,
+  availableLanguages: string[],
   bilingualFormat: BilingualFormat = 'sentence',
   primaryLanguage: string,
-  secondaryLanguage?: string
 ): Segment[] {
   
   if (!markdown || !markdown.trim()) {
@@ -141,11 +144,12 @@ export function parseMarkdownToSegments(
   }
 
   const config: ParseConfig = {
-    isBilingual,
+    availableLanguages,
     bilingualFormat,
     primaryLanguage,
-    secondaryLanguage,
   };
+  
+  const secondaryLanguage = availableLanguages.find(l => l !== primaryLanguage);
 
   const segments: Segment[] = [];
   let globalSegmentOrder = 0;
@@ -176,6 +180,7 @@ export function parseMarkdownToSegments(
                     id: generateLocalUniqueId(),
                     order: globalSegmentOrder++,
                     type: isDialogue ? 'dialog' : 'text',
+                    content: sentencePair,
                     formatting: {},
                     metadata: {
                       isParagraphStart: isParagraphStart && index === 0 && !isListItem,
@@ -186,18 +191,15 @@ export function parseMarkdownToSegments(
                     },
                  };
 
-                 // Based on user choice, store EITHER full sentences OR pre-split phrases.
-                 if (config.isBilingual && config.bilingualFormat === 'phrase' && config.secondaryLanguage) {
-                    const secondaryText = sentencePair[config.secondaryLanguage] || '';
+                 if (availableLanguages.length > 1 && config.bilingualFormat === 'phrase' && secondaryLanguage) {
+                    const secondaryText = sentencePair[secondaryLanguage] || '';
                     const primaryPhrases = splitSentenceIntoPhrases(primaryText);
                     const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
                     
                     segment.phrases = primaryPhrases.map((phrase, i) => ({
                         [config.primaryLanguage]: phrase.trim(),
-                        [config.secondaryLanguage as string]: (secondaryPhrases[i] || '').trim()
+                        [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim()
                     }));
-                 } else {
-                    segment.content = sentencePair;
                  }
                  
                  segments.push(segment);
@@ -215,8 +217,8 @@ export function parseMarkdownToSegments(
                 const contentObj: ChapterTitle = {
                   [config.primaryLanguage]: titleParts[0],
                 };
-                if (config.isBilingual && config.secondaryLanguage && titleParts[1]) {
-                    contentObj[config.secondaryLanguage] = titleParts[1];
+                if (availableLanguages.length > 1 && secondaryLanguage && titleParts[1]) {
+                    contentObj[secondaryLanguage] = titleParts[1];
                 }
                 
                 segments.push({
@@ -309,7 +311,7 @@ export function segmentsToChapterStructure(segments: Segment[], primaryLanguage:
       currentChapter = {
         id: segment.id,
         order: chapterOrder++,
-        title: segment.content!, // A heading will always have content
+        title: segment.content,
         segments: [], // Start with no segments, add non-heading segments below
         stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 },
         metadata: {

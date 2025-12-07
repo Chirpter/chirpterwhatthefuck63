@@ -79,7 +79,7 @@ export interface Segment {
    * If this field exists, `phrases` should NOT.
    * @example { "en": "Hello, how are you?", "vi": "Xin chào, bạn khỏe không?" }
    */
-  content?: MultilingualContent;
+  content: MultilingualContent;
   
   /**
    * For 'phrase' mode. Contains an array of pre-split phrase pairs.
@@ -346,7 +346,7 @@ export interface VocabularyItem extends BaseDocument {
 export type LibraryItem = Book | Piece;
 
 export type PlaylistItem =
-  | { type: 'book'; id: string; title: string; data: Book; isBilingual?: boolean; primaryLanguage: string; secondaryLanguage?: string | null; }
+  | { type: 'book'; id: string; title: string; data: Book; primaryLanguage: string; availableLanguages: string[]; }
   | { type: 'vocab'; id: string; title: string; };
 
 
@@ -358,8 +358,8 @@ export interface SpeechPlayableSegment {
   vocabItem?: VocabularyItem;
 }
 
-export type RepeatMode = 'off' | 'item';
-export type PlaylistRepeatMode = 'off' | 'on';
+export type RepeatMode = 'off' | 'one';
+export type PlaylistRepeatMode = 'off' | 'all';
 
 export interface AudioProgressState {
   chapterIndex: number;
@@ -416,8 +416,7 @@ export interface FoundClip {
 export const GeneratePieceInputSchema = z.object({
   userPrompt: z.string().describe('The specific details provided by the user for the work. Can be empty if a genre is provided.'),
   primaryLanguage: z.string().describe('The primary language for the generated content.'),
-  isBilingual: z.boolean().describe('Whether the work should be bilingual.'),
-  secondaryLanguage: z.string().optional().describe('The secondary language if the work is bilingual.'),
+  availableLanguages: z.array(z.string()).describe('An array of language codes to be included.'),
   bilingualFormat: z.enum(['sentence', 'phrase']).optional().default('sentence').describe('The format for bilingual content.'),
 });
 export type GeneratePieceInput = z.infer<typeof GeneratePieceInputSchema>;
@@ -430,8 +429,7 @@ export type GenerateChapterInput = z.infer<typeof GenerateChapterInputSchema>;
 export const GenerateBookContentInputSchema = z.object({
   prompt: z.string().describe('A prompt describing the book content to generate, or what should happen in the new chapters.'),
   primaryLanguage: z.string().describe('The primary language for the book content.'),
-  isBilingual: z.boolean().describe('Whether the book should be bilingual.'),
-  secondaryLanguage: z.string().optional().describe('The secondary language if the book is bilingual.'),
+  availableLanguages: z.array(z.string()).describe('An array of language codes to be included.'),
   bilingualFormat: z.enum(['sentence', 'phrase']).optional().default('sentence').describe('The format for bilingual content.'),
   previousContentSummary: z.string().optional().describe('A summary of existing book content if generating additional chapters.'),
   chaptersToGenerate: z.number().describe('The number of chapter objects the AI should generate content for.'),

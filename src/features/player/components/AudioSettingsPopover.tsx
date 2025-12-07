@@ -52,17 +52,18 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
     // or the `currentPlayingItem` from context (for MiniPlayer).
     const languageSource = useMemo(() => {
         const source = item ?? (currentPlayingItem ? { // Reconstruct a compatible object from context
-            isBilingual: currentPlayingItem.isBilingual,
+            availableLanguages: currentPlayingItem.availableLanguages,
             primaryLanguage: currentPlayingItem.primaryLanguage,
-            secondaryLanguage: currentPlayingItem.secondaryLanguage,
         } : null);
 
         if (!source) return null;
+        
+        const secondaryLanguage = source.availableLanguages.find(l => l !== source.primaryLanguage);
 
         return {
-            isBilingual: source.isBilingual,
+            availableLanguages: source.availableLanguages,
             primaryLanguage: getBcp47LangCode(source.primaryLanguage),
-            secondaryLanguage: source.isBilingual ? getBcp47LangCode(source.secondaryLanguage) : undefined,
+            secondaryLanguage: secondaryLanguage ? getBcp47LangCode(secondaryLanguage) : undefined,
         };
     }, [item, currentPlayingItem]);
 
@@ -91,12 +92,12 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
     ];
 
     const handleMiniPlayerRepeatToggle = () => {
-        const nextMode: RepeatMode = repeatMode === 'off' ? 'item' : 'off';
+        const nextMode: RepeatMode = repeatMode === 'off' ? 'one' : 'off';
         setRepeatMode(nextMode);
     };
     
     const handlePlaylistRepeatToggle = () => {
-        const nextMode: PlaylistRepeatMode = playlistRepeatMode === 'on' ? 'off' : 'on';
+        const nextMode: PlaylistRepeatMode = playlistRepeatMode === 'all' ? 'off' : 'all';
         setPlaylistRepeatMode(nextMode);
     };
 
@@ -121,7 +122,7 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
                         <Label htmlFor="r-off-popover" className="text-xs">{t('audioSettings.repeatOffShort')}</Label>
                     </div>
                     <div className="flex items-center space-x-1">
-                        <RadioGroupItem value="item" id="r-one-popover" />
+                        <RadioGroupItem value="one" id="r-one-popover" />
                         <Label htmlFor="r-one-popover" className="text-xs">{t('audioSettings.repeatItemShort')}</Label>
                     </div>
                     </RadioGroup>
@@ -150,7 +151,7 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
             {primaryLangBcp47 && (
             <div className="grid gap-2">
                 <Label htmlFor="tts-voice-primary-popover">
-                {languageSource?.isBilingual
+                {(languageSource?.availableLanguages?.length ?? 0) > 1
                     ? t('audioSettings.voiceLabelPrimary', { lang: LANGUAGES.find(l => getBcp47LangCode(l.value) === primaryLangBcp47)?.label || primaryLangBcp47 })
                     : t('audioSettings.voiceLabel', { lang: LANGUAGES.find(l => getBcp47LangCode(l.value) === primaryLangBcp47)?.label || primaryLangBcp47 })
                 }
@@ -172,7 +173,7 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
                 </Select>
             </div>
             )}
-            {languageSource?.isBilingual && secondaryLangBcp47 && (
+            {(languageSource?.availableLanguages?.length ?? 0) > 1 && secondaryLangBcp47 && (
             <div className="grid gap-2">
                 <Label htmlFor="tts-voice-secondary-popover">
                     {t('audioSettings.voiceLabelSecondary', { lang: LANGUAGES.find(l => getBcp47LangCode(l.value) === secondaryLangBcp47)?.label || secondaryLangBcp47 })}
@@ -256,5 +257,3 @@ export const AudioSettingsPopover: React.FC<AudioSettingsPopoverProps> = ({ chil
         </Popover>
     );
 }
-
-    

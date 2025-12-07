@@ -150,8 +150,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
     const contentInput: GeneratePieceInput = {
         userPrompt: promptToUse,
         primaryLanguage: workData.primaryLanguage,
-        isBilingual: workData.availableLanguages.length > 1,
-        secondaryLanguage: workData.availableLanguages.find(l => l !== workData.primaryLanguage),
+        availableLanguages: workData.availableLanguages,
         bilingualFormat: workData.bilingualFormat,
     };
     
@@ -165,5 +164,3 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         });
     });
 }
-
-    
