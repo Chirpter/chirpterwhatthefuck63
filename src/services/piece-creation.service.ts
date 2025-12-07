@@ -76,6 +76,11 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             'stats.piecesCreated': FieldValue.increment(1)
         });
 
+        const availableLanguages = [primaryLang];
+        if (pieceFormData.isBilingual && pieceFormData.secondaryLanguage) {
+            availableLanguages.push(pieceFormData.secondaryLanguage);
+        }
+
         const newWorkRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
         const initialWorkData: Omit<Piece, 'id'> = {
             userId,
@@ -84,9 +89,8 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             status: 'processing',
             contentStatus: 'processing',
             contentRetryCount: 0,
-            isBilingual: pieceFormData.isBilingual,
             primaryLanguage: primaryLang,
-            secondaryLanguage: pieceFormData.isBilingual ? pieceFormData.secondaryLanguage : undefined,
+            availableLanguages: [...new Set(availableLanguages)],
             prompt: pieceFormData.aiPrompt,
             tags: pieceFormData.tags || [],
             presentationStyle: pieceFormData.presentationStyle || 'card',
@@ -151,8 +155,8 @@ export async function regeneratePieceContent(userId: string, workId: string, new
     const contentInput: GeneratePieceInput = {
         userPrompt: promptToUse,
         primaryLanguage: workData.primaryLanguage,
-        isBilingual: workData.isBilingual,
-        secondaryLanguage: workData.secondaryLanguage,
+        isBilingual: workData.availableLanguages.length > 1,
+        secondaryLanguage: workData.availableLanguages.find(l => l !== workData.primaryLanguage),
         bilingualFormat: workData.bilingualFormat,
     };
     

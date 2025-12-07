@@ -222,13 +222,11 @@ interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
   title: MultilingualContent;
-  /** Determines if secondaryLanguage content should be processed and displayed. */
-  isBilingual: boolean;
-  /** The main language of the content (e.g., 'en'). */
+  /** The main language of the content (e.g., 'vi'). This is the source of truth. */
   primaryLanguage: string;
-  /** The secondary language, if the item is bilingual (e.g., 'vi'). */
-  secondaryLanguage?: string;
-  /** Determines how bilingual content is structured: as full sentences or smaller phrases. */
+  /** A list of all language codes available for this item (e.g., ['vi', 'en']). */
+  availableLanguages: string[];
+  /** The format for bilingual content: as full sentences or smaller phrases. */
   bilingualFormat?: BilingualFormat;
   status: OverallStatus;
   progress?: number;
@@ -292,7 +290,7 @@ export interface Piece extends BaseLibraryItem {
 }
 
 export interface CreationFormValues {
-  isBilingual: boolean;
+  isBilingual: boolean; // This will now control if secondaryLanguage is picked
   primaryLanguage: string;
   secondaryLanguage?: string;
   aiPrompt: string;

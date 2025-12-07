@@ -225,7 +225,7 @@ export const useVocabVideos = () => {
         }
     }, [repeatCount, isAutoSkipping, selectedIndex, clips.length, handleNext, clearPendingTimeouts]);
 
-    const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>, sourceItem: LibraryItem, sentenceContext: string) => {
         if (lookupState.isOpen) {
             setLookupState(prev => ({ ...prev, isOpen: false }));
             return;
@@ -234,7 +234,7 @@ export const useVocabVideos = () => {
         const selection = window.getSelection();
         const selectedText = selection?.toString().trim() ?? '';
 
-        if (!selectedText || selectedText.length > 150 || !selection || !selectedResult || !user) {
+        if (!selectedText || selectedText.length > 150 || !selection || !sourceItem) {
             return;
         }
 
@@ -242,37 +242,21 @@ export const useVocabVideos = () => {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             
-            const sourceItem: Piece = {
-                id: selectedResult.videoId,
-                type: 'piece',
-                userId: user.uid,
-                contentStatus: 'ready',
-                title: { primary: '' },
-                primaryLanguage: 'en',
-                isBilingual: false,
-                status: 'draft',
-                presentationStyle: 'card',
-                content: [],
-                contextData: {
-                    startTime: selectedResult.start,
-                    endTime: selectedResult.end,
-                }
-            };
-            
             setLookupState({ 
                 isOpen: true, 
                 text: selectedText, 
                 rect, 
-                sourceLang: 'en',
-                targetLanguage: 'en',
+                sourceLang: 'en', // Assuming English for now
+                targetLanguage: 'en', // This will be set by i18n
                 sourceItem: sourceItem,
-                sentenceContext: selectedResult.context,
+                sentenceContext,
                 context: 'vocab-videos',
             });
         } catch (error) {
             console.error('[Selection] Error:', error);
         }
-    }, [lookupState.isOpen, selectedResult, user]);
+    }, [lookupState.isOpen]);
+
 
     const closeLookup = useCallback(() => {
         setLookupState(prev => ({ ...prev, isOpen: false }));

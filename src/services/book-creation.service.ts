@@ -107,6 +107,11 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         'stats.bilingualBooksCreated': bookFormData.isBilingual ? FieldValue.increment(1) : FieldValue.increment(0)
     });
     
+    const availableLanguages = [bookFormData.primaryLanguage];
+    if (bookFormData.isBilingual && bookFormData.secondaryLanguage) {
+      availableLanguages.push(bookFormData.secondaryLanguage);
+    }
+    
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
     const initialBookData: Omit<Book, 'id'> = {
         userId,
@@ -115,10 +120,9 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         status: 'processing',
         contentStatus: 'processing',
         coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
-        isBilingual: bookFormData.isBilingual,
         primaryLanguage: bookFormData.primaryLanguage,
-        secondaryLanguage: bookFormData.isBilingual ? bookFormData.secondaryLanguage : undefined,
-        bilingualFormat: bookFormData.isBilingual ? bookFormData.bilingualFormat : undefined,
+        availableLanguages: [...new Set(availableLanguages)],
+        bilingualFormat: bookFormData.isBilingual ? bookFormData.bilingualFormat : 'sentence',
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
         intendedLength: bookFormData.bookLength,
@@ -257,9 +261,10 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         }
 
         const book = bookDoc.data() as Book;
+        const secondaryLanguage = book.availableLanguages.find(l => l !== book.primaryLanguage);
 
-        // Prevent re-processing if it's already in phrase format or not eligible
-        if (book.bilingualFormat === 'phrase' || !book.isBilingual || !book.secondaryLanguage) {
+        // Prevent re-processing if it's already in phrase format or not eligible (not bilingual)
+        if (book.bilingualFormat === 'phrase' || book.availableLanguages.length < 2 || !secondaryLanguage) {
             console.log(`[Upgrade] Book ${bookId} is already in phrase format or is not eligible. Skipping.`);
             return;
         }
@@ -277,7 +282,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
                 }
 
                 const primarySentence = segment.content[book.primaryLanguage] || '';
-                const secondarySentence = segment.content[book.secondaryLanguage!] || '';
+                const secondarySentence = segment.content[secondaryLanguage] || '';
                 
                 // This logic should mirror the phrase splitting in MarkdownParser
                 const primaryPhrases = primarySentence.match(/[^,;]+[,;]?/g) || [primarySentence];
@@ -285,7 +290,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
 
                 const phrases = primaryPhrases.map((phrase, i) => ({
                     [book.primaryLanguage]: phrase.trim(),
-                    [book.secondaryLanguage!]: (secondaryPhrases[i] || '').trim(),
+                    [secondaryLanguage]: (secondaryPhrases[i] || '').trim(),
                 }));
                 
                 // Create a new segment object for the upgraded format
