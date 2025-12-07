@@ -127,11 +127,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(async () => {
     try {
       await signOut(auth);
+      // Wait for the server to confirm cookie deletion before redirecting.
       await clearSessionCookie();
     } catch (error) {
       console.error('[AuthContext] Error during logout process:', error);
     } finally {
-      // Use hard navigation to ensure full page reload and state reset
+      // Use hard navigation to ensure full page reload and state reset.
+      // This will now reliably send the user to the login page as the cookie is gone.
       window.location.href = '/login';
     }
   }, []);
