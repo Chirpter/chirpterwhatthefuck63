@@ -37,10 +37,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const isPublicRoute = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/api/');
-  const isProtectedRoute = !isPublicRoute;
+  const isPublicRoute = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup');
+  const isApiRoute = pathname.startsWith('/api/');
 
-  if (isProtectedRoute && !isAuthenticated) {
+  if (isApiRoute) {
+    return response;
+  }
+
+  if (!isPublicRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);
     if (logoutReason) {
@@ -49,7 +53,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthenticated && (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
+  if (isAuthenticated && isPublicRoute) {
     return NextResponse.redirect(new URL('/library/book', request.url));
   }
 

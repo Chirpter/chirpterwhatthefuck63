@@ -6,12 +6,15 @@ import { getAdminDb, getStorageAdmin, FieldValue } from '@/lib/firebase-admin';
 import type { User, UserPlan } from '@/lib/types';
 import { ApiServiceError } from '@/lib/errors';
 import { checkAndUnlockAchievements } from './achievement-service';
+import { getLevelStyles } from '@/lib/utils';
+import { ACHIEVEMENTS } from '@/lib/achievements';
+import { doc, runTransaction, increment } from 'firebase/firestore';
 
 const USERS_COLLECTION = 'users';
 
 export async function getUserProfile(userId: string): Promise<User | null> {
   const adminDb = getAdminDb();
-  const userDocRef = adminDb.collection('users').doc(userId);
+  const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
   const docSnap = await userDocRef.get();
 
   if (docSnap.exists) {
@@ -147,7 +150,6 @@ export async function purchaseGlobalItem(
     const currentItems = userData[updateField as keyof User] as string[] || [];
     
     if (currentItems.includes(itemId)) {
-        // Item is already owned, do nothing. This prevents duplicate purchases.
         return;
     }
 
@@ -239,7 +241,6 @@ export async function recordPlaylistAdd(userId: string): Promise<void> {
       'stats.vocabAddedToPlaylist': FieldValue.increment(1)
     });
     
-    // Asynchronously check for achievements without blocking the main operation
     checkAndUnlockAchievements(userId).catch(err => {
       console.error("Failed to check achievements after playlist add:", err);
     });
