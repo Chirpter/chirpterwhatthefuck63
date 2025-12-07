@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -38,6 +39,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
             content: contentResult.generatedContent,
             contentStatus: 'ready',
             status: 'draft',
+            contentRetryCount: 0, // Reset retry count on success
         };
     } catch (err) {
         const errorMessage = (err as Error).message;
@@ -61,7 +63,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
     const creditCost = 1;
     const primaryLang = pieceFormData.primaryLanguage;
 
-    const initialWorkData: Omit<Piece, 'id' | 'createdAt' | 'updatedAt'> = {
+    const initialWorkData: Omit<Piece, 'id' | 'createdAt' | 'updatedAt' | 'content'> = {
         userId,
         type: 'piece',
         title: {
@@ -69,7 +71,6 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         },
         status: 'processing',
         contentStatus: 'processing',
-        content: [],
         contentRetryCount: 0,
         isBilingual: pieceFormData.isBilingual,
         primaryLanguage: primaryLang,
@@ -92,6 +93,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         const newWorkRef = doc(libraryCollectionRef); // Create new doc ref within admin context
         transaction.set(newWorkRef, {
             ...removeUndefinedProps(initialWorkData),
+            content: [],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
@@ -110,32 +112,38 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 }
 
 export async function regeneratePieceContent(userId: string, workId: string, newPrompt?: string): Promise<void> {
-    const workDocRef = doc(db, getLibraryCollectionPath(userId), workId);
+    const adminDb = getAdminDb();
+    const workDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(workId);
 
-    const workSnap = await getDoc(workDocRef);
-    if (!workSnap.exists()) throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
-    const workData = workSnap.data() as Piece;
+    const workData = await adminDb.runTransaction(async (transaction) => {
+        const workSnap = await transaction.get(workDocRef);
+        if (!workSnap.exists()) {
+            throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
+        }
+        const workData = workSnap.data() as Piece;
 
-    if ((workData.contentRetryCount || 0) >= MAX_RETRY_COUNT) {
-        throw new ApiServiceError("Maximum content retry limit reached.", "UNKNOWN");
-    }
+        if (!newPrompt && (workData.contentRetryCount || 0) >= MAX_RETRY_COUNT) {
+            throw new ApiServiceError("Maximum content retry limit reached.", "VALIDATION");
+        }
+
+        const updatePayload: any = {
+            contentStatus: 'processing',
+            status: 'processing',
+            contentRetryCount: newPrompt ? 0 : increment(1),
+            updatedAt: serverTimestamp(),
+        };
+        if (newPrompt) {
+            updatePayload.prompt = newPrompt;
+        }
+        transaction.update(workDocRef, updatePayload);
+        return workData;
+    });
 
     const promptToUse = newPrompt ?? workData.prompt;
     if (!promptToUse) {
-        throw new ApiServiceError("No prompt available to regenerate content.", "UNKNOWN");
+        await updateLibraryItem(userId, workId, { status: 'draft', contentStatus: 'error', contentError: "No prompt available to regenerate content." });
+        return;
     }
-
-    const updatePayload: any = {
-        contentStatus: 'processing',
-        status: 'processing',
-        contentRetryCount: increment(1),
-    };
-    
-    if (newPrompt) {
-        updatePayload.prompt = newPrompt;
-    }
-
-    await updateDoc(workDocRef, updatePayload);
 
     const contentInput: GeneratePieceInput = {
         userPrompt: promptToUse,
