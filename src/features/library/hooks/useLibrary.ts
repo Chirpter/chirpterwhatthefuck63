@@ -56,8 +56,7 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
             contentType,
             status: 'all',
             limit: 100
-          }, 
-          signal
+          }
         );
 
         if (currentFetchId === fetchIdRef.current && !signal.aborted) {

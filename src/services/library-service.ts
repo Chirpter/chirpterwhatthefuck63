@@ -1,27 +1,11 @@
+// src/services/library-service.ts
+'use server';
 
-
-import {
-  collection,
-  query,
-  getDocs,
-  getDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  orderBy,
-  limit,
-  startAfter,
-  serverTimestamp,
-  DocumentData,
-  QueryConstraint,
-  where,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import type { LibraryItem, Book, OverallStatus, Chapter } from '@/lib/types';
+import type { DocumentData, QueryConstraint } from 'firebase-admin/firestore';
+import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
+import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -29,59 +13,47 @@ interface GetLibraryItemsOptions {
   limit?: number;
   startAfter?: DocumentData | null;
   status?: OverallStatus | 'all';
-  type?: 'book' | 'piece';
   contentType?: 'book' | 'piece';
 }
 
+/**
+ * Server-side function to fetch library items.
+ */
 export async function getLibraryItems(
   userId: string,
-  options: GetLibraryItemsOptions = {},
-  signal?: AbortSignal
+  options: GetLibraryItemsOptions = {}
 ): Promise<{ items: LibraryItem[]; lastDoc: DocumentData | null }> {
   if (!userId) {
-    if (typeof window === 'undefined') {
-      return { items: [], lastDoc: null };
-    }
     throw new ApiServiceError('User not authenticated', 'AUTH');
   }
 
+  const {
+    limit: queryLimit = 20,
+    startAfter: startAfterDoc = null,
+    status = 'all',
+    contentType,
+  } = options;
+
+  const adminDb = getAdminDb();
+  const collectionRef = adminDb.collection(getLibraryCollectionPath(userId));
+  
+  let query: FirebaseFirestore.Query<DocumentData> = collectionRef.orderBy('createdAt', 'desc');
+
+  if (status !== 'all') {
+    query = query.where('status', '==', status);
+  }
+  if (contentType) {
+    query = query.where('type', '==', contentType);
+  }
+  if (startAfterDoc) {
+    query = query.startAfter(startAfterDoc);
+  }
+  
+  query = query.limit(queryLimit);
+
   try {
-    const {
-      limit: queryLimit = 20,
-      startAfter: startAfterDoc = null,
-      status = 'all',
-      type,
-      contentType,
-    } = options;
-
-    const finalContentType = type || contentType;
-
-    const collectionRef = collection(db, getLibraryCollectionPath(userId));
+    const querySnapshot = await query.get();
     
-    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
-    if (status !== 'all') {
-      constraints.push(where('status', '==', status));
-    }
-    if (finalContentType) {
-      constraints.push(where('type', '==', finalContentType));
-    }
-    if (startAfterDoc) {
-      constraints.push(startAfter(startAfterDoc));
-    }
-    constraints.push(limit(queryLimit));
-
-    const q = query(collectionRef, ...constraints);
-    
-    if (signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError');
-    }
-
-    const querySnapshot = await getDocs(q);
-
-    if (signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError');
-    }
-
     const items: LibraryItem[] = querySnapshot.docs.map(docSnap => {
         const rawData = docSnap.data();
         const itemWithId = { id: docSnap.id, ...rawData };
@@ -97,137 +69,101 @@ export async function getLibraryItems(
       lastDoc: lastDocData,
     };
   } catch (error: any) {
-    if (error.name === 'AbortError') {
-      throw error;
-    }
-    
     console.error('[SERVICE] Firestore Query Error in getLibraryItems:', error);
-    
     let code: ApiServiceError['code'] = 'FIRESTORE';
-    if (error.code === 'permission-denied') {
-        code = 'PERMISSION';
-    } else if (error.code === 'unavailable') {
-        code = 'UNAVAILABLE';
-    }
-
+    if (error.code === 'permission-denied') code = 'PERMISSION';
+    else if (error.code === 'unavailable') code = 'UNAVAILABLE';
     throw new ApiServiceError('Failed to fetch library items.', code, error);
   }
 }
 
-
+/**
+ * Server-side function to fetch a single library item.
+ */
 export async function getLibraryItemById(userId: string, itemId: string): Promise<LibraryItem | null> {
+  const adminDb = getAdminDb();
   try {
-    const docRef = doc(db, getLibraryCollectionPath(userId), itemId);
-    const docSnap = await getDoc(docRef);
+    const docRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(itemId);
+    const docSnap = await docRef.get();
 
-    if (docSnap.exists()) {
-      const rawData = docSnap.data();
-      const itemWithId = { id: docSnap.id, ...rawData };
-      return convertTimestamps(itemWithId) as LibraryItem;
+    if (docSnap.exists) {
+      const rawData = docSnap.data()!;
+      return convertTimestamps({ id: docSnap.id, ...rawData }) as LibraryItem;
     }
     
-    const globalDocRef = doc(db, 'globalBooks', itemId);
-    const globalDocSnap = await getDoc(globalDocRef);
+    const globalDocRef = adminDb.collection('globalBooks').doc(itemId);
+    const globalDocSnap = await globalDocRef.get();
     if (globalDocSnap.exists()) {
-        const rawData = globalDocSnap.data();
-        const itemWithId = { id: globalDocSnap.id, ...rawData, isGlobal: true };
-        return convertTimestamps(itemWithId) as LibraryItem;
+      const rawData = globalDocSnap.data()!;
+      return convertTimestamps({ id: globalDocSnap.id, ...rawData, isGlobal: true }) as LibraryItem;
     }
 
     return null;
   } catch (error) {
-    console.error('Error in getLibraryItemById:', error);
+    console.error('Error in getLibraryItemById (server):', error);
     throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE', error as Error);
   }
 }
 
-export async function getLibraryItemsByIds(userId: string, itemIds: string[]): Promise<LibraryItem[]> {
-    if (!userId || itemIds.length === 0) return [];
-    
-    try {
-      const docRefs = itemIds.map(id => doc(db, getLibraryCollectionPath(userId), id));
-      const docSnaps = await Promise.all(docRefs.map(ref => getDoc(ref)));
-      
-      return docSnaps
-          .filter(snap => snap.exists())
-          .map(snap => {
-            const rawData = snap.data();
-            const itemWithId = { id: snap.id, ...rawData };
-            return convertTimestamps(itemWithId) as LibraryItem;
-          });
-    } catch (error) {
-      console.error('Error in getLibraryItemsByIds:', error);
-      throw new ApiServiceError('Failed to fetch library items by IDs.', 'FIRESTORE', error as Error);
-    }
-}
-
+/**
+ * Server-side function to delete a library item.
+ */
 export async function deleteLibraryItem(userId: string, itemId: string): Promise<void> {
+  const adminDb = getAdminDb();
   try {
-    const docRef = doc(db, getLibraryCollectionPath(userId), itemId);
-    await deleteDoc(docRef);
+    const docRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(itemId);
+    await docRef.delete();
   } catch (error) {
-    console.error('Error in deleteLibraryItem:', error);
+    console.error('Error in deleteLibraryItem (server):', error);
     throw new ApiServiceError('Failed to delete library item.', 'FIRESTORE', error as Error);
   }
 }
 
+/**
+ * Server-side function to update a library item.
+ */
 export async function updateLibraryItem(userId: string, itemId: string, updates: Partial<LibraryItem>): Promise<void> {
+  const adminDb = getAdminDb();
   try {
-    // This function can be called from both client and server, so we must be careful.
-    // When called from a server action, it should use the Admin SDK.
-    // For simplicity in this context, we assume it's mostly for client-side updates.
-    // A more robust solution might check the execution environment.
-    const docRef = doc(db, getLibraryCollectionPath(userId), itemId);
-    const dataToUpdate = { ...updates, updatedAt: serverTimestamp() };
-    await updateDoc(docRef, removeUndefinedProps(dataToUpdate));
+    const docRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(itemId);
+    const dataToUpdate = { ...updates, updatedAt: FieldValue.serverTimestamp() };
+    await docRef.update(removeUndefinedProps(dataToUpdate));
   } catch (error) {
-    console.error('Error in updateLibraryItem:', error);
-    // Try with Admin SDK if it fails, assuming it might be a permissions issue from client
-    try {
-        const adminDb = getAdminDb();
-        const adminDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(itemId);
-        const dataToUpdateAdmin = { ...updates, updatedAt: FieldValue.serverTimestamp() };
-        await adminDocRef.update(removeUndefinedProps(dataToUpdateAdmin));
-    } catch (adminError) {
-       console.error('Error in updateLibraryItem with Admin SDK fallback:', adminError);
-       throw new ApiServiceError('Failed to update library item.', 'FIRESTORE', adminError as Error);
-    }
+    console.error('Error in updateLibraryItem (server):', error);
+    throw new ApiServiceError('Failed to update library item.', 'FIRESTORE', error as Error);
   }
 }
 
+/**
+ * Server-side function to fetch global books.
+ */
 export async function getGlobalBooks(
-  options: { limit?: number; startAfter?: DocumentData | null; all?: boolean, forSale?: boolean },
-  signal?: AbortSignal
+  options: { limit?: number; startAfter?: DocumentData | null; all?: boolean, forSale?: boolean }
 ): Promise<{ items: Book[]; lastDoc: DocumentData | null }> {
   
   const { limit: queryLimit = 20, startAfter: startAfterDoc = null, all = false, forSale = false } = options;
+  const adminDb = getAdminDb();
   
   try {
-    const collectionRef = collection(db, 'globalBooks');
-    
-    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+    const collectionRef = adminDb.collection('globalBooks');
+    let query: FirebaseFirestore.Query<DocumentData> = collectionRef.orderBy('createdAt', 'desc');
+
     if (forSale) {
-        constraints.push(where('price', '>', 0));
+        query = query.where('price', '>', 0);
     } else if (!all) {
-        constraints.push(where('price', '==', 0));
+        query = query.where('price', '==', 0);
     }
     if (startAfterDoc) {
-        constraints.push(startAfter(startAfterDoc));
+        query = query.startAfter(startAfterDoc);
     }
-    constraints.push(limit(queryLimit));
+    
+    query = query.limit(queryLimit);
 
-    const q = query(collectionRef, ...constraints);
-
-    const querySnapshot = await getDocs(q);
-
-    if (signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError');
-    }
+    const querySnapshot = await query.get();
 
     const items = querySnapshot.docs.map(docSnap => {
       const rawData = docSnap.data();
-      const itemWithId = { id: docSnap.id, ...rawData };
-      return convertTimestamps(itemWithId) as Book;
+      return convertTimestamps({ id: docSnap.id, ...rawData }) as Book;
     });
 
     return {
@@ -235,51 +171,27 @@ export async function getGlobalBooks(
       lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
     };
   } catch (error: any) {
-    if (error.name === 'AbortError') {
-      throw error;
-    }
-    console.error('Error in getGlobalBooks:', error);
-    throw new ApiServiceError('Failed to fetch global books.', 'VALIDATION', error as Error);
+    console.error('Error in getGlobalBooks (server):', error);
+    throw new ApiServiceError('Failed to fetch global books.', 'FIRESTORE', error);
   }
 }
 
+// These functions from the original `book-creation.service` are now here
+// because they are server actions related to library items.
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt: string): Promise<void> {
-    try {
-      const bookRef = doc(db, getLibraryCollectionPath(userId), bookId);
-      await updateDoc(bookRef, {
-          prompt: newPrompt,
-          contentStatus: 'processing',
-          status: 'processing',
-          chapters: [],
-      });
+    const adminDb = getAdminDb();
+    const docRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+    
+    await docRef.update({
+        prompt: newPrompt,
+        contentStatus: 'processing',
+        status: 'processing',
+        chapters: [],
+        contentRetryCount: 0, // Reset retry count on manual edit
+        updatedAt: FieldValue.serverTimestamp(),
+    });
 
-      // Simulating AI regeneration delay
-      setTimeout(async () => {
-          const newChapters: Chapter[] = [{
-              id: 'ch1_regen',
-              order: 0,
-              title: { en: 'Regenerated Chapter' },
-              segments: [{
-                  id: 'seg1_regen',
-                  order: 0,
-                  type: 'text',
-                  content: { en: `Content regenerated with new prompt: "${newPrompt}"` },
-                  formatting: {},
-                  metadata: { isParagraphStart: true, wordCount: { en: 5 }, primaryLanguage: 'en' }
-              }],
-              stats: { totalSegments: 1, totalWords: 5, estimatedReadingTime: 1 },
-              metadata: { primaryLanguage: 'en' }
-          }];
-
-          await updateDoc(bookRef, {
-              chapters: newChapters,
-              contentStatus: 'ready',
-              status: 'draft',
-          });
-      }, 5000);
-    } catch (error) {
-      console.error('Error in regenerateBookContent:', error);
-      throw new ApiServiceError('Failed to regenerate book content.', 'FIRESTORE', error as Error);
-    }
+    // In a real scenario, you would trigger the background generation pipeline here.
+    // For this mock, we'll just update the status.
 }

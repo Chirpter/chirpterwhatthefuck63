@@ -6,7 +6,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
-import { getLibraryItemById, updateLibraryItem } from '@/services/library-service';
+import { updateLibraryItem } from '@/services/library-service';
+import { getLibraryItemById } from '@/services/client/library-service';
 import { 
     createBookAndStartGeneration, 
     addChaptersToBook, 
