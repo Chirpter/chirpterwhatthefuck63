@@ -7,17 +7,28 @@ import { z } from 'zod';
 export class ApiServiceError extends Error {
   constructor(
     message: string,
-    public code: 'RATE_LIMIT' | 'AUTH' | 'NETWORK' | 'UNKNOWN' = 'UNKNOWN'
+    public code: 'RATE_LIMIT' | 'AUTH' | 'NETWORK' | 'UNKNOWN' | 'FIRESTORE' | 'PERMISSION' | 'UNAVAILABLE' | 'VALIDATION' = 'UNKNOWN',
+    public originalError?: any
   ) {
     super(message);
     this.name = 'ApiServiceError';
   }
 }
 
-// This type is now a flexible object.
-export interface ChapterTitle {
-  [languageCode: string]: string; // e.g., { en: "Title", vi: "Tiêu đề" }
-}
+/**
+ * @typedef {Object.<string, string>} MultilingualContent
+ * @description A flexible object to hold content in multiple languages.
+ * The key is the BCP-47 language code (e.g., 'en', 'vi') and the value is the text content.
+ * @example
+ * // For a bilingual title:
+ * { en: "The Dragon's Journey", vi: "Hành Trình Của Rồng" }
+ * // For monolingual content:
+ * { en: "The dragon flew." }
+ */
+export type MultilingualContent = {
+  [languageCode: string]: string;
+};
+
 
 // --- NEW UNIFIED STRUCTURE ---
 
@@ -51,9 +62,7 @@ export interface Segment {
   id: string;
   order: number;
   type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
-  content: {
-    [languageCode: string]: string; // Flexible content: { en: "Hello", vi: "Xin chào" }
-  };
+  content: MultilingualContent; // The core of bilingual flexibility
   formatting: TextFormatting;
   metadata: SegmentMetadata;
   phrases?: PhraseMap[];
@@ -68,7 +77,7 @@ export interface ChapterStats {
 export interface Chapter {
   id: string;
   order: number;
-  title: ChapterTitle;
+  title: MultilingualContent;
   segments: Segment[];
   stats: ChapterStats;
   metadata: {
@@ -79,7 +88,7 @@ export interface Chapter {
 
 export interface ChapterOutlineItem {
   id: string;
-  title: ChapterTitle;
+  title: MultilingualContent;
   isGenerated: boolean;
   metadata: {
     primaryLanguage: string;
@@ -184,7 +193,7 @@ export interface BaseDocument {
 interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
-  title: ChapterTitle;
+  title: MultilingualContent;
   isBilingual: boolean;
   primaryLanguage: string;
   secondaryLanguage?: string;
@@ -247,7 +256,7 @@ export interface CreationFormValues {
   secondaryLanguage?: string;
   aiPrompt: string;
   tags: string[];
-  title: ChapterTitle;
+  title: MultilingualContent;
   presentationStyle: 'book' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
   bilingualFormat: BilingualFormat;
@@ -276,7 +285,7 @@ export interface VocabularyItem extends BaseDocument {
   meaningLanguage: string;
   sourceType?: 'book' | 'piece' | 'manual';
   sourceId?: string;
-  sourceTitle?: ChapterTitle;
+  sourceTitle?: MultilingualContent;
   example?: string;
   exampleLanguage?: string;
   chapterId?: string;
@@ -422,3 +431,6 @@ export type Tier = {
 export type TierTask = 
 | { type: 'ref'; id: string; goal: number }
 | { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
+
+// Renamed for better clarity. Represents the same structure as the old ChapterTitle.
+export type { MultilingualContent as ChapterTitle };
