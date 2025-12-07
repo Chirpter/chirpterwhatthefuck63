@@ -1,5 +1,3 @@
-
-
 import { VOCABULARY_CONSTANTS, BOOK_LENGTH_OPTIONS } from "./constants";
 import { z } from 'zod';
 
@@ -57,28 +55,12 @@ export interface SegmentMetadata {
 }
 
 /**
- * @interface PhraseMap
- * @description Represents a pair of corresponding phrases in two languages.
- * This is the data structure that enables the "inline phrase" learning mode.
- * It is generated ONCE on the server and stored within a Segment.
- * @example
- * { primary: "The dragon flew", secondary: "Con rồng bay", order: 0 }
- */
-export interface PhraseMap {
-  primary: string;
-  secondary: string;
-  order: number;
-}
-
-
-/**
  * @interface Segment
  * @description The fundamental building block of all readable content in the application.
  * It represents a single sentence or a similar semantic unit.
  * ARCHITECTURAL NOTE: This is the smallest unit of data from the database. 
- * For "inline phrase" mode, we pre-process and store an array of `phrases` within
- * this segment. This keeps the data structure consistent and allows the client to be a "dumb"
- * renderer, without needing to perform complex NLP tasks like splitting sentences into phrases.
+ * For "inline phrase" mode, the client will be responsible for splitting the content
+ * of this segment on-demand. This keeps the stored data lean and flexible.
  */
 export interface Segment {
   id: string;
@@ -93,12 +75,6 @@ export interface Segment {
   content: MultilingualContent;
   formatting: TextFormatting;
   metadata: SegmentMetadata;
-  /**
-   * @property {PhraseMap[]} [phrases] - Optional array of paired phrases.
-   * This is ONLY populated if the bilingual format is 'phrase'.
-   * If present, the client should render the content phrase-by-phrase.
-   */
-  phrases?: PhraseMap[];
 }
 
 export interface ChapterStats {
@@ -480,5 +456,3 @@ export type TierTask =
 
 // Renamed for better clarity. Represents the same structure as the old ChapterTitle.
 export type { MultilingualContent as ChapterTitle };
-
-  

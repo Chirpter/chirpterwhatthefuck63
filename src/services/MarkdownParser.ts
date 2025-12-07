@@ -2,7 +2,8 @@
  * @fileoverview Enhanced Markdown Parser - Architecture Aligned
  * Converts AI markdown output into structured, unified segments.
  * Supports monolingual, and multilingual content by parsing structured pairs.
- * NEW: Now supports phrase-by-phrase pairing for inline translation views.
+ * NOTE: Phrase-splitting logic has been REMOVED. This task is now delegated to the client (on-demand)
+ * to keep the stored data structure lean and flexible.
  */
 
 import { remark } from 'remark';
@@ -12,8 +13,7 @@ import type {
   BilingualFormat,
   Segment,
   Chapter,
-  ChapterTitle,
-  PhraseMap
+  ChapterTitle
 } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
@@ -77,31 +77,6 @@ function pairBilingualSentences(sentences: string[], config: ParseConfig): { [la
 
     return pairs;
 }
-
-/**
- * NEW: Logic to pair bilingual phrases within a single sentence pair.
- * This is a heuristic-based approach that splits by commas and punctuation.
- * It's not perfect but works for many common cases.
- */
-function pairBilingualPhrases(primarySentence: string, secondarySentence: string): PhraseMap[] {
-    // Regex to split by commas, semicolons, or colons, but keep the delimiter
-    const phraseSplitRegex = /([,;:]| - )/;
-    const primaryPhrases = primarySentence.split(phraseSplitRegex).map(p => p.trim()).filter(Boolean);
-    const secondaryPhrases = secondarySentence.split(phraseSplitRegex).map(p => p.trim()).filter(Boolean);
-
-    // If the number of phrases matches, we can map them directly.
-    if (primaryPhrases.length === secondaryPhrases.length) {
-        return primaryPhrases.map((phrase, index) => ({
-            primary: phrase,
-            secondary: secondaryPhrases[index],
-            order: index
-        }));
-    }
-
-    // Fallback: If they don't match, return the whole sentence as a single phrase.
-    return [{ primary: primarySentence, secondary: secondarySentence, order: 0 }];
-}
-
 
 /**
  * Enhanced word count calculation with better tokenization
@@ -179,12 +154,6 @@ export function parseMarkdownToSegments(
                  if (!primaryText) return;
 
                  const isDialogue = detectDialogue(primaryText);
-                 let phrases: PhraseMap[] | undefined = undefined;
-
-                 // If format is 'phrase' and we have both languages, create phrase map
-                 if (config.bilingualFormat === 'phrase' && isBilingual && secondaryLanguage && sentencePair[secondaryLanguage]) {
-                     phrases = pairBilingualPhrases(primaryText, sentencePair[secondaryLanguage]);
-                 }
                  
                  segments.push({
                    id: generateLocalUniqueId(),
@@ -199,7 +168,6 @@ export function parseMarkdownToSegments(
                      ),
                      primaryLanguage: config.primaryLanguage,
                    },
-                   phrases, // Add the generated phrases array
                  });
               });
               
