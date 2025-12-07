@@ -72,6 +72,8 @@ export default function AppLayoutContent({ children }: { children: React.ReactNo
   }
 
   if (!authUser) {
+     // This case should theoretically not be hit often because the middleware redirects.
+     // However, it's a good safeguard during the logout transition.
      return <InitialLoader message="Redirecting..." />;
   }
   
@@ -85,6 +87,7 @@ export default function AppLayoutContent({ children }: { children: React.ReactNo
 
       <main className={cn(
         "flex-1 bg-background relative", 
+        // Add safe area padding for mobile devices, especially on the bottom.
         "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
       )}>
         {userError && !user ? (
