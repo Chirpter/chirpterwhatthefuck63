@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import {
@@ -93,7 +94,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const coverImageAiPrompt = bookFormData.coverImageAiPrompt?.trim() || bookFormData.aiPrompt.trim();
   const primaryLang = bookFormData.primaryLanguage;
 
-  const initialBookData: Omit<Book, 'id' | 'createdAt' | 'updatedAt' | 'chapters'> = {
+  const initialBookData: Omit<Book, 'id' | 'createdAt' | 'updatedAt' | 'chapters' | 'content'> = {
     userId,
     type: 'book',
     title: {
@@ -334,39 +335,38 @@ export async function editBookCover(userId: string, bookId: string, newCoverOpti
 }
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-  const bookDocRef = doc(db, getLibraryCollectionPath(userId), bookId);
+  const adminDb = getAdminDb();
+  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
 
-  const bookSnap = await getDoc(bookDocRef);
-  if (!bookSnap.exists()) {
-    throw new ApiServiceError("Book not found for content regeneration.", "UNKNOWN");
-  }
-  const bookData = bookSnap.data() as Book;
+  const bookData = await adminDb.runTransaction(async (transaction) => {
+      const bookSnap = await transaction.get(bookDocRef);
+      if (!bookSnap.exists()) {
+          throw new ApiServiceError("Book not found for content regeneration.", "UNKNOWN");
+      }
+      const bookData = bookSnap.data() as Book;
 
-  if (!newPrompt && (bookData.contentRetryCount || 0) >= MAX_RETRY_COUNT) {
-    throw new ApiServiceError("Maximum content retry limit reached.", "UNKNOWN");
-  }
+      if (!newPrompt && (bookData.contentRetryCount || 0) >= MAX_RETRY_COUNT) {
+          throw new ApiServiceError("Maximum content retry limit reached.", "VALIDATION");
+      }
 
+      const updatePayload: any = {
+          contentStatus: 'processing',
+          status: 'processing',
+          contentRetryCount: newPrompt ? 0 : increment(1),
+          updatedAt: serverTimestamp(),
+      };
+      if (newPrompt) {
+          updatePayload.prompt = newPrompt;
+      }
+      transaction.update(bookDocRef, updatePayload);
+      return bookData;
+  });
+  
   const promptToUse = newPrompt ?? bookData.prompt;
   if (!promptToUse) {
-    throw new ApiServiceError("No prompt available to regenerate content.", "UNKNOWN");
+    await updateLibraryItem(userId, bookId, { status: 'draft', contentStatus: 'error', contentError: "No prompt available to regenerate content." });
+    return;
   }
-
-  // If a new prompt is provided, reset the retry count. Otherwise, increment it.
-  const updatePayload: any = {
-    contentStatus: 'processing',
-    status: 'processing',
-    contentRetryCount: newPrompt ? 0 : increment(1),
-  };
-
-  if (newPrompt) {
-    updatePayload.prompt = newPrompt;
-  }
-
-  await updateDoc(bookDocRef, updatePayload);
-
-  const chaptersToGenerate = bookData.chapterOutline 
-    ? Math.ceil((bookData.chapterOutline.length) / 4)
-    : 1;
 
   const contentInput: GenerateBookContentInput = {
     prompt: promptToUse,
@@ -374,8 +374,8 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     isBilingual: bookData.isBilingual,
     secondaryLanguage: bookData.secondaryLanguage,
     bilingualFormat: bookData.bilingualFormat || 'sentence',
-    chaptersToGenerate: chaptersToGenerate,
-    totalChapterOutlineCount: bookData.chapterOutline?.length || chaptersToGenerate,
+    chaptersToGenerate: bookData.chapterOutline ? Math.ceil((bookData.chapterOutline.length) / 4) : 1,
+    totalChapterOutlineCount: bookData.chapterOutline?.length || bookData.chapters.length || 1,
     bookLength: bookData.intendedLength,
     generationScope: 'firstFew',
   };
@@ -396,48 +396,54 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 }
 
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
-  const bookDocRef = doc(db, getLibraryCollectionPath(userId), bookId);
+    const adminDb = getAdminDb();
+    const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
 
-  const bookSnap = await getDoc(bookDocRef);
-  if (!bookSnap.exists()) {
-    throw new ApiServiceError("Book not found for cover regeneration.", "UNKNOWN");
-  }
-  const bookData = bookSnap.data() as Book;
+    const bookData = await adminDb.runTransaction(async (transaction) => {
+        const bookSnap = await transaction.get(bookDocRef);
+        if (!bookSnap.exists()) {
+            throw new ApiServiceError("Book not found for cover regeneration.", "UNKNOWN");
+        }
+        const bookData = bookSnap.data() as Book;
 
-  if (bookData.cover?.type === 'upload') {
-    throw new ApiServiceError("Cannot regenerate an uploaded cover with AI.", "VALIDATION");
-  }
-  
-  if ((bookData.coverRetryCount || 0) >= MAX_RETRY_COUNT) {
-    throw new ApiServiceError("Maximum cover retry limit reached.", "UNKNOWN");
-  }
-
-  const promptToUse = bookData.cover?.inputPrompt || bookData.prompt;
-  if (!promptToUse) {
-    throw new ApiServiceError("No prompt available to regenerate cover.", "UNKNOWN");
-  }
-  
-  await updateDoc(bookDocRef, {
-    coverStatus: 'processing',
-    status: 'processing',
-    coverRetryCount: increment(1),
-  });
-
-  processCoverImageForBook(userId, bookId, 'ai', promptToUse)
-    .then((coverUpdateResult) => {
-      const finalUpdate: Partial<Book> = { ...coverUpdateResult, status: 'draft' };
-      updateLibraryItem(userId, bookId, finalUpdate);
-    })
-    .catch(async (err) => {
-      console.error(`Unhandled error in background cover regeneration for book ${bookId}:`, err);
-      await updateLibraryItem(userId, bookId, {
-        status: 'draft',
-        coverStatus: 'error',
-        coverError: (err as Error).message || 'Cover regeneration failed again.',
-      });
+        if ((bookData.coverRetryCount || 0) >= MAX_RETRY_COUNT) {
+            throw new ApiServiceError("Maximum cover retry limit reached.", "VALIDATION");
+        }
+        
+        if (bookData.cover?.type === 'upload') {
+            throw new ApiServiceError("Cannot regenerate an uploaded cover with AI.", "VALIDATION");
+        }
+        
+        transaction.update(bookDocRef, {
+            coverStatus: 'processing',
+            status: 'processing',
+            coverRetryCount: increment(1),
+            updatedAt: serverTimestamp(),
+        });
+        
+        return bookData;
     });
-}
 
+    const promptToUse = bookData.cover?.inputPrompt || bookData.prompt;
+    if (!promptToUse) {
+        await updateLibraryItem(userId, bookId, { status: 'draft', coverStatus: 'error', coverError: "No prompt available to regenerate cover." });
+        return;
+    }
+
+    processCoverImageForBook(userId, bookId, 'ai', promptToUse)
+      .then((coverUpdateResult) => {
+        const finalUpdate: Partial<Book> = { ...coverUpdateResult, status: 'draft' };
+        updateLibraryItem(userId, bookId, finalUpdate);
+      })
+      .catch(async (err) => {
+        console.error(`Unhandled error in background cover regeneration for book ${bookId}:`, err);
+        await updateLibraryItem(userId, bookId, {
+          status: 'draft',
+          coverStatus: 'error',
+          coverError: (err as Error).message || 'Cover regeneration failed again.',
+        });
+      });
+}
 
 // THIS FUNCTION IS NOW OBSOLETE AND MOVED TO piece-creation.service.ts
 // It is kept here temporarily to avoid breaking existing imports.
