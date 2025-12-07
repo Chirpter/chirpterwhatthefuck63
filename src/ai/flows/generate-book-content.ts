@@ -5,6 +5,7 @@
  * @fileOverview A flow to generate book content (title, chapters with styled paragraphs) from a prompt.
  * This flow now uses the new unified segment parsing and storage model.
  * It intelligently decides whether to pre-compute phrase breakdowns based on user input.
+ * It acts as a "Creative Writer", delivering a raw manuscript in Markdown.
  */
 
 import {ai} from '@/ai/genkit';
@@ -121,16 +122,18 @@ const generateBookContentFlow = ai.defineFlow(
     
     const promptInput = { ...input, prompt: userPrompt, compactInstruction, outlineInstruction, contextInstruction, titleInstruction };
 
-    // Step 4: Call the AI and get the raw Markdown output.
+    // Step 4: Call the AI and get the raw Markdown output ("raw manuscript").
     const {output: aiOutput} = await bookContentGenerationPrompt(promptInput, { config: { maxOutputTokens } });
 
     if (!aiOutput || !aiOutput.markdownContent) {
       throw new Error('AI returned empty or invalid content. This might be due to safety filters or an issue with the prompt.');
     }
     
-    // Step 5: THE CRITICAL PARSING STEP.
+    // Step 5: THE CRITICAL PARSING STEP ("The Editor's Desk").
     // Our system, not the AI, is responsible for converting the raw Markdown
     // into the structured `Segment` format that our application uses internally.
+    // This provides control and consistency. The bilingualFormat from the user's
+    // input determines if we store sentences or pre-split phrases.
     const unifiedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
         input.isBilingual, 

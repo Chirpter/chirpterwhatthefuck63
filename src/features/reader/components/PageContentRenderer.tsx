@@ -28,7 +28,7 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2
 }: PageContentRendererProps) {
-  const { currentSpeechBoundary, currentSpokenSegmentLang } = useAudioPlayer();
+  const { currentSpeechBoundary, currentSpokenSegmentLang, currentPlayingItem } = useAudioPlayer();
   const segments = page.items;
 
   const proseThemeClass = useMemo(() => {
@@ -49,7 +49,7 @@ export function PageContentRenderer({
   const layoutClasses = useMemo(() => {
     if (presentationStyle === 'card') {
         return cn(
-            'flex flex-col h-full',
+            'flex flex-col h-full p-6 md:p-8', // Added padding for card view
             editorSettings.verticalAlign,
             editorSettings.textAlign
         );
@@ -90,6 +90,7 @@ export function PageContentRenderer({
     <div className={contentContainerClasses}>
         {paragraphs.map((paraSegments, pIndex) => {
              const applyDropCap = paraSegments.some(s => s.metadata.applyDropCap);
+             const currentPlayingSegment = paraSegments.find(s => s.id === currentPlayingItem?.id);
              return (
                 <div key={`p-${pIndex}`}>
                     {paraSegments[0].type === 'text' || paraSegments[0].type === 'dialog' ? (
@@ -98,7 +99,7 @@ export function PageContentRenderer({
                             <SegmentRenderer 
                                 key={segment.id} 
                                 segment={segment} 
-                                currentPlayingSegmentId={currentPlayingItemId}
+                                isPlaying={currentPlayingItem?.id === segment.id}
                                 speechBoundary={currentSpeechBoundary}
                                 spokenLang={currentSpokenSegmentLang}
                                 isBilingualMode={isBilingualMode}
@@ -112,7 +113,7 @@ export function PageContentRenderer({
                             <div key={segment.id}>
                             <SegmentRenderer 
                                 segment={segment} 
-                                currentPlayingSegmentId={currentPlayingItemId}
+                                isPlaying={currentPlayingItem?.id === segment.id}
                                 speechBoundary={currentSpeechBoundary}
                                 spokenLang={currentSpokenSegmentLang}
                                 isBilingualMode={isBilingualMode}

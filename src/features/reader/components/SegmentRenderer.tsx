@@ -4,12 +4,12 @@
 import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment } from '@/lib/types';
+import type { Segment, PhraseMap } from '@/lib/types';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface SegmentRendererProps {
   segment: Segment;
-  currentPlayingSegmentId?: string | null;
+  isPlaying?: boolean;
   speechBoundary?: { charIndex: number, charLength: number } | null;
   spokenLang?: string | null;
   isBilingualMode: boolean;
@@ -33,62 +33,107 @@ const getWordHighlightContent = (text: string, boundary: { charIndex: number, ch
     return text;
 };
 
+// New function to render phrases, which will be the new default for bilingual display
+const renderPhrases = (
+  phrases: PhraseMap[],
+  displayLang1: string,
+  displayLang2: string,
+  isSegmentPlaying: boolean,
+  spokenLang: string | null,
+  speechBoundary: { charIndex: number, charLength: number } | null,
+) => {
+  return phrases.map((phrase, index) => {
+    const primaryText = phrase[displayLang1];
+    const secondaryText = phrase[displayLang2];
+
+    if (!primaryText) return null;
+
+    const primaryContent = (isSegmentPlaying && spokenLang === displayLang1)
+      ? getWordHighlightContent(primaryText, speechBoundary)
+      : primaryText;
+
+    const secondaryContent = secondaryText ? ((isSegmentPlaying && spokenLang === displayLang2)
+      ? getWordHighlightContent(secondaryText, speechBoundary)
+      : secondaryText) : null;
+      
+    return (
+      <span key={index} className="inline-block mr-1">
+        <span lang={displayLang1}>{primaryContent}</span>
+        {secondaryContent && (
+          <>
+            <span className="text-muted-foreground text-sm font-light italic"> / {secondaryContent}</span>
+          </>
+        )}
+      </span>
+    );
+  });
+};
+
+const renderSentence = (
+  content: { [lang: string]: string },
+  displayLang1: string,
+  displayLang2: string,
+  isBilingualMode: boolean,
+  isSegmentPlaying: boolean,
+  spokenLang: string | null,
+  speechBoundary: { charIndex: number, charLength: number } | null,
+) => {
+    const primaryText = content[displayLang1];
+    if (!primaryText) return null;
+
+    const primaryContent = (isSegmentPlaying && spokenLang === displayLang1)
+      ? getWordHighlightContent(primaryText, speechBoundary)
+      : primaryText;
+      
+    const secondaryText = isBilingualMode ? content[displayLang2] : null;
+    const secondaryContent = (secondaryText && isSegmentPlaying && spokenLang === displayLang2) 
+      ? getWordHighlightContent(secondaryText, speechBoundary) 
+      : secondaryText;
+
+    if (isBilingualMode) {
+      return (
+        <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
+          <span className="block" lang={displayLang1}>{primaryContent}</span>
+          {secondaryContent && <span className="block text-muted-foreground italic text-sm" lang={displayLang2}>{secondaryContent}</span>}
+        </span>
+      );
+    }
+
+    return (
+      <span className={cn(isSegmentPlaying && 'tts-highlight')}>
+        <span lang={displayLang1}>{primaryContent}</span>
+        {' '}
+      </span>
+    );
+};
+
 
 export const SegmentRenderer: React.FC<SegmentRendererProps> = ({ 
     segment, 
-    currentPlayingSegmentId,
+    isPlaying = false,
     speechBoundary,
     spokenLang,
     isBilingualMode,
     displayLang1,
     displayLang2,
 }) => {
-  const { currentPlayingItem } = useAudioPlayer();
-  const isSegmentPlaying = segment.id === currentPlayingSegmentId;
-  const isThisLangSpeaking = (lang?: string) => lang === spokenLang;
+  
+  const isSegmentPlaying = isPlaying;
 
-  const renderContent = (content: string, lang?: string) => {
-    if (isSegmentPlaying && isThisLangSpeaking(lang)) {
-        return getWordHighlightContent(content, speechBoundary);
+  const renderContent = () => {
+    // If phrases are available, prioritize rendering them.
+    if (segment.phrases) {
+      return renderPhrases(segment.phrases, displayLang1, displayLang2, isSegmentPlaying, spokenLang, speechBoundary);
     }
-    return content;
-  }
-
-  const primaryContent = segment.content?.[displayLang1];
-  const secondaryContent = displayLang2 !== 'none' ? segment.content?.[displayLang2] : undefined;
-
-  const renderText = () => {
-    const primarySpan = primaryContent && (
-      <span lang={displayLang1} className="font-serif">
-        {renderContent(primaryContent, displayLang1)}
-      </span>
-    );
-    
-    const secondarySpan = secondaryContent && (
-      <span lang={displayLang2} className="font-serif text-muted-foreground italic text-sm ml-1">
-        {renderContent(secondaryContent, displayLang2)}
-      </span>
-    );
-
-    const space = ' ';
-    
-    if (isBilingualMode) {
-      return (
-        <span data-segment-id={segment.id} className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
-            <span className="block">{primarySpan}</span>
-            <span className="block">{secondarySpan}</span>
-        </span>
-      );
+    // Otherwise, fall back to rendering the full sentence content.
+    if (segment.content) {
+      return renderSentence(segment.content, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary);
     }
-    
-    // Monolingual view
-    return (
-        <span data-segment-id={segment.id} className={cn(isSegmentPlaying && 'tts-highlight')}>
-            {primarySpan}{space}
-        </span>
-    );
+    return null;
   };
-
+  
+  const content = segment.content || {};
+  const primaryText = content[displayLang1] || '';
 
   switch (segment.type) {
     case 'heading':
@@ -98,26 +143,21 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
           "text-2xl font-bold mt-2 mb-2 font-headline", 
           "dark:text-gray-200"
         )}>
-            {renderContent(primaryContent, displayLang1)}
-            {isBilingualMode && secondaryContent && (
-                <span className="text-muted-foreground dark:text-gray-400 font-normal text-base ml-2">
-                    / {renderContent(secondaryContent, displayLang2)}
-                </span>
-            )}
+            {renderContent()}
         </h3>
       );
     
     case 'blockquote':
         return (
             <blockquote data-segment-id={segment.id} className={cn(isSegmentPlaying && 'tts-highlight', "my-4 w-full")}>
-                {renderContent(primaryContent, displayLang1)}
+                {renderContent()}
             </blockquote>
         );
     
     case 'list_item':
         return (
             <li data-segment-id={segment.id} className={cn(isSegmentPlaying && 'tts-highlight', 'w-full')}>
-                {renderContent(primaryContent, displayLang1)}
+                {renderContent()}
             </li>
         );
 
@@ -125,8 +165,8 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
       return (
         <div data-segment-id={segment.id} className="my-4 w-full">
           <Image
-            src={primaryContent || ''}
-            alt={secondaryContent || "content image"}
+            src={primaryText}
+            alt={"content image"}
             width={500}
             height={300}
             className="mx-auto rounded-md shadow-md"
@@ -136,7 +176,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
 
     case 'text':
     case 'dialog':
-        return renderText();
+        return renderContent();
     
     default:
         return null;

@@ -2,9 +2,11 @@
 
 /**
  * @fileoverview Enhanced Markdown Parser - Architecture Aligned
- * Converts AI markdown output into structured, unified segments.
- * Supports monolingual, and multilingual content by parsing structured pairs.
- * If the format is 'phrase', it pre-computes the phrase breakdown for client-side efficiency.
+ * This service is the "Editor-in-Chief" for AI-generated content.
+ * Its sole responsibility is to take raw Markdown text from the AI and transform it
+ * into the standardized, structured `Segment[]` format that our application uses.
+ * This centralized approach ensures data consistency and decouples the AI from our
+ * internal data structures.
  */
 
 import { remark } from 'remark';
@@ -123,7 +125,7 @@ function detectDialogue(text: string): boolean {
 /**
  * MAIN PARSING FUNCTION - Converts Markdown to structured Segments
  * This function acts as the "Editor" that takes the raw AI manuscript (Markdown)
- * and transforms it into the structured data format (`Segment[]`) our application uses.
+ * and transforms it into the structured data format (`Segment[]`) that our application uses.
  * This separation of concerns is critical for reliability and control.
  */
 export function parseMarkdownToSegments(
@@ -184,11 +186,11 @@ export function parseMarkdownToSegments(
                     },
                  };
 
-                 // If the format is 'phrase', we pre-compute and store the phrase breakdown.
-                 // Otherwise, we store the full sentence in `content`.
+                 // Based on user choice, store EITHER full sentences OR pre-split phrases.
                  if (config.bilingualFormat === 'phrase' && config.isBilingual && config.secondaryLanguage) {
+                    const secondaryText = sentencePair[config.secondaryLanguage] || '';
                     const primaryPhrases = splitSentenceIntoPhrases(primaryText);
-                    const secondaryPhrases = splitSentenceIntoPhrases(sentencePair[config.secondaryLanguage] || '');
+                    const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
                     
                     segment.phrases = primaryPhrases.map((phrase, i) => ({
                         [config.primaryLanguage]: phrase,

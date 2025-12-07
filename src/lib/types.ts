@@ -51,15 +51,15 @@ export interface SegmentMetadata {
   applyDropCap?: boolean;
   /** The primary language of this segment, determines which content is considered "main". */
   primaryLanguage: string; 
-  /** Optional styles or tags for AI processing, e.g., { "emotion": "sad" } */
+  /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
 }
 
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
- * It stores content either as full sentences (`content`) or pre-split phrases (`phrases`).
- * This dual-representation is key to the app's flexibility.
+ * A segment can hold either a full sentence (in `content`) or a breakdown of phrases (in `phrases`),
+ * but not both, to prevent data redundancy. This provides architectural flexibility.
  */
 export interface Segment {
   id: string;
@@ -68,14 +68,14 @@ export interface Segment {
   
   /**
    * For 'sentence' mode or monolingual content. Contains the full text.
-   * If this field exists, `phrases` will not.
+   * If this field exists, `phrases` should not.
    * @example { en: "Hello, how are you?", vi: "Xin chào, bạn khỏe không?" }
    */
   content?: MultilingualContent;
   
   /**
    * For 'phrase' mode. Contains an array of pre-split phrase pairs.
-   * If this field exists, `content` will not.
+   * If this field exists, `content` should not.
    * @example [ { en: "Hello,", vi: "Xin chào," }, { en: " how are you?", vi: " bạn khỏe không?" } ]
    */
   phrases?: PhraseMap[];

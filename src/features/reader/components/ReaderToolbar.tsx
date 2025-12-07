@@ -95,6 +95,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
         <div className="flex items-center justify-center gap-1 md:gap-2">
            {availableLanguages.length > 1 && (
             <>
+              {/* This dropdown controls the "primary" language slot for display */}
               <DropdownMenu>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -117,6 +118,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {/* This dropdown controls the "secondary" language slot, or turns it off */}
                <DropdownMenu>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -127,8 +129,11 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                         </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent>
-                        {/* FUTURE: The logic for this tooltip could change. If the secondary language
-                             is not available in the data, this could become a "Translate to..." button. */}
+                        {/* 
+                          FUTURE: The logic for this could be expanded. 
+                          If the user selects a language not present in `availableLanguages`,
+                          this is the trigger point to initiate the on-demand translation flow.
+                        */}
                         <p>{t('secondaryLanguageTooltip')}</p>
                     </TooltipContent>
                 </Tooltip>
