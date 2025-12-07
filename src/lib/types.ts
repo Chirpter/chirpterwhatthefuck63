@@ -49,19 +49,17 @@ export interface SegmentMetadata {
     [languageCode: string]: number; // e.g., { en: 12, vi: 15 }
   };
   applyDropCap?: boolean;
+  /** The primary language of this segment, determines which content is considered "main". */
   primaryLanguage: string; 
-  languages?: {
-      [languageCode: string]: string;
-  };
+  /** Optional styles or tags for AI processing, e.g., { "emotion": "sad" } */
   style?: string; 
 }
 
 /**
  * @interface Segment
- * @description The fundamental building block of all content. Represents a structured element
- * or a single sentence (or a collection of phrases that make up a sentence).
- * ARCHITECTURAL NOTE: A Segment now stores content EITHER as a full sentence (`content`)
- * OR as pre-split phrases (`phrases`), but never both, to eliminate data redundancy.
+ * @description The fundamental building block of all content. Represents a structured element.
+ * It stores content either as full sentences (`content`) or pre-split phrases (`phrases`).
+ * This dual-representation is key to the app's flexibility.
  */
 export interface Segment {
   id: string;
@@ -70,14 +68,14 @@ export interface Segment {
   
   /**
    * For 'sentence' mode or monolingual content. Contains the full text.
-   * Will be UNDEFINED if 'phrases' is present.
+   * If this field exists, `phrases` will not.
    * @example { en: "Hello, how are you?", vi: "Xin chào, bạn khỏe không?" }
    */
   content?: MultilingualContent;
   
   /**
    * For 'phrase' mode. Contains an array of pre-split phrase pairs.
-   * Will be UNDEFINED if 'content' is present.
+   * If this field exists, `content` will not.
    * @example [ { en: "Hello,", vi: "Xin chào," }, { en: " how are you?", vi: " bạn khỏe không?" } ]
    */
   phrases?: PhraseMap[];
@@ -216,9 +214,13 @@ interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
   title: MultilingualContent;
+  /** Determines if secondaryLanguage content should be processed and displayed. */
   isBilingual: boolean;
+  /** The main language of the content (e.g., 'en'). */
   primaryLanguage: string;
+  /** The secondary language, if the item is bilingual (e.g., 'vi'). */
   secondaryLanguage?: string;
+  /** Determines how bilingual content is structured: as full sentences or smaller phrases. */
   bilingualFormat?: BilingualFormat;
   status: OverallStatus;
   progress?: number;
