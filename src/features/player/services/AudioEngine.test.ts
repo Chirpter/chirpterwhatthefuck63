@@ -1,4 +1,3 @@
-
 // AudioEngine.test.ts - COMPLETE VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { audioEngine, type AudioEngineState } from './AudioEngine';
@@ -84,7 +83,6 @@ const mockBook1: Book = {
       metadata: { primaryLanguage: 'en' }
     }
   ],
-  content: [],
 };
 
 const mockBilingualBook: Book = {
@@ -118,7 +116,6 @@ const mockBilingualBook: Book = {
       metadata: { primaryLanguage: 'en' }
     }
   ],
-  content: [],
 };
 
 const mockBook2: Book = {
@@ -144,17 +141,15 @@ const mockBook2: Book = {
       metadata: { primaryLanguage: 'en' }
     },
   ],
-  content: [],
 };
 
 const mockEmptyBook: Book = {
   ...mockBook1,
   id: 'book-empty',
   chapters: [],
-  content: [],
 };
 
-const mockPlaylistItem1: TPlaylistItem = {
+const mockPlaylistItem1: PlaylistItem = {
   type: 'book',
   id: 'book1',
   title: "Test Book 1",
@@ -163,7 +158,7 @@ const mockPlaylistItem1: TPlaylistItem = {
   availableLanguages: ['en'],
 };
 
-const mockPlaylistItem2: TPlaylistItem = {
+const mockPlaylistItem2: PlaylistItem = {
   type: 'book',
   id: 'book2',
   title: "Test Book 2",
@@ -172,7 +167,7 @@ const mockPlaylistItem2: TPlaylistItem = {
   availableLanguages: ['en'],
 };
 
-const mockBilingualPlaylistItem: TPlaylistItem = {
+const mockBilingualPlaylistItem: PlaylistItem = {
   type: 'book',
   id: 'book-bilingual',
   title: "Bilingual Book",
@@ -182,7 +177,7 @@ const mockBilingualPlaylistItem: TPlaylistItem = {
   availableLanguages: ['en', 'vi'],
 };
 
-const mockEmptyPlaylistItem: TPlaylistItem = {
+const mockEmptyPlaylistItem: PlaylistItem = {
   type: 'book',
   id: 'book-empty',
   title: "Empty Book",
@@ -415,7 +410,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should play vocabulary folder correctly', async () => {
-      const vocabPlaylistItem: TPlaylistItem = {
+      const vocabPlaylistItem: PlaylistItem = {
         type: 'vocab',
         id: 'folder1',
         title: 'Vocabulary Folder 1',
@@ -433,7 +428,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should play term → meaning → example sequence', async () => {
-      const vocabPlaylistItem: TPlaylistItem = {
+      const vocabPlaylistItem: PlaylistItem = {
         type: 'vocab',
         id: 'folder1',
         title: 'Vocabulary Folder 1',
@@ -468,7 +463,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should skip example if not available', async () => {
-      const vocabPlaylistItem: TPlaylistItem = {
+      const vocabPlaylistItem: PlaylistItem = {
         type: 'vocab',
         id: 'folder1',
         title: 'Vocabulary Folder 1',
@@ -826,7 +821,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should handle missing chapter data', async () => {
-      const invalidItem: TPlaylistItem = {
+      const invalidItem: PlaylistItem = {
         ...mockPlaylistItem1,
         data: { ...mockBook1, chapters: [] },
       };
