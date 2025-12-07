@@ -37,7 +37,7 @@ export default function LoginView() {
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
 
-  // Display toast messages based on logout reasons from URL
+  // Display toast messages based on logout reasons from URL, handled by middleware.
   useEffect(() => {
     const reason = searchParams.get('reason');
     if (reason === 'logged_out') {
@@ -46,7 +46,7 @@ export default function LoginView() {
         description: "You have been successfully logged out.",
         duration: 3000,
       });
-    } else if (reason === 'session_expired') {
+    } else if (reason === 'session_expired' || reason === 'session_revoked') {
       toast({
         title: "Session Expired",
         description: "Please log in again.",
@@ -57,18 +57,20 @@ export default function LoginView() {
   }, [searchParams, toast]);
   
   // This effect handles the redirection *after* a successful login.
+  // It no longer needs to check authUser, it just triggers a reload.
   const handleLoginSuccess = () => {
+    console.log("[LoginView] ✅ User authenticated, preparing redirect...");
     toast({ 
       title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
       description: "Redirecting you to the library...",
       duration: 2000
     });
-    // The middleware will handle the actual redirect after a refresh.
+    
     const nextPath = searchParams.get('next') || '/library/book';
-    // We use a timeout to give the toast time to show before the hard reload.
-    setTimeout(() => {
-      window.location.href = nextPath;
-    }, 500);
+    console.log(`[LoginView] Redirecting to ${nextPath}...`);
+    // A hard reload is the simplest way to ensure the new session cookie is sent
+    // to the middleware for all subsequent requests.
+    window.location.href = nextPath;
   };
 
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {

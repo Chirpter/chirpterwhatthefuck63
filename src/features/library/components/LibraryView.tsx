@@ -1,3 +1,5 @@
+// src/features/library/components/LibraryView.tsx
+
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
@@ -33,12 +35,14 @@ interface LibraryViewProps {
 }
 
 function LibraryGrid({ items, onDelete }: { items: LibraryItem[], onDelete: (item: LibraryItem) => void }) {
+  const { t } = useTranslation('libraryPage');
+  
   if (items.length === 0) {
     return (
       <div className="text-center py-12">
         <Icon name="SearchX" className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-        <h3 className="text-xl font-headline font-medium mb-2">No Items Found</h3>
-        <p className="text-muted-foreground font-body">Try adjusting your search or filters.</p>
+        <h3 className="text-xl font-headline font-medium mb-2">{t('noItemsTitle')}</h3>
+        <p className="text-muted-foreground font-body">{t('noItemsHint')}</p>
       </div>
     );
   }

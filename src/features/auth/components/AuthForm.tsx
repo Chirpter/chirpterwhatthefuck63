@@ -1,8 +1,8 @@
-
+// src/features/auth/components/AuthForm.tsx
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ interface AuthFormProps {
 }
 
 const validateEmail = (email: string): boolean => {
+  if (!email) return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
@@ -34,21 +35,32 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isSignUp, onSubmit, isSignin
         isEmailValid && isPasswordValid && isConfirmPasswordValid && !isSigningIn,
         [isEmailValid, isPasswordValid, isConfirmPasswordValid, isSigningIn]
     );
+    
+    // Clear local errors when the main error from the context changes
+    useEffect(() => {
+        if (error) {
+            setLocalError('');
+        }
+    }, [error]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setLocalError('');
         
-        if (!canSubmit) {
-            if (!isEmailValid) {
-                setLocalError('Please enter a valid email address.');
-            } else if (!isPasswordValid) {
-                setLocalError('Password must be at least 6 characters long.');
-            } else if (!isConfirmPasswordValid) {
-                setLocalError("Passwords do not match.");
-            }
+        if (!isEmailValid) {
+            setLocalError('Please enter a valid email address.');
             return;
         }
+        if (!isPasswordValid) {
+            setLocalError('Password must be at least 6 characters long.');
+            return;
+        }
+        if (!isConfirmPasswordValid) {
+            setLocalError("Passwords do not match.");
+            return;
+        }
+        
+        if (!canSubmit) return;
 
         onSubmit(e, email, password);
     };
