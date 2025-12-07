@@ -50,7 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const router = useRouter();
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setAuthUser(user);
@@ -126,14 +127,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
+      // First, sign out from the client-side Firebase instance.
       await signOut(auth);
-      // Wait for the server to confirm cookie deletion before redirecting.
+      
+      // CRITICAL: Await the server's confirmation that the session cookie has been cleared.
       await clearSessionCookie();
+      
     } catch (error) {
       console.error('[AuthContext] Error during logout process:', error);
     } finally {
-      // Use hard navigation to ensure full page reload and state reset.
-      // This will now reliably send the user to the login page as the cookie is gone.
+      // Only after the server has confirmed the cookie is gone, we perform a hard navigation.
+      // This guarantees the middleware will see the logged-out state.
       window.location.href = '/login';
     }
   }, []);
