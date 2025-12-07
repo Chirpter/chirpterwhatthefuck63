@@ -1,3 +1,4 @@
+
 // AudioEngine.test.ts - COMPLETE VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { audioEngine, type AudioEngineState } from './AudioEngine';
@@ -35,11 +36,10 @@ const mockBook1: Book = {
   title: { en: 'Test Book 1' },
   status: 'draft',
   presentationStyle: 'book',
-  isBilingual: false,
+  availableLanguages: ['en'],
   primaryLanguage: 'en',
   contentStatus: 'ready',
   coverStatus: 'ready',
-  content: [],
   chapters: [
     {
       id: 'ch1',
@@ -84,14 +84,13 @@ const mockBook1: Book = {
       metadata: { primaryLanguage: 'en' }
     }
   ],
+  content: [],
 };
 
 const mockBilingualBook: Book = {
   ...mockBook1,
   id: 'book-bilingual',
-  isBilingual: true,
-  secondaryLanguage: 'vi',
-  content: [],
+  availableLanguages: ['en', 'vi'],
   chapters: [
     {
       id: 'ch-bi-1',
@@ -119,13 +118,13 @@ const mockBilingualBook: Book = {
       metadata: { primaryLanguage: 'en' }
     }
   ],
+  content: [],
 };
 
 const mockBook2: Book = {
   ...mockBook1,
   id: 'book2',
   title: { en: 'Test Book 2' },
-  content: [],
   chapters: [
     {
       id: 'ch2-1',
@@ -145,41 +144,51 @@ const mockBook2: Book = {
       metadata: { primaryLanguage: 'en' }
     },
   ],
+  content: [],
 };
 
 const mockEmptyBook: Book = {
   ...mockBook1,
   id: 'book-empty',
-  content: [],
   chapters: [],
+  content: [],
 };
 
-const mockPlaylistItem1: PlaylistItem = {
+const mockPlaylistItem1: TPlaylistItem = {
   type: 'book',
   id: 'book1',
   title: "Test Book 1",
   data: mockBook1,
+  primaryLanguage: 'en',
+  availableLanguages: ['en'],
 };
 
-const mockPlaylistItem2: PlaylistItem = {
+const mockPlaylistItem2: TPlaylistItem = {
   type: 'book',
   id: 'book2',
   title: "Test Book 2",
   data: mockBook2,
+  primaryLanguage: 'en',
+  availableLanguages: ['en'],
 };
 
-const mockBilingualPlaylistItem: PlaylistItem = {
+const mockBilingualPlaylistItem: TPlaylistItem = {
   type: 'book',
   id: 'book-bilingual',
   title: "Bilingual Book",
   data: mockBilingualBook,
+  primaryLanguage: 'en',
+  secondaryLanguage: 'vi',
+  availableLanguages: ['en', 'vi'],
 };
 
-const mockEmptyPlaylistItem: PlaylistItem = {
+const mockEmptyPlaylistItem: TPlaylistItem = {
   type: 'book',
   id: 'book-empty',
   title: "Empty Book",
   data: mockEmptyBook,
+  primaryLanguage: 'en',
+  availableLanguages: ['en'],
 };
 
 const mockVocabItems: VocabularyItem[] = [
@@ -199,7 +208,7 @@ const mockVocabItems: VocabularyItem[] = [
     attempts: 0,
     lastReviewed: null,
     dueDate: new Date(),
-    content: [],
+    context: 'manual',
   },
   {
     id: 'v2',
@@ -215,7 +224,7 @@ const mockVocabItems: VocabularyItem[] = [
     attempts: 1,
     lastReviewed: new Date(),
     dueDate: new Date(),
-    content: [],
+    context: 'manual',
   },
 ];
 
@@ -406,7 +415,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should play vocabulary folder correctly', async () => {
-      const vocabPlaylistItem: PlaylistItem = {
+      const vocabPlaylistItem: TPlaylistItem = {
         type: 'vocab',
         id: 'folder1',
         title: 'Vocabulary Folder 1',
@@ -424,7 +433,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should play term → meaning → example sequence', async () => {
-      const vocabPlaylistItem: PlaylistItem = {
+      const vocabPlaylistItem: TPlaylistItem = {
         type: 'vocab',
         id: 'folder1',
         title: 'Vocabulary Folder 1',
@@ -459,7 +468,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should skip example if not available', async () => {
-      const vocabPlaylistItem: PlaylistItem = {
+      const vocabPlaylistItem: TPlaylistItem = {
         type: 'vocab',
         id: 'folder1',
         title: 'Vocabulary Folder 1',
@@ -817,7 +826,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should handle missing chapter data', async () => {
-      const invalidItem: PlaylistItem = {
+      const invalidItem: TPlaylistItem = {
         ...mockPlaylistItem1,
         data: { ...mockBook1, chapters: [] },
       };
