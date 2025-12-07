@@ -37,6 +37,7 @@ interface ReaderToolbarProps {
   displayLang2: string; // The selected secondary display language code ('none' if monolingual)
   onDisplayLang1Change: (langCode: string) => void;
   onDisplayLang2Change: (langCode: string) => void;
+  // FUTURE: onTranslateRequest: (targetLang: string) => void;
 }
 
 export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({ 
@@ -55,10 +56,10 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     { value: 'bg-background/95', label: 'Default', type: 'color', swatchClass: 'bg-background border' },
     { value: 'bg-reader-sepia', label: 'Sepia', type: 'color', swatchClass: 'bg-[#fbf0d9] border' },
     { value: 'bg-reader-slate', label: 'Slate', type: 'color', swatchClass: 'bg-[#1e293b] border' },
-    { value: 'bg-reader-grain', label: 'Paper Grain', type: 'texture', icon: 'Grip' },
-    { value: 'bg-reader-lined', label: 'Lined Paper', type: 'texture', icon: 'List' },
-    { value: 'bg-reader-grid', label: 'Grid Paper', type: 'texture', icon: 'Grid' },
-    { value: 'bg-reader-crumbled', label: 'Crumbled Paper', type: 'texture', icon: 'FileText' },
+    { value: 'bg-reader-grain', label: 'Paper Grain', type: 'texture', icon: 'Grip' as IconName },
+    { value: 'bg-reader-lined', label: 'Lined Paper', type: 'texture', icon: 'List' as IconName },
+    { value: 'bg-reader-grid', label: 'Grid Paper', type: 'texture', icon: 'Grid' as IconName },
+    { value: 'bg-reader-crumbled', label: 'Crumbled Paper', type: 'texture', icon: 'FileText' as IconName },
   ] as const;
 
   const colorOptions = backgroundOptions.filter(opt => opt.type === 'color');
@@ -86,16 +87,16 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     return LANGUAGES.find(l => l.value === code)?.label || code;
   };
 
-  const availableLang2Options = availableLanguages.filter(lang => lang !== displayLang1);
-
+  // Languages available for the secondary display slot
+  const secondaryDisplayOptions = LANGUAGES.filter(lang => lang.value !== displayLang1);
 
   return (
     <div className="bg-background/90 border shadow-lg p-2 animate-in fade-in-0 slide-in-from-top-2 duration-300 rounded-lg">
       <TooltipProvider>
         <div className="flex items-center justify-center gap-1 md:gap-2">
-           {availableLanguages.length > 1 && (
+           {availableLanguages.length > 0 && (
             <>
-              {/* This dropdown controls the "primary" language slot for display */}
+              {/* --- PRIMARY LANGUAGE DROPDOWN --- */}
               <DropdownMenu>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -118,7 +119,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* This dropdown controls the "secondary" language slot, or turns it off */}
+              {/* --- SECONDARY LANGUAGE DROPDOWN / TRANSLATION TRIGGER --- */}
                <DropdownMenu>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -129,11 +130,6 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                         </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent>
-                        {/* 
-                          FUTURE: The logic for this could be expanded. 
-                          If the user selects a language not present in `availableLanguages`,
-                          this is the trigger point to initiate the on-demand translation flow.
-                        */}
                         <p>{t('secondaryLanguageTooltip')}</p>
                     </TooltipContent>
                 </Tooltip>
@@ -143,9 +139,30 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                     <DropdownMenuRadioGroup value={displayLang2} onValueChange={onDisplayLang2Change}>
                         <DropdownMenuRadioItem value="none">{t('viewModes.none')}</DropdownMenuRadioItem>
                         <DropdownMenuSeparator />
-                        {availableLang2Options.map(lang => (
-                            <DropdownMenuRadioItem key={`l2-${lang}`} value={lang}>{getLanguageLabel(lang)}</DropdownMenuRadioItem>
-                        ))}
+                        {secondaryDisplayOptions.map(lang => {
+                            const isAlreadyAvailable = availableLanguages.includes(lang.value);
+                            return (
+                                <DropdownMenuRadioItem key={`l2-${lang.value}`} value={lang.value}>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>{lang.label}</span>
+                                        {!isAlreadyAvailable && (
+                                            <Tooltip>
+                                                <TooltipTrigger onClick={(e) => {
+                                                    e.stopPropagation(); 
+                                                    // FUTURE: onTranslateRequest(lang.value)
+                                                    alert(`Trigger translation to ${lang.label}`);
+                                                }}>
+                                                    <Icon name="Wand2" className="h-4 w-4 text-primary ml-2" />
+                                                </TooltipTrigger>
+                                                <TooltipContent side="right">
+                                                    <p>{t('translateActionTooltip')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                    </div>
+                                </DropdownMenuRadioItem>
+                            )
+                        })}
                     </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
