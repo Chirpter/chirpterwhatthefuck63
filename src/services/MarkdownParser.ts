@@ -2,8 +2,7 @@
  * @fileoverview Enhanced Markdown Parser - Architecture Aligned
  * Converts AI markdown output into structured, unified segments.
  * Supports monolingual, and multilingual content by parsing structured pairs.
- * NOTE: Phrase-splitting logic has been REMOVED. This task is now delegated to the client (on-demand)
- * to keep the stored data structure lean and flexible.
+ * If the format is 'phrase', it pre-computes the phrase breakdown for client-side efficiency.
  */
 
 import { remark } from 'remark';
@@ -13,7 +12,8 @@ import type {
   BilingualFormat,
   Segment,
   Chapter,
-  ChapterTitle
+  ChapterTitle,
+  PhraseMap,
 } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
@@ -48,6 +48,16 @@ function splitIntoSentences(text: string): string[] {
     .split(sentenceBoundaryRegex)
     .map(s => s.trim())
     .filter(s => s.length > 0);
+}
+
+/**
+ * Splits a sentence into smaller phrases based on commas and semicolons.
+ */
+function splitSentenceIntoPhrases(sentence: string): string[] {
+    if (!sentence) return [];
+    // Split by comma or semicolon, but keep the delimiter at the end of the phrase.
+    // This makes re-joining the sentence easier and more accurate.
+    return sentence.match(/[^,;]+[,;]?/g) || [sentence];
 }
 
 /**
@@ -155,11 +165,23 @@ export function parseMarkdownToSegments(
 
                  const isDialogue = detectDialogue(primaryText);
                  
+                 let phrases: PhraseMap[] | undefined;
+                 if (config.bilingualFormat === 'phrase' && config.isBilingual && config.secondaryLanguage) {
+                    const primaryPhrases = splitSentenceIntoPhrases(primaryText);
+                    const secondaryPhrases = splitSentenceIntoPhrases(sentencePair[config.secondaryLanguage] || '');
+                    
+                    phrases = primaryPhrases.map((phrase, i) => ({
+                        [config.primaryLanguage]: phrase,
+                        [config.secondaryLanguage]: secondaryPhrases[i] || ''
+                    }));
+                 }
+
                  segments.push({
                    id: generateLocalUniqueId(),
                    order: globalSegmentOrder++,
                    type: isDialogue ? 'dialog' : 'text',
                    content: sentencePair,
+                   phrases, // Add the pre-computed phrases if available
                    formatting: {},
                    metadata: {
                      isParagraphStart: isParagraphStart && index === 0 && !isListItem,
@@ -384,3 +406,5 @@ export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Se
   
   return [];
 }
+
+    

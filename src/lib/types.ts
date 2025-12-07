@@ -37,6 +37,10 @@ export interface TextFormatting {
   headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
+export type PhraseMap = {
+  [languageCode: string]: string;
+};
+
 export interface SegmentMetadata {
   isParagraphStart: boolean;
   wordCount: {
@@ -73,6 +77,7 @@ export interface Segment {
    * content: { en: "He opened the door.", vi: "Anh ấy đã mở cửa." }
    */
   content: MultilingualContent;
+  phrases?: PhraseMap[]; // Re-added for pre-computed phrase splitting
   formatting: TextFormatting;
   metadata: SegmentMetadata;
 }
@@ -456,3 +461,5 @@ export type TierTask =
 
 // Renamed for better clarity. Represents the same structure as the old ChapterTitle.
 export type { MultilingualContent as ChapterTitle };
+
+    

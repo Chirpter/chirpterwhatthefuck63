@@ -4,8 +4,7 @@
 /**
  * @fileOverview A flow to generate book content (title, chapters with styled paragraphs) from a prompt.
  * This flow now uses the new unified segment parsing and storage model.
- * - generateBookContent - Handles book content generation.
- * - ProcessedGenerateBookContentOutput - Output type.
+ * It intelligently decides whether to pre-compute phrase breakdowns based on user input.
  */
 
 import {ai} from '@/ai/genkit';
@@ -204,3 +203,5 @@ const generateBookContentFlow = ai.defineFlow(
     };
   }
 );
+
+    
