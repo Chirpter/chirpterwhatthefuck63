@@ -2,8 +2,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
-// Explicitly set the runtime to 'nodejs' to ensure compatibility
-// with Firebase Admin SDK, which uses Node.js APIs.
 export const runtime = 'nodejs';
 
 function getLogoutReason(errorCode: string): string {
@@ -39,11 +37,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const publicRoutes = ['/login', '/signup', '/api/auth/session'];
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route)) || pathname === '/';
-
-  const protectedRoutes = ['/library', '/create', '/profile', '/settings', '/achievements', '/shop', '/explore', '/diary', '/learning', '/playlist', '/admin', '/read'];
-  const isProtectedRoute = protectedRoutes.some(prefix => pathname.startsWith(prefix));
+  const isPublicRoute = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/api/');
+  const isProtectedRoute = !isPublicRoute;
 
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
@@ -54,20 +49,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If user is authenticated and tries to access login/signup, redirect to library
-  if (isAuthenticated && (pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
+  if (isAuthenticated && (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
     return NextResponse.redirect(new URL('/library/book', request.url));
-  }
-
-  // If user is authenticated and at the root, redirect to library
-  if (isAuthenticated && pathname === '/') {
-    return NextResponse.redirect(new URL('/library/book', request.url));
-  }
-  
-  // If user is NOT authenticated and at a protected root like `/library`, redirect to `/login`
-  // This handles cases where user directly navigates to `/library`
-  if (!isAuthenticated && pathname === '/library') {
-      return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return response;
