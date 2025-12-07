@@ -1,4 +1,5 @@
 
+
 import { VOCABULARY_CONSTANTS, BOOK_LENGTH_OPTIONS } from "./constants";
 import { z } from 'zod';
 
@@ -57,7 +58,8 @@ export interface SegmentMetadata {
 
 /**
  * @interface Segment
- * @description The fundamental building block of all content. Represents a sentence or a structured element.
+ * @description The fundamental building block of all content. Represents a structured element
+ * or a single sentence (or a collection of phrases that make up a sentence).
  * ARCHITECTURAL NOTE: A Segment now stores content EITHER as a full sentence (`content`)
  * OR as pre-split phrases (`phrases`), but never both, to eliminate data redundancy.
  */
@@ -68,12 +70,14 @@ export interface Segment {
   
   /**
    * For 'sentence' mode or monolingual content. Contains the full text.
+   * Will be UNDEFINED if 'phrases' is present.
    * @example { en: "Hello, how are you?", vi: "Xin chào, bạn khỏe không?" }
    */
   content?: MultilingualContent;
   
   /**
    * For 'phrase' mode. Contains an array of pre-split phrase pairs.
+   * Will be UNDEFINED if 'content' is present.
    * @example [ { en: "Hello,", vi: "Xin chào," }, { en: " how are you?", vi: " bạn khỏe không?" } ]
    */
   phrases?: PhraseMap[];
@@ -461,5 +465,3 @@ export type TierTask =
 
 // Renamed for better clarity. Represents the same structure as the old ChapterTitle.
 export type { MultilingualContent as ChapterTitle };
-
-    

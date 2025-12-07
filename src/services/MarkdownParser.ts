@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Enhanced Markdown Parser - Architecture Aligned
  * Converts AI markdown output into structured, unified segments.
@@ -191,7 +192,7 @@ export function parseMarkdownToSegments(
                     
                     segment.phrases = primaryPhrases.map((phrase, i) => ({
                         [config.primaryLanguage]: phrase,
-                        [config.secondaryLanguage]: secondaryPhrases[i] || ''
+                        [config.secondaryLanguage as string]: secondaryPhrases[i] || ''
                     }));
                  } else {
                     segment.content = sentencePair;
@@ -406,5 +407,3 @@ export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Se
   
   return [];
 }
-
-    

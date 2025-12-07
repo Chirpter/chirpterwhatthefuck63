@@ -5,7 +5,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { storage } from '@/lib/firebase';
-import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput } from "@/lib/types";
+import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { getUserProfile } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
@@ -14,6 +14,7 @@ import { generateCoverImage } from "@/ai/flows/generate-cover-image-flow";
 import { updateLibraryItem } from "./library-service";
 import sharp from 'sharp';
 import { ApiServiceError } from "../lib/errors";
+import { parseMarkdownToSegments, segmentsToChapterStructure } from './MarkdownParser';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 const MAX_RETRY_COUNT = 3;
@@ -238,6 +239,80 @@ async function processCoverImageForBook(
     throw err;
   }
 }
+
+/**
+ * Permanently upgrades a book's content structure from 'sentence' to 'phrase' format.
+ * This is a one-way operation that processes the existing content into a more granular structure.
+ * @param userId - The ID of the user.
+ * @param bookId - The ID of the book to upgrade.
+ */
+export async function upgradeBookToPhraseMode(userId: string, bookId: string): Promise<void> {
+    const adminDb = getAdminDb();
+    const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+
+    try {
+        const bookDoc = await bookDocRef.get();
+        if (!bookDoc.exists) {
+            throw new ApiServiceError("Book not found.", "UNKNOWN");
+        }
+
+        const book = bookDoc.data() as Book;
+
+        // Prevent re-processing if it's already in phrase format or not bilingual
+        if (book.bilingualFormat === 'phrase' || !book.isBilingual || !book.secondaryLanguage) {
+            console.log(`[Upgrade] Book ${bookId} is already in phrase format or is not eligible. Skipping.`);
+            return;
+        }
+
+        const upgradedChapters: Chapter[] = book.chapters.map(chapter => {
+            const upgradedSegments = chapter.segments.map(segment => {
+                // If segment already has phrases, keep it. Otherwise, create them.
+                if (segment.phrases) {
+                    return segment;
+                }
+
+                // If content is missing, return segment as-is
+                if (!segment.content) {
+                    return segment;
+                }
+
+                const primarySentence = segment.content[book.primaryLanguage] || '';
+                const secondarySentence = segment.content[book.secondaryLanguage!] || '';
+                
+                // This logic should mirror the phrase splitting in MarkdownParser
+                const primaryPhrases = primarySentence.match(/[^,;]+[,;]?/g) || [primarySentence];
+                const secondaryPhrases = secondarySentence.match(/[^,;]+[,;]?/g) || [secondarySentence];
+
+                const phrases = primaryPhrases.map((phrase, i) => ({
+                    [book.primaryLanguage]: phrase.trim(),
+                    [book.secondaryLanguage!]: (secondaryPhrases[i] || '').trim(),
+                }));
+                
+                // Create a new segment object for the upgraded format
+                const newSegment = { ...segment };
+                newSegment.phrases = phrases;
+                delete newSegment.content; // Remove the old sentence-level content
+                return newSegment;
+            });
+            
+            return { ...chapter, segments: upgradedSegments };
+        });
+
+        // Update the book in Firestore with the new structure
+        await bookDocRef.update({
+            chapters: upgradedChapters,
+            bilingualFormat: 'phrase',
+            updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        console.log(`[Upgrade] Successfully upgraded book ${bookId} to phrase mode.`);
+
+    } catch (error) {
+        console.error(`Error upgrading book ${bookId} to phrase mode:`, error);
+        throw new ApiServiceError("Failed to upgrade book format.", "FIRESTORE", error as Error);
+    }
+}
+
 
 // ... other functions (addChaptersToBook, editBookCover) would be similarly refactored ...
 
