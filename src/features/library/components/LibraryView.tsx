@@ -1,292 +1,138 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Icon } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
-import { AuthForm } from '@/features/auth/components/AuthForm';
-import { Logo } from '@/components/ui/Logo';
+import { useTranslation } from 'react-i18next';
+import type { LibraryItem, Book, Piece } from '@/lib/types';
+import { useLibrary } from '../hooks/useLibrary';
+import { LibraryContext } from '../contexts/LibraryContext';
+import { BookItemCard } from './BookItemCard';
+import { PieceItemCard } from './PieceItemCard';
+import { ProcessingBookItemCard } from './ProcessingBookItemCard';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { BookmarkStyleProvider } from './BookmarkStyleProvider';
+import { useBookmarks } from '@/contexts/bookmark-context';
 
-const GoogleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px">
-    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
-    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
-    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
-    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.99,34.556,44,29.865,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
-  </svg>
-);
 
-type RedirectState = 'idle' | 'waiting_session' | 'redirecting' | 'blocked';
+interface LibraryViewProps {
+  contentType: 'book' | 'piece' | 'vocabulary';
+}
 
-export default function LoginView() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { 
-    authUser, 
-    isSessionReady,
-    loading: isAuthLoading, 
-    error: authError, 
-    isSigningIn,
-    signUpWithEmail, 
-    signInWithEmail,
-    signInWithGoogle,
-    clearAuthError,
-  } = useAuth();
-  const { toast } = useToast();
-  
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const [redirectState, setRedirectState] = useState<RedirectState>('idle');
-  const hasRedirectedRef = useRef(false);
-  const mountTimeRef = useRef(Date.now());
-
-  // 🔥 Debug: Log all state changes
-  useEffect(() => {
-    console.log('[LoginView] 🔍 State:', {
-      authUser: authUser?.uid,
-      isSessionReady,
-      redirectState,
-      hasRedirected: hasRedirectedRef.current,
-      timeSinceMount: Date.now() - mountTimeRef.current,
-      reason: searchParams.get('reason'),
-    });
-  }, [authUser, isSessionReady, redirectState, searchParams]);
-
-  // Block redirect if user just logged out
-  useEffect(() => {
-    const reason = searchParams.get('reason');
-    
-    if (reason === 'logged_out' || reason === 'logout_error') {
-      console.log('[LoginView] 🛑 Blocking redirect - user just logged out');
-      setRedirectState('blocked');
-      hasRedirectedRef.current = true;
-      
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out.",
-        duration: 3000,
-      });
-      
-      return;
-    }
-    
-    if (reason === 'session_expired') {
-      toast({
-        title: "Session Expired",
-        description: "Please log in again.",
-        variant: "destructive",
-        duration: 4000,
-      });
-    } else if (reason === 'invalid_session') {
-      toast({
-        title: "Session Invalid",
-        description: "Please log in again.",
-        variant: "destructive",
-        duration: 4000,
-      });
-    }
-  }, [searchParams, toast]);
-
-  // Normal redirect logic
-  useEffect(() => {
-    console.log('[LoginView] 🔄 Redirect check:', {
-      hasRedirected: hasRedirectedRef.current,
-      redirectState,
-      authUser: !!authUser,
-      isSessionReady,
-    });
-
-    // Don't redirect if already redirected or blocked
-    if (hasRedirectedRef.current) {
-      console.log('[LoginView] ⏭️  Skip: already redirected');
-      return;
-    }
-
-    if (redirectState === 'blocked') {
-      console.log('[LoginView] ⏭️  Skip: redirect blocked');
-      return;
-    }
-
-    // Don't redirect if no authenticated user
-    if (!authUser || !isSessionReady) {
-      console.log('[LoginView] ⏭️  Skip: no auth or session not ready');
-      return;
-    }
-
-    // 🔥 REMOVED: 2-second delay check
-    // This was causing issues with legitimate logins
-    
-    console.log('[LoginView] ✅ All checks passed, preparing redirect...');
-    setRedirectState('redirecting');
-    hasRedirectedRef.current = true;
-    
-    const nextPath = searchParams.get('next') || '/library/book';
-    
-    // Short delay to show success UI
-    const timer = setTimeout(() => {
-      console.log('[LoginView] 🚀 Redirecting to:', nextPath);
-      router.replace(nextPath);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [authUser, isSessionReady, router, searchParams, redirectState]);
-  
-  if (isAuthLoading) {
+function LibraryGrid({ items, onDelete }: { items: LibraryItem[], onDelete: (item: LibraryItem) => void }) {
+  if (items.length === 0) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <div className="text-center">
-          <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">Checking authentication...</p>
-        </div>
+      <div className="text-center py-12">
+        <Icon name="SearchX" className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+        <h3 className="text-xl font-headline font-medium mb-2">No Items Found</h3>
+        <p className="text-muted-foreground font-body">Try adjusting your search or filters.</p>
       </div>
     );
   }
-
-  if (authUser && redirectState === 'waiting_session') {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <div className="text-center">
-          <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">Securing your session...</p>
-          <p className="text-xs text-muted-foreground/60 mt-2">This should only take a moment</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (authUser && redirectState === 'redirecting') {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <div className="text-center">
-          <Icon name="Loader2" className="h-12 w-12 text-green-500 mx-auto mb-4 animate-bounce" />
-          <p className="text-sm font-medium">Success! Redirecting...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
-    e.preventDefault();
-    
-    console.log('[LoginView] 📝 Starting email auth...');
-    
-    const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
-    const success = await authOperation(email, pass);
-    
-    console.log('[LoginView] Auth result:', success);
-    
-    if (success) {
-      setRedirectState('waiting_session');
-      toast({ 
-        title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
-        description: "Setting up your session...",
-        duration: 2000
-      });
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    console.log('[LoginView] 🔐 Starting Google sign in...');
-    
-    const success = await signInWithGoogle();
-    
-    console.log('[LoginView] Google sign in result:', success);
-    
-    if (success) {
-      setRedirectState('waiting_session');
-      toast({ 
-        title: "Login Successful", 
-        description: "Setting up your session...",
-        duration: 2000
-      });
-    }
-  };
-
-  const toggleAuthMode = () => {
-    clearAuthError();
-    setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
-  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-blue-50 to-blue-100 dark:from-background dark:via-blue-900/20 dark:to-blue-900/30 p-4">
-      <Card className="w-full max-w-sm shadow-2xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex items-center gap-2">
-            <Logo className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-headline font-bold text-primary">Chirpter</h1>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {authMode === 'signin' ? (
-            <>
-              <AuthForm 
-                isSignUp={false}
-                onSubmit={handleEmailAuth}
-                isSigningIn={isSigningIn}
-                error={authError}
-              />
-              <p className="mt-4 text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{' '}
-                <button 
-                  onClick={toggleAuthMode} 
-                  className="font-semibold text-primary hover:underline focus:outline-none"
-                  disabled={isSigningIn}
-                >
-                  Sign Up
-                </button>
-              </p>
-            </>
-          ) : (
-            <>
-              <AuthForm 
-                isSignUp={true}
-                onSubmit={handleEmailAuth}
-                isSigningIn={isSigningIn}
-                error={authError}
-              />
-              <p className="mt-4 text-center text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <button 
-                  onClick={toggleAuthMode} 
-                  className="font-semibold text-primary hover:underline focus:outline-none"
-                  disabled={isSigningIn}
-                >
-                  Sign In
-                </button>
-              </p>
-            </>
-          )}
-        
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Button 
-              onClick={handleGoogleSignIn} 
-              className="w-full font-body gap-2" 
-              variant="outline" 
-              disabled={isSigningIn}
-            >
-              {isSigningIn ? (
-                <Icon name="Loader2" className="animate-spin h-4 w-4" />
-              ) : (
-                <GoogleIcon />
-              )}
-              Google
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-4 xl:columns-5 2xl:columns-6 gap-4 space-y-4">
+      {items.map(item => {
+        if (item.status === 'processing') {
+          return <ProcessingBookItemCard key={item.id} book={item as Book} onDelete={onDelete} />;
+        }
+        if (item.type === 'book') {
+          return <BookItemCard key={item.id} book={item as Book} />;
+        }
+        if (item.type === 'piece') {
+          return <PieceItemCard key={item.id} work={item as Piece} />;
+        }
+        return null;
+      })}
     </div>
+  );
+}
+
+export default function LibraryView({ contentType }: LibraryViewProps) {
+  const { authUser, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const { availableBookmarks } = useBookmarks();
+
+  const libraryHook = useLibrary({ contentType: contentType === 'vocabulary' ? 'piece' : contentType });
+
+  const {
+    filteredItems,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    itemToDelete,
+    isDeleting,
+    handleDelete,
+    cancelDelete,
+    confirmDelete,
+    handleBookmarkChange,
+  } = libraryHook;
+
+  if (isLoading || authLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Icon name="Loader2" className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <LibraryContext.Provider value={{ availableBookmarks, onBookmarkChange: handleBookmarkChange, onDelete: confirmDelete }}>
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="relative flex-grow w-full md:w-auto">
+            <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search your library..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="font-body pl-9"
+              aria-label="Search library"
+            />
+          </div>
+          <Button onClick={() => router.push('/create')} className="w-full md:w-auto">
+            <Icon name="Plus" className="mr-2 h-4 w-4" />
+            Create New
+          </Button>
+        </div>
+        
+        <BookmarkStyleProvider items={filteredItems} availableBookmarks={availableBookmarks}>
+          <LibraryGrid items={filteredItems} onDelete={confirmDelete} />
+        </BookmarkStyleProvider>
+        
+        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && cancelDelete()}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete "{itemToDelete?.title.primary}" and all of its data.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={cancelDelete} disabled={isDeleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                  {isDeleting && <Icon name="Loader2" className="mr-2 h-4 w-4 animate-spin" />}
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+      </div>
+    </LibraryContext.Provider>
   );
 }
