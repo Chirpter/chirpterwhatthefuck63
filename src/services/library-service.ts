@@ -73,7 +73,9 @@ export async function getLibraryItems(
     let code: ApiServiceError['code'] = 'FIRESTORE';
     if (error.code === 'permission-denied') code = 'PERMISSION';
     else if (error.code === 'unavailable') code = 'UNAVAILABLE';
-    throw new ApiServiceError('Failed to fetch library items.', code, error);
+    // FIX: Do not pass the original error object which may contain circular references.
+    // Pass only the message string.
+    throw new ApiServiceError(`Failed to fetch library items: ${error.message}`, code);
   }
 }
 
