@@ -1,35 +1,15 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Logo } from '@/components/ui/Logo';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function LandingPage() {
-  const [checkResult, setCheckResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
-
-  const handleCheckConnection = async () => {
-    setIsChecking(true);
-    setCheckResult(null);
-    try {
-      const response = await fetch('/api/check-admin');
-      const data = await response.json();
-      setCheckResult(data);
-    } catch (error) {
-      setCheckResult({
-        success: false,
-        message: 'Failed to fetch from API. Check browser console for network errors.',
-      });
-    } finally {
-      setIsChecking(false);
-    }
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-background to-blue-100 dark:from-background dark:to-blue-900/30">
@@ -50,30 +30,6 @@ export default function LandingPage() {
         </div>
       </header>
       
-      {/* --- DEBUG SECTION --- */}
-      <section className="container mx-auto my-4 p-4 border-2 border-dashed rounded-lg">
-          <h3 className="font-bold text-center mb-2">Debug Section</h3>
-          <div className="flex flex-col items-center gap-4">
-              <p className="text-sm text-muted-foreground">
-                  Use this button to check if the server can connect to Firebase using your Service Account Key.
-              </p>
-              <Button onClick={handleCheckConnection} disabled={isChecking}>
-                  {isChecking ? <Icon name="Loader2" className="animate-spin mr-2"/> : <Icon name="Shield" className="mr-2" />}
-                  Check Server Connection
-              </Button>
-              {checkResult && (
-                  <Alert variant={checkResult.success ? 'default' : 'destructive'} className="w-full max-w-2xl">
-                      <AlertDescription className="font-mono text-xs break-words">
-                          <p className="font-bold mb-1">Result:</p>
-                          {checkResult.message}
-                      </AlertDescription>
-                  </Alert>
-              )}
-          </div>
-      </section>
-      {/* --- END DEBUG SECTION --- */}
-
-
       <main className="flex-grow container mx-auto px-4 md:px-0 flex flex-col items-center justify-center text-center py-12 md:py-24">
         <Icon name="Sparkles" className="h-20 w-20 text-accent mb-6" />
         <h2 className="text-5xl md:text-6xl font-headline font-bold mb-6">
