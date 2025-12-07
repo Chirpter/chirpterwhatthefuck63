@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Enhanced Markdown Parser - Architecture Aligned
  * Converts AI markdown output into structured, unified segments.
@@ -120,6 +121,9 @@ function detectDialogue(text: string): boolean {
 
 /**
  * MAIN PARSING FUNCTION - Converts Markdown to structured Segments
+ * This function acts as the "Editor" that takes the raw AI manuscript (Markdown)
+ * and transforms it into the structured data format (`Segment[]`) our application uses.
+ * This separation of concerns is critical for reliability and control.
  */
 export function parseMarkdownToSegments(
   markdown: string, 
@@ -165,32 +169,35 @@ export function parseMarkdownToSegments(
 
                  const isDialogue = detectDialogue(primaryText);
                  
-                 let phrases: PhraseMap[] | undefined;
+                 const segment: Segment = {
+                    id: generateLocalUniqueId(),
+                    order: globalSegmentOrder++,
+                    type: isDialogue ? 'dialog' : 'text',
+                    formatting: {},
+                    metadata: {
+                      isParagraphStart: isParagraphStart && index === 0 && !isListItem,
+                      wordCount: Object.fromEntries(
+                        Object.entries(sentencePair).map(([lang, text]) => [lang, calculateWordCount(text)])
+                      ),
+                      primaryLanguage: config.primaryLanguage,
+                    },
+                 };
+
+                 // If the format is 'phrase', we pre-compute and store the phrase breakdown.
+                 // Otherwise, we store the full sentence in `content`.
                  if (config.bilingualFormat === 'phrase' && config.isBilingual && config.secondaryLanguage) {
                     const primaryPhrases = splitSentenceIntoPhrases(primaryText);
                     const secondaryPhrases = splitSentenceIntoPhrases(sentencePair[config.secondaryLanguage] || '');
                     
-                    phrases = primaryPhrases.map((phrase, i) => ({
+                    segment.phrases = primaryPhrases.map((phrase, i) => ({
                         [config.primaryLanguage]: phrase,
                         [config.secondaryLanguage]: secondaryPhrases[i] || ''
                     }));
+                 } else {
+                    segment.content = sentencePair;
                  }
-
-                 segments.push({
-                   id: generateLocalUniqueId(),
-                   order: globalSegmentOrder++,
-                   type: isDialogue ? 'dialog' : 'text',
-                   content: sentencePair,
-                   phrases, // Add the pre-computed phrases if available
-                   formatting: {},
-                   metadata: {
-                     isParagraphStart: isParagraphStart && index === 0 && !isListItem,
-                     wordCount: Object.fromEntries(
-                        Object.entries(sentencePair).map(([lang, text]) => [lang, calculateWordCount(text)])
-                     ),
-                     primaryLanguage: config.primaryLanguage,
-                   },
-                 });
+                 
+                 segments.push(segment);
               });
               
               break;
@@ -299,7 +306,7 @@ export function segmentsToChapterStructure(segments: Segment[], primaryLanguage:
       currentChapter = {
         id: segment.id,
         order: chapterOrder++,
-        title: segment.content,
+        title: segment.content!, // A heading will always have content
         segments: [], // Start with no segments, add non-heading segments below
         stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 },
         metadata: {
@@ -347,7 +354,6 @@ export function segmentsToChapterStructure(segments: Segment[], primaryLanguage:
     
     // Calculate word count from content segments only
     const contentWordCount = chapter.segments.reduce((sum, segment) => {
-      // ✅ FIX: Use the segment's own primary language metadata
       const segmentPrimaryLang = segment.metadata.primaryLanguage || primaryLanguage;
       const primaryWords = segment.metadata.wordCount?.[segmentPrimaryLang] || 0;
       return sum + primaryWords;
@@ -366,7 +372,6 @@ export function segmentsToChapterStructure(segments: Segment[], primaryLanguage:
  * Enhanced function to get segments with better error handling and validation
  */
 export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Segment[] {
-  console.log(`[getItemSegments] Called for item: ${item.id}, chapterIndex: ${chapterIndex}`);
   try {
     if (item.type === 'piece') {
       return (item as any).content || [];
@@ -375,29 +380,24 @@ export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Se
     if (item.type === 'book') {
       const book = item as Book;
       if (!book.chapters || !Array.isArray(book.chapters) || book.chapters.length === 0) {
-        console.warn(`[getItemSegments] Book ${item.id} has no chapters.`);
         return [];
       }
       
       if (chapterIndex < 0 || chapterIndex >= book.chapters.length) {
-        console.warn(`[getItemSegments] Invalid chapterIndex ${chapterIndex} for book ${item.id} with ${book.chapters.length} chapters.`);
         return [];
       }
       
       const chapter = book.chapters[chapterIndex];
       if (!chapter) {
-        console.warn(`[getItemSegments] Chapter at index ${chapterIndex} is undefined for book ${item.id}.`);
         return [];
       }
       
       if (!Array.isArray(chapter.segments)) {
-          console.warn(`[getItemSegments] Segments for chapter ${chapterIndex} is not an array for book ${item.id}.`);
           return [];
       }
       
       // A chapter's content IS its segments.
       const segments = chapter.segments || [];
-      console.log(`[getItemSegments] Returning ${segments.length} segments for chapter ${chapterIndex}.`);
       return segments;
     }
   } catch (error) {

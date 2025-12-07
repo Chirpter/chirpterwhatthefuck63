@@ -78,34 +78,6 @@ export async function getLibraryItems(
 }
 
 /**
- * Server-side function to fetch a single library item.
- */
-export async function getLibraryItemById(userId: string, itemId: string): Promise<LibraryItem | null> {
-  const adminDb = getAdminDb();
-  try {
-    const docRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(itemId);
-    const docSnap = await docRef.get();
-
-    if (docSnap.exists) {
-      const rawData = docSnap.data()!;
-      return convertTimestamps({ id: docSnap.id, ...rawData }) as LibraryItem;
-    }
-    
-    const globalDocRef = adminDb.collection('globalBooks').doc(itemId);
-    const globalDocSnap = await globalDocRef.get();
-    if (globalDocSnap.exists()) {
-      const rawData = globalDocSnap.data()!;
-      return convertTimestamps({ id: globalDocSnap.id, ...rawData, isGlobal: true }) as LibraryItem;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error in getLibraryItemById (server):', error);
-    throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE', error as Error);
-  }
-}
-
-/**
  * Server-side function to delete a library item.
  */
 export async function deleteLibraryItem(userId: string, itemId: string): Promise<void> {

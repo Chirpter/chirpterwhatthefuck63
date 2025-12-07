@@ -1,3 +1,4 @@
+
 import { VOCABULARY_CONSTANTS, BOOK_LENGTH_OPTIONS } from "./constants";
 import { z } from 'zod';
 
@@ -51,33 +52,32 @@ export interface SegmentMetadata {
   languages?: {
       [languageCode: string]: string;
   };
-  /** 
-   * Optional: For future premium TTS to control the tone, e.g., "sad", "excited", "whispering".
-   * The AI TTS engine would be instructed to use this style when synthesizing this specific segment.
-   */
   style?: string; 
 }
 
 /**
  * @interface Segment
- * @description The fundamental building block of all readable content in the application.
- * It represents a single sentence or a similar semantic unit.
- * ARCHITECTURAL NOTE: This is the smallest unit of data from the database. 
- * For "inline phrase" mode, the client will be responsible for splitting the content
- * of this segment on-demand. This keeps the stored data lean and flexible.
+ * @description The fundamental building block of all content. Represents a sentence or a structured element.
+ * ARCHITECTURAL NOTE: A Segment now stores content EITHER as a full sentence (`content`)
+ * OR as pre-split phrases (`phrases`), but never both, to eliminate data redundancy.
  */
 export interface Segment {
   id: string;
   order: number;
   type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
+  
   /**
-   * @property {MultilingualContent} content - The core data of the segment. It's an object where keys are language codes.
-   * @example
-   * // For a bilingual text segment:
-   * content: { en: "He opened the door.", vi: "Anh ấy đã mở cửa." }
+   * For 'sentence' mode or monolingual content. Contains the full text.
+   * @example { en: "Hello, how are you?", vi: "Xin chào, bạn khỏe không?" }
    */
-  content: MultilingualContent;
-  phrases?: PhraseMap[]; // Re-added for pre-computed phrase splitting
+  content?: MultilingualContent;
+  
+  /**
+   * For 'phrase' mode. Contains an array of pre-split phrase pairs.
+   * @example [ { en: "Hello,", vi: "Xin chào," }, { en: " how are you?", vi: " bạn khỏe không?" } ]
+   */
+  phrases?: PhraseMap[];
+
   formatting: TextFormatting;
   metadata: SegmentMetadata;
 }
