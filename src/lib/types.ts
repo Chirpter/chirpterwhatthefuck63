@@ -48,7 +48,9 @@ export interface SegmentMetadata {
   primaryLanguage: string; 
   languages?: {
       [languageCode: string]: string;
-  }
+  };
+  /** Optional: For future premium TTS to control the tone, e.g., "sad", "excited", "whispering". */
+  style?: string; 
 }
 
 export interface PhraseMap {
