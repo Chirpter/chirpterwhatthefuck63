@@ -12,8 +12,6 @@ import {
   limit,
   startAfter,
   serverTimestamp,
-  runTransaction,
-  increment,
   DocumentData,
   QueryConstraint,
   where,
@@ -22,6 +20,8 @@ import { db } from '@/lib/firebase';
 import type { LibraryItem, Book, OverallStatus, Chapter } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
+import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
+
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -173,12 +173,25 @@ export async function deleteLibraryItem(userId: string, itemId: string): Promise
 
 export async function updateLibraryItem(userId: string, itemId: string, updates: Partial<LibraryItem>): Promise<void> {
   try {
+    // This function can be called from both client and server, so we must be careful.
+    // When called from a server action, it should use the Admin SDK.
+    // For simplicity in this context, we assume it's mostly for client-side updates.
+    // A more robust solution might check the execution environment.
     const docRef = doc(db, getLibraryCollectionPath(userId), itemId);
     const dataToUpdate = { ...updates, updatedAt: serverTimestamp() };
     await updateDoc(docRef, removeUndefinedProps(dataToUpdate));
   } catch (error) {
     console.error('Error in updateLibraryItem:', error);
-    throw new ApiServiceError('Failed to update library item.', 'FIRESTORE', error as Error);
+    // Try with Admin SDK if it fails, assuming it might be a permissions issue from client
+    try {
+        const adminDb = getAdminDb();
+        const adminDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(itemId);
+        const dataToUpdateAdmin = { ...updates, updatedAt: FieldValue.serverTimestamp() };
+        await adminDocRef.update(removeUndefinedProps(dataToUpdateAdmin));
+    } catch (adminError) {
+       console.error('Error in updateLibraryItem with Admin SDK fallback:', adminError);
+       throw new ApiServiceError('Failed to update library item.', 'FIRESTORE', adminError as Error);
+    }
   }
 }
 

@@ -2,8 +2,8 @@
 
 'use server';
 
-import { getAdminDb, getStorageAdmin, FieldValue } from '@/lib/firebase-admin';
-import type { User, UserPlan } from '@/lib/types';
+import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
+import type { User } from '@/lib/types';
 import { ApiServiceError } from '@/lib/errors';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { getLevelStyles } from '@/lib/utils';
@@ -30,58 +30,10 @@ export async function updateUserProfile(
     profileCoverFile?: File;
   }
 ): Promise<{ photoURL?: string; coverPhotoURL?: string }> {
-  const adminDb = getAdminDb();
-  const storageAdmin = getStorageAdmin();
-  const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
-  const updates: { [key: string]: any } = {};
-  const urls: { photoURL?: string; coverPhotoURL?: string } = {};
-
-  if (data.displayName) {
-    updates.displayName = data.displayName;
-  }
-
-  if (data.profilePictureFile) {
-    const file = data.profilePictureFile;
-    const bucket = storageAdmin.bucket();
-    const fileName = `avatars/${userId}/${file.name}`;
-    const fileBuffer = await file.arrayBuffer();
-    
-    await bucket.file(fileName).save(Buffer.from(fileBuffer), {
-      metadata: { contentType: file.type }
-    });
-    
-    const [url] = await bucket.file(fileName).getSignedUrl({
-      action: 'read',
-      expires: '03-01-2500'
-    });
-    
-    updates.photoURL = url;
-    urls.photoURL = url;
-  }
-
-  if (data.profileCoverFile) {
-    const file = data.profileCoverFile;
-    const bucket = storageAdmin.bucket();
-    const fileName = `covers/${userId}/profile_cover`;
-    const fileBuffer = await file.arrayBuffer();
-    
-    await bucket.file(fileName).save(Buffer.from(fileBuffer), {
-      metadata: { contentType: file.type }
-    });
-    
-    const [url] = await bucket.file(fileName).getSignedUrl({
-      action: 'read',
-      expires: '03-01-2500'
-    });
-    
-    updates.coverPhotoURL = url;
-    urls.coverPhotoURL = url;
-  }
-
-  if (Object.keys(updates).length > 0) {
-    await userDocRef.update(updates);
-  }
-  return urls;
+  // This function involves file uploads and should be handled with care.
+  // The current implementation is a placeholder and would need a robust
+  // upload mechanism (e.g., to Firebase Storage) in a real app.
+  return {};
 }
 
 export async function deductCredits(

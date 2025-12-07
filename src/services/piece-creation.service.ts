@@ -2,11 +2,9 @@
 
 'use server';
 
-import { serverTimestamp, increment } from "firebase/firestore";
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { Piece, PieceFormValues, GeneratePieceInput } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
-import { deductCredits } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { generatePieceContent } from "@/ai/flows/generate-piece-content";
 import { updateLibraryItem } from "./library-service";
@@ -15,6 +13,12 @@ import { ApiServiceError } from "../lib/errors";
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 const MAX_RETRY_COUNT = 3;
 
+/**
+ * The main pipeline for processing "piece" generation.
+ * @param userId - The ID of the user.
+ * @param pieceId - The ID of the piece being processed.
+ * @param contentInput - The input for the AI content generation flow.
+ */
 async function processPieceGenerationPipeline(userId: string, pieceId: string, contentInput: GeneratePieceInput): Promise<void> {
     let finalUpdate: Partial<Piece>;
 
@@ -45,48 +49,54 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
     await checkAndUnlockAchievements(userId);
 }
 
+/**
+ * Creates a "piece" document and initiates the generation pipeline.
+ * @param userId - The ID of the user.
+ * @param pieceFormData - The data from the creation form.
+ * @param contentInput - The input for the AI content generation flow.
+ * @returns The ID of the newly created piece.
+ */
 export async function createPieceAndStartGeneration(userId: string, pieceFormData: PieceFormValues, contentInput: GeneratePieceInput): Promise<string> {
     const adminDb = getAdminDb();
-    const libraryCollectionRef = adminDb.collection(getLibraryCollectionPath(userId));
     let pieceId = '';
     
     const creditCost = 1;
     const primaryLang = pieceFormData.primaryLanguage;
 
-    const initialWorkData: Omit<Piece, 'id' | 'createdAt' | 'updatedAt' | 'content'> = {
-        userId,
-        type: 'piece',
-        title: {
-            [primaryLang]: pieceFormData.aiPrompt.substring(0, 50) + (pieceFormData.aiPrompt.length > 50 ? '...' : ''),
-        },
-        status: 'processing',
-        contentStatus: 'processing',
-        contentRetryCount: 0,
-        isBilingual: pieceFormData.isBilingual,
-        primaryLanguage: primaryLang,
-        secondaryLanguage: pieceFormData.isBilingual ? pieceFormData.secondaryLanguage : undefined,
-        prompt: pieceFormData.aiPrompt,
-        tags: pieceFormData.tags || [],
-        presentationStyle: pieceFormData.presentationStyle || 'card',
-        aspectRatio: pieceFormData.aspectRatio,
-        bilingualFormat: pieceFormData.bilingualFormat,
-    };
-
     await adminDb.runTransaction(async (transaction) => {
-        await deductCredits(transaction, userId, creditCost);
-
         const userDocRef = adminDb.collection('users').doc(userId);
+        const userDoc = await transaction.get(userDocRef);
+        if (!userDoc.exists) throw new ApiServiceError("User not found.", "AUTH");
+        if ((userDoc.data()?.credits || 0) < creditCost) {
+            throw new ApiServiceError("Insufficient credits.", "VALIDATION");
+        }
+        
         transaction.update(userDocRef, {
+            credits: FieldValue.increment(-creditCost),
             'stats.piecesCreated': FieldValue.increment(1)
         });
 
-        const newWorkRef = libraryCollectionRef.doc();
-        transaction.set(newWorkRef, {
-            ...removeUndefinedProps(initialWorkData),
+        const newWorkRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
+        const initialWorkData: Omit<Piece, 'id'> = {
+            userId,
+            type: 'piece',
+            title: { [primaryLang]: pieceFormData.aiPrompt.substring(0, 50) },
+            status: 'processing',
+            contentStatus: 'processing',
+            contentRetryCount: 0,
+            isBilingual: pieceFormData.isBilingual,
+            primaryLanguage: primaryLang,
+            secondaryLanguage: pieceFormData.isBilingual ? pieceFormData.secondaryLanguage : undefined,
+            prompt: pieceFormData.aiPrompt,
+            tags: pieceFormData.tags || [],
+            presentationStyle: pieceFormData.presentationStyle || 'card',
+            aspectRatio: pieceFormData.aspectRatio,
+            bilingualFormat: pieceFormData.bilingualFormat,
             content: [],
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
-        });
+        };
+        transaction.set(newWorkRef, removeUndefinedProps(initialWorkData));
         pieceId = newWorkRef.id;
     });
 
@@ -95,23 +105,27 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
     }
     
     processPieceGenerationPipeline(userId, pieceId, contentInput).catch(err => {
-        console.error(`Unhandled error in generation pipeline for piece ${pieceId}:`, err);
+        console.error(`[Orphaned Pipeline] Unhandled error for piece ${pieceId}:`, err);
     });
 
     return pieceId;
 }
 
+/**
+ * Retries the content generation for a "piece".
+ * @param userId - The ID of the user.
+ * @param workId - The ID of the piece to regenerate.
+ * @param newPrompt - An optional new prompt to use for regeneration.
+ */
 export async function regeneratePieceContent(userId: string, workId: string, newPrompt?: string): Promise<void> {
     const adminDb = getAdminDb();
     const workDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(workId);
 
     const workData = await adminDb.runTransaction(async (transaction) => {
         const workSnap = await transaction.get(workDocRef);
-        if (!workSnap.exists()) {
-            throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
-        }
+        if (!workSnap.exists()) throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
+        
         const workData = workSnap.data() as Piece;
-
         if (!newPrompt && (workData.contentRetryCount || 0) >= MAX_RETRY_COUNT) {
             throw new ApiServiceError("Maximum content retry limit reached.", "VALIDATION");
         }
@@ -122,16 +136,15 @@ export async function regeneratePieceContent(userId: string, workId: string, new
             contentRetryCount: newPrompt ? 0 : FieldValue.increment(1),
             updatedAt: FieldValue.serverTimestamp(),
         };
-        if (newPrompt) {
-            updatePayload.prompt = newPrompt;
-        }
+        if (newPrompt) updatePayload.prompt = newPrompt;
+        
         transaction.update(workDocRef, updatePayload);
         return workData;
     });
 
     const promptToUse = newPrompt ?? workData.prompt;
     if (!promptToUse) {
-        await updateLibraryItem(userId, workId, { status: 'draft', contentStatus: 'error', contentError: "No prompt available to regenerate content." });
+        await updateLibraryItem(userId, workId, { status: 'draft', contentStatus: 'error', contentError: "No prompt available." });
         return;
     }
 
@@ -145,11 +158,11 @@ export async function regeneratePieceContent(userId: string, workId: string, new
     
     processPieceGenerationPipeline(userId, workId, contentInput)
     .catch(async (err) => {
-        console.error(`Unhandled error in background content regeneration for work ${workId}:`, err);
+        console.error(`Background regeneration failed for work ${workId}:`, err);
         await updateLibraryItem(userId, workId, {
             status: 'draft',
             contentStatus: 'error',
-            contentError: (err as Error).message || 'Content regeneration failed again.',
+            contentError: (err as Error).message || 'Content regeneration failed.',
         });
     });
 }

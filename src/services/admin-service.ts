@@ -1,6 +1,7 @@
 
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+'use server';
+
+import { getAdminDb } from '@/lib/firebase-admin';
 
 const USERS_COLLECTION = 'users';
 
@@ -11,9 +12,10 @@ const USERS_COLLECTION = 'users';
  * @param userId The UID of the user to grant admin role.
  */
 export async function grantAdminRole(userId: string): Promise<void> {
-  const userDocRef = doc(db, USERS_COLLECTION, userId);
+  const adminDb = getAdminDb();
+  const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
   try {
-    await updateDoc(userDocRef, {
+    await userDocRef.update({
       role: 'admin',
     });
     console.log(`Successfully granted admin role to user ${userId}`);
