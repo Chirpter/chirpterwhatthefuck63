@@ -1,82 +1,128 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 const VERIFY_INTERVAL = 5 * 60 * 1000; // 5 minutes
-const INITIAL_VERIFY_DELAY = 2000; // 2 seconds grace period
+const MAX_RETRIES = 3;
+const RETRY_BACKOFF_BASE = 2000;
 
 export function useSessionVerification() {
-  const { authUser, isSessionReady, logout } = useAuth(); // Depend on isSessionReady
+  const { authUser, isSessionReady, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  
   const isVerifying = useRef(false);
-  const initialCheckPerformed = useRef(false);
+  const retryCount = useRef(0);
+  const lastVerifyTime = useRef(0);
+  const intervalId = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogout = useCallback(async (reason: string) => {
+    try {
+      await logout();
+      // The logout function now handles redirection.
+    } catch (error) {
+      console.error('[Session] Logout failed:', error);
+      // Force redirect as a fallback
+      if (typeof window !== 'undefined') {
+        window.location.replace(`/login?reason=${reason}`);
+      }
+    }
+  }, [logout]);
+
+  const verifySession = useCallback(async () => {
+    if (isVerifying.current) {
+      console.log('[Session] ⏭️  Verification skipped (already in progress)');
+      return false;
+    }
+    
+    const now = Date.now();
+    if ((now - lastVerifyTime.current) < 30000) {
+      console.log('[Session] ⏭️  Verification skipped (too soon)');
+      return false;
+    }
+    
+    isVerifying.current = true;
+    lastVerifyTime.current = now;
+
+    try {
+      const response = await fetch('/api/auth/verify', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        console.warn(`[Session] ⚠️  Verification failed, status: ${response.status}`);
+        const data = await response.json().catch(() => ({}));
+        const reason = data.code === 'auth/session-cookie-expired' ? 'session_expired' : 'invalid_session';
+        await handleLogout(reason);
+        return false;
+      }
+
+      console.log('[Session] ✅ Session is valid.');
+      retryCount.current = 0; // Reset retries on success
+      return true;
+
+    } catch (error) {
+      console.error('[Session] ❌ Verification error:', error);
+      if (retryCount.current < MAX_RETRIES) {
+        retryCount.current++;
+        // We don't need to schedule a retry here; the interval will handle it.
+      } else {
+        console.error('[Session] ❌ Max retries reached for verification.');
+        await handleLogout('verification_failed');
+      }
+      return false;
+    } finally {
+      isVerifying.current = false;
+    }
+  }, [handleLogout]);
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    let initialTimeoutId: NodeJS.Timeout | null = null;
-
-    const verifySession = async (isInitialCheck = false) => {
-      if (isVerifying.current) {
-        console.log('[Session] Verification skipped (already in progress).');
-        return;
+    // Stop everything if user is not authenticated or session is not ready
+    if (!authUser || !isSessionReady) {
+      if (intervalId.current) {
+        clearInterval(intervalId.current);
+        intervalId.current = null;
       }
-      
-      // This check is now robust because it runs after isSessionReady is true
-      if (!document.cookie.includes('__session')) {
-          console.log('[Session] 🚪 No session cookie found. Logging out.');
-          await logout();
-          router.replace('/login');
-          return;
-      }
-
-      console.log(`[Session] 🔍 Verifying session... (Initial: ${isInitialCheck})`);
-      isVerifying.current = true;
-
-      try {
-        const response = await fetch('/api/auth/verify', {
-          method: 'POST',
-          cache: 'no-store',
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          console.warn(`[Session] ⚠️ Verification failed, status: ${response.status}`);
-          if (response.status === 401) {
-            console.log('[Session] 🚪 Logging out due to invalid session...');
-            await logout();
-            router.replace('/login');
-          }
-        } else {
-          console.log(`[Session] ✅ Session valid (Initial: ${isInitialCheck})`);
-          if (isInitialCheck && !intervalId) {
-            intervalId = setInterval(() => verifySession(false), VERIFY_INTERVAL);
-          }
-        }
-      } catch (error) {
-        console.error('[Session] ❌ Verification API call failed:', error);
-      } finally {
-        isVerifying.current = false;
-      }
-    };
-
-    // ✅ CRITICAL CHANGE: Only start the verification logic if the session is ready.
-    if (authUser && isSessionReady && !initialCheckPerformed.current) {
-      initialCheckPerformed.current = true;
-      console.log(`[Session] Scheduling initial verification in ${INITIAL_VERIFY_DELAY}ms.`);
-      initialTimeoutId = setTimeout(() => verifySession(true), INITIAL_VERIFY_DELAY);
+      return;
+    }
+    
+    // Do not start a new interval if one is already running
+    if (intervalId.current) {
+      return;
     }
 
-    // Cleanup function
+    console.log(`[Session] ⏰ Starting periodic session check every ${VERIFY_INTERVAL / 60000} minutes.`);
+    
+    // Start periodic checks
+    intervalId.current = setInterval(() => {
+      verifySession();
+    }, VERIFY_INTERVAL);
+    
+    // Cleanup on unmount or when auth state changes
     return () => {
-      if (initialTimeoutId) {
-        clearTimeout(initialTimeoutId);
-      }
-      if (intervalId) {
-        clearInterval(intervalId);
+      if (intervalId.current) {
+        clearInterval(intervalId.current);
+        intervalId.current = null;
+        console.log('[Session] 🛑 Stopped periodic session check.');
       }
     };
-  }, [authUser, isSessionReady, logout, router]); // Dependency array now includes isSessionReady
+  }, [authUser, isSessionReady, verifySession]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && authUser && isSessionReady) {
+        console.log('[Session] 👁️  Tab is visible, re-verifying session.');
+        verifySession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [authUser, isSessionReady, verifySession]);
+
 }

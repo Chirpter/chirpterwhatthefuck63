@@ -3,6 +3,22 @@ import { getAuthAdmin } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 
+function getLogoutReason(errorCode: string): string {
+  switch (errorCode) {
+    case 'auth/id-token-expired':
+    case 'auth/session-cookie-expired':
+      return 'session_expired';
+    case 'auth/id-token-revoked':
+    case 'auth/session-cookie-revoked':
+      return 'session_revoked';
+    case 'auth/argument-error':
+    case 'auth/invalid-credential':
+      return 'invalid_session';
+    default:
+      return 'auth_error';
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
@@ -10,27 +26,42 @@ export async function middleware(request: NextRequest) {
   
   const sessionCookie = request.cookies.get('__session')?.value;
   let isAuthenticated = false;
+  let logoutReason: string | null = null;
   
-  // Check session validity
+  const response = NextResponse.next();
+  
   if (sessionCookie) {
     try {
       const authAdmin = getAuthAdmin();
       const decodedClaims = await authAdmin.verifySessionCookie(sessionCookie, true);
+      
       isAuthenticated = true;
       console.log(`[Middleware] ✅ Valid session for user: ${decodedClaims.uid}`);
+      
+      response.headers.set('X-User-Id', decodedClaims.uid);
+      
     } catch (error: any) {
-      console.log(`[Middleware] ⚠️ Invalid/expired session: ${error.code}`);
+      const errorCode = error.code || 'unknown';
+      logoutReason = getLogoutReason(errorCode);
+      
+      console.log(`[Middleware] ⚠️ Invalid session: ${errorCode} → Reason: ${logoutReason}`);
       isAuthenticated = false;
       
-      // Create response to clear invalid cookie
-      const response = NextResponse.next();
       response.cookies.delete('__session');
+      
+      if (logoutReason) {
+        response.cookies.set('logout_reason', logoutReason, {
+          httpOnly: false,
+          maxAge: 10,
+          sameSite: 'lax',
+          path: '/',
+        });
+      }
     }
   } else {
     console.log('[Middleware] No session cookie found');
   }
 
-  // Define route types
   const publicRoutes = ['/login', '/signup'];
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
@@ -41,50 +72,41 @@ export async function middleware(request: NextRequest) {
   ];
   const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix));
 
-  // --- ROUTE LOGIC ---
-
-  // Case 1: Unauthenticated user accessing protected route
   if (isProtectedRoute && !isAuthenticated) {
     console.log(`[Middleware] 🚫 Redirecting unauthenticated user to /login`);
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);
+    
+    if (logoutReason) {
+      loginUrl.searchParams.set('reason', logoutReason);
+    }
+    
     return NextResponse.redirect(loginUrl);
   }
 
-  // Case 2: Authenticated user accessing login page
   if (isPublicRoute && isAuthenticated) {
     console.log(`[Middleware] ✅ Redirecting authenticated user to /library/book`);
     return NextResponse.redirect(new URL('/library/book', request.url));
   }
 
-  // Case 3: Root path
   if (pathname === '/') {
     if (isAuthenticated) {
       console.log(`[Middleware] Root → /library/book (authenticated)`);
       return NextResponse.redirect(new URL('/library/book', request.url));
     }
-    // Allow unauthenticated users to see landing page
     console.log(`[Middleware] Root → Landing page (unauthenticated)`);
   }
 
-  // Case 4: API routes and assets - always allow
   if (pathname.startsWith('/api') || pathname.includes('.')) {
-    return NextResponse.next();
+    return response;
   }
 
   console.log(`[Middleware] ✅ Allowing access to: ${pathname}`);
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico (favicon file)
-     * - public files with extensions
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)',
   ],
 };

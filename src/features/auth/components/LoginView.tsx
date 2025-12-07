@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -20,11 +19,14 @@ const GoogleIcon = () => (
   </svg>
 );
 
+type RedirectState = 'idle' | 'waiting_session' | 'redirecting' | 'blocked';
+
 export default function LoginView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { 
     authUser, 
+    isSessionReady,
     loading: isAuthLoading, 
     error: authError, 
     isSigningIn,
@@ -36,62 +38,115 @@ export default function LoginView() {
   const { toast } = useToast();
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  
-  // Ref to store the redirect timeout
-  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [redirectState, setRedirectState] = useState<RedirectState>('idle');
+  const hasRedirectedRef = useRef(false);
+  const mountTimeRef = useRef(Date.now());
 
-  // Handle redirect only when authUser state changes
+  // 🔥 CRITICAL: Block redirect if user just logged out
   useEffect(() => {
-    // If there's an authenticated user and we are not already in the process of redirecting
-    if (authUser && !isRedirecting) {
-      console.log('[LoginView] ✅ User authenticated, preparing redirect...');
-      setIsRedirecting(true);
+    const reason = searchParams.get('reason');
+    
+    if (reason === 'logged_out' || reason === 'logout_error') {
+      console.log('[LoginView] 🛑 Blocking redirect - user just logged out');
+      setRedirectState('blocked');
+      hasRedirectedRef.current = true; // Prevent any future redirects
       
-      const nextPath = searchParams.get('next') || '/library/book';
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+        duration: 3000,
+      });
       
-      // Use a timeout to show feedback to the user before redirecting
-      redirectTimeoutRef.current = setTimeout(() => {
-        console.log('[LoginView] Redirecting to:', nextPath);
-        router.replace(nextPath);
-      }, 1500);
+      return;
+    }
+    
+    // Show appropriate messages for other reasons
+    if (reason === 'session_expired') {
+      toast({
+        title: "Session Expired",
+        description: "Please log in again.",
+        variant: "destructive",
+        duration: 4000,
+      });
+    } else if (reason === 'invalid_session') {
+      toast({
+        title: "Session Invalid",
+        description: "Please log in again.",
+        variant: "destructive",
+        duration: 4000,
+      });
+    }
+  }, [searchParams, toast]);
+
+  // Normal redirect logic (only if not blocked)
+  useEffect(() => {
+    // Don't redirect if already redirected or blocked
+    if (hasRedirectedRef.current || redirectState === 'blocked') {
+      return;
     }
 
-    // Clean up the timeout if the component unmounts or authUser changes
-    return () => {
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current);
-      }
-    };
-  }, [authUser, isRedirecting, router, searchParams]);
+    // Don't redirect if no authenticated user
+    if (!authUser || !isSessionReady) {
+      return;
+    }
+
+    // Safety check: Don't redirect within first 2 seconds of mount
+    // This prevents redirect during logout cleanup
+    const timeSinceMount = Date.now() - mountTimeRef.current;
+    if (timeSinceMount < 2000) {
+      console.log('[LoginView] ⏸️  Delaying redirect - component just mounted');
+      return;
+    }
+
+    console.log('[LoginView] ✅ User authenticated & session ready');
+    setRedirectState('redirecting');
+    hasRedirectedRef.current = true;
+    
+    const nextPath = searchParams.get('next') || '/library/book';
+    
+    const timer = setTimeout(() => {
+      console.log('[LoginView] Redirecting to:', nextPath);
+      router.replace(nextPath);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [authUser, isSessionReady, router, searchParams, redirectState]);
   
-  // Main loading state for the page
-  if (isAuthLoading || isRedirecting) {
+  if (isAuthLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="text-center">
           <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">
-            {isRedirecting ? 'Redirecting...' : 'Loading...'}
-          </p>
+          <p className="text-sm text-muted-foreground">Checking authentication...</p>
         </div>
       </div>
     );
   }
-  
-  // This state should ideally not be reached if middleware is correct,
-  // but it's a good fallback.
-  if (authUser && !isRedirecting) {
-     return (
+
+  if (authUser && redirectState === 'waiting_session') {
+    return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="text-center">
           <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">Finalizing login...</p>
+          <p className="text-sm text-muted-foreground">Securing your session...</p>
+          <p className="text-xs text-muted-foreground/60 mt-2">This should only take a moment</p>
         </div>
       </div>
     );
   }
-  
+
+  if (authUser && redirectState === 'redirecting') {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center">
+          <Icon name="CheckCircle2" className="h-12 w-12 text-green-500 mx-auto mb-4 animate-bounce" />
+          <p className="text-sm font-medium">Success! Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 🔥 Show login form (even if authUser exists but redirectState is blocked)
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
     e.preventDefault();
     
@@ -99,9 +154,11 @@ export default function LoginView() {
     const success = await authOperation(email, pass);
     
     if (success) {
+      setRedirectState('waiting_session');
       toast({ 
         title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
-        description: "Redirecting..." 
+        description: "Setting up your session...",
+        duration: 2000
       });
     }
   };
@@ -110,9 +167,11 @@ export default function LoginView() {
     const success = await signInWithGoogle();
     
     if (success) {
+      setRedirectState('waiting_session');
       toast({ 
         title: "Login Successful", 
-        description: "Redirecting..." 
+        description: "Setting up your session...",
+        duration: 2000
       });
     }
   };
