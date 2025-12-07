@@ -1,4 +1,3 @@
-
 // AudioEngine.test.ts - COMPLETE VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { audioEngine, type AudioEngineState } from './AudioEngine';
@@ -669,7 +668,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should repeat the current segment when repeat-one is on', async () => {
-      audioEngine.setRepeatMode('item');
+      audioEngine.setRepeatMode('one');
       await audioEngine.play(mockPlaylistItem1);
 
       expect(ttsService.speak).toHaveBeenCalledTimes(1);
