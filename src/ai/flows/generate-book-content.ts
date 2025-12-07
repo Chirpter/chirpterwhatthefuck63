@@ -5,7 +5,6 @@
  * @fileOverview A flow to generate book content (title, chapters with styled paragraphs) from a prompt.
  * This flow now uses the new unified segment parsing and storage model.
  * - generateBookContent - Handles book content generation.
- * - GenerateBookContentInput - Input type.
  * - ProcessedGenerateBookContentOutput - Output type.
  */
 
@@ -17,13 +16,16 @@ import { generateLocalUniqueId } from '@/lib/utils';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { parseMarkdownToSegments, segmentsToChapterStructure } from '@/services/MarkdownParser';
 
+// Step 1: Define the raw output schema from the AI model.
+// The AI's job is to return a single, complete Markdown string.
 const GenerateBookContentOutputSchema = z.object({
   bookTitle: z.any().describe("A concise, creative title for the book. It can be a string for monolingual, or an object { primary: string, secondary: string } for bilingual."),
   markdownContent: z.string().describe('The full content of the book or chapters, formatted in plain Markdown. Chapter titles should be level 2 headings (##).'),
   fullChapterOutline: z.array(z.string()).optional().describe('For longer books, the proposed list of titles for ALL chapters, including those not yet generated.'),
 });
 
-// The final output now includes structured chapters.
+// Step 2: Define the final, processed output schema.
+// This is the structured data our application will use after parsing the Markdown.
 export interface ProcessedGenerateBookContentOutput {
   bookTitle: ChapterTitle;
   chapters: Chapter[];
@@ -35,6 +37,7 @@ export async function generateBookContent(input: GenerateBookContentInput): Prom
   return generateBookContentFlow(input);
 }
 
+// Internal schema for crafting the precise prompt to the AI.
 const PromptInputSchema = GenerateBookContentInputSchema.omit({ genre: true }).extend({
   compactInstruction: z.string(),
   outlineInstruction: z.string(),
@@ -42,6 +45,7 @@ const PromptInputSchema = GenerateBookContentInputSchema.omit({ genre: true }).e
   titleInstruction: z.string(),
 });
 
+// The prompt definition. It asks the AI to act as a writer and return Markdown.
 const bookContentGenerationPrompt = ai.definePrompt({
   name: 'generateBookContentPrompt',
   input: { schema: PromptInputSchema },
@@ -65,6 +69,7 @@ const generateBookContentFlow = ai.defineFlow(
   },
   async (input): Promise<ProcessedGenerateBookContentOutput> => {
     
+    // Step 3: Prepare the detailed instructions for the AI.
     const userPrompt = input.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope } = input;
     
@@ -117,12 +122,16 @@ const generateBookContentFlow = ai.defineFlow(
     
     const promptInput = { ...input, prompt: userPrompt, compactInstruction, outlineInstruction, contextInstruction, titleInstruction };
 
+    // Step 4: Call the AI and get the raw Markdown output.
     const {output: aiOutput} = await bookContentGenerationPrompt(promptInput, { config: { maxOutputTokens } });
 
     if (!aiOutput || !aiOutput.markdownContent) {
       throw new Error('AI returned empty or invalid content. This might be due to safety filters or an issue with the prompt.');
     }
     
+    // Step 5: THE CRITICAL PARSING STEP.
+    // Our system, not the AI, is responsible for converting the raw Markdown
+    // into the structured `Segment` format that our application uses internally.
     const unifiedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
         input.isBilingual, 
@@ -131,7 +140,7 @@ const generateBookContentFlow = ai.defineFlow(
         input.secondaryLanguage
     );
     
-    // ✅ FIX: Pass the primary language to the chapter structuring function.
+    // Step 6: Convert the flat list of segments into structured chapters.
     let chapters = segmentsToChapterStructure(unifiedSegments, input.primaryLanguage);
 
     if (chapters.length === 0 && unifiedSegments.length > 0) {
@@ -147,6 +156,7 @@ const generateBookContentFlow = ai.defineFlow(
         }];
     }
     
+    // Step 7: Process the title and chapter outline from the AI output.
     let finalBookTitle: ChapterTitle;
     if (typeof aiOutput.bookTitle === 'string') {
         const titleParts = (aiOutput.bookTitle || "Untitled Book").split(/\s*[\/|]\s*/).map(p => p.trim());
@@ -185,6 +195,7 @@ const generateBookContentFlow = ai.defineFlow(
         };
     });
     
+    // Step 8: Return the final, structured object.
     return {
       bookTitle: finalBookTitle,
       chapters,
@@ -193,5 +204,3 @@ const generateBookContentFlow = ai.defineFlow(
     };
   }
 );
-
-    

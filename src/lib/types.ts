@@ -30,7 +30,7 @@ export type MultilingualContent = {
 };
 
 
-// --- NEW UNIFIED STRUCTURE ---
+// --- UNIFIED STRUCTURE FOR ALL TEXTUAL CONTENT ---
 
 export interface TextFormatting {
   bold?: boolean;
@@ -49,7 +49,10 @@ export interface SegmentMetadata {
   languages?: {
       [languageCode: string]: string;
   };
-  /** Optional: For future premium TTS to control the tone, e.g., "sad", "excited", "whispering". */
+  /** 
+   * Optional: For future premium TTS to control the tone, e.g., "sad", "excited", "whispering".
+   * The AI TTS engine would be instructed to use this style when synthesizing this specific segment.
+   */
   style?: string; 
 }
 
@@ -60,11 +63,25 @@ export interface PhraseMap {
 }
 
 
+/**
+ * @interface Segment
+ * @description The fundamental building block of all readable content in the application.
+ * Think of it as a single "Lego" piece. It can be a sentence, a heading, an image, etc.
+ * This granular structure is key to enabling advanced interactive features.
+ */
 export interface Segment {
   id: string;
   order: number;
   type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
-  content: MultilingualContent; // The core of bilingual flexibility
+  /**
+   * @property {MultilingualContent} content - The core data of the segment. It's an object where keys are language codes.
+   * @example
+   * // For a bilingual text segment:
+   * content: { en: "He opened the door.", vi: "Anh ấy đã mở cửa." }
+   * // For a monolingual heading:
+   * content: { en: "Chapter 1" }
+   */
+  content: MultilingualContent;
   formatting: TextFormatting;
   metadata: SegmentMetadata;
   phrases?: PhraseMap[];
@@ -76,6 +93,10 @@ export interface ChapterStats {
   estimatedReadingTime: number; // in minutes
 }
 
+/**
+ * @interface Chapter
+ * @description A collection of Segments, representing a chapter in a book.
+ */
 export interface Chapter {
   id: string;
   order: number;
@@ -213,6 +234,10 @@ interface BaseLibraryItem extends BaseDocument {
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
 
+/**
+ * @interface Book
+ * @description Represents a full book, composed of multiple chapters.
+ */
 export interface Book extends BaseLibraryItem {
   type: 'book';
   author?: string;
@@ -239,6 +264,11 @@ export interface EditorSettings {
   background: string;
 }
 
+/**
+ * @interface Piece
+ * @description Represents a shorter, single-part work like an article, poem, or dialogue.
+ * It does not have chapters; its `content` is a direct array of Segments.
+ */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
   content: Segment[];

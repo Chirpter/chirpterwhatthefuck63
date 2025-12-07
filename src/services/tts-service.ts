@@ -5,6 +5,7 @@
  * @fileoverview A client-side service to wrap the browser's SpeechSynthesis API.
  * This is not a hook and can be used in any client-side context.
  * It manages a single utterance at a time to prevent overlapping speech.
+ * Each call to `speak()` represents one "segment" of text.
  */
 
 let activeUtterance: SpeechSynthesisUtterance | null = null;
@@ -50,7 +51,8 @@ interface SpeakOptions {
 
 /**
  * Speaks a given text using the browser's SpeechSynthesis API.
- * Ensures that any currently speaking utterance is cancelled before starting a new one.
+ * Each call to this function creates a single "utterance" (a single piece of speech).
+ * It ensures that any currently speaking utterance is cancelled before starting a new one.
  * @param options - The configuration for the speech synthesis.
  */
 export function speak(options: SpeakOptions) {
@@ -60,7 +62,7 @@ export function speak(options: SpeakOptions) {
     return;
   }
   
-  // Cancel any ongoing speech to prevent overlap. This now returns a promise.
+  // Cancel any ongoing speech to prevent overlap.
   cancel().then(() => {
     // This code runs only after the previous utterance has been confirmed as cancelled.
     const utterance = new SpeechSynthesisUtterance(options.text);
