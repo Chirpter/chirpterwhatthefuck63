@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -13,7 +12,8 @@ import {
   increment,
 } from "firebase/firestore";
 import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase"; // Using client-side `db` for some ops
+import { getAdminDb } from '@/lib/firebase-admin'; // Using admin `db` for transactions
 import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, ChapterTitle } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { deductCredits, getUserProfile } from './user-service';
@@ -65,7 +65,8 @@ async function processBookGenerationPipeline(
 }
 
 export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
-  const libraryCollectionRef = collection(db, getLibraryCollectionPath(userId));
+  const adminDb = getAdminDb(); // Use Admin DB for transaction
+  const libraryCollectionRef = collection(adminDb, getLibraryCollectionPath(userId));
   let bookId = '';
 
   const userProfile = await getUserProfile(userId);
@@ -119,13 +120,16 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     }
   };
 
-  await runTransaction(db, async (transaction) => {
+  await runTransaction(adminDb, async (transaction) => {
     await deductCredits(transaction, userId, creditCost);
-    transaction.update(doc(db, 'users', userId), {
+    
+    const userDocRef = adminDb.collection('users').doc(userId); // Use adminDb ref
+    transaction.update(userDocRef, {
         'stats.booksCreated': increment(1),
         'stats.bilingualBooksCreated': bookFormData.isBilingual ? increment(1) : increment(0)
     });
-    const newBookRef = doc(libraryCollectionRef);
+
+    const newBookRef = doc(libraryCollectionRef); // Create new doc ref within admin context
     transaction.set(newBookRef, {
       ...removeUndefinedProps(initialBookData),
       chapters: [],
@@ -254,7 +258,7 @@ export async function addChaptersToBook(userId: string, bookId: string, contentI
     const contentResult = await generateBookContent(contentInput);
 
     const bookDoc = await getDoc(bookDocRef);
-    if (!bookDoc.exists()) throw new ApiServiceError(`Book with ID ${bookId} does not exist!`, 'UNKNOWN');
+    if (!bookDoc.exists()) throw new ApiServiceError(`Book with ID ${bookId} does not exist!`, "UNKNOWN");
 
     const existingBookData = bookDoc.data() as Book;
     const existingChapters = existingBookData.chapters || [];
@@ -288,16 +292,17 @@ export async function addChaptersToBook(userId: string, bookId: string, contentI
 }
 
 export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string | null): Promise<void> {
-    const itemDocRef = doc(db, getLibraryCollectionPath(userId), bookId);
+    const adminDb = getAdminDb(); // Use admin for transaction
+    const itemDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
     
-    await runTransaction(db, async (transaction) => {
-        const userDocRef = doc(db, 'users', userId);
+    await adminDb.runTransaction(async (transaction) => {
+        const userDocRef = adminDb.collection('users').doc(userId);
         const userDoc = await transaction.get(userDocRef);
         if (!userDoc.exists()) throw new ApiServiceError("User not found.", "AUTH");
 
-        const currentCredits = userDoc.data().credits || 0;
+        const currentCredits = userDoc.data()?.credits || 0;
         if (currentCredits < 1) {
-            throw new ApiServiceError("Insufficient credits to generate a new cover.", "UNKNOWN");
+            throw new ApiServiceError("Insufficient credits to generate a new cover.", "VALIDATION");
         }
         
         transaction.update(userDocRef, { 

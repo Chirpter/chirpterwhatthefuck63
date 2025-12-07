@@ -11,7 +11,8 @@ import {
   updateDoc,
   increment,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db } from "@/lib/firebase"; // Using client-side `db`
+import { getAdminDb } from '@/lib/firebase-admin'; // Using admin `db` for transactions
 import type { Piece, PieceFormValues, GeneratePieceInput } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { deductCredits } from './user-service';
@@ -53,7 +54,8 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
 }
 
 export async function createPieceAndStartGeneration(userId: string, pieceFormData: PieceFormValues, contentInput: GeneratePieceInput): Promise<string> {
-    const libraryCollectionRef = collection(db, getLibraryCollectionPath(userId));
+    const adminDb = getAdminDb(); // Use Admin DB for transaction
+    const libraryCollectionRef = collection(adminDb, getLibraryCollectionPath(userId));
     let pieceId = '';
     
     const creditCost = 1;
@@ -79,12 +81,15 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         bilingualFormat: pieceFormData.bilingualFormat,
     };
 
-    await runTransaction(db, async (transaction) => {
+    await runTransaction(adminDb, async (transaction) => {
         await deductCredits(transaction, userId, creditCost);
-        transaction.update(doc(db, 'users', userId), {
+
+        const userDocRef = adminDb.collection('users').doc(userId);
+        transaction.update(userDocRef, {
             'stats.piecesCreated': increment(1)
         });
-        const newWorkRef = doc(libraryCollectionRef);
+
+        const newWorkRef = doc(libraryCollectionRef); // Create new doc ref within admin context
         transaction.set(newWorkRef, {
             ...removeUndefinedProps(initialWorkData),
             createdAt: serverTimestamp(),

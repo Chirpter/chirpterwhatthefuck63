@@ -92,10 +92,10 @@ export async function deductCredits(
   const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
   const userDoc = await transaction.get(userDocRef);
   
-  if (!userDoc.exists) throw new Error('User not found');
+  if (!userDoc.exists) throw new ApiServiceError('User not found', 'AUTH');
 
   const currentCredits = userDoc.data()?.credits || 0;
-  if (currentCredits < amount) throw new Error('Insufficient credits');
+  if (currentCredits < amount) throw new ApiServiceError('Insufficient credits', 'VALIDATION');
 
   transaction.update(userDocRef, { 
     credits: FieldValue.increment(-amount) 
@@ -112,7 +112,7 @@ export async function purchaseGlobalItem(
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
     
-    if (!userDoc.exists) throw new Error("User not found");
+    if (!userDoc.exists) throw new ApiServiceError("User not found", "AUTH");
 
     let itemPrice = 0;
     let updateField: string;
@@ -121,7 +121,7 @@ export async function purchaseGlobalItem(
       const itemDocRef = adminDb.collection('globalBooks').doc(itemId);
       const itemDoc = await transaction.get(itemDocRef);
       
-      if (!itemDoc.exists) throw new Error("Book not found in global store");
+      if (!itemDoc.exists) throw new ApiServiceError("Book not found in global store", "VALIDATION");
       
       itemPrice = itemDoc.data()?.price || 0;
       updateField = 'purchasedBookIds';
@@ -129,7 +129,7 @@ export async function purchaseGlobalItem(
       const itemDocRef = adminDb.collection('bookmarkMetadata').doc(itemId);
       const itemDoc = await transaction.get(itemDocRef);
       
-      if (!itemDoc.exists) throw new Error("Bookmark not found in global store");
+      if (!itemDoc.exists) throw new ApiServiceError("Bookmark not found in global store", "VALIDATION");
       
       itemPrice = itemDoc.data()?.price || 0;
       updateField = 'ownedBookmarkIds';
@@ -139,14 +139,19 @@ export async function purchaseGlobalItem(
     const userCredits = userData.credits || 0;
     
     if (userCredits < itemPrice) {
-      throw new Error("Insufficient credits");
+      throw new ApiServiceError("Insufficient credits", "VALIDATION");
     }
 
     const currentItems = userData[updateField as keyof User] as string[] || [];
     
+    if (currentItems.includes(itemId)) {
+        // Item is already owned, do nothing. This prevents duplicate purchases.
+        return;
+    }
+
     transaction.update(userDocRef, { 
       credits: FieldValue.increment(-itemPrice),
-      [updateField]: [...currentItems, itemId]
+      [updateField]: FieldValue.arrayUnion(itemId)
     });
   });
 }
@@ -163,36 +168,36 @@ export async function claimAchievement(
     const userDoc = await transaction.get(userDocRef);
     
     if (!userDoc.exists) {
-      throw new Error("User document does not exist.");
+      throw new ApiServiceError("User document does not exist.", "AUTH");
     }
 
     const user = userDoc.data() as User;
     const achievementDef = ACHIEVEMENTS.find(a => a.id === achievementId);
     
     if (!achievementDef) {
-      throw new Error("Achievement definition not found.");
+      throw new ApiServiceError("Achievement definition not found.", "VALIDATION");
     }
     
     const userAchievement = user.achievements?.find(a => a.id === achievementId);
     
     if (!userAchievement) {
-      throw new Error("Achievement not unlocked by user.");
+      throw new ApiServiceError("Achievement not unlocked by user.", "VALIDATION");
     }
 
     const targetTier = achievementDef.tiers.find(t => t.level === tierLevel);
     
     if (!targetTier) {
-      throw new Error("Target tier not found for this achievement.");
+      throw new ApiServiceError("Target tier not found for this achievement.", "VALIDATION");
     }
     
     if (userAchievement.lastClaimedLevel >= tierLevel) {
-      throw new Error("Reward for this tier has already been claimed.");
+      throw new ApiServiceError("Reward for this tier has already been claimed.", "VALIDATION");
     }
 
     const statValue = user.stats?.[achievementDef.statToTrack] as number || 0;
     
     if (statValue < targetTier.goal) {
-      throw new Error("Achievement requirements not met to claim this reward.");
+      throw new ApiServiceError("Achievement requirements not met to claim this reward.", "VALIDATION");
     }
 
     let totalReward = targetTier.creditReward;
