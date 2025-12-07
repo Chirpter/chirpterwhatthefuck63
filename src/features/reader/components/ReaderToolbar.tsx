@@ -31,9 +31,11 @@ interface ReaderToolbarProps {
   settings: EditorSettings;
   onSettingsChange: (updates: Partial<EditorSettings>) => void;
   onClose: () => void;
+  // --- Language Props ---
+  bookTitle?: string; // NEW: To display the current book title
   availableLanguages: string[];
   displayLang1: string;
-  displayLang2: string;
+  displayLang2: string; // 'none' or a lang code
   onDisplayLang1Change: (langCode: string) => void;
   onDisplayLang2Change: (langCode: string) => void;
   onTranslateRequest?: (targetLang: string) => void;
@@ -43,6 +45,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
   settings, 
   onSettingsChange, 
   onClose,
+  bookTitle,
   availableLanguages,
   displayLang1,
   displayLang2,
@@ -87,22 +90,23 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     return LANGUAGES.find(l => l.value === code)?.label || code;
   };
 
-  const secondaryDisplayOptions = LANGUAGES.filter(lang => lang.value !== displayLang1);
-
   const handleSecondaryLanguageSelect = (langCode: string) => {
-    if (availableLanguages.includes(langCode) || langCode === 'none') {
-      onDisplayLang2Change(langCode);
+    // If user selects a language not currently in the book's data, trigger the translate request
+    if (langCode !== 'none' && !availableLanguages.includes(langCode) && onTranslateRequest) {
+      onTranslateRequest(langCode);
     } else {
-      if (onTranslateRequest) {
-        onTranslateRequest(langCode);
-      } else {
-        alert(`Future feature: Translate to ${getLanguageLabel(langCode)}`);
-      }
+      // Otherwise, just change the display language
+      onDisplayLang2Change(langCode);
     }
   };
 
   return (
-    <div className="bg-background/90 border shadow-lg p-2 animate-in fade-in-0 slide-in-from-top-2 duration-300 rounded-lg">
+    <div className="bg-background/90 border shadow-lg p-2 animate-in fade-in-0 slide-in-from-top-2 duration-300 rounded-lg flex flex-col gap-2">
+      {bookTitle && (
+        <div className="text-center font-headline text-sm font-semibold truncate px-2 text-primary">
+          {bookTitle}
+        </div>
+      )}
       <TooltipProvider>
         <div className="flex items-center justify-center gap-1 md:gap-2">
            {availableLanguages.length > 0 && (
@@ -150,7 +154,8 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                     <DropdownMenuRadioGroup value={displayLang2} onValueChange={handleSecondaryLanguageSelect}>
                         <DropdownMenuRadioItem value="none">{t('viewModes.none')}</DropdownMenuRadioItem>
                         <DropdownMenuSeparator />
-                        {secondaryDisplayOptions.map(lang => {
+                        {LANGUAGES.map(lang => {
+                            if (lang.value === displayLang1) return null; // Can't select the same lang twice
                             const isAlreadyAvailable = availableLanguages.includes(lang.value);
                             return (
                                 <DropdownMenuRadioItem key={`l2-${lang.value}`} value={lang.value}>
@@ -159,7 +164,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                                         {!isAlreadyAvailable && onTranslateRequest && (
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <div className="p-1" onClick={(e) => { e.stopPropagation(); handleSecondaryLanguageSelect(lang.value); }}>
+                                                    <div className="p-1 -mr-1 rounded-sm" onClick={(e) => e.stopPropagation()}>
                                                         <Icon name="Sparkles" className="h-4 w-4 text-primary" />
                                                     </div>
                                                 </TooltipTrigger>

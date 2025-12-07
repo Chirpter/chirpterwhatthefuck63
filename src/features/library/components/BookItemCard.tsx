@@ -97,12 +97,10 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
     const selectedBookmarkId = book.selectedBookmark || 'default';
     const selectedBookmarkData = availableBookmarks?.find(b => b.id === selectedBookmarkId);
 
-    // If the selected bookmark is a 'pro' one and the user is NOT a pro user, fall back to default.
     if (selectedBookmarkData?.unlockType === 'pro' && !isProUser) {
         return availableBookmarks?.find(b => b.id === 'default');
     }
     
-    // Otherwise, return the selected bookmark or the default if not found.
     return selectedBookmarkData || availableBookmarks?.find(b => b.id === 'default');
   }, [book.selectedBookmark, availableBookmarks, isProUser]);
 
@@ -159,8 +157,6 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
         return;
     }
     
-    // If it's an AI prompt error, we don't have a UI for that here yet, so we just retry.
-    // A more advanced version could open a dialog to edit the prompt.
     regenerateBookCover(user.uid, book.id)
         .then(() => toast({ title: t('toast:regenCoverTitle'), description: t('toast:regenDesc') }))
         .catch(err => toast({ title: t('common:error'), description: (err as Error).message, variant: 'destructive'}))
@@ -208,7 +204,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
     });
   }, [availableBookmarks, ownedBookmarkIds, isProUser]);
 
-  const titleToDisplay = book.title?.primary || Object.values(book.title || {})[0] || t('untitled');
+  const titleToDisplay = book.title[book.primaryLanguage] || Object.values(book.title)[0] || t('untitled');
   
   const renderProgressIndicator = () => {
       if (currentBookmark?.id === 'default') {
