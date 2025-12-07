@@ -187,14 +187,14 @@ export function parseMarkdownToSegments(
                  };
 
                  // Based on user choice, store EITHER full sentences OR pre-split phrases.
-                 if (config.bilingualFormat === 'phrase' && config.isBilingual && config.secondaryLanguage) {
+                 if (config.isBilingual && config.bilingualFormat === 'phrase' && config.secondaryLanguage) {
                     const secondaryText = sentencePair[config.secondaryLanguage] || '';
                     const primaryPhrases = splitSentenceIntoPhrases(primaryText);
                     const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
                     
                     segment.phrases = primaryPhrases.map((phrase, i) => ({
-                        [config.primaryLanguage]: phrase,
-                        [config.secondaryLanguage as string]: secondaryPhrases[i] || ''
+                        [config.primaryLanguage]: phrase.trim(),
+                        [config.secondaryLanguage as string]: (secondaryPhrases[i] || '').trim()
                     }));
                  } else {
                     segment.content = sentencePair;

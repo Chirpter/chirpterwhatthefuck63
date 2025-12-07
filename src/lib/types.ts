@@ -19,11 +19,14 @@ export class ApiServiceError extends Error {
  * @typedef {Object.<string, string>} MultilingualContent
  * @description A flexible object to hold content in multiple languages.
  * The key is the BCP-47 language code (e.g., 'en', 'vi') and the value is the text content.
+ * This is the central type for representing translated text across the application.
  * @example
  * // For a bilingual title:
- * { en: "The Dragon's Journey", vi: "Hành Trình Của Rồng" }
+ * { "en": "The Dragon's Journey", "vi": "Hành Trình Của Rồng" }
  * // For monolingual content:
- * { en: "The dragon flew." }
+ * { "vi": "Con rồng đã bay đi." }
+ * // For a trilingual segment after on-demand translation:
+ * { "vi": "...", "en": "...", "fr": "..." }
  */
 export type MultilingualContent = {
   [languageCode: string]: string;
@@ -39,6 +42,11 @@ export interface TextFormatting {
   headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
+/**
+ * @typedef {Object.<string, string>} PhraseMap
+ * @description A key-value pair for a single phrase in multiple languages.
+ * This is used within a `Segment` when it's in `phrase` format.
+ */
 export type PhraseMap = {
   [languageCode: string]: string;
 };
@@ -59,7 +67,7 @@ export interface SegmentMetadata {
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
  * A segment can hold either a full sentence (in `content`) or a breakdown of phrases (in `phrases`),
- * but not both, to prevent data redundancy. This provides architectural flexibility.
+ * but not both, to prevent data redundancy and ensure a single source of truth for the text.
  */
 export interface Segment {
   id: string;
@@ -68,15 +76,15 @@ export interface Segment {
   
   /**
    * For 'sentence' mode or monolingual content. Contains the full text.
-   * If this field exists, `phrases` should not.
-   * @example { en: "Hello, how are you?", vi: "Xin chào, bạn khỏe không?" }
+   * If this field exists, `phrases` should NOT.
+   * @example { "en": "Hello, how are you?", "vi": "Xin chào, bạn khỏe không?" }
    */
   content?: MultilingualContent;
   
   /**
    * For 'phrase' mode. Contains an array of pre-split phrase pairs.
-   * If this field exists, `content` should not.
-   * @example [ { en: "Hello,", vi: "Xin chào," }, { en: " how are you?", vi: " bạn khỏe không?" } ]
+   * If this field exists, `content` should NOT.
+   * @example [ { "en": "Hello,", "vi": "Xin chào," }, { "en": " how are you?", "vi": " bạn khỏe không?" } ]
    */
   phrases?: PhraseMap[];
 

@@ -258,7 +258,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
 
         const book = bookDoc.data() as Book;
 
-        // Prevent re-processing if it's already in phrase format or not bilingual
+        // Prevent re-processing if it's already in phrase format or not eligible
         if (book.bilingualFormat === 'phrase' || !book.isBilingual || !book.secondaryLanguage) {
             console.log(`[Upgrade] Book ${bookId} is already in phrase format or is not eligible. Skipping.`);
             return;
@@ -266,7 +266,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
 
         const upgradedChapters: Chapter[] = book.chapters.map(chapter => {
             const upgradedSegments = chapter.segments.map(segment => {
-                // If segment already has phrases, keep it. Otherwise, create them.
+                // If segment already has phrases, keep it.
                 if (segment.phrases) {
                     return segment;
                 }

@@ -37,7 +37,7 @@ interface ReaderToolbarProps {
   displayLang2: string; // The selected secondary display language code ('none' if monolingual)
   onDisplayLang1Change: (langCode: string) => void;
   onDisplayLang2Change: (langCode: string) => void;
-  // FUTURE: onTranslateRequest: (targetLang: string) => void;
+  onTranslateRequest?: (targetLang: string) => void;
 }
 
 export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({ 
@@ -49,6 +49,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
   displayLang2,
   onDisplayLang1Change,
   onDisplayLang2Change,
+  onTranslateRequest, // Placeholder for future feature
 }) => {
   const { t } = useTranslation('readerPage');
   
@@ -87,8 +88,22 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     return LANGUAGES.find(l => l.value === code)?.label || code;
   };
 
-  // Languages available for the secondary display slot
+  // Languages available for the secondary display slot, excluding the primary selection.
   const secondaryDisplayOptions = LANGUAGES.filter(lang => lang.value !== displayLang1);
+
+  const handleSecondaryLanguageSelect = (langCode: string) => {
+    if (availableLanguages.includes(langCode) || langCode === 'none') {
+      onDisplayLang2Change(langCode);
+    } else {
+      // This is where the translation would be triggered.
+      // For now, we'll call the placeholder function.
+      if (onTranslateRequest) {
+        onTranslateRequest(langCode);
+      } else {
+        alert(`Future feature: Translate to ${getLanguageLabel(langCode)}`);
+      }
+    }
+  };
 
   return (
     <div className="bg-background/90 border shadow-lg p-2 animate-in fade-in-0 slide-in-from-top-2 duration-300 rounded-lg">
@@ -136,7 +151,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                 <DropdownMenuContent>
                     <DropdownMenuLabel>{t('secondaryLanguageTooltip')}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={displayLang2} onValueChange={onDisplayLang2Change}>
+                    <DropdownMenuRadioGroup value={displayLang2} onValueChange={handleSecondaryLanguageSelect}>
                         <DropdownMenuRadioItem value="none">{t('viewModes.none')}</DropdownMenuRadioItem>
                         <DropdownMenuSeparator />
                         {secondaryDisplayOptions.map(lang => {
@@ -147,12 +162,10 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                                         <span>{lang.label}</span>
                                         {!isAlreadyAvailable && (
                                             <Tooltip>
-                                                <TooltipTrigger onClick={(e) => {
-                                                    e.stopPropagation(); 
-                                                    // FUTURE: onTranslateRequest(lang.value)
-                                                    alert(`Trigger translation to ${lang.label}`);
-                                                }}>
-                                                    <Icon name="Wand2" className="h-4 w-4 text-primary ml-2" />
+                                                <TooltipTrigger asChild>
+                                                    <div className="p-1" onClick={(e) => { e.stopPropagation(); handleSecondaryLanguageSelect(lang.value); }}>
+                                                        <Icon name="Sparkles" className="h-4 w-4 text-primary" />
+                                                    </div>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="right">
                                                     <p>{t('translateActionTooltip')}</p>
