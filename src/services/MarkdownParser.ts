@@ -379,7 +379,7 @@ export function segmentsToChapterStructure(segments: Segment[], primaryLanguage:
 export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Segment[] {
   try {
     if (item.type === 'piece') {
-      return (item as any).content || [];
+      return item.content || [];
     } 
     
     if (item.type === 'book') {

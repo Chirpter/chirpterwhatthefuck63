@@ -116,7 +116,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         contentStatus: 'processing',
         coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
         primaryLanguage: bookFormData.primaryLanguage,
-        availableLanguages: bookFormData.availableLanguages,
+        availableLanguages: bookFormData.availableLanguages.filter(Boolean),
         bilingualFormat: bookFormData.bilingualFormat,
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
@@ -145,8 +145,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
     primaryLanguage: bookFormData.primaryLanguage,
-    isBilingual: bookFormData.availableLanguages.length > 1,
-    secondaryLanguage: bookFormData.availableLanguages.find(l => l !== bookFormData.primaryLanguage),
+    availableLanguages: bookFormData.availableLanguages.filter(Boolean),
     bilingualFormat: bookFormData.bilingualFormat,
     chaptersToGenerate: bookFormData.targetChapterCount,
     totalChapterOutlineCount: bookFormData.targetChapterCount,
@@ -285,13 +284,13 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
 
                 const phrases = primaryPhrases.map((phrase, i) => ({
                     [book.primaryLanguage]: phrase.trim(),
-                    [secondaryLanguage]: (secondaryPhrases[i] || '').trim(),
+                    [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim(),
                 }));
                 
                 // Create a new segment object for the upgraded format
                 const newSegment = { ...segment };
                 newSegment.phrases = phrases;
-                delete newSegment.content; // Remove the old sentence-level content
+                delete (newSegment as Partial<Segment>).content; // Remove the old sentence-level content
                 return newSegment;
             });
             
@@ -332,5 +331,3 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
     // This function now just prepares and calls the main pipeline
 }
-
-    

@@ -14,8 +14,8 @@ import {
     regenerateBookContent 
 } from '@/services/book-creation.service';
 import { createPieceAndStartGeneration, regeneratePieceContent } from '@/services/piece-creation.service';
-import type { GenerateBookContentInput } from '@/ai/flows/generate-book-content';
-import type { GeneratePieceInput } from '@/ai/flows/generate-piece-content';
+import type { GenerateBookContentInput } from '@/lib/types';
+import type { GeneratePieceInput } from '@/lib/types';
 import type { Book, Piece, LibraryItem, CreationFormValues, PieceFormValues } from '@/lib/types';
 import { 
   LANGUAGES, 
@@ -189,7 +189,17 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     if (name === 'coverImageAiPrompt') {
       coverPromptManuallyEditedRef.current = true;
     }
-    if (name === 'primaryLanguage') {
+    if (name === 'isBilingual') {
+        setFormData(prev => {
+            const newLangs = value ? [prev.primaryLanguage, ''] : [prev.primaryLanguage];
+            return { ...prev, availableLanguages: newLangs };
+        });
+    } else if (name === 'secondaryLanguage') {
+        setFormData(prev => ({
+            ...prev,
+            availableLanguages: [prev.primaryLanguage, value],
+        }));
+    } else if (name === 'primaryLanguage') {
         setFormData(prev => ({
             ...prev,
             primaryLanguage: value,
@@ -314,8 +324,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
             const contentInput: GeneratePieceInput = {
                 userPrompt: formData.aiPrompt,
                 primaryLanguage: formData.primaryLanguage,
-                isBilingual: formData.availableLanguages.length > 1,
-                secondaryLanguage: formData.availableLanguages.find(l => l !== formData.primaryLanguage),
+                availableLanguages: formData.availableLanguages.filter(Boolean),
                 bilingualFormat: formData.bilingualFormat,
             };
             jobId = await createPieceAndStartGeneration(user.uid, formData as PieceFormValues, contentInput);
@@ -440,5 +449,3 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     promptError,
   };
 };
-
-    

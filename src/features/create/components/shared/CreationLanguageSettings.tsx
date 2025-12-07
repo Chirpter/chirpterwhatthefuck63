@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -59,7 +60,7 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
             <Label className="font-body">{t('languageSettings.bilingualFormatTitle')}</Label>
             <RadioGroup
                 value={bilingualFormat}
-                onValueChange={onBilingualFormatChange}
+                onValueChange={onBilingualFormatChange as (value: string) => void}
                 className="grid grid-cols-2 gap-3"
                 disabled={isDisabled}
             >

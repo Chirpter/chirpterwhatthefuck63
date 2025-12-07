@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, {
@@ -10,7 +11,7 @@ import React, {
 } from 'react';
 import type {
   LibraryItem,
-  PlaylistItem as TPlaylistItem,
+  PlaylistItem,
   Book,
   ChapterTitle,
 } from '@/lib/types';
@@ -33,7 +34,7 @@ export interface AudioPlayerContextType extends AudioEngineState {
 
   // Commands
   startPlayback: (
-    itemToPlay: LibraryItem | TPlaylistItem,
+    itemToPlay: LibraryItem | PlaylistItem,
     options?: { chapterIndex?: number; segmentIndex?: number }
   ) => void;
   pauseAudio: () => void;
@@ -64,7 +65,7 @@ export interface AudioPlayerContextType extends AudioEngineState {
   isPlaying: boolean;
   isPaused: boolean;
   isLoading: boolean;
-  currentPlayingItem: (TPlaylistItem & { itemId: string }) | null;
+  currentPlayingItem: (PlaylistItem & { itemId: string }) | null;
   overallProgressPercentage: number;
   chapterProgressPercentage: number;
   canGoNext: boolean;
@@ -89,9 +90,9 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(
 // HELPER FUNCTIONS
 // ============================================
 
-const ensurePlaylistItem = (item: LibraryItem | TPlaylistItem): TPlaylistItem => {
+const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
   if ('type' in item && (item.type === 'book' || item.type === 'vocab') && 'data' in item) {
-    return item as TPlaylistItem;
+    return item as PlaylistItem;
   }
   
   const bookData = item as Book;
@@ -200,7 +201,7 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
   const commands = useMemo(
     () => ({
       startPlayback: (
-        itemToPlay: LibraryItem | TPlaylistItem,
+        itemToPlay: LibraryItem | PlaylistItem,
         options?: { chapterIndex?: number; segmentIndex?: number }
       ) => {
         const playlistItem = ensurePlaylistItem(itemToPlay);

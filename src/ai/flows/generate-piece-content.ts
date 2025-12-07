@@ -1,4 +1,5 @@
 
+
 'use server';
 /**
  * @fileoverview A flow to generate title and content for various types of "Pieces" 
@@ -76,10 +77,11 @@ const generatePieceContentFlow = ai.defineFlow(
     }
     
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === input.primaryLanguage)?.label || input.primaryLanguage || '';
-    const secondaryLanguageLabel = input.secondaryLanguage ? (LANGUAGES.find(l => l.value === input.secondaryLanguage)?.label || input.secondaryLanguage) : '';
+    const secondaryLanguage = input.availableLanguages.find(l => l !== input.primaryLanguage);
+    const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
     let bilingualInstruction = `Write in ${primaryLanguageLabel}.`;
-    if (input.isBilingual && secondaryLanguageLabel) {
+    if (input.availableLanguages.length > 1 && secondaryLanguageLabel) {
         bilingualInstruction = `Write in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, sentence by line translation format.`;
     }
     
@@ -96,10 +98,9 @@ const generatePieceContentFlow = ai.defineFlow(
     
     const generatedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
-        input.isBilingual, 
+        input.availableLanguages, 
         input.bilingualFormat,
-        input.primaryLanguage,
-        input.secondaryLanguage
+        input.primaryLanguage
     );
     
     let finalTitle: ChapterTitle;

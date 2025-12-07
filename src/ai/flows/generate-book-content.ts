@@ -1,4 +1,5 @@
 
+
 'use server';
 
 /**
@@ -38,12 +39,13 @@ export async function generateBookContent(input: GenerateBookContentInput): Prom
 }
 
 // Internal schema for crafting the precise prompt to the AI.
-const PromptInputSchema = GenerateBookContentInputSchema.omit({ genre: true }).extend({
+const PromptInputSchema = GenerateBookContentInputSchema.extend({
   compactInstruction: z.string(),
   outlineInstruction: z.string(),
   contextInstruction: z.string(),
   titleInstruction: z.string(),
 });
+
 
 // The prompt definition. It asks the AI to act as a writer and return Markdown.
 const bookContentGenerationPrompt = ai.definePrompt({
@@ -71,7 +73,7 @@ const generateBookContentFlow = ai.defineFlow(
     
     // Step 3: Prepare the detailed instructions for the AI.
     const userPrompt = input.prompt.slice(0, MAX_PROMPT_LENGTH);
-    const { bookLength, generationScope } = input;
+    const { bookLength, generationScope, availableLanguages } = input;
     
     let totalWords = 600;
     let maxOutputTokens = 1200;
@@ -94,12 +96,13 @@ const generateBookContentFlow = ai.defineFlow(
     let compactInstruction: string;
     
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === input.primaryLanguage)?.label || input.primaryLanguage || '';
-    const secondaryLanguageLabel = input.secondaryLanguage ? (LANGUAGES.find(l => l.value === input.secondaryLanguage)?.label || input.secondaryLanguage) : '';
+    const secondaryLanguage = availableLanguages.find(l => l !== input.primaryLanguage);
+    const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
     let languageInstruction = `in ${primaryLanguageLabel}`;
     let titleInstruction = `Create a title base on story or user title (1-7 words) for the book in the 'bookTitle' field.`;
 
-    if (input.isBilingual && secondaryLanguageLabel) {
+    if (availableLanguages.length > 1 && secondaryLanguageLabel) {
         languageInstruction = `in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, sentence by line translation format`;
         titleInstruction = `Create a title based on the story or user-provided title (1-7 words). Provide both ${primaryLanguageLabel} and ${secondaryLanguageLabel} versions, separated by ' / '. E.g., 'The Lost Key / Chiếc Chìa Khóa Lạc'. Return it in the 'bookTitle' field.`;
     }
@@ -136,14 +139,13 @@ const generateBookContentFlow = ai.defineFlow(
     // input determines if we store sentences or pre-split phrases.
     const unifiedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
-        input.isBilingual, 
+        availableLanguages,
         input.bilingualFormat, 
-        input.primaryLanguage, 
-        input.secondaryLanguage
+        input.primaryLanguage
     );
     
     // Step 6: Convert the flat list of segments into structured chapters.
-    let chapters = segmentsToChapterStructure(unifiedSegments, input.primaryLanguage);
+    let chapters = segmentsToChapterStructure(unifiedSegments, input.primaryLanguage || 'en');
 
     if (chapters.length === 0 && unifiedSegments.length > 0) {
         chapters = [{
@@ -206,5 +208,3 @@ const generateBookContentFlow = ai.defineFlow(
     };
   }
 );
-
-    
