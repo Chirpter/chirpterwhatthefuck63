@@ -76,11 +76,6 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             'stats.piecesCreated': FieldValue.increment(1)
         });
 
-        const availableLanguages = [primaryLang];
-        if (pieceFormData.isBilingual && pieceFormData.secondaryLanguage) {
-            availableLanguages.push(pieceFormData.secondaryLanguage);
-        }
-
         const newWorkRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
         const initialWorkData: Omit<Piece, 'id'> = {
             userId,
@@ -90,7 +85,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             contentStatus: 'processing',
             contentRetryCount: 0,
             primaryLanguage: primaryLang,
-            availableLanguages: [...new Set(availableLanguages)],
+            availableLanguages: pieceFormData.availableLanguages,
             prompt: pieceFormData.aiPrompt,
             tags: pieceFormData.tags || [],
             presentationStyle: pieceFormData.presentationStyle || 'card',
@@ -170,3 +165,5 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         });
     });
 }
+
+    

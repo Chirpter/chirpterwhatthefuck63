@@ -53,9 +53,8 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
   const defaultFormValues: CreationFormValues = useMemo(() => {
     const defaultOption = BOOK_LENGTH_OPTIONS.find(opt => !opt.disabled) || BOOK_LENGTH_OPTIONS[0];
     const baseValues = {
-        isBilingual: false,
         primaryLanguage: i18n.language,
-        secondaryLanguage: undefined,
+        availableLanguages: [i18n.language],
         bilingualFormat: 'sentence' as 'sentence' | 'phrase',
         tags: [],
     };
@@ -146,10 +145,10 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     if (promptError) {
       return t('formErrors.prompt.tooLong');
     }
-    if (formData.isBilingual && !formData.secondaryLanguage) {
-      return t('formErrors.language.secondaryMissing');
+    if (formData.availableLanguages.length > 1 && !formData.availableLanguages.find(l => l !== formData.primaryLanguage)) {
+        return t('formErrors.language.secondaryMissing');
     }
-    if (formData.isBilingual && formData.primaryLanguage === formData.secondaryLanguage) {
+    if (formData.availableLanguages.length > 1 && new Set(formData.availableLanguages).size < formData.availableLanguages.length) {
         return t('formErrors.language.sameLanguage');
     }
     if (type === 'book') {
@@ -190,7 +189,15 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     if (name === 'coverImageAiPrompt') {
       coverPromptManuallyEditedRef.current = true;
     }
-    setFormData(prev => ({ ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value }));
+    if (name === 'primaryLanguage') {
+        setFormData(prev => ({
+            ...prev,
+            primaryLanguage: value,
+            availableLanguages: [value, ...prev.availableLanguages.filter(l => l !== prev.primaryLanguage && l !== value)],
+        }));
+    } else {
+        setFormData(prev => ({ ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value }));
+    }
   }, []);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -307,8 +314,8 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
             const contentInput: GeneratePieceInput = {
                 userPrompt: formData.aiPrompt,
                 primaryLanguage: formData.primaryLanguage,
-                isBilingual: formData.isBilingual,
-                secondaryLanguage: formData.secondaryLanguage,
+                isBilingual: formData.availableLanguages.length > 1,
+                secondaryLanguage: formData.availableLanguages.find(l => l !== formData.primaryLanguage),
                 bilingualFormat: formData.bilingualFormat,
             };
             jobId = await createPieceAndStartGeneration(user.uid, formData as PieceFormValues, contentInput);
@@ -433,3 +440,5 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     promptError,
   };
 };
+
+    

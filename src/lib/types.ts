@@ -287,9 +287,8 @@ export interface Piece extends BaseLibraryItem {
 }
 
 export interface CreationFormValues {
-  isBilingual: boolean;
   primaryLanguage: string;
-  secondaryLanguage?: string;
+  availableLanguages: string[];
   aiPrompt: string;
   tags: string[];
   title: MultilingualContent;
@@ -306,7 +305,7 @@ export interface CreationFormValues {
   generationScope: 'full' | 'firstFew';
 }
 
-export type PieceFormValues = CreationFormValues;
+export type PieceFormValues = Omit<CreationFormValues, 'coverImageOption' | 'coverImageAiPrompt' | 'coverImageFile' | 'previousContentSummary' | 'targetChapterCount' | 'bookLength' | 'generationScope'>;
 
 export type SrsState = 'new' | 'learning' | 'short-term' | 'long-term';
 export type VocabContext = 'reader' | 'vocab-videos' | 'manual';
@@ -347,7 +346,7 @@ export interface VocabularyItem extends BaseDocument {
 export type LibraryItem = Book | Piece;
 
 export type PlaylistItem =
-  | { type: 'book'; id: string; title: string; data: Book }
+  | { type: 'book'; id: string; title: string; data: Book; isBilingual?: boolean; primaryLanguage: string; secondaryLanguage?: string | null; }
   | { type: 'vocab'; id: string; title: string; };
 
 
@@ -470,3 +469,5 @@ export type TierTask =
 
 // Renamed for better clarity. Represents the same structure as the old ChapterTitle.
 export type { MultilingualContent as ChapterTitle };
+
+    

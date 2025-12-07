@@ -104,13 +104,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     transaction.update(userDocRef, {
         credits: FieldValue.increment(-creditCost),
         'stats.booksCreated': FieldValue.increment(1),
-        'stats.bilingualBooksCreated': bookFormData.isBilingual ? FieldValue.increment(1) : FieldValue.increment(0)
+        'stats.bilingualBooksCreated': bookFormData.availableLanguages.length > 1 ? FieldValue.increment(1) : FieldValue.increment(0)
     });
-    
-    const availableLanguages = [bookFormData.primaryLanguage];
-    if (bookFormData.isBilingual && bookFormData.secondaryLanguage) {
-      availableLanguages.push(bookFormData.secondaryLanguage);
-    }
     
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
     const initialBookData: Omit<Book, 'id'> = {
@@ -121,7 +116,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         contentStatus: 'processing',
         coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
         primaryLanguage: bookFormData.primaryLanguage,
-        availableLanguages: [...new Set(availableLanguages)],
+        availableLanguages: bookFormData.availableLanguages,
         bilingualFormat: bookFormData.bilingualFormat,
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
@@ -150,8 +145,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
     primaryLanguage: bookFormData.primaryLanguage,
-    isBilingual: bookFormData.isBilingual,
-    secondaryLanguage: bookFormData.secondaryLanguage,
+    isBilingual: bookFormData.availableLanguages.length > 1,
+    secondaryLanguage: bookFormData.availableLanguages.find(l => l !== bookFormData.primaryLanguage),
     bilingualFormat: bookFormData.bilingualFormat,
     chaptersToGenerate: bookFormData.targetChapterCount,
     totalChapterOutlineCount: bookFormData.targetChapterCount,
@@ -337,3 +332,5 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
     // This function now just prepares and calls the main pipeline
 }
+
+    
