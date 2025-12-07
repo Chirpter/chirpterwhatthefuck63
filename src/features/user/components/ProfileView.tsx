@@ -4,6 +4,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Icon } from '@/components/ui/icons';
@@ -147,8 +148,9 @@ const TimelinePost = ({ icon, title, description, children }: { icon: any, title
 
 
 export default function ProfileView() {
-    const { user, authUser, reloadUser } = useAuth();
+    const { user, loading, reloadUser } = useUser();
     const { toast } = useToast();
+    const { authUser } = useAuth(); // Import authUser
     const [isUploading, setIsUploading] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -189,7 +191,7 @@ export default function ProfileView() {
     };
 
 
-    if (!authUser || !user) {
+    if (loading || !user || !authUser) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Icon name="Loader2" className="h-12 w-12 animate-spin text-primary" />
@@ -319,4 +321,3 @@ export default function ProfileView() {
     );
 }
 
-  

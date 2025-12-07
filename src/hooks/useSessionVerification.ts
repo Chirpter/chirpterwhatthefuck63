@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 
 const VERIFY_INTERVAL = 5 * 60 * 1000; // 5 minutes
-const INITIAL_VERIFY_DELAY = 3000; // 3 seconds grace period
+const INITIAL_VERIFY_DELAY = 2000; // 2 seconds grace period
 
 export function useSessionVerification() {
   const { authUser, isSessionReady, logout } = useAuth(); // Depend on isSessionReady
