@@ -1,4 +1,5 @@
 
+
 // ARCHITECTURAL REFACTOR: This file is now a server-first utility.
 // The 'use client' directive has been removed, allowing these functions to be
 // used in both Server Components (for initial data fetching) and Client Components.
@@ -148,6 +149,17 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
   }
 }
 
+export async function getUserProfile(userId: string): Promise<User | null> {
+  const adminDb = getAdminDb();
+  const userDocRef = adminDb.collection('users').doc(userId);
+  const docSnap = await userDocRef.get();
+
+  if (docSnap.exists) {
+    return docSnap.data() as User;
+  }
+  return null;
+}
+
 export async function getLibraryItemsByIds(userId: string, itemIds: string[]): Promise<LibraryItem[]> {
     if (!userId || itemIds.length === 0) return [];
     
@@ -180,6 +192,8 @@ export async function deleteLibraryItem(userId: string, itemId: string): Promise
 
 export async function updateLibraryItem(userId: string, itemId: string, updates: Partial<LibraryItem>): Promise<void> {
   try {
+    // Use the client 'db' instance for this operation as it can be called
+    // from both client and server actions. The security rules will enforce permissions.
     const docRef = doc(db, getLibraryCollectionPath(userId), itemId);
     const dataToUpdate = { ...updates, updatedAt: serverTimestamp() };
     await updateDoc(docRef, removeUndefinedProps(dataToUpdate));

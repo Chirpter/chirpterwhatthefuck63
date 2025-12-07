@@ -6,14 +6,11 @@ import {
   collection,
   addDoc,
   doc,
-  getDoc,
   runTransaction,
   serverTimestamp,
-  updateDoc,
   increment,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase"; // Using client-side `db`
-import { getAdminDb } from '@/lib/firebase-admin'; // Using admin `db` for transactions
+import { getAdminDb } from '@/lib/firebase-admin';
 import type { Piece, PieceFormValues, GeneratePieceInput } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { deductCredits } from './user-service';
@@ -56,7 +53,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
 }
 
 export async function createPieceAndStartGeneration(userId: string, pieceFormData: PieceFormValues, contentInput: GeneratePieceInput): Promise<string> {
-    const adminDb = getAdminDb(); // Use Admin DB for transaction
+    const adminDb = getAdminDb();
     const libraryCollectionRef = collection(adminDb, getLibraryCollectionPath(userId));
     let pieceId = '';
     
@@ -85,7 +82,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
     await runTransaction(adminDb, async (transaction) => {
         await deductCredits(transaction, userId, creditCost);
 
-        const userDocRef = adminDb.collection('users').doc(userId);
+        const userDocRef = doc(adminDb, 'users', userId);
         transaction.update(userDocRef, {
             'stats.piecesCreated': increment(1)
         });
@@ -113,9 +110,9 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 
 export async function regeneratePieceContent(userId: string, workId: string, newPrompt?: string): Promise<void> {
     const adminDb = getAdminDb();
-    const workDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(workId);
+    const workDocRef = doc(adminDb, getLibraryCollectionPath(userId), workId);
 
-    const workData = await adminDb.runTransaction(async (transaction) => {
+    const workData = await runTransaction(adminDb, async (transaction) => {
         const workSnap = await transaction.get(workDocRef);
         if (!workSnap.exists()) {
             throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
