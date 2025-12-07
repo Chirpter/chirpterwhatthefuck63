@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("Could not create a server session. Please try again.");
       }
       
-      // ✅ FIX: Use hard navigation to ensure full page reload and state reset
+      // Use hard navigation to ensure full page reload and state reset
       window.location.href = '/library/book';
       return true;
 
@@ -131,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('[AuthContext] Error during logout process:', error);
     } finally {
-      // ✅ FIX: Use hard navigation to ensure full page reload and state reset
+      // Use hard navigation to ensure full page reload and state reset
       window.location.href = '/login';
     }
   }, []);
