@@ -17,6 +17,7 @@ import { checkRateLimit, recordFailedAttempt, clearFailedAttempts } from '@/lib/
 
 interface AuthContextType {
   authUser: FirebaseUser | null;
+  isSessionReady: boolean; // NEW: Track if server session is set
   loading: boolean;
   error: string | null;
   isSigningIn: boolean;
@@ -78,6 +79,7 @@ async function clearSessionCookie(): Promise<void> {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+  const [isSessionReady, setIsSessionReady] = useState(false); // NEW STATE
   const [loading, setLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +90,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, (currentAuthUser) => {
       console.log('[Auth] Auth state changed:', currentAuthUser ? 'User logged in' : 'User logged out');
       setAuthUser(currentAuthUser);
+      if (!currentAuthUser) {
+        setIsSessionReady(false); // Reset session readiness on logout
+      }
       setLoading(false);
     });
     
@@ -138,7 +143,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     operation: () => Promise<FirebaseUser | null>, 
     emailForRateLimit?: string
   ): Promise<boolean> => {
-    // Rate limit check
     if (emailForRateLimit) {
       const rateLimitCheck = checkRateLimit(emailForRateLimit);
       if (!rateLimitCheck.allowed) {
@@ -152,21 +156,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       console.log('[Auth] Starting auth operation...');
-      
       const user = await operation();
-      
       if (!user) {
-        console.log('[Auth] Operation cancelled by user');
         setIsSigningIn(false);
         return false;
       }
       
       console.log('[Auth] User authenticated, getting ID token...');
-      const idToken = await user.getIdToken(true); // Force refresh token
+      const idToken = await user.getIdToken(true);
       
       console.log('[Auth] Creating session cookie...');
-      await setSessionCookie(idToken);
+      const cookieSet = await setSessionCookie(idToken);
       
+      if (!cookieSet) {
+        throw new Error('Server failed to set session cookie.');
+      }
+      
+      setIsSessionReady(true); // ✅ Critical: Mark session as ready ONLY after cookie is set
+
       if (emailForRateLimit) {
         clearFailedAttempts(emailForRateLimit);
       }
@@ -176,12 +183,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
     } catch (err: any) {
       console.error('[Auth] Auth operation failed:', err);
-      
-      if (emailForRateLimit) {
-        recordFailedAttempt(emailForRateLimit);
-      }
-      
+      if (emailForRateLimit) recordFailedAttempt(emailForRateLimit);
       handleAuthError(err);
+      setIsSessionReady(false); // Ensure session is not considered ready on failure
       return false;
       
     } finally {
@@ -190,47 +194,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUpWithEmail = (email: string, pass: string) => 
-    performAuthOperation(
-      async () => {
-        const cred = await createUserWithEmailAndPassword(auth, email, pass);
-        return cred.user;
-      },
-      email
-    );
+    performAuthOperation(() => createUserWithEmailAndPassword(auth, email, pass).then(c => c.user), email);
 
   const signInWithEmail = (email: string, pass: string) => 
-    performAuthOperation(
-      async () => {
-        const cred = await signInWithEmailAndPassword(auth, email, pass);
-        return cred.user;
-      },
-      email
-    );
+    performAuthOperation(() => signInWithEmailAndPassword(auth, email, pass).then(c => c.user), email);
 
   const signInWithGoogle = () => 
-    performAuthOperation(async () => {
-      try {
-        const provider = new GoogleAuthProvider();
-        const cred = await signInWithPopup(auth, provider);
-        return cred.user;
-      } catch (err) {
-        handleAuthError(err);
-        return null;
-      }
-    });
+    performAuthOperation(() => signInWithPopup(auth, new GoogleAuthProvider()).then(c => c.user).catch(err => {
+      handleAuthError(err);
+      return null;
+    }));
 
   const logout = async () => {
+    console.log('[Auth] Logging out...');
     try {
-      console.log('[Auth] Logging out...');
-      // Clear session cookie first
+      // Clear server session first
       await clearSessionCookie();
       // Then sign out from Firebase client
       await signOut(auth);
-      logAuthEvent('logout');
-      console.log('[Auth] ✅ Logout successful');
+      // Finally, reset local state
+      setIsSessionReady(false);
+      console.log('[Auth] ✅ Logout completed successfully');
     } catch (error) {
       console.error('[Auth] ❌ Logout failed:', error);
-      // Even if server-side clearing fails, force client logout
+      // Force a page reload to clear state as a fallback
       window.location.href = '/login';
     }
   };
@@ -239,6 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = { 
     authUser, 
+    isSessionReady,
     loading, 
     error,
     isSigningIn,

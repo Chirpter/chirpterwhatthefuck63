@@ -6,10 +6,10 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 
 const VERIFY_INTERVAL = 5 * 60 * 1000; // 5 minutes
-const INITIAL_VERIFY_DELAY = 2000; // 2 seconds grace period
+const INITIAL_VERIFY_DELAY = 3000; // 3 seconds grace period
 
 export function useSessionVerification() {
-  const { authUser, logout } = useAuth();
+  const { authUser, isSessionReady, logout } = useAuth(); // Depend on isSessionReady
   const router = useRouter();
   const isVerifying = useRef(false);
   const initialCheckPerformed = useRef(false);
@@ -19,12 +19,12 @@ export function useSessionVerification() {
     let initialTimeoutId: NodeJS.Timeout | null = null;
 
     const verifySession = async (isInitialCheck = false) => {
-      // Prevent concurrent verification calls
       if (isVerifying.current) {
         console.log('[Session] Verification skipped (already in progress).');
         return;
       }
       
+      // This check is now robust because it runs after isSessionReady is true
       if (!document.cookie.includes('__session')) {
           console.log('[Session] 🚪 No session cookie found. Logging out.');
           await logout();
@@ -51,9 +51,8 @@ export function useSessionVerification() {
           }
         } else {
           console.log(`[Session] ✅ Session valid (Initial: ${isInitialCheck})`);
-          // If the initial check is successful, start the regular checks
           if (isInitialCheck && !intervalId) {
-            intervalId = setInterval(verifySession, VERIFY_INTERVAL);
+            intervalId = setInterval(() => verifySession(false), VERIFY_INTERVAL);
           }
         }
       } catch (error) {
@@ -63,9 +62,9 @@ export function useSessionVerification() {
       }
     };
 
-    if (authUser && !initialCheckPerformed.current) {
+    // ✅ CRITICAL CHANGE: Only start the verification logic if the session is ready.
+    if (authUser && isSessionReady && !initialCheckPerformed.current) {
       initialCheckPerformed.current = true;
-      // Perform a single, delayed check after login to avoid race conditions.
       console.log(`[Session] Scheduling initial verification in ${INITIAL_VERIFY_DELAY}ms.`);
       initialTimeoutId = setTimeout(() => verifySession(true), INITIAL_VERIFY_DELAY);
     }
@@ -79,5 +78,5 @@ export function useSessionVerification() {
         clearInterval(intervalId);
       }
     };
-  }, [authUser, logout, router]); // Dependency array is critical
+  }, [authUser, isSessionReady, logout, router]); // Dependency array now includes isSessionReady
 }

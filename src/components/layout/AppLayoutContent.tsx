@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, Suspense } from 'react';
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import AppHeader from './AppHeader';
 import { Logo } from '../ui/Logo';
 import { AppErrorManager } from '@/services/error-manager';
-import { useSessionVerification } from '@/hooks/useSessionVerification'; // ✅ Import the new hook
+import { useSessionVerification } from '@/hooks/useSessionVerification';
 
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
 
@@ -48,7 +49,7 @@ const UserProfileError = ({ error, onRetry, onLogout }: {
 );
 
 export default function AppLayoutContent({ children }: { children: React.ReactNode }) {
-  const { authUser, loading: isAuthLoading, logout } = useAuth();
+  const { authUser, isSessionReady, loading: isAuthLoading, logout } = useAuth();
   const { 
     user, 
     loading: isUserLoading, 
@@ -58,15 +59,18 @@ export default function AppLayoutContent({ children }: { children: React.ReactNo
     retryUserFetch
   } = useUser();
 
-  // ✅ This hook now handles background session verification automatically.
   useSessionVerification();
 
   useEffect(() => {
     AppErrorManager.initialize();
   }, []);
   
-  if (isAuthLoading || isUserLoading) {
-    return <InitialLoader message={isAuthLoading ? "Authenticating..." : "Loading your profile..."} />;
+  if (isAuthLoading || (authUser && !isSessionReady)) {
+    return <InitialLoader message={isAuthLoading ? "Authenticating..." : "Securing session..."} />;
+  }
+
+  if (isUserLoading) {
+    return <InitialLoader message="Loading your profile..." />;
   }
   
   if (!authUser) {
