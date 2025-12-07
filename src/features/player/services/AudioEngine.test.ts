@@ -39,6 +39,7 @@ const mockBook1: Book = {
   primaryLanguage: 'en',
   contentStatus: 'ready',
   coverStatus: 'ready',
+  content: [],
   chapters: [
     {
       id: 'ch1',
@@ -173,7 +174,6 @@ const mockBilingualPlaylistItem: PlaylistItem = {
   title: "Bilingual Book",
   data: mockBilingualBook,
   primaryLanguage: 'en',
-  secondaryLanguage: 'vi',
   availableLanguages: ['en', 'vi'],
 };
 
@@ -668,7 +668,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should repeat the current segment when repeat-one is on', async () => {
-      audioEngine.setRepeatMode('one');
+      audioEngine.setRepeatMode('item');
       await audioEngine.play(mockPlaylistItem1);
 
       expect(ttsService.speak).toHaveBeenCalledTimes(1);
@@ -756,8 +756,8 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should toggle repeat mode', () => {
-      audioEngine.setRepeatMode('one');
-      expect(audioEngine.getState().settings.repeat.track).toBe('one');
+      audioEngine.setRepeatMode('item');
+      expect(audioEngine.getState().settings.repeat.track).toBe('item');
       
       audioEngine.setRepeatMode('off');
       expect(audioEngine.getState().settings.repeat.track).toBe('off');
