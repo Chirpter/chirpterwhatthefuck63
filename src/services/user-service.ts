@@ -8,7 +8,6 @@ import { ApiServiceError } from '@/lib/errors';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { getLevelStyles } from '@/lib/utils';
 import { ACHIEVEMENTS } from '@/lib/achievements';
-import { doc, runTransaction, increment } from 'firebase/firestore';
 
 const USERS_COLLECTION = 'users';
 
@@ -22,7 +21,6 @@ export async function getUserProfile(userId: string): Promise<User | null> {
   }
   return null;
 }
-
 
 export async function updateUserProfile(
   userId: string,

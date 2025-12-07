@@ -1,13 +1,8 @@
 
 
-// ARCHITECTURAL REFACTOR: This file is now a server-first utility.
-// The 'use client' directive has been removed, allowing these functions to be
-// used in both Server Components (for initial data fetching) and Client Components.
-
 import {
   collection,
   query,
-  where,
   getDocs,
   getDoc,
   doc,
@@ -21,10 +16,10 @@ import {
   increment,
   DocumentData,
   QueryConstraint,
+  where,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { getAdminDb } from '@/lib/firebase-admin';
-import type { User, LibraryItem, Book, OverallStatus, Chapter, SystemBookmark, BookmarkMetadata } from '@/lib/types';
+import type { LibraryItem, Book, OverallStatus, Chapter } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
 
@@ -35,18 +30,15 @@ interface GetLibraryItemsOptions {
   startAfter?: DocumentData | null;
   status?: OverallStatus | 'all';
   type?: 'book' | 'piece';
-  contentType?: 'book' | 'piece'; // Allow both for compatibility
+  contentType?: 'book' | 'piece';
 }
 
-// NOTE: This function can now be called from both Server and Client Components.
-// It includes robust error handling to differentiate between actual Firebase errors and intentional abort signals.
 export async function getLibraryItems(
   userId: string,
   options: GetLibraryItemsOptions = {},
   signal?: AbortSignal
 ): Promise<{ items: LibraryItem[]; lastDoc: DocumentData | null }> {
   if (!userId) {
-    // On the server, the user might not be available. Return empty instead of throwing.
     if (typeof window === 'undefined') {
       return { items: [], lastDoc: null };
     }
@@ -181,8 +173,6 @@ export async function deleteLibraryItem(userId: string, itemId: string): Promise
 
 export async function updateLibraryItem(userId: string, itemId: string, updates: Partial<LibraryItem>): Promise<void> {
   try {
-    // Use the client 'db' instance for this operation as it can be called
-    // from both client and server actions. The security rules will enforce permissions.
     const docRef = doc(db, getLibraryCollectionPath(userId), itemId);
     const dataToUpdate = { ...updates, updatedAt: serverTimestamp() };
     await updateDoc(docRef, removeUndefinedProps(dataToUpdate));

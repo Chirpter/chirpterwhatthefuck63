@@ -2,15 +2,8 @@
 
 'use server';
 
-import {
-  collection,
-  addDoc,
-  doc,
-  runTransaction,
-  serverTimestamp,
-  increment,
-} from "firebase/firestore";
-import { getAdminDb } from '@/lib/firebase-admin';
+import { serverTimestamp, increment } from "firebase/firestore";
+import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { Piece, PieceFormValues, GeneratePieceInput } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { deductCredits } from './user-service';
@@ -36,7 +29,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
             content: contentResult.generatedContent,
             contentStatus: 'ready',
             status: 'draft',
-            contentRetryCount: 0, // Reset retry count on success
+            contentRetryCount: 0,
         };
     } catch (err) {
         const errorMessage = (err as Error).message;
@@ -54,7 +47,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
 
 export async function createPieceAndStartGeneration(userId: string, pieceFormData: PieceFormValues, contentInput: GeneratePieceInput): Promise<string> {
     const adminDb = getAdminDb();
-    const libraryCollectionRef = collection(adminDb, getLibraryCollectionPath(userId));
+    const libraryCollectionRef = adminDb.collection(getLibraryCollectionPath(userId));
     let pieceId = '';
     
     const creditCost = 1;
@@ -79,20 +72,20 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         bilingualFormat: pieceFormData.bilingualFormat,
     };
 
-    await runTransaction(adminDb, async (transaction) => {
+    await adminDb.runTransaction(async (transaction) => {
         await deductCredits(transaction, userId, creditCost);
 
-        const userDocRef = doc(adminDb, 'users', userId);
+        const userDocRef = adminDb.collection('users').doc(userId);
         transaction.update(userDocRef, {
-            'stats.piecesCreated': increment(1)
+            'stats.piecesCreated': FieldValue.increment(1)
         });
 
-        const newWorkRef = doc(libraryCollectionRef); // Create new doc ref within admin context
+        const newWorkRef = libraryCollectionRef.doc();
         transaction.set(newWorkRef, {
             ...removeUndefinedProps(initialWorkData),
             content: [],
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
         });
         pieceId = newWorkRef.id;
     });
@@ -110,9 +103,9 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 
 export async function regeneratePieceContent(userId: string, workId: string, newPrompt?: string): Promise<void> {
     const adminDb = getAdminDb();
-    const workDocRef = doc(adminDb, getLibraryCollectionPath(userId), workId);
+    const workDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(workId);
 
-    const workData = await runTransaction(adminDb, async (transaction) => {
+    const workData = await adminDb.runTransaction(async (transaction) => {
         const workSnap = await transaction.get(workDocRef);
         if (!workSnap.exists()) {
             throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
@@ -126,8 +119,8 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         const updatePayload: any = {
             contentStatus: 'processing',
             status: 'processing',
-            contentRetryCount: newPrompt ? 0 : increment(1),
-            updatedAt: serverTimestamp(),
+            contentRetryCount: newPrompt ? 0 : FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
         };
         if (newPrompt) {
             updatePayload.prompt = newPrompt;

@@ -1,20 +1,12 @@
 
+
 'use server';
 
-import {
-  collection,
-  addDoc,
-  doc,
-  getDoc,
-  runTransaction,
-  serverTimestamp,
-  updateDoc,
-  increment,
-} from "firebase/firestore";
+import { serverTimestamp, increment } from "firebase/firestore";
 import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase"; // Using client-side `db` for some ops
-import { getAdminDb } from '@/lib/firebase-admin'; // Using admin `db` for transactions
-import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, ChapterTitle } from "@/lib/types";
+import { storage } from '@/lib/firebase';
+import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
+import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { deductCredits, getUserProfile } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
@@ -60,13 +52,12 @@ async function processBookGenerationPipeline(
 
   await updateLibraryItem(userId, bookId, finalUpdate);
   
-  // After everything, check for achievement unlocks
   await checkAndUnlockAchievements(userId);
 }
 
 export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
-  const adminDb = getAdminDb(); // Use Admin DB for transaction
-  const libraryCollectionRef = collection(getAdminDb(), getLibraryCollectionPath(userId));
+  const adminDb = getAdminDb();
+  const libraryCollectionRef = adminDb.collection(getLibraryCollectionPath(userId));
   let bookId = '';
 
   const userProfile = await getUserProfile(userId);
@@ -120,21 +111,21 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     }
   };
 
-  await runTransaction(adminDb, async (transaction) => {
+  await adminDb.runTransaction(async (transaction) => {
     await deductCredits(transaction, userId, creditCost);
     
-    const userDocRef = doc(adminDb, 'users', userId); // Use adminDb ref
+    const userDocRef = adminDb.collection('users').doc(userId);
     transaction.update(userDocRef, {
-        'stats.booksCreated': increment(1),
-        'stats.bilingualBooksCreated': bookFormData.isBilingual ? increment(1) : increment(0)
+        'stats.booksCreated': FieldValue.increment(1),
+        'stats.bilingualBooksCreated': bookFormData.isBilingual ? FieldValue.increment(1) : FieldValue.increment(0)
     });
 
-    const newBookRef = doc(libraryCollectionRef); // Create new doc ref within admin context
+    const newBookRef = libraryCollectionRef.doc();
     transaction.set(newBookRef, {
       ...removeUndefinedProps(initialBookData),
       chapters: [],
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     bookId = newBookRef.id;
   });
@@ -183,7 +174,7 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
       chapters: contentResult.chapters,
       chapterOutline: contentResult.chapterOutline,
       contentStatus: 'ready',
-      contentRetryCount: 0, // Reset retry count on success
+      contentRetryCount: 0,
     };
   } catch (err) {
     console.error(`Content generation failed for book ${bookId}:`, (err as Error).message);
@@ -210,7 +201,6 @@ async function processCoverImageForBook(
             .toBuffer();
     } else if (coverOption === 'ai' && typeof imageData === 'string' && imageData.trim()) {
       const { imageUrl } = await generateCoverImage({ prompt: imageData, bookId });
-      // The generateCoverImage flow already returns an optimized WebP data URI
       if (imageUrl.startsWith('data:image/webp;base64,')) {
         optimizedBuffer = Buffer.from(imageUrl.split(',')[1], 'base64');
       }
@@ -235,7 +225,7 @@ async function processCoverImageForBook(
         cover: removeUndefinedProps(coverUpdate),
         coverStatus: 'ready',
         imageHint: coverInputPrompt,
-        coverRetryCount: 0, // Reset retry count on success
+        coverRetryCount: 0,
       };
     }
 
@@ -249,17 +239,17 @@ async function processCoverImageForBook(
 
 export async function addChaptersToBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<void> {
   const adminDb = getAdminDb();
-  const bookDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
+  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
   try {
-    await updateDoc(bookDocRef, {
+    await bookDocRef.update({
       status: 'processing',
-      updatedAt: serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     const contentResult = await generateBookContent(contentInput);
 
-    const bookDoc = await getDoc(bookDocRef);
-    if (!bookDoc.exists()) throw new ApiServiceError(`Book with ID ${bookId} does not exist!`, "UNKNOWN");
+    const bookDoc = await bookDocRef.get();
+    if (!bookDoc.exists) throw new ApiServiceError(`Book with ID ${bookId} does not exist!`, "UNKNOWN");
 
     const existingBookData = bookDoc.data() as Book;
     const existingChapters = existingBookData.chapters || [];
@@ -280,26 +270,26 @@ export async function addChaptersToBook(userId: string, bookId: string, contentI
       chapters: updatedChapters,
       chapterOutline: updatedOutline,
       status: 'draft',
-      updatedAt: serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp() as any,
     };
 
-    await updateDoc(bookDocRef, removeUndefinedProps(updateData));
+    await bookDocRef.update(removeUndefinedProps(updateData));
 
   } catch (err) {
     console.error(`Adding chapters failed for book ${bookId}:`, (err as Error).message);
-    await updateDoc(bookDocRef, { status: 'draft', updatedAt: serverTimestamp() });
+    await bookDocRef.update({ status: 'draft', updatedAt: FieldValue.serverTimestamp() });
     throw err;
   }
 }
 
 export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string | null): Promise<void> {
-    const adminDb = getAdminDb(); // Use admin for transaction
-    const itemDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
+    const adminDb = getAdminDb();
+    const itemDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
     
-    await runTransaction(adminDb, async (transaction) => {
-        const userDocRef = doc(adminDb, 'users', userId);
+    await adminDb.runTransaction(async (transaction) => {
+        const userDocRef = adminDb.collection('users').doc(userId);
         const userDoc = await transaction.get(userDocRef);
-        if (!userDoc.exists()) throw new ApiServiceError("User not found.", "AUTH");
+        if (!userDoc.exists) throw new ApiServiceError("User not found.", "AUTH");
 
         const currentCredits = userDoc.data()?.credits || 0;
         if (currentCredits < 1) {
@@ -307,14 +297,14 @@ export async function editBookCover(userId: string, bookId: string, newCoverOpti
         }
         
         transaction.update(userDocRef, { 
-            credits: increment(-1),
-            'stats.coversGeneratedByAI': increment(1)
+            credits: FieldValue.increment(-1),
+            'stats.coversGeneratedByAI': FieldValue.increment(1)
         });
         
         transaction.update(itemDocRef, {
             coverStatus: 'processing',
-            coverRetryCount: 0, // Reset retry count for a new paid generation
-            updatedAt: serverTimestamp(),
+            coverRetryCount: 0,
+            updatedAt: FieldValue.serverTimestamp(),
         });
     });
 
@@ -336,9 +326,9 @@ export async function editBookCover(userId: string, bookId: string, newCoverOpti
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
   const adminDb = getAdminDb();
-  const bookDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
+  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
 
-  const bookData = await runTransaction(adminDb, async (transaction) => {
+  const bookData = await adminDb.runTransaction(async (transaction) => {
       const bookSnap = await transaction.get(bookDocRef);
       if (!bookSnap.exists()) {
           throw new ApiServiceError("Book not found for content regeneration.", "UNKNOWN");
@@ -352,8 +342,8 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
       const updatePayload: any = {
           contentStatus: 'processing',
           status: 'processing',
-          contentRetryCount: newPrompt ? 0 : increment(1),
-          updatedAt: serverTimestamp(),
+          contentRetryCount: newPrompt ? 0 : FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
       };
       if (newPrompt) {
           updatePayload.prompt = newPrompt;
@@ -397,9 +387,9 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
     const adminDb = getAdminDb();
-    const bookDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
+    const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
 
-    const bookData = await runTransaction(adminDb, async (transaction) => {
+    const bookData = await adminDb.runTransaction(async (transaction) => {
         const bookSnap = await transaction.get(bookDocRef);
         if (!bookSnap.exists()) {
             throw new ApiServiceError("Book not found for cover regeneration.", "UNKNOWN");
@@ -417,8 +407,8 @@ export async function regenerateBookCover(userId: string, bookId: string): Promi
         transaction.update(bookDocRef, {
             coverStatus: 'processing',
             status: 'processing',
-            coverRetryCount: increment(1),
-            updatedAt: serverTimestamp(),
+            coverRetryCount: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
         });
         
         return bookData;
@@ -445,12 +435,7 @@ export async function regenerateBookCover(userId: string, bookId: string): Promi
       });
 }
 
-// THIS FUNCTION IS NOW OBSOLETE AND MOVED TO piece-creation.service.ts
-// It is kept here temporarily to avoid breaking existing imports.
-// It should be removed in a future cleanup.
 export async function regeneratePieceContent(userId: string, workId: string, newPrompt?: string): Promise<void> {
     console.warn("regeneratePieceContent is deprecated in book-creation.service.ts. Please use the function from piece-creation.service.ts");
-    // In a real scenario, you'd import and call the new service function here.
-    // For now, we'll leave it as a no-op to avoid circular dependencies if we were to import it.
     return Promise.resolve();
 }
