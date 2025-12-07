@@ -149,17 +149,6 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
   }
 }
 
-export async function getUserProfile(userId: string): Promise<User | null> {
-  const adminDb = getAdminDb();
-  const userDocRef = adminDb.collection('users').doc(userId);
-  const docSnap = await userDocRef.get();
-
-  if (docSnap.exists) {
-    return docSnap.data() as User;
-  }
-  return null;
-}
-
 export async function getLibraryItemsByIds(userId: string, itemIds: string[]): Promise<LibraryItem[]> {
     if (!userId || itemIds.length === 0) return [];
     

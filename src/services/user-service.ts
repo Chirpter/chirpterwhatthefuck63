@@ -9,6 +9,18 @@ import { checkAndUnlockAchievements } from './achievement-service';
 
 const USERS_COLLECTION = 'users';
 
+export async function getUserProfile(userId: string): Promise<User | null> {
+  const adminDb = getAdminDb();
+  const userDocRef = adminDb.collection('users').doc(userId);
+  const docSnap = await userDocRef.get();
+
+  if (docSnap.exists) {
+    return docSnap.data() as User;
+  }
+  return null;
+}
+
+
 export async function updateUserProfile(
   userId: string,
   data: {
