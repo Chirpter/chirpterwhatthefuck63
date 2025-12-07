@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import {
@@ -67,7 +66,7 @@ async function processBookGenerationPipeline(
 
 export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
   const adminDb = getAdminDb(); // Use Admin DB for transaction
-  const libraryCollectionRef = collection(adminDb, getLibraryCollectionPath(userId));
+  const libraryCollectionRef = collection(getAdminDb(), getLibraryCollectionPath(userId));
   let bookId = '';
 
   const userProfile = await getUserProfile(userId);
@@ -124,7 +123,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   await runTransaction(adminDb, async (transaction) => {
     await deductCredits(transaction, userId, creditCost);
     
-    const userDocRef = adminDb.collection('users').doc(userId); // Use adminDb ref
+    const userDocRef = doc(adminDb, 'users', userId); // Use adminDb ref
     transaction.update(userDocRef, {
         'stats.booksCreated': increment(1),
         'stats.bilingualBooksCreated': bookFormData.isBilingual ? increment(1) : increment(0)
@@ -249,7 +248,8 @@ async function processCoverImageForBook(
 }
 
 export async function addChaptersToBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<void> {
-  const bookDocRef = doc(db, getLibraryCollectionPath(userId), bookId);
+  const adminDb = getAdminDb();
+  const bookDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
   try {
     await updateDoc(bookDocRef, {
       status: 'processing',
@@ -294,10 +294,10 @@ export async function addChaptersToBook(userId: string, bookId: string, contentI
 
 export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string | null): Promise<void> {
     const adminDb = getAdminDb(); // Use admin for transaction
-    const itemDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+    const itemDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
     
-    await adminDb.runTransaction(async (transaction) => {
-        const userDocRef = adminDb.collection('users').doc(userId);
+    await runTransaction(adminDb, async (transaction) => {
+        const userDocRef = doc(adminDb, 'users', userId);
         const userDoc = await transaction.get(userDocRef);
         if (!userDoc.exists()) throw new ApiServiceError("User not found.", "AUTH");
 
@@ -336,9 +336,9 @@ export async function editBookCover(userId: string, bookId: string, newCoverOpti
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
   const adminDb = getAdminDb();
-  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+  const bookDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
 
-  const bookData = await adminDb.runTransaction(async (transaction) => {
+  const bookData = await runTransaction(adminDb, async (transaction) => {
       const bookSnap = await transaction.get(bookDocRef);
       if (!bookSnap.exists()) {
           throw new ApiServiceError("Book not found for content regeneration.", "UNKNOWN");
@@ -397,9 +397,9 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
     const adminDb = getAdminDb();
-    const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+    const bookDocRef = doc(adminDb, getLibraryCollectionPath(userId), bookId);
 
-    const bookData = await adminDb.runTransaction(async (transaction) => {
+    const bookData = await runTransaction(adminDb, async (transaction) => {
         const bookSnap = await transaction.get(bookDocRef);
         if (!bookSnap.exists()) {
             throw new ApiServiceError("Book not found for cover regeneration.", "UNKNOWN");

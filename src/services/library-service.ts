@@ -1,3 +1,4 @@
+
 // ARCHITECTURAL REFACTOR: This file is now a server-first utility.
 // The 'use client' directive has been removed, allowing these functions to be
 // used in both Server Components (for initial data fetching) and Client Components.
@@ -21,7 +22,8 @@ import {
   QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { LibraryItem, Book, OverallStatus, Chapter, SystemBookmark, BookmarkMetadata } from '@/lib/types';
+import { getAdminDb } from '@/lib/firebase-admin';
+import type { User, LibraryItem, Book, OverallStatus, Chapter, SystemBookmark, BookmarkMetadata } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
 
