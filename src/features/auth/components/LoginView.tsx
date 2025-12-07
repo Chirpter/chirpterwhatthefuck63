@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -21,6 +22,7 @@ const GoogleIcon = () => (
 
 export default function LoginView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { 
     authUser, 
     loading: isAuthLoading, 
@@ -34,43 +36,62 @@ export default function LoginView() {
   const { toast } = useToast();
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const hasRedirected = useRef(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // Ref to store the redirect timeout
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Handle redirect only when authUser state changes
   useEffect(() => {
-    // Only redirect if user is authenticated and we haven't redirected yet
-    if (!isAuthLoading && authUser && !hasRedirected.current) {
+    // If there's an authenticated user and we are not already in the process of redirecting
+    if (authUser && !isRedirecting) {
       console.log('[LoginView] ✅ User authenticated, preparing redirect...');
-      hasRedirected.current = true;
+      setIsRedirecting(true);
       
-      // Small delay to ensure session cookie is fully set
-      const redirectTimer = setTimeout(() => {
-        console.log('[LoginView] Redirecting to /library/book...');
-        router.replace('/library/book');
-      }, 1500); // 1.5 second delay
+      const nextPath = searchParams.get('next') || '/library/book';
       
-      return () => clearTimeout(redirectTimer);
+      // Use a timeout to show feedback to the user before redirecting
+      redirectTimeoutRef.current = setTimeout(() => {
+        console.log('[LoginView] Redirecting to:', nextPath);
+        router.replace(nextPath);
+      }, 1500);
     }
-    
-    // Reset redirect flag when user logs out
-    if (!authUser) {
-      hasRedirected.current = false;
-    }
-  }, [authUser, isAuthLoading, router]);
 
-  // Show loading state while auth is initializing or redirecting
-  if (isAuthLoading || (authUser && !hasRedirected.current)) {
+    // Clean up the timeout if the component unmounts or authUser changes
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    };
+  }, [authUser, isRedirecting, router, searchParams]);
+  
+  // Main loading state for the page
+  if (isAuthLoading || isRedirecting) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <div className="text-center">
           <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
           <p className="text-sm text-muted-foreground">
-            {authUser ? 'Redirecting...' : 'Loading...'}
+            {isRedirecting ? 'Redirecting...' : 'Loading...'}
           </p>
         </div>
       </div>
     );
   }
-
+  
+  // This state should ideally not be reached if middleware is correct,
+  // but it's a good fallback.
+  if (authUser && !isRedirecting) {
+     return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center">
+          <Logo className="h-12 w-12 animate-pulse text-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Finalizing login...</p>
+        </div>
+      </div>
+    );
+  }
+  
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
     e.preventDefault();
     
@@ -80,7 +101,7 @@ export default function LoginView() {
     if (success) {
       toast({ 
         title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
-        description: authMode === 'signup' ? "Welcome! Setting up your account..." : "Welcome back! Redirecting..." 
+        description: "Redirecting..." 
       });
     }
   };
@@ -91,7 +112,7 @@ export default function LoginView() {
     if (success) {
       toast({ 
         title: "Login Successful", 
-        description: "Welcome! Redirecting..." 
+        description: "Redirecting..." 
       });
     }
   };

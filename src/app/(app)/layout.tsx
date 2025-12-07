@@ -1,15 +1,23 @@
+// app/(app)/layout.tsx 
 
+'use client';
 
 import React from 'react';
 import AppLayoutContent from '@/components/layout/AppLayoutContent';
+import { useSessionVerification } from '@/hooks/useSessionVerification';
 
-export default function ProtectedAppLayout({ children }: { children: React.ReactNode; }) {
-  // This layout is the main wrapper for the authenticated part of the app.
-  // AppLayoutContent handles both the auth check and the rendering of the UI.
-  // A Suspense boundary is not needed here as loading states are managed within AppLayoutContent.
+export default function ProtectedAppLayout({ 
+  children 
+}: { 
+  children: React.ReactNode 
+}) {
+  // 🔥 CRITICAL: This hook monitors session validity
+  // Without this, users won't be logged out when session expires
+  useSessionVerification();
+  
   return (
     <AppLayoutContent>
-        {children}
+      {children}
     </AppLayoutContent>
   );
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
@@ -161,7 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log('[Auth] User authenticated, getting ID token...');
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true); // Force refresh token
       
       console.log('[Auth] Creating session cookie...');
       await setSessionCookie(idToken);
@@ -190,44 +191,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUpWithEmail = (email: string, pass: string) => 
     performAuthOperation(
-      () => createUserWithEmailAndPassword(auth, email, pass).then(cred => cred.user), 
+      async () => {
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        return cred.user;
+      },
       email
     );
 
   const signInWithEmail = (email: string, pass: string) => 
     performAuthOperation(
-      () => signInWithEmailAndPassword(auth, email, pass).then(cred => cred.user), 
+      async () => {
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        return cred.user;
+      },
       email
     );
 
   const signInWithGoogle = () => 
-    performAuthOperation(() => {
-      const provider = new GoogleAuthProvider();
-      return signInWithPopup(auth, provider)
-        .then(cred => cred.user)
-        .catch(err => {
-          handleAuthError(err);
-          return null;
-        });
+    performAuthOperation(async () => {
+      try {
+        const provider = new GoogleAuthProvider();
+        const cred = await signInWithPopup(auth, provider);
+        return cred.user;
+      } catch (err) {
+        handleAuthError(err);
+        return null;
+      }
     });
 
   const logout = async () => {
     try {
       console.log('[Auth] Logging out...');
-      
       // Clear session cookie first
       await clearSessionCookie();
-      
-      // Then sign out from Firebase
+      // Then sign out from Firebase client
       await signOut(auth);
-      
       logAuthEvent('logout');
       console.log('[Auth] ✅ Logout successful');
-      
     } catch (error) {
       console.error('[Auth] ❌ Logout failed:', error);
-      
-      // Force logout by redirecting
+      // Even if server-side clearing fails, force client logout
       window.location.href = '/login';
     }
   };
