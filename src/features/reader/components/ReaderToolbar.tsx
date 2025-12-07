@@ -31,7 +31,7 @@ interface ReaderToolbarProps {
   settings: EditorSettings;
   onSettingsChange: (updates: Partial<EditorSettings>) => void;
   onClose: () => void;
-  // --- New Language Control Props ---
+  // --- Language Control Props ---
   availableLanguages: string[]; // e.g., ['en', 'vi', 'ko']
   displayLang1: string; // The selected primary display language code
   displayLang2: string; // The selected secondary display language code ('none' if monolingual)
@@ -126,7 +126,11 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                             </Button>
                         </DropdownMenuTrigger>
                     </TooltipTrigger>
-                    <TooltipContent><p>{t('secondaryLanguageTooltip')}</p></TooltipContent>
+                    <TooltipContent>
+                        {/* FUTURE: The logic for this tooltip could change. If the secondary language
+                             is not available in the data, this could become a "Translate to..." button. */}
+                        <p>{t('secondaryLanguageTooltip')}</p>
+                    </TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent>
                     <DropdownMenuLabel>{t('secondaryLanguageTooltip')}</DropdownMenuLabel>

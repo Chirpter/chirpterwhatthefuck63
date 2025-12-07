@@ -75,27 +75,39 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [isCalculatingPages, setIsCalculatingPages] = useState(true);
   const readerPageInitializedRef = useRef(false);
 
-  // --- NEW MULTI-LANGUAGE STATE ---
+  // --- MULTI-LANGUAGE STATE ---
   const [displayLang1, setDisplayLang1] = useState(item?.primaryLanguage || 'en');
   const [displayLang2, setDisplayLang2] = useState('none'); // 'none' means monolingual view
   
+  // The languages available in the book data (e.g., ['en', 'vi'])
   const availableLanguages = useMemo(() => {
     if (!item?.content) return [];
-    // Assuming segments have consistent language keys
     const firstSegment = getItemSegments(item, 0)[0];
     if (!firstSegment) return [item.primaryLanguage].filter(Boolean) as string[];
-    return Object.keys(firstSegment.content);
+    
+    // Check both content and phrases for language keys
+    const langKeys = new Set<string>();
+    if (firstSegment.content) {
+        Object.keys(firstSegment.content).forEach(k => langKeys.add(k));
+    }
+    if (firstSegment.phrases && firstSegment.phrases[0]) {
+        Object.keys(firstSegment.phrases[0]).forEach(k => langKeys.add(k));
+    }
+    
+    return Array.from(langKeys);
   }, [item]);
 
+  // When the item loads, set the initial display languages
   useEffect(() => {
     if (item) {
         setDisplayLang1(item.primaryLanguage || 'en');
-        const secondLang = availableLanguages.find(l => l !== item.primaryLanguage);
-        setDisplayLang2(item.isBilingual && secondLang ? secondLang : 'none');
+        // If the book is bilingual, automatically select the secondary language for display.
+        // Otherwise, default to 'none' for a monolingual view.
+        setDisplayLang2(item.isBilingual ? (item.secondaryLanguage || 'none') : 'none');
     }
-  }, [item, availableLanguages]);
+  }, [item]);
   
-  // --- END NEW MULTI-LANGUAGE STATE ---
+  // --- END MULTI-LANGUAGE STATE ---
   
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -304,7 +316,9 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 
   const currentPlayingSegmentId = useMemo(() => {
     if (audioPlayer.currentPlayingItem?.id === id) {
-        return audioPlayer.currentSpokenSegmentId;
+        // This needs to be correctly implemented to get the segment ID
+        // For now, this is a placeholder. The real ID should come from the audio engine's state.
+        return audioPlayer.currentPlayingItem?.id; 
     }
     return null;
   }, [audioPlayer, id]);
@@ -455,7 +469,14 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                           displayLang1={displayLang1}
                           displayLang2={displayLang2}
                           onDisplayLang1Change={setDisplayLang1}
-                          onDisplayLang2Change={setDisplayLang2}
+                          onDisplayLang2Change={(lang) => {
+                            // FUTURE: This is where we would trigger the on-demand translation flow.
+                            // If `availableLanguages` does not include the new `lang`,
+                            // we would show a confirmation to the user and then call a server action
+                            // like `translateAndUpgradeBook(book.id, lang)`.
+                            // For now, we just set the state.
+                            setDisplayLang2(lang);
+                          }}
                       />
                     </div>
                   )}
