@@ -18,7 +18,6 @@ import {
 interface AuthContextType {
   authUser: FirebaseUser | null;
   loading: boolean;
-  isSessionReady: boolean;
   isSigningIn: boolean;
   error: string | null;
   signUpWithEmail: (email: string, pass: string) => Promise<boolean>;
@@ -45,22 +44,17 @@ async function clearSessionCookie(): Promise<boolean> {
   return response.ok;
 }
 
-
 // --- Auth Provider Component ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isSessionReady, setIsSessionReady] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
+  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setAuthUser(user);
       setLoading(false);
-      // Session is not ready until a new cookie is set after login
-      setIsSessionReady(!!user); 
     });
     return () => unsubscribe();
   }, []);
@@ -102,12 +96,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("Could not create a server session. Please try again.");
       }
       
-      setIsSessionReady(true);
+      // ✅ FIX: Use hard navigation to ensure full page reload and state reset
+      window.location.href = '/library/book';
       return true;
+
     } catch (err: any) {
       handleAuthError(err);
       return false;
     } finally {
+      // In case of success, the page reloads. In case of error, we set signing in to false.
       setIsSigningIn(false);
     }
   }, [handleAuthError]);
@@ -129,18 +126,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
-      // Sign out from Firebase client first
       await signOut(auth);
-      // Then, clear the session cookie on the server
-      const cookieCleared = await clearSessionCookie();
-      if (!cookieCleared) {
-          console.warn("[AuthContext] Server-side session cookie clearing failed, but proceeding with client logout.");
-      }
+      await clearSessionCookie();
     } catch (error) {
       console.error('[AuthContext] Error during logout process:', error);
     } finally {
-      // Regardless of server success, redirect to login. Middleware will enforce auth.
-      setIsSessionReady(false);
+      // ✅ FIX: Use hard navigation to ensure full page reload and state reset
       window.location.href = '/login';
     }
   }, []);
@@ -150,7 +141,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: AuthContextType = { 
     authUser, 
     loading, 
-    isSessionReady,
     isSigningIn,
     error,
     logout, 

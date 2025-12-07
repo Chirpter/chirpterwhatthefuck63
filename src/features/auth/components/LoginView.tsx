@@ -21,7 +21,6 @@ const GoogleIcon = () => (
 );
 
 export default function LoginView() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { 
     authUser, 
@@ -46,30 +45,18 @@ export default function LoginView() {
     }
   }, [searchParams, toast]);
   
-  const handleLoginSuccess = () => {
-    toast({ 
-      title: authMode === 'signup' ? "Account Created!" : "Login Successful", 
-      description: "Redirecting you to the library...",
-    });
-    
-    const nextPath = searchParams.get('next') || '/library/book';
-    router.push(nextPath); // Use router.push for a smoother transition
-  };
-
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
     e.preventDefault();
     const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
-    const success = await authOperation(email, pass);
-    if (success) {
-      handleLoginSuccess();
-    }
+    // The auth context now handles the redirection via window.location.href,
+    // so we don't need to do anything here on success.
+    await authOperation(email, pass);
   };
 
   const handleGoogleSignIn = async () => {
-    const success = await signInWithGoogle();
-    if (success) {
-      handleLoginSuccess();
-    }
+    // The auth context now handles the redirection via window.location.href,
+    // so we don't need to do anything here on success.
+    await signInWithGoogle();
   };
 
   const toggleAuthMode = () => {
