@@ -1,3 +1,4 @@
+
 /**
  * ============================================
  * CLEAN AUDIO ENGINE - Fully Refactored
@@ -580,22 +581,27 @@ class AudioEngine {
   private generateBookSegments(book: Book, chapterIndex: number): SpeechSegment[] {
     const chapter = book.chapters[chapterIndex];
     if (!chapter?.segments) return [];
+
+    const hasMultipleLangs = book.availableLanguages.length > 1;
+    const secondaryLanguage = hasMultipleLangs ? book.availableLanguages.find(l => l !== book.primaryLanguage) : undefined;
     
     return chapter.segments.flatMap(seg => {
       const segments: SpeechSegment[] = [];
       
-      if (seg.content.primary) {
+      const primaryText = seg.content[book.primaryLanguage];
+      if (primaryText) {
         segments.push({
-          text: seg.content.primary,
+          text: primaryText,
           lang: book.primaryLanguage,
           originalSegmentId: seg.id,
         });
       }
       
-      if (book.isBilingual && book.secondaryLanguage && seg.content.secondary) {
+      const secondaryText = secondaryLanguage ? seg.content[secondaryLanguage] : undefined;
+      if (secondaryLanguage && secondaryText) {
         segments.push({
-          text: seg.content.secondary,
-          lang: book.secondaryLanguage,
+          text: secondaryText,
+          lang: secondaryLanguage,
           originalSegmentId: seg.id,
         });
       }
@@ -629,8 +635,9 @@ class AudioEngine {
     
     book.chapters.forEach(chapter => {
       const chapterSegmentCount = chapter.segments.reduce((count, seg) => {
-        let segCount = seg.content.primary ? 1 : 0;
-        if (book.isBilingual && seg.content.secondary) segCount++;
+        let segCount = seg.content[book.primaryLanguage] ? 1 : 0;
+        const secondaryLanguage = book.availableLanguages.find(l => l !== book.primaryLanguage);
+        if (secondaryLanguage && seg.content[secondaryLanguage]) segCount++;
         return count + segCount;
       }, 0);
       
