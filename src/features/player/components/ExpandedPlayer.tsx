@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -10,7 +11,7 @@ import Link from 'next/link';
 import { useMobile } from '@/hooks/useMobile';
 import { AudioSettingsPopover } from '@/features/player/components/AudioSettingsPopover';
 import { motion } from "framer-motion";
-import type { PlaylistItem as TPlaylistItem, Book, RepeatMode, ChapterTitle } from '@/lib/types';
+import type { PlaylistItem as TPlaylistItem, Book, RepeatMode, ChapterTitle, PlaylistRepeatMode } from '@/lib/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
@@ -49,6 +50,8 @@ export function ExpandedPlayer() {
         stopAudio,
         overallProgressPercentage,
         position,
+        playlistRepeatMode,
+        setPlaylistRepeatMode,
     } = audioPlayer;
     
     if (!currentPlayingItem) return null;
@@ -66,6 +69,7 @@ export function ExpandedPlayer() {
         // A more advanced implementation could be done inside the engine
     };
 
+    const [primaryLang] = currentPlayingItem.originLanguages.split('-');
     const bookTitleToShow = currentPlayingItem.title;
     
     const chapterTitleToShow = useMemo(() => {
@@ -75,10 +79,10 @@ export function ExpandedPlayer() {
         
         const titleObj = chapter.title;
         if (typeof titleObj === 'object' && titleObj !== null) {
-             return (titleObj as ChapterTitle)[chapter.metadata.primaryLanguage] || Object.values(titleObj)[0] || t('common:untitled');
+             return (titleObj as ChapterTitle)[chapter.metadata?.primaryLanguage || primaryLang] || Object.values(titleObj)[0] || t('common:untitled');
         }
         return String(titleObj);
-    }, [currentPlayingItem, position.chapterIndex, t]);
+    }, [currentPlayingItem, position.chapterIndex, t, primaryLang]);
 
 
     const readerPageHref = currentPlayingItem
@@ -95,7 +99,7 @@ export function ExpandedPlayer() {
     }
     
     const handleRepeatToggle = () => {
-        const nextMode: RepeatMode = repeatMode === 'off' ? 'item' : 'off';
+        const nextMode: RepeatMode = repeatMode === 'item' ? 'off' : 'item';
         setRepeatMode(nextMode);
     };
 
@@ -103,8 +107,13 @@ export function ExpandedPlayer() {
         return repeatMode === 'item' ? 'Repeat1' : 'Repeat';
     };
 
-    const repeatButtonTooltip = repeatMode === 'off' ? t('audioSettings.repeatOff') : t('audioSettings.repeatItem');
+    const repeatButtonTooltip = repeatMode === 'item' ? t('audioSettings.repeatItem') : t('audioSettings.repeatOff');
     
+    const handlePlaylistRepeatToggle = () => {
+      const newMode: PlaylistRepeatMode = playlistRepeatMode === 'all' ? 'off' : 'all';
+      setPlaylistRepeatMode(newMode);
+    };
+
     const sleepTimerOptions = [
         { labelKey: 'sleepTimer.off', value: null },
         { labelKey: 'sleepTimer.option10min', value: 10 },
@@ -156,7 +165,7 @@ export function ExpandedPlayer() {
                                 <DropdownMenuItem key={chapter.id} onSelect={() => handleChapterSelect(index)} disabled={isLoading} className={cn("cursor-pointer", isCurrent && "bg-accent/50")}>
                                     <div className="flex items-center justify-between w-full">
                                         <span className={cn(isCurrent && "font-bold text-primary")}>
-                                            {t('chapterIndicator', { ns: 'readerPage', chapterNum: index + 1, chapterTitle: chapter.title[chapter.metadata?.primaryLanguage] })}
+                                            {t('chapterIndicator', { ns: 'readerPage', chapterNum: index + 1, chapterTitle: chapter.title[chapter.metadata?.primaryLanguage || primaryLang] })}
                                         </span>
                                         {isCurrent && (
                                             <Link href={readerPageHref} onClick={(e) => e.stopPropagation()} className="p-1 -mr-1 rounded-sm hover:bg-accent">
@@ -206,11 +215,27 @@ export function ExpandedPlayer() {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={handleRepeatToggle} variant="ghost" size="icon" aria-label={repeatButtonTooltip} className={cn("h-8 w-8 md:h-9 md:w-9", isLoading && "opacity-50 cursor-not-allowed", repeatMode !== 'off' && "bg-primary/20 text-primary hover:bg-primary/30")} disabled={isLoading}>
+                                <Button onClick={handleRepeatToggle} variant="ghost" size="icon" aria-label={repeatButtonTooltip} className={cn("h-8 w-8 md:h-9 md:w-9", isLoading && "opacity-50 cursor-not-allowed", repeatMode === 'item' && "bg-primary/20 text-primary hover:bg-primary/30")} disabled={isLoading}>
                                     <Icon name={getRepeatIconName()} className="h-4 w-4 md:h-5 md:w-5"/>
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top"><p>{repeatButtonTooltip}</p></TooltipContent>
+                        </Tooltip>
+                         <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn("h-8 w-8 md:h-9 md:w-9", playlistRepeatMode === 'all' && 'text-primary bg-primary/20')}
+                                  onClick={handlePlaylistRepeatToggle}
+                                  disabled={isLoading}
+                                >
+                                  <Icon name="Repeat" className="h-4 w-4 md:h-5 md:w-5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{playlistRepeatMode === 'all' ? t('repeatPlaylistOn') : t('repeatPlaylistOff')}</p>
+                            </TooltipContent>
                         </Tooltip>
                         <DropdownMenu>
                             <Tooltip>

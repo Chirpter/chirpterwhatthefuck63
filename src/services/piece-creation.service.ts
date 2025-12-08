@@ -67,6 +67,9 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
     let originLanguages: string;
     if (secondaryLanguage) {
         originLanguages = `${primaryLanguage}-${secondaryLanguage}`;
+        if (pieceFormData.bilingualFormat === 'phrase') {
+            originLanguages += '-ph';
+        }
     } else {
         originLanguages = primaryLanguage;
     }
@@ -85,7 +88,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         });
 
         const newWorkRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
-        const initialWorkData: Omit<Piece, 'id'> = {
+        const initialWorkData: Omit<Piece, 'id' | 'bilingualFormat'> = {
             userId,
             type: 'piece',
             title: { [primaryLanguage]: pieceFormData.aiPrompt.substring(0, 50) },
@@ -98,7 +101,6 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             tags: pieceFormData.tags || [],
             presentationStyle: pieceFormData.presentationStyle || 'card',
             aspectRatio: pieceFormData.aspectRatio,
-            bilingualFormat: pieceFormData.bilingualFormat,
             content: [],
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
@@ -155,12 +157,12 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         return;
     }
     
-    const [primaryLang] = workData.originLanguages.split('-');
+    const [primaryLang, , format] = workData.originLanguages.split('-');
 
     const contentInput: GeneratePieceInput = {
         userPrompt: promptToUse,
         availableLanguages: workData.availableLanguages,
-        bilingualFormat: workData.bilingualFormat,
+        bilingualFormat: format === 'ph' ? 'phrase' : 'sentence',
     };
     
     processPieceGenerationPipeline(userId, workId, contentInput)

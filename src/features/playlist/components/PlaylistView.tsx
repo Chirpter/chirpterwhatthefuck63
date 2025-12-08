@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -103,7 +104,7 @@ export default function PlaylistView() {
   };
 
   const handlePlaylistRepeatToggle = () => {
-    const newMode: PlaylistRepeatMode = playlistRepeatMode === 'on' ? 'off' : 'on';
+    const newMode: PlaylistRepeatMode = playlistRepeatMode === 'all' ? 'off' : 'all';
     setPlaylistRepeatMode(newMode);
   };
 
@@ -143,11 +144,11 @@ export default function PlaylistView() {
                                <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Button
-                                          variant={playlistRepeatMode === 'on' ? 'secondary' : 'ghost'}
+                                          variant={playlistRepeatMode === 'all' ? 'secondary' : 'ghost'}
                                           size="icon"
                                           className="h-8 w-8"
                                           onClick={handlePlaylistRepeatToggle}
-                                          aria-pressed={playlistRepeatMode === 'on'}
+                                          aria-pressed={playlistRepeatMode === 'all'}
                                         >
                                             <Icon name="Repeat" className="h-4 w-4" />
                                         </Button>

@@ -45,7 +45,7 @@ const renderPhrases = (
 ) => {
   return phrases.map((phrase, index) => {
     const primaryText = phrase[displayLang1];
-    const secondaryText = phrase[displayLang2];
+    const secondaryText = displayLang2 !== 'none' ? phrase[displayLang2] : null;
 
     if (!primaryText) return null;
 
@@ -86,7 +86,7 @@ const renderSentence = (
       ? getWordHighlightContent(primaryText, speechBoundary)
       : primaryText;
       
-    const secondaryText = isBilingualMode ? content[displayLang2] : null;
+    const secondaryText = isBilingualMode && displayLang2 !== 'none' ? content[displayLang2] : null;
     const secondaryContent = (secondaryText && isSegmentPlaying && spokenLang === displayLang2) 
       ? getWordHighlightContent(secondaryText, speechBoundary) 
       : secondaryText;

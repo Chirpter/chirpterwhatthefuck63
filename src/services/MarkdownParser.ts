@@ -18,14 +18,15 @@ import type {
   Chapter,
   ChapterTitle,
   PhraseMap,
+  LibraryItem,
 } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
 // Enhanced configuration for parsing
 interface ParseConfig {
   availableLanguages: string[];
-  bilingualFormat: BilingualFormat;
   primaryLanguage: string;
+  bilingualFormat: BilingualFormat;
 }
 
 // Helper to extract all text from a node and its children

@@ -95,12 +95,16 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 
   // --- Construct the new originLanguages string ---
   let originLanguages: string;
-  const secondaryLang = bookFormData.availableLanguages.find(l => l !== bookFormData.primaryLanguage);
-
-  if (bookFormData.availableLanguages.length > 1 && secondaryLang) {
-    originLanguages = `${bookFormData.primaryLanguage}-${secondaryLang}`;
+  const primaryLanguage = bookFormData.primaryLanguage;
+  const secondaryLanguage = bookFormData.availableLanguages.find(l => l !== primaryLanguage);
+  
+  if (bookFormData.availableLanguages.length > 1 && secondaryLanguage) {
+      originLanguages = `${primaryLanguage}-${secondaryLanguage}`;
+      if (bookFormData.bilingualFormat === 'phrase') {
+          originLanguages += '-ph';
+      }
   } else {
-    originLanguages = bookFormData.primaryLanguage;
+      originLanguages = primaryLanguage;
   }
   // --- End ---
 
@@ -119,14 +123,14 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     });
     
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
-    const initialBookData: Omit<Book, 'id'> = {
+    const initialBookData: Omit<Book, 'id' | 'bilingualFormat'> = {
         userId,
         type: 'book',
-        title: { [bookFormData.primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
+        title: { [primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
         status: 'processing',
         contentStatus: 'processing',
         coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
-        originLanguages, // Use the new single field
+        originLanguages,
         availableLanguages: bookFormData.availableLanguages.filter(Boolean),
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
@@ -266,10 +270,10 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         }
 
         const book = bookDoc.data() as Book;
-        const [primaryLanguage, secondaryLanguage] = book.originLanguages.split('-');
+        const [primaryLanguage, secondaryLanguage, format] = book.originLanguages.split('-');
 
         // Prevent re-processing if it's already in phrase format or not eligible (not bilingual)
-        if (book.bilingualFormat === 'phrase' || !secondaryLanguage) {
+        if (format === 'ph' || !secondaryLanguage) {
             console.log(`[Upgrade] Book ${bookId} is already in phrase format or is not eligible. Skipping.`);
             return;
         }
@@ -305,7 +309,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         // Update the book in Firestore with the new structure
         await bookDocRef.update({
             chapters: upgradedChapters,
-            bilingualFormat: 'phrase',
+            originLanguages: `${book.originLanguages}-ph`, // Append '-ph' to mark as upgraded
             updatedAt: FieldValue.serverTimestamp(),
         });
 

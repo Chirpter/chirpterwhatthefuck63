@@ -231,39 +231,18 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
   }, [isPromptDefault]);
   
   const handleTagClick = useCallback((tag: string) => {
-    handlePromptFocus(); // Ensure default prompt is cleared on first interaction
-  
     setFormData(prev => {
       const currentTags = prev.tags || [];
-      const isRemoving = currentTags.includes(tag);
-      let newTags: string[];
-      let newPrompt = prev.aiPrompt;
-  
-      if (isRemoving) {
-        newTags = currentTags.filter(t => t !== tag);
-        const regex = new RegExp(`\\s*,?\\s*${'\\b'}${tag}\\b`, 'gi');
-        newPrompt = newPrompt.replace(regex, '').replace(/,(\\s*,)+/g, ',').replace(/^,s*/, '').replace(/,s*$/, '').trim();
-      } else {
-        if (currentTags.length >= 3) {
-          return prev;
-        }
-        newTags = [...currentTags, tag];
-        if (newPrompt.trim() && !newPrompt.endsWith(',')) {
-          newPrompt = `${newPrompt}, ${tag}`;
-        } else if (newPrompt.trim()) {
-          newPrompt = `${newPrompt} ${tag}`;
-        } else {
-          newPrompt = tag;
-        }
-      }
-      
-      return { ...prev, tags: newTags, aiPrompt: newPrompt };
+      const newTags = currentTags.includes(tag) 
+        ? currentTags.filter(t => t !== tag) 
+        : [...currentTags, tag];
+      return { ...prev, tags: newTags };
     });
-  }, [handlePromptFocus]);
+  }, []);
 
   const handleCustomTagAdd = useCallback((tag: string) => {
-    if ((formData.tags || []).length < 3) {
-      handleTagClick(tag);
+    if ((formData.tags || []).length < 3 && !(formData.tags || []).includes(tag)) {
+        handleTagClick(tag);
     }
   }, [formData.tags, handleTagClick]);
 

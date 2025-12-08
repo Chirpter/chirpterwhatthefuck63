@@ -221,7 +221,7 @@ interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
   title: MultilingualContent;
-  originLanguages: string; // e.g., "en" or "en-vi"
+  originLanguages: string;
   availableLanguages: string[];
   status: OverallStatus;
   progress?: number;
@@ -232,7 +232,6 @@ interface BaseLibraryItem extends BaseDocument {
   presentationStyle: 'book' | 'card';
   content: Segment[];
   tags?: string[];
-  bilingualFormat?: BilingualFormat;
 }
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
@@ -347,7 +346,7 @@ export type LibraryItem = Book | Piece;
 
 export type PlaylistItem =
   | { type: 'book'; id: string; title: string; data: Book; originLanguages: string; availableLanguages: string[]; }
-  | { type: 'vocab'; id: string; title: string; data: {} };
+  | { type: 'vocab'; id: string; title: string; data: {}; originLanguages: string; availableLanguages: string[]; };
 
 
 export interface SpeechPlayableSegment {

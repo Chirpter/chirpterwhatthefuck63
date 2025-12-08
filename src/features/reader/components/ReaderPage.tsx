@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import type { Book, Piece, LibraryItem, BookProgress, Page, Segment, PresentationMode, Chapter, BilingualViewMode } from '@/lib/types';
+import type { Book, Piece, LibraryItem, BookProgress, Page, Segment, PresentationMode, Chapter, BilingualViewMode, BilingualFormat } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
@@ -53,9 +53,8 @@ const getStoredPresentationIntent = (itemId: string): string | null => {
         const stored = localStorage.getItem(getStorageKey(itemId));
         if (stored) {
             const data = JSON.parse(stored);
-            if (typeof data.presentationIntent === 'string') {
-                return data.presentationIntent;
-            }
+            // This is just a string, no complex object parsing needed
+            return typeof data === 'string' ? data : null;
         }
     } catch (e) {
         console.error("Failed to read presentation mode from localStorage", e);
@@ -65,8 +64,7 @@ const getStoredPresentationIntent = (itemId: string): string | null => {
 
 const setStoredPresentationIntent = (itemId: string, presentationIntent: string) => {
     try {
-        const data = { presentationIntent };
-        localStorage.setItem(getStorageKey(itemId), JSON.stringify(data));
+        localStorage.setItem(getStorageKey(itemId), JSON.stringify(presentationIntent));
     } catch (e) {
         console.error("Failed to save presentation mode to localStorage", e);
     }
@@ -109,30 +107,37 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [displayLang2, setDisplayLang2] = useState('none'); // 'none' means monolingual
   
   const availableLanguages = useMemo(() => item?.availableLanguages || ['en'], [item]);
-
+  
+  // This effect now reads from a single `originLanguages` field and localStorage
   useEffect(() => {
     if (item) {
         const userOverride = getStoredPresentationIntent(item.id);
-        const intentToParse = userOverride || item.presentationIntent || `mono:${item.primaryLanguage}`;
+        const intentToParse = userOverride || item.originLanguages;
         
-        const [mode, langs] = intentToParse.split(':');
-        const [lang1, lang2] = langs.split('-');
+        const parts = intentToParse.split('-');
+        const lang1 = parts[0] || 'en';
+        const lang2 = parts[1] || 'none';
         
-        setDisplayLang1(lang1 || item.primaryLanguage);
-        setDisplayLang2(mode === 'mono' ? 'none' : (lang2 || 'none'));
+        setDisplayLang1(lang1);
+        setDisplayLang2(lang2);
     }
   }, [item]);
 
+  // This function now constructs the single intent string for storage
   const updatePresentationIntent = useCallback((newDisplayLang1: string, newDisplayLang2: string) => {
     if (!item) return;
 
     let newIntent: string;
-    const mode: PresentationMode = newDisplayLang2 !== 'none' ? 'bilingual-sentence' : 'mono';
-    
-    if (mode === 'mono') {
-        newIntent = `mono:${newDisplayLang1}`;
+    if (newDisplayLang2 !== 'none') {
+        newIntent = `${newDisplayLang1}-${newDisplayLang2}`;
     } else {
-        newIntent = `${mode}:${newDisplayLang1}-${newDisplayLang2}`;
+        newIntent = newDisplayLang1;
+    }
+    
+    // We get the format from the origin string itself, it's not a user choice in the toolbar
+    const originFormat = item.originLanguages.split('-')[2];
+    if (originFormat === 'ph') {
+      newIntent += '-ph';
     }
 
     setStoredPresentationIntent(item.id, newIntent);
@@ -270,7 +275,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
         
-        let sourceLang = item?.primaryLanguage || i18n.language;
+        let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
         let sentenceContext = `...${selectedText}...`;
 
@@ -309,7 +314,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     } else if (lookupState.isOpen) {
       setLookupState(s => ({...s, isOpen: false}));
     }
-  }, [isPreview, wordLookupEnabled, item, i18n.language, currentChapterIndex, lookupState.isOpen]);
+  }, [isPreview, wordLookupEnabled, item, i18n.language, currentChapterIndex, lookupState.isOpen, displayLang1]);
 
   const handlePlayPause = useCallback(() => {
     if (!item || !user) return;
@@ -466,7 +471,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                         {item.type === 'book' && (
                             <SheetContent side={isMobile ? "bottom" : "left"} className="w-full max-w-xs p-0 flex flex-col">
                                 <SheetHeader className="p-4 border-b">
-                                    <SheetTitle className="font-headline text-lg text-primary truncate">{item.title[item.primaryLanguage]}</SheetTitle>
+                                    <SheetTitle className="font-headline text-lg text-primary truncate">{item.title[displayLang1]}</SheetTitle>
                                 </SheetHeader>
                                 <ScrollArea className="flex-1">
                                     <div className="p-2 font-body">
@@ -480,7 +485,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                                                 )}
                                                 onClick={() => handleChapterSelect(index)}
                                             >
-                                                <span className="truncate">{chapter.title[chapter.metadata?.primaryLanguage || item.primaryLanguage]}</span>
+                                                <span className="truncate">{chapter.title[chapter.metadata?.primaryLanguage || displayLang1]}</span>
                                             </Button>
                                         ))}
                                     </div>
