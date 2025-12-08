@@ -321,9 +321,8 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
                 jobId = await createBookAndStartGeneration(user.uid, formData);
             }
         } else { // Piece
-            const contentInput: GeneratePieceInput = {
+            const contentInput: Omit<GeneratePieceInput, 'primaryLanguage'> = {
                 userPrompt: formData.aiPrompt,
-                primaryLanguage: formData.primaryLanguage,
                 availableLanguages: formData.availableLanguages.filter(Boolean),
                 bilingualFormat: formData.bilingualFormat,
             };

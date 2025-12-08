@@ -107,8 +107,9 @@ const generateBookContentFlow = ai.defineFlow(
     
     let compactInstruction: string;
     
-    const primaryLanguageLabel = LANGUAGES.find(l => l.value === input.primaryLanguage)?.label || input.primaryLanguage || '';
-    const secondaryLanguage = availableLanguages.find(l => l !== input.primaryLanguage);
+    const primaryLanguage = availableLanguages[0] || 'en';
+    const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
+    const secondaryLanguage = availableLanguages[1];
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
     let languageInstruction = `in ${primaryLanguageLabel}`;
@@ -153,11 +154,11 @@ const generateBookContentFlow = ai.defineFlow(
         aiOutput.markdownContent, 
         availableLanguages,
         input.bilingualFormat, 
-        input.primaryLanguage
+        primaryLanguage
     );
     
     // Step 6: Convert the flat list of segments into structured chapters.
-    let chapters = segmentsToChapterStructure(unifiedSegments, input.primaryLanguage || 'en');
+    let chapters = segmentsToChapterStructure(unifiedSegments, primaryLanguage);
 
     if (chapters.length === 0 && unifiedSegments.length > 0) {
         chapters = [{
@@ -167,7 +168,7 @@ const generateBookContentFlow = ai.defineFlow(
             segments: unifiedSegments,
             stats: { totalSegments: unifiedSegments.length, totalWords: unifiedSegments.reduce((sum, seg) => sum + (seg.metadata.wordCount.primary || 0), 0), estimatedReadingTime: 1 },
             metadata: {
-                primaryLanguage: input.primaryLanguage || 'en',
+                primaryLanguage: primaryLanguage,
             }
         }];
     }
@@ -189,7 +190,7 @@ const generateBookContentFlow = ai.defineFlow(
         finalBookTitle = { primary: "Untitled Book", secondary: "" };
     }
     
-    const generatedChapterTitles = chapters.map(c => c.title.primary.replace(/Chapter \d+: /, '').trim());
+    const generatedChapterTitles = chapters.map(c => c.title[primaryLanguage] || Object.values(c.title)[0] || '');
     
     const finalChapterOutline: ChapterOutlineItem[] = (aiOutput.fullChapterOutline || generatedChapterTitles).map(outlineTitle => {
         const titleParts = outlineTitle.split(/\s*[\/|]\s*/).map(p => p.trim());
@@ -206,7 +207,7 @@ const generateBookContentFlow = ai.defineFlow(
             },
             isGenerated,
             metadata: {
-                primaryLanguage: input.primaryLanguage || 'en',
+                primaryLanguage: primaryLanguage,
             }
         };
     });
@@ -220,5 +221,3 @@ const generateBookContentFlow = ai.defineFlow(
     };
   }
 );
-
-    

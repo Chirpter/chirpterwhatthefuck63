@@ -93,35 +93,35 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(
 // ============================================
 
 const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
-  if ('type' in item && (item.type === 'book' || item.type === 'vocab') && 'data' in item) {
-    return item as PlaylistItem;
-  }
+    if ('type' in item && (item.type === 'book' || item.type === 'vocab') && 'data' in item) {
+      return item as PlaylistItem;
+    }
+    
+    const bookData = item as Book;
+    const [primaryLang] = bookData.originLanguages.split('-');
+    
+    let title: string;
+    if (typeof bookData.title === 'string') {
+      title = bookData.title;
+    } else if (typeof bookData.title === 'object' && bookData.title !== null) {
+      // Safely access primary language, providing fallbacks
+      title = bookData.title[primaryLang] || 
+              (bookData.title as any).primary || // Fallback for old format
+              Object.values(bookData.title)[0] || 
+              'Untitled Book';
+    } else {
+      title = 'Untitled Book';
+    }
   
-  const bookData = item as Book;
-  
-  let title: string;
-  if (typeof bookData.title === 'string') {
-    title = bookData.title;
-  } else if (typeof bookData.title === 'object' && bookData.title !== null) {
-    // Safely access primary language, providing fallbacks
-    const primaryTitle = bookData.title[bookData.primaryLanguage] || 
-                         (bookData.title as any).primary || // Fallback for old format
-                         Object.values(bookData.title)[0] || 
-                         'Untitled Book';
-    title = primaryTitle;
-  } else {
-    title = 'Untitled Book';
-  }
-
-  return { 
-    type: 'book', 
-    id: item.id, 
-    title: title, 
-    data: bookData,
-    primaryLanguage: bookData.primaryLanguage,
-    availableLanguages: bookData.availableLanguages || [],
+    return { 
+      type: 'book', 
+      id: item.id, 
+      title: title, 
+      data: bookData,
+      originLanguages: bookData.originLanguages,
+      availableLanguages: bookData.availableLanguages || [],
+    };
   };
-};
 
 // ============================================
 // PROVIDER COMPONENT

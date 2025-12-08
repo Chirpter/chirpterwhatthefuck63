@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Book, LibraryItem, BookmarkType, SystemBookmark } from "@/lib/types";
@@ -204,7 +205,8 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
     });
   }, [availableBookmarks, ownedBookmarkIds, isProUser]);
 
-  const titleToDisplay = book.title[book.primaryLanguage] || Object.values(book.title)[0] || t('untitled');
+  const [primaryLang] = book.originLanguages.split('-');
+  const titleToDisplay = book.title[primaryLang] || Object.values(book.title)[0] || t('untitled');
   
   const renderProgressIndicator = () => {
       if (currentBookmark?.id === 'default') {
@@ -213,7 +215,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
                   <div className="w-8 h-8">
                       <CircularProgressbar
                           value={progressPercentage}
-                          text={`${Math.round(progressPercentage)}%`}
+                          text={`${'${Math.round(progressPercentage)}'}%`}
                           strokeWidth={10}
                           styles={buildStyles({
                               pathColor: `rgba(255, 255, 255, 0.7)`,

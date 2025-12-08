@@ -12,7 +12,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import type { BilingualFormat, Segment, GeneratePieceInput, ChapterTitle } from '@/lib/types';
 import { GeneratePieceInputSchema } from '@/lib/types';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
@@ -76,8 +76,9 @@ const generatePieceContentFlow = ai.defineFlow(
       throw new Error("A user prompt is required.");
     }
     
-    const primaryLanguageLabel = LANGUAGES.find(l => l.value === input.primaryLanguage)?.label || input.primaryLanguage || '';
-    const secondaryLanguage = input.availableLanguages.find(l => l !== input.primaryLanguage);
+    const primaryLanguage = input.availableLanguages[0] || 'en';
+    const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
+    const secondaryLanguage = input.availableLanguages.find(l => l !== primaryLanguage);
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
     let bilingualInstruction = `Write in ${primaryLanguageLabel}.`;
@@ -100,7 +101,7 @@ const generatePieceContentFlow = ai.defineFlow(
         aiOutput.markdownContent, 
         input.availableLanguages, 
         input.bilingualFormat,
-        input.primaryLanguage
+        primaryLanguage
     );
     
     let finalTitle: ChapterTitle;

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState } from 'react';
@@ -82,10 +83,11 @@ export default function ShopView() {
 
     setIsPurchasing(true);
     try {
+      const title = (itemToPurchase.itemType === 'book' ? itemToPurchase.title[itemToPurchase.originLanguages.split('-')[0]] : itemToPurchase.name) || 'item';
       await purchaseGlobalItem(user.uid, itemToPurchase.id, itemToPurchase.itemType);
       toast({
         title: t('toast:purchaseSuccessTitle'),
-        description: t('toast:purchaseSuccessDesc', { title: itemToPurchase.name || (itemToPurchase as Book).title[(itemToPurchase as Book).primaryLanguage] }),
+        description: t('toast:purchaseSuccessDesc', { title }),
       });
       await reloadUser();
       setItemToPurchase(null);
@@ -128,7 +130,7 @@ export default function ShopView() {
                     key={pack.id}
                     title={pack.name}
                     description={pack.description}
-                    price={`$${pack.priceUsd.toFixed(2)}`}
+                    price={`$${'${pack.priceUsd.toFixed(2)}'}`}
                     icon={"Sparkles"}
                     onPurchase={() => toast({ title: t('common:comingSoon'), description: t('shopPage:iapComingSoon') })}
                   />
@@ -213,7 +215,7 @@ export default function ShopView() {
             <AlertDialogHeader>
               <AlertDialogTitle className="font-headline">{t('shopPage:confirmPurchaseTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                {t('shopPage:confirmPurchaseDesc', { title: itemToPurchase.name || (itemToPurchase as Book).title[(itemToPurchase as Book).primaryLanguage], price: itemToPurchase.price })}
+                {t('shopPage:confirmPurchaseDesc', { title: itemToPurchase.name || (itemToPurchase as Book).title[(itemToPurchase as Book).originLanguages.split('-')[0]], price: itemToPurchase.price })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

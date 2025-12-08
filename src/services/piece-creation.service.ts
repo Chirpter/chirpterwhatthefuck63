@@ -61,7 +61,15 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
     let pieceId = '';
     
     const creditCost = 1;
-    const primaryLang = pieceFormData.primaryLanguage;
+    const primaryLanguage = pieceFormData.primaryLanguage;
+    const secondaryLanguage = pieceFormData.availableLanguages.find(l => l !== primaryLanguage);
+
+    let originLanguages: string;
+    if (secondaryLanguage) {
+        originLanguages = `${primaryLanguage}-${secondaryLanguage}`;
+    } else {
+        originLanguages = primaryLanguage;
+    }
 
     await adminDb.runTransaction(async (transaction) => {
         const userDocRef = adminDb.collection('users').doc(userId);
@@ -80,11 +88,11 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         const initialWorkData: Omit<Piece, 'id'> = {
             userId,
             type: 'piece',
-            title: { [primaryLang]: pieceFormData.aiPrompt.substring(0, 50) },
+            title: { [primaryLanguage]: pieceFormData.aiPrompt.substring(0, 50) },
             status: 'processing',
             contentStatus: 'processing',
             contentRetryCount: 0,
-            primaryLanguage: primaryLang,
+            originLanguages,
             availableLanguages: pieceFormData.availableLanguages,
             prompt: pieceFormData.aiPrompt,
             tags: pieceFormData.tags || [],
@@ -146,10 +154,11 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         await updateLibraryItem(userId, workId, { status: 'draft', contentStatus: 'error', contentError: "No prompt available." });
         return;
     }
+    
+    const [primaryLang] = workData.originLanguages.split('-');
 
     const contentInput: GeneratePieceInput = {
         userPrompt: promptToUse,
-        primaryLanguage: workData.primaryLanguage,
         availableLanguages: workData.availableLanguages,
         bilingualFormat: workData.bilingualFormat,
     };

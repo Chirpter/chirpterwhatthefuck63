@@ -221,7 +221,7 @@ interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
   title: MultilingualContent;
-  primaryLanguage: string;
+  originLanguages: string; // e.g., "en" or "en-vi"
   availableLanguages: string[];
   status: OverallStatus;
   progress?: number;
@@ -233,7 +233,6 @@ interface BaseLibraryItem extends BaseDocument {
   content: Segment[];
   tags?: string[];
   bilingualFormat?: BilingualFormat;
-  presentationIntent?: string; // e.g., "bilingual-sentence:en-vi"
 }
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
@@ -285,7 +284,6 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isComplete?: boolean;
-  isBilingual: boolean;
 }
 
 export interface CreationFormValues {
@@ -348,7 +346,7 @@ export interface VocabularyItem extends BaseDocument {
 export type LibraryItem = Book | Piece;
 
 export type PlaylistItem =
-  | { type: 'book'; id: string; title: string; data: Book; primaryLanguage: string; availableLanguages: string[]; }
+  | { type: 'book'; id: string; title: string; data: Book; originLanguages: string; availableLanguages: string[]; }
   | { type: 'vocab'; id: string; title: string; data: {} };
 
 
@@ -417,7 +415,6 @@ export interface FoundClip {
 // --- Zod Schemas for Genkit Flows ---
 export const GeneratePieceInputSchema = z.object({
   userPrompt: z.string().describe('The specific details provided by the user for the work. Can be empty if a genre is provided.'),
-  primaryLanguage: z.string().describe('The primary language for the generated content.'),
   availableLanguages: z.array(z.string()).describe('An array of language codes to be included.'),
   bilingualFormat: z.enum(['sentence', 'phrase']).optional().default('sentence').describe('The format for bilingual content.'),
 });
@@ -430,7 +427,6 @@ export type GenerateChapterInput = z.infer<typeof GenerateChapterInputSchema>;
 
 export const GenerateBookContentInputSchema = z.object({
   prompt: z.string().describe('A prompt describing the book content to generate, or what should happen in the new chapters.'),
-  primaryLanguage: z.string().describe('The primary language for the book content.'),
   availableLanguages: z.array(z.string()).describe('An array of language codes to be included.'),
   bilingualFormat: z.enum(['sentence', 'phrase']).optional().default('sentence').describe('The format for bilingual content.'),
   previousContentSummary: z.string().optional().describe('A summary of existing book content if generating additional chapters.'),

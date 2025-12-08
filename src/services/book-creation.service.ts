@@ -93,15 +93,14 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   const coverImageAiPrompt = bookFormData.coverImageAiPrompt?.trim() || bookFormData.aiPrompt.trim();
 
-  // --- Construct the new presentationIntent ---
-  let presentationIntent: string;
+  // --- Construct the new originLanguages string ---
+  let originLanguages: string;
   const secondaryLang = bookFormData.availableLanguages.find(l => l !== bookFormData.primaryLanguage);
 
   if (bookFormData.availableLanguages.length > 1 && secondaryLang) {
-    const mode: PresentationMode = bookFormData.bilingualFormat === 'phrase' ? 'bilingual-phrase' : 'bilingual-sentence';
-    presentationIntent = `${mode}:${bookFormData.primaryLanguage}-${secondaryLang}`;
+    originLanguages = `${bookFormData.primaryLanguage}-${secondaryLang}`;
   } else {
-    presentationIntent = `mono:${bookFormData.primaryLanguage}`;
+    originLanguages = bookFormData.primaryLanguage;
   }
   // --- End ---
 
@@ -127,9 +126,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         status: 'processing',
         contentStatus: 'processing',
         coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
-        primaryLanguage: bookFormData.primaryLanguage,
+        originLanguages, // Use the new single field
         availableLanguages: bookFormData.availableLanguages.filter(Boolean),
-        presentationIntent, // Use the new single field
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
         intendedLength: bookFormData.bookLength,
@@ -156,7 +154,6 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
-    primaryLanguage: bookFormData.primaryLanguage,
     availableLanguages: bookFormData.availableLanguages.filter(Boolean),
     bilingualFormat: bookFormData.bilingualFormat,
     chaptersToGenerate: bookFormData.targetChapterCount,
@@ -179,7 +176,9 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
   try {
-    const contentResult = await generateBookContent(contentInput);
+    const primaryLang = contentInput.availableLanguages[0] || 'en';
+    const contentResult = await generateBookContent({ ...contentInput, primaryLanguage: primaryLang });
+    
     if (!contentResult || !contentResult.chapters || contentResult.chapters.length === 0) {
       throw new ApiServiceError("AI returned empty or invalid content. This might be due to safety filters or an issue with the prompt.", "UNKNOWN");
     }
@@ -267,42 +266,36 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         }
 
         const book = bookDoc.data() as Book;
-        const secondaryLanguage = book.availableLanguages.find(l => l !== book.primaryLanguage);
+        const [primaryLanguage, secondaryLanguage] = book.originLanguages.split('-');
 
         // Prevent re-processing if it's already in phrase format or not eligible (not bilingual)
-        if (book.bilingualFormat === 'phrase' || book.availableLanguages.length < 2 || !secondaryLanguage) {
+        if (book.bilingualFormat === 'phrase' || !secondaryLanguage) {
             console.log(`[Upgrade] Book ${bookId} is already in phrase format or is not eligible. Skipping.`);
             return;
         }
 
         const upgradedChapters: Chapter[] = book.chapters.map(chapter => {
             const upgradedSegments = chapter.segments.map(segment => {
-                // If segment already has phrases, keep it.
                 if (segment.phrases) {
                     return segment;
                 }
-
-                // If content is missing, return segment as-is
                 if (!segment.content) {
                     return segment;
                 }
 
-                const primarySentence = segment.content[book.primaryLanguage] || '';
+                const primarySentence = segment.content[primaryLanguage] || '';
                 const secondarySentence = segment.content[secondaryLanguage] || '';
                 
-                // This logic should mirror the phrase splitting in MarkdownParser
                 const primaryPhrases = primarySentence.match(/[^,;]+[,;]?/g) || [primarySentence];
                 const secondaryPhrases = secondarySentence.match(/[^,;]+[,;]?/g) || [secondarySentence];
 
                 const phrases = primaryPhrases.map((phrase, i) => ({
-                    [book.primaryLanguage]: phrase.trim(),
+                    [primaryLanguage]: phrase.trim(),
                     [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim(),
                 }));
                 
-                // Create a new segment object for the upgraded format
                 const newSegment = { ...segment };
                 newSegment.phrases = phrases;
-                // We no longer delete the content property, it can stay for fallback
                 return newSegment;
             });
             
@@ -313,7 +306,6 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         await bookDocRef.update({
             chapters: upgradedChapters,
             bilingualFormat: 'phrase',
-            presentationIntent: `bilingual-phrase:${book.primaryLanguage}-${secondaryLanguage}`,
             updatedAt: FieldValue.serverTimestamp(),
         });
 

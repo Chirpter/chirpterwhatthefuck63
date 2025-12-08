@@ -297,7 +297,7 @@ export function parseMarkdownToSegments(
 /**
  * Converts unified segments into structured Chapter array with enhanced stats
  */
-export function segmentsToChapterStructure(segments: Segment[], primaryLanguage: string = 'en'): Chapter[] {
+export function segmentsToChapterStructure(segments: Segment[], primaryLanguage: string): Chapter[] {
   const chapters: Chapter[] = [];
   let currentChapter: Chapter | null = null;
   let chapterOrder = 0;
@@ -364,7 +364,7 @@ export function segmentsToChapterStructure(segments: Segment[], primaryLanguage:
       return sum + primaryWords;
     }, 0);
     
-    const titleWords = calculateWordCount(chapter.title[chapter.metadata.primaryLanguage]);
+    const titleWords = calculateWordCount(chapter.title[primaryLanguage] || Object.values(chapter.title)[0] || '');
     
     chapter.stats.totalWords = contentWordCount + titleWords;
     chapter.stats.estimatedReadingTime = Math.ceil(chapter.stats.totalWords / 200);
