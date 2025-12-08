@@ -133,7 +133,15 @@ const generateBookContentFlow = ai.defineFlow(
     const promptInput = { ...input, prompt: userPrompt, compactInstruction, contextInstruction };
 
     // Step 4: Call the AI and get the raw Markdown output.
-    const {output: aiOutput} = await bookContentGenerationPrompt(promptInput, { config: { maxOutputTokens } });
+    let aiOutput;
+    try {
+        const { output } = await bookContentGenerationPrompt(promptInput, { config: { maxOutputTokens } });
+        aiOutput = output;
+    } catch (error) {
+        console.error('[generateBookContentFlow] AI generation failed:', error);
+        throw new Error('AI content generation failed. This might be due to safety filters or a temporary issue. Please try a different prompt.');
+    }
+
 
     if (!aiOutput || !aiOutput.markdownContent) {
       throw new Error('AI returned empty or invalid content. This might be due to safety filters or an issue with the prompt.');
