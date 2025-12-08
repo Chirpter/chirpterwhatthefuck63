@@ -216,4 +216,9 @@ const generateBookContentFlow = ai.defineFlow(
       bookTitle: finalBookTitle,
       chapters,
       chapterOutline: finalChapterOutline,
-      progress: `Generated ${
+      progress: `Generated ${chapters.length} chapters for "${finalBookTitle.primary}".`,
+    };
+  }
+);
+
+    
