@@ -12,7 +12,7 @@
  */
 
 import type {
-  PlaylistItem as TPlaylistItem,
+  PlaylistItem,
   Book,
   Chapter,
   Segment,
@@ -56,7 +56,7 @@ export interface AudioSettings {
 
 export interface AudioEngineState {
   status: PlaybackStatus;
-  playlist: TPlaylistItem[];
+  playlist: PlaylistItem[];
   position: PlaybackPosition;
   settings: AudioSettings;
 }
@@ -123,7 +123,7 @@ class AudioEngine {
    * Play a track (book or vocab folder)
    */
   public async play(
-    item: TPlaylistItem,
+    item: PlaylistItem,
     options?: { chapterIndex?: number; segmentIndex?: number }
   ): Promise<void> {
     this.stop(); // Clean slate
@@ -295,7 +295,7 @@ class AudioEngine {
   // PLAYLIST API
   // ============================================
   
-  public addToPlaylist(item: TPlaylistItem): void {
+  public addToPlaylist(item: PlaylistItem): void {
     // Avoid adding duplicates
     if (this.state.playlist.some(p => p.id === item.id)) return;
     
@@ -355,7 +355,7 @@ class AudioEngine {
   // COMPUTED PROPERTIES (Getters)
   // ============================================
   
-  get currentTrack(): TPlaylistItem | null {
+  get currentTrack(): PlaylistItem | null {
     const { playlist, position } = this.state;
     if (position.playlistIndex === -1) return null;
     return playlist[position.playlistIndex] || null;
@@ -453,7 +453,7 @@ class AudioEngine {
   // INTERNAL - Playback Logic
   // ============================================
   
-  private async loadAndPlayTrack(item: TPlaylistItem): Promise<void> {
+  private async loadAndPlayTrack(item: PlaylistItem): Promise<void> {
     this.setStatus({ type: 'loading', trackId: item.id });
     
     try {
@@ -566,7 +566,7 @@ class AudioEngine {
   // INTERNAL - Data Generation
   // ============================================
   
-  private async generateSegments(item: TPlaylistItem): Promise<SpeechSegment[]> {
+  private async generateSegments(item: PlaylistItem): Promise<SpeechSegment[]> {
     if (item.type === 'book' && item.data) {
       return this.generateBookSegments(item.data, this.state.position.chapterIndex ?? 0);
     }
@@ -582,7 +582,7 @@ class AudioEngine {
     const chapter = book.chapters[chapterIndex];
     if (!chapter?.segments) return [];
 
-    const hasMultipleLangs = book.availableLanguages.length > 1;
+    const hasMultipleLangs = (book.availableLanguages?.length || 0) > 1;
     const secondaryLanguage = hasMultipleLangs ? book.availableLanguages.find(l => l !== book.primaryLanguage) : undefined;
     
     return chapter.segments.flatMap(seg => {
@@ -597,13 +597,15 @@ class AudioEngine {
         });
       }
       
-      const secondaryText = secondaryLanguage ? seg.content[secondaryLanguage] : undefined;
-      if (secondaryLanguage && secondaryText) {
-        segments.push({
-          text: secondaryText,
-          lang: secondaryLanguage,
-          originalSegmentId: seg.id,
-        });
+      if (secondaryLanguage) {
+        const secondaryText = seg.content[secondaryLanguage];
+        if (secondaryText) {
+            segments.push({
+                text: secondaryText,
+                lang: secondaryLanguage,
+                originalSegmentId: seg.id,
+            });
+        }
       }
       
       return segments;
@@ -619,12 +621,12 @@ class AudioEngine {
     );
     
     return items.flatMap(vocab => [
-      { text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${'${vocab.id}'}-term` },
-      { text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${'${vocab.id}'}-meaning` },
+      { text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${vocab.id}-term` },
+      { text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${vocab.id}-meaning` },
       ...(vocab.example ? [{
         text: vocab.example,
         lang: vocab.exampleLanguage || vocab.termLanguage,
-        originalSegmentId: `${'${vocab.id}'}-example`
+        originalSegmentId: `${vocab.id}-example`
       }] : [])
     ]);
   }
@@ -652,7 +654,7 @@ class AudioEngine {
   // INTERNAL - Helpers
   // ============================================
   
-  private ensureInPlaylist(item: TPlaylistItem): number {
+  private ensureInPlaylist(item: PlaylistItem): number {
     const existingIndex = this.state.playlist.findIndex(p => p.id === item.id);
     
     if (existingIndex !== -1) {
