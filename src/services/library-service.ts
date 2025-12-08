@@ -89,7 +89,7 @@ export async function deleteLibraryItem(userId: string, itemId: string): Promise
     await docRef.delete();
   } catch (error) {
     console.error('Error in deleteLibraryItem (server):', error);
-    throw new ApiServiceError('Failed to delete library item.', 'FIRESTORE', error as Error);
+    throw new ApiServiceError('Failed to delete library item.', 'FIRESTORE');
   }
 }
 
@@ -104,7 +104,7 @@ export async function updateLibraryItem(userId: string, itemId: string, updates:
     await docRef.update(removeUndefinedProps(dataToUpdate));
   } catch (error) {
     console.error('Error in updateLibraryItem (server):', error);
-    throw new ApiServiceError('Failed to update library item.', 'FIRESTORE', error as Error);
+    throw new ApiServiceError('Failed to update library item.', 'FIRESTORE');
   }
 }
 
@@ -149,7 +149,7 @@ export async function getGlobalBooks(
     };
   } catch (error: any) {
     console.error('Error in getGlobalBooks (server):', error);
-    throw new ApiServiceError('Failed to fetch global books.', 'FIRESTORE', error);
+    throw new ApiServiceError('Failed to fetch global books.', 'FIRESTORE');
   }
 }
 
@@ -189,6 +189,6 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
         return null;
     } catch (error) {
         console.error(`Error fetching item ${itemId} (server):`, error);
-        throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE', error as Error);
+        throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE');
     }
 }
