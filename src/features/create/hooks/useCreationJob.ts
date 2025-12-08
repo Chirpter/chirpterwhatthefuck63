@@ -55,7 +55,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     const baseValues = {
         primaryLanguage: i18n.language,
         availableLanguages: [i18n.language],
-        bilingualFormat: 'sentence' as 'sentence' | 'phrase',
+        originLanguages: i18n.language,
         tags: [],
     };
     if (type === 'book') {
@@ -189,25 +189,48 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     if (name === 'coverImageAiPrompt') {
       coverPromptManuallyEditedRef.current = true;
     }
-    if (name === 'isBilingual') {
-        setFormData(prev => {
-            const newLangs = value ? [prev.primaryLanguage, ''] : [prev.primaryLanguage];
-            return { ...prev, availableLanguages: newLangs };
-        });
-    } else if (name === 'secondaryLanguage') {
-        setFormData(prev => ({
-            ...prev,
-            availableLanguages: [prev.primaryLanguage, value],
-        }));
-    } else if (name === 'primaryLanguage') {
-        setFormData(prev => ({
-            ...prev,
-            primaryLanguage: value,
-            availableLanguages: [value, ...prev.availableLanguages.filter(l => l !== prev.primaryLanguage && l !== value)],
-        }));
-    } else {
-        setFormData(prev => ({ ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value }));
-    }
+    
+    setFormData(prev => {
+        const newState = { ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value };
+
+        const isBilingual = newState.availableLanguages.length > 1 && newState.availableLanguages[1];
+        const primaryLang = newState.primaryLanguage;
+        const secondaryLang = isBilingual ? newState.availableLanguages.find(l => l !== primaryLang) : null;
+
+        let origin = primaryLang;
+        if (isBilingual && secondaryLang) {
+            origin += `-${secondaryLang}`;
+        }
+        
+        // Append format only for bilingual
+        if (isBilingual && newState.originLanguages.endsWith('-ph')) {
+           origin += '-ph';
+        }
+
+        newState.originLanguages = origin;
+
+        if (name === 'isBilingual') {
+            newState.availableLanguages = value ? [primaryLang, ''] : [primaryLang];
+        } else if (name === 'secondaryLanguage') {
+            newState.availableLanguages = [primaryLang, value];
+        } else if (name === 'primaryLanguage') {
+            newState.availableLanguages = [value, ...(prev.availableLanguages.filter(l => l !== prev.primaryLanguage && l !== value))];
+        } else if (name === 'originLanguages' && value.includes('-ph')) {
+            // This is for the toggle
+            if (isBilingual) {
+                if (prev.originLanguages.endsWith('-ph')) {
+                    newState.originLanguages = `${primaryLang}-${secondaryLang}`;
+                } else {
+                    newState.originLanguages = `${primaryLang}-${secondaryLang}-ph`;
+                }
+            } else {
+                newState.originLanguages = primaryLang; // No -ph for mono
+            }
+        }
+        
+        return newState;
+    });
+
   }, []);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -300,10 +323,9 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
                 jobId = await createBookAndStartGeneration(user.uid, formData);
             }
         } else { // Piece
-            const contentInput: Omit<GeneratePieceInput, 'primaryLanguage'> = {
+            const contentInput: GeneratePieceInput = {
                 userPrompt: formData.aiPrompt,
-                availableLanguages: formData.availableLanguages.filter(Boolean),
-                bilingualFormat: formData.bilingualFormat,
+                originLanguages: formData.originLanguages,
             };
             jobId = await createPieceAndStartGeneration(user.uid, formData as PieceFormValues, contentInput);
         }

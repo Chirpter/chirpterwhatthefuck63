@@ -53,12 +53,7 @@ export type PhraseMap = {
 
 export interface SegmentMetadata {
   isParagraphStart: boolean;
-  wordCount: {
-    [languageCode: string]: number; // e.g., { en: 12, vi: 15 }
-  };
   applyDropCap?: boolean;
-  /** The primary language of this segment, determines which content is considered "main". */
-  primaryLanguage: string; 
   /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
 }
@@ -283,6 +278,7 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isComplete?: boolean;
+  isBilingual: boolean; // Add this line
 }
 
 export interface CreationFormValues {
@@ -293,7 +289,7 @@ export interface CreationFormValues {
   title: MultilingualContent;
   presentationStyle: 'book' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
-  bilingualFormat: BilingualFormat;
+  originLanguages: string;
   // Book specific fields
   coverImageOption: 'none' | 'upload' | 'ai';
   coverImageAiPrompt: string;
@@ -414,8 +410,7 @@ export interface FoundClip {
 // --- Zod Schemas for Genkit Flows ---
 export const GeneratePieceInputSchema = z.object({
   userPrompt: z.string().describe('The specific details provided by the user for the work. Can be empty if a genre is provided.'),
-  availableLanguages: z.array(z.string()).describe('An array of language codes to be included.'),
-  bilingualFormat: z.enum(['sentence', 'phrase']).optional().default('sentence').describe('The format for bilingual content.'),
+  originLanguages: z.string().describe('The language format string, e.g., "en", "en-vi", or "en-vi-ph".'),
 });
 export type GeneratePieceInput = z.infer<typeof GeneratePieceInputSchema>;
 
@@ -426,8 +421,7 @@ export type GenerateChapterInput = z.infer<typeof GenerateChapterInputSchema>;
 
 export const GenerateBookContentInputSchema = z.object({
   prompt: z.string().describe('A prompt describing the book content to generate, or what should happen in the new chapters.'),
-  availableLanguages: z.array(z.string()).describe('An array of language codes to be included.'),
-  bilingualFormat: z.enum(['sentence', 'phrase']).optional().default('sentence').describe('The format for bilingual content.'),
+  originLanguages: z.string().describe('The language format string, e.g., "en", "en-vi", or "en-vi-ph".'),
   previousContentSummary: z.string().optional().describe('A summary of existing book content if generating additional chapters.'),
   chaptersToGenerate: z.number().describe('The number of chapter objects the AI should generate content for.'),
   totalChapterOutlineCount: z.number().optional().describe('The total number of chapters the full book outline should have.'),

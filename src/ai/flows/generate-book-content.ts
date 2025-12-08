@@ -85,7 +85,7 @@ const generateBookContentFlow = ai.defineFlow(
     
     // Step 3: Prepare the detailed instructions for the AI.
     const userPrompt = input.prompt.slice(0, MAX_PROMPT_LENGTH);
-    const { bookLength, generationScope, availableLanguages } = input;
+    const { bookLength, generationScope, originLanguages } = input;
     
     let totalWords = 600;
     let maxOutputTokens = 1200;
@@ -107,15 +107,15 @@ const generateBookContentFlow = ai.defineFlow(
     
     let compactInstruction: string;
     
-    const primaryLanguage = availableLanguages[0] || 'en';
+    const [primaryLanguage, secondaryLanguage] = originLanguages.split('-');
+    
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
-    const secondaryLanguage = availableLanguages[1];
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
     let languageInstruction = `in ${primaryLanguageLabel}`;
     let titleInstruction = `Create a title base on story or user title (1-7 words) for the book in the 'bookTitle' field.`;
 
-    if (availableLanguages.length > 1 && secondaryLanguageLabel) {
+    if (secondaryLanguageLabel) {
         languageInstruction = `in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, sentence by line translation format`;
         titleInstruction = `Create a title based on the story or user-provided title (1-7 words). Provide both ${primaryLanguageLabel} and ${secondaryLanguageLabel} versions, separated by ' / '. E.g., 'The Lost Key / Chiếc Chìa Khóa Lạc'. Return it in the 'bookTitle' field.`;
     }
@@ -148,25 +148,21 @@ const generateBookContentFlow = ai.defineFlow(
     // Step 5: THE CRITICAL PARSING STEP ("The Editor's Desk").
     // Our system, not the AI, is responsible for converting the raw Markdown
     // into the structured `Segment` format that our application uses internally.
-    // This provides control and consistency. The bilingualFormat from the user's
-    // input determines if we store sentences or pre-split phrases.
     const unifiedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
-        availableLanguages,
-        input.bilingualFormat, 
-        primaryLanguage
+        originLanguages
     );
     
     // Step 6: Convert the flat list of segments into structured chapters.
-    let chapters = segmentsToChapterStructure(unifiedSegments, primaryLanguage);
+    let chapters = segmentsToChapterStructure(unifiedSegments, originLanguages);
 
     if (chapters.length === 0 && unifiedSegments.length > 0) {
         chapters = [{
             id: generateLocalUniqueId(),
             order: 0,
-            title: { primary: 'Content', secondary: '' },
+            title: { [primaryLanguage]: 'Content' },
             segments: unifiedSegments,
-            stats: { totalSegments: unifiedSegments.length, totalWords: unifiedSegments.reduce((sum, seg) => sum + (seg.metadata.wordCount.primary || 0), 0), estimatedReadingTime: 1 },
+            stats: { totalSegments: unifiedSegments.length, totalWords: unifiedSegments.reduce((sum, seg) => sum + (seg.content[primaryLanguage]?.split(/\s+/).length || 0), 0), estimatedReadingTime: 1 },
             metadata: {
                 primaryLanguage: primaryLanguage,
             }

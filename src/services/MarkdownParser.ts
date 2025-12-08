@@ -13,7 +13,6 @@ import { remark } from 'remark';
 import type { Root, Content } from 'mdast';
 import type { 
   Book, 
-  BilingualFormat,
   Segment,
   Chapter,
   ChapterTitle,
@@ -24,9 +23,7 @@ import { generateLocalUniqueId } from '@/lib/utils';
 
 // Enhanced configuration for parsing
 interface ParseConfig {
-  availableLanguages: string[];
-  primaryLanguage: string;
-  bilingualFormat: BilingualFormat;
+  originLanguages: string;
 }
 
 // Helper to extract all text from a node and its children
@@ -68,16 +65,9 @@ function splitSentenceIntoPhrases(sentence: string): string[] {
  * UPGRADED: A more robust bilingual content pairing logic for sentences.
  * It now uses a specific separator ` / ` to pair sentences.
  */
-function pairBilingualSentences(sentences: string[], config: ParseConfig): { [langCode: string]: string }[] {
-    const { primaryLanguage, availableLanguages } = config;
-
-    if (availableLanguages.length < 2) {
-        return sentences.map(s => ({ [primaryLanguage]: s }));
-    }
-
-    const secondaryLanguage = availableLanguages.find(l => l !== primaryLanguage);
-    if (!secondaryLanguage) {
-        return sentences.map(s => ({ [primaryLanguage]: s }));
+function pairBilingualSentences(sentences: string[], primaryLang: string, secondaryLang: string | undefined): { [langCode: string]: string }[] {
+    if (!secondaryLang) {
+        return sentences.map(s => ({ [primaryLang]: s }));
     }
 
     const pairs: { [langCode: string]: string }[] = [];
@@ -86,11 +76,11 @@ function pairBilingualSentences(sentences: string[], config: ParseConfig): { [la
         const parts = line.split(/\s+\/\s+/);
         if (parts.length >= 2) {
             pairs.push({
-                [primaryLanguage]: parts[0].trim(),
-                [secondaryLanguage]: parts.slice(1).join(' / ').trim()
+                [primaryLang]: parts[0].trim(),
+                [secondaryLang]: parts.slice(1).join(' / ').trim()
             });
         } else {
-            pairs.push({ [primaryLanguage]: line.trim() });
+            pairs.push({ [primaryLang]: line.trim() });
         }
     });
 
@@ -135,23 +125,16 @@ function detectDialogue(text: string): boolean {
  */
 export function parseMarkdownToSegments(
   markdown: string, 
-  availableLanguages: string[],
-  bilingualFormat: BilingualFormat = 'sentence',
-  primaryLanguage: string,
+  originLanguages: string,
 ): Segment[] {
   
   if (!markdown || !markdown.trim()) {
     return [];
   }
 
-  const config: ParseConfig = {
-    availableLanguages,
-    bilingualFormat,
-    primaryLanguage,
-  };
+  const [primaryLanguage, secondaryLanguage, format] = originLanguages.split('-');
+  const isPhraseMode = format === 'ph';
   
-  const secondaryLanguage = availableLanguages.find(l => l !== primaryLanguage);
-
   const segments: Segment[] = [];
   let globalSegmentOrder = 0;
   
@@ -169,10 +152,10 @@ export function parseMarkdownToSegments(
               if (!paragraphText) break;
 
               const sentences = splitIntoSentences(paragraphText);
-              const sentencePairs = pairBilingualSentences(sentences, config);
+              const sentencePairs = pairBilingualSentences(sentences, primaryLanguage, secondaryLanguage);
               
               sentencePairs.forEach((sentencePair, index) => {
-                 const primaryText = sentencePair[config.primaryLanguage];
+                 const primaryText = sentencePair[primaryLanguage];
                  if (!primaryText) return;
 
                  const isDialogue = detectDialogue(primaryText);
@@ -185,20 +168,16 @@ export function parseMarkdownToSegments(
                     formatting: {},
                     metadata: {
                       isParagraphStart: isParagraphStart && index === 0 && !isListItem,
-                      wordCount: Object.fromEntries(
-                        Object.entries(sentencePair).map(([lang, text]) => [lang, calculateWordCount(text)])
-                      ),
-                      primaryLanguage: config.primaryLanguage,
                     },
                  };
 
-                 if (availableLanguages.length > 1 && config.bilingualFormat === 'phrase' && secondaryLanguage) {
+                 if (secondaryLanguage && isPhraseMode) {
                     const secondaryText = sentencePair[secondaryLanguage] || '';
                     const primaryPhrases = splitSentenceIntoPhrases(primaryText);
                     const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
                     
                     segment.phrases = primaryPhrases.map((phrase, i) => ({
-                        [config.primaryLanguage]: phrase.trim(),
+                        [primaryLanguage]: phrase.trim(),
                         [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim()
                     }));
                  }
@@ -216,9 +195,9 @@ export function parseMarkdownToSegments(
               if (headingText) {
                 const titleParts = headingText.split(/\s*[\/|]\s*/).map(p => p.trim());
                 const contentObj: ChapterTitle = {
-                  [config.primaryLanguage]: titleParts[0],
+                  [primaryLanguage]: titleParts[0],
                 };
-                if (availableLanguages.length > 1 && secondaryLanguage && titleParts[1]) {
+                if (secondaryLanguage && titleParts[1]) {
                     contentObj[secondaryLanguage] = titleParts[1];
                 }
                 
@@ -230,8 +209,6 @@ export function parseMarkdownToSegments(
                   formatting: { headingLevel: headingDepth },
                   metadata: {
                     isParagraphStart: true,
-                    wordCount: { [config.primaryLanguage]: calculateWordCount(headingText) },
-                    primaryLanguage: config.primaryLanguage,
                   }
                 });
               }
@@ -245,12 +222,10 @@ export function parseMarkdownToSegments(
                   id: generateLocalUniqueId(),
                   order: globalSegmentOrder++,
                   type: 'image',
-                  content: { [config.primaryLanguage]: imageNode.url },
+                  content: { [primaryLanguage]: imageNode.url },
                   formatting: {},
                   metadata: {
                     isParagraphStart: true,
-                    wordCount: { [config.primaryLanguage]: 0 },
-                    primaryLanguage: config.primaryLanguage,
                   }
                 });
               }
@@ -265,12 +240,10 @@ export function parseMarkdownToSegments(
                         id: generateLocalUniqueId(),
                         order: globalSegmentOrder++,
                         type: type,
-                        content: { [config.primaryLanguage]: textContent },
+                        content: { [primaryLanguage]: textContent },
                         formatting: {},
                         metadata: {
                             isParagraphStart: isParagraphStart,
-                            wordCount: { [config.primaryLanguage]: calculateWordCount(textContent) },
-                            primaryLanguage: config.primaryLanguage,
                         }
                     });
                 }
@@ -298,10 +271,12 @@ export function parseMarkdownToSegments(
 /**
  * Converts unified segments into structured Chapter array with enhanced stats
  */
-export function segmentsToChapterStructure(segments: Segment[], primaryLanguage: string): Chapter[] {
+export function segmentsToChapterStructure(segments: Segment[], originLanguages: string): Chapter[] {
   const chapters: Chapter[] = [];
   let currentChapter: Chapter | null = null;
   let chapterOrder = 0;
+  const [primaryLanguage] = originLanguages.split('-');
+
 
   segments.forEach(segment => {
     if (segment.type === 'heading') {
@@ -354,21 +329,17 @@ export function segmentsToChapterStructure(segments: Segment[], primaryLanguage:
     });
   }
 
+  // Calculate stats for each chapter
   chapters.forEach(chapter => {
-    // A heading segment is part of the chapter's identity, not its content count
     chapter.stats.totalSegments = chapter.segments.length;
     
-    // Calculate word count from content segments only
-    const contentWordCount = chapter.segments.reduce((sum, segment) => {
-      const segmentPrimaryLang = segment.metadata.primaryLanguage || primaryLanguage;
-      const primaryWords = segment.metadata.wordCount?.[segmentPrimaryLang] || 0;
-      return sum + primaryWords;
+    const totalWords = chapter.segments.reduce((sum, segment) => {
+        const text = segment.content[primaryLanguage] || '';
+        return sum + calculateWordCount(text);
     }, 0);
     
-    const titleWords = calculateWordCount(chapter.title[primaryLanguage] || Object.values(chapter.title)[0] || '');
-    
-    chapter.stats.totalWords = contentWordCount + titleWords;
-    chapter.stats.estimatedReadingTime = Math.ceil(chapter.stats.totalWords / 200);
+    chapter.stats.totalWords = totalWords;
+    chapter.stats.estimatedReadingTime = Math.ceil(totalWords / 200); // Avg reading speed
   });
 
   return chapters;

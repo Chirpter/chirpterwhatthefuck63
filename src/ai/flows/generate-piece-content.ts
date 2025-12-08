@@ -13,7 +13,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
-import type { BilingualFormat, Segment, GeneratePieceInput, ChapterTitle } from '@/lib/types';
+import type { Segment, GeneratePieceInput, ChapterTitle } from '@/lib/types';
 import { GeneratePieceInputSchema } from '@/lib/types';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { parseMarkdownToSegments } from '@/services/MarkdownParser';
@@ -76,13 +76,13 @@ const generatePieceContentFlow = ai.defineFlow(
       throw new Error("A user prompt is required.");
     }
     
-    const primaryLanguage = input.availableLanguages[0] || 'en';
+    const [primaryLanguage, secondaryLanguage, format] = input.originLanguages.split('-');
+    
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
-    const secondaryLanguage = input.availableLanguages.find(l => l !== primaryLanguage);
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
     let bilingualInstruction = `Write in ${primaryLanguageLabel}.`;
-    if (input.availableLanguages.length > 1 && secondaryLanguageLabel) {
+    if (secondaryLanguageLabel) {
         bilingualInstruction = `Write in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, sentence by line translation format.`;
     }
     
@@ -99,9 +99,7 @@ const generatePieceContentFlow = ai.defineFlow(
     
     const generatedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
-        input.availableLanguages, 
-        input.bilingualFormat,
-        primaryLanguage
+        input.originLanguages
     );
     
     let finalTitle: ChapterTitle;

@@ -11,7 +11,7 @@ import { Icon } from '@/components/ui/icons';
 import { AdvancedSettings } from './shared/AdvancedSettings';
 import { CreationLanguageSettings } from './shared/CreationLanguageSettings';
 import { cn } from '@/lib/utils';
-import { MAX_PROMPT_LENGTH, BOOK_TAG_SUGGESTIONS, PIECE_TAG_SUGGESTIONS } from '@/lib/constants';
+import { MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { CoverImageSettings } from './shared/CoverImageSettings';
 import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
@@ -51,48 +51,6 @@ const TagSelector: React.FC<TagSelectorProps> = ({ suggestedTags, selectedTags, 
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2 items-center">
-        {suggestedTags.map(tag => (
-          <Button
-            key={tag}
-            type="button"
-            variant={selectedTags.includes(tag) ? "secondary" : "outline"}
-            size="sm"
-            className="font-body text-xs"
-            onClick={() => onTagClick(tag)}
-            disabled={selectedTags.length >= maxTags && !selectedTags.includes(tag)}
-          >
-            {tag}
-          </Button>
-        ))}
-        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-7 w-7"
-              disabled={selectedTags.length >= maxTags}
-            >
-              <Icon name="Plus" className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-48 p-2">
-            <div className="flex gap-2">
-              <Input
-                placeholder="New tag..."
-                value={customTag}
-                onChange={(e) => setCustomTag(e.target.value)}
-                className="h-8 text-xs"
-                maxLength={15}
-              />
-              <Button size="sm" className="h-8" onClick={handleAddCustom} disabled={!customTag.trim()}>
-                Add
-              </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
        {selectedTags.length > 0 && (
         <div className="flex flex-wrap gap-1 items-center text-sm">
           <span className="text-muted-foreground mr-2">Selected:</span>
@@ -167,6 +125,8 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     ? 'book'
     : `card_${(formData.aspectRatio || '3:4').replace(':', '_')}`;
 
+  const isBilingual = formData.availableLanguages.length > 1;
+
   return (
     <>
       <form id={formId} onSubmit={job.handleSubmit} className="space-y-6">
@@ -230,31 +190,22 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           <div className="text-right text-xs text-muted-foreground pt-1">
             {/* {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`} */}
           </div>
-          <div className="pt-2">
-              <TagSelector 
-                suggestedTags={type === 'book' ? BOOK_TAG_SUGGESTIONS : PIECE_TAG_SUGGESTIONS} 
-                selectedTags={formData.tags || []}
-                onTagClick={handleTagClick}
-                onCustomTagAdd={handleCustomTagAdd}
-                maxTags={3}
-              />
-          </div>
           {promptError === 'empty' && (
             <p className="text-xs text-destructive">{t('formErrors.prompt.empty')}</p>
           )}
         </div>
         
         <CreationLanguageSettings
-          isBilingual={formData.isBilingual}
-          onBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
-          bilingualFormat={formData.bilingualFormat}
-          onBilingualFormatChange={(value) => handleValueChange('bilingualFormat', value)}
+          isBilingual={isBilingual}
+          onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
+          isPhraseMode={formData.originLanguages.endsWith('-ph')}
+          onIsPhraseModeChange={() => handleValueChange('originLanguages', formData.originLanguages)}
           primaryLanguage={formData.primaryLanguage}
           onPrimaryLangChange={(value) => handleValueChange('primaryLanguage', value)}
-          secondaryLanguage={formData.secondaryLanguage}
+          secondaryLanguage={formData.availableLanguages[1]}
           onSecondaryLangChange={(value) => handleValueChange('secondaryLanguage', value)}
           availableLanguages={job.availableLanguages}
-          isDisabled={isLoadingExistingBook || isBusy || (mode === 'addChapters' && !!formData.isBilingual)}
+          isDisabled={isLoadingExistingBook || isBusy || (mode === 'addChapters' && isBilingual)}
           idPrefix={type}
         />
 
