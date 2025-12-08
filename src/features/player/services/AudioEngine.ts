@@ -1,4 +1,5 @@
 
+
 /**
  * ============================================
  * CLEAN AUDIO ENGINE - Fully Refactored
@@ -581,16 +582,15 @@ class AudioEngine {
   private generateBookSegments(book: Book, chapterIndex: number): SpeechSegment[] {
     const chapter = book.chapters[chapterIndex];
     if (!chapter?.segments) return [];
-
-    const hasMultipleLangs = (book.availableLanguages?.length || 0) > 1;
-    const secondaryLanguage = hasMultipleLangs ? book.availableLanguages.find(l => l !== book.primaryLanguage) : undefined;
+  
+    const secondaryLanguage = book.availableLanguages.find(l => l !== book.primaryLanguage);
     
-    return chapter.segments.flatMap(seg => {
-      const segments: SpeechSegment[] = [];
-      
-      const primaryText = seg.content[book.primaryLanguage];
+    const speechSegments: SpeechSegment[] = [];
+
+    for (const seg of chapter.segments) {
+      const primaryText = seg.content[book.primaryLanguage]?.trim();
       if (primaryText) {
-        segments.push({
+        speechSegments.push({
           text: primaryText,
           lang: book.primaryLanguage,
           originalSegmentId: seg.id,
@@ -598,18 +598,17 @@ class AudioEngine {
       }
       
       if (secondaryLanguage) {
-        const secondaryText = seg.content[secondaryLanguage];
+        const secondaryText = seg.content[secondaryLanguage]?.trim();
         if (secondaryText) {
-            segments.push({
+            speechSegments.push({
                 text: secondaryText,
                 lang: secondaryLanguage,
                 originalSegmentId: seg.id,
             });
         }
       }
-      
-      return segments;
-    });
+    }
+    return speechSegments;
   }
   
   private async generateVocabSegments(folderId: string): Promise<SpeechSegment[]> {
@@ -620,15 +619,20 @@ class AudioEngine {
       folderId
     );
     
-    return items.flatMap(vocab => [
-      { text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${vocab.id}-term` },
-      { text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${vocab.id}-meaning` },
-      ...(vocab.example ? [{
-        text: vocab.example,
-        lang: vocab.exampleLanguage || vocab.termLanguage,
-        originalSegmentId: `${vocab.id}-example`
-      }] : [])
-    ]);
+    const speechSegments: SpeechSegment[] = [];
+
+    for (const vocab of items) {
+      if (vocab.term) {
+        speechSegments.push({ text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${vocab.id}-term` });
+      }
+      if (vocab.meaning) {
+        speechSegments.push({ text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${vocab.id}-meaning` });
+      }
+      if (vocab.example) {
+        speechSegments.push({ text: vocab.example, lang: vocab.exampleLanguage || vocab.termLanguage, originalSegmentId: `${vocab.id}-example` });
+      }
+    }
+    return speechSegments;
   }
   
   private calculateBookStats(book: Book): BookCache {

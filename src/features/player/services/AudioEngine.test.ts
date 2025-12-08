@@ -1,4 +1,3 @@
-
 // AudioEngine.test.ts - COMPLETE VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { audioEngine, type AudioEngineState } from './AudioEngine';
@@ -40,7 +39,7 @@ const mockBook1: Book = {
   primaryLanguage: 'en',
   contentStatus: 'ready',
   coverStatus: 'ready',
-  content: [], // Required property
+  content: [],
   chapters: [
     {
       id: 'ch1',
@@ -91,6 +90,7 @@ const mockBilingualBook: Book = {
   ...mockBook1,
   id: 'book-bilingual',
   availableLanguages: ['en', 'vi'],
+  primaryLanguage: 'en',
   chapters: [
     {
       id: 'ch-bi-1',
@@ -124,6 +124,8 @@ const mockBook2: Book = {
   ...mockBook1,
   id: 'book2',
   title: { en: 'Test Book 2' },
+  availableLanguages: ['en'],
+  primaryLanguage: 'en',
   chapters: [
     {
       id: 'ch2-1',
@@ -149,6 +151,7 @@ const mockEmptyBook: Book = {
   ...mockBook1,
   id: 'book-empty',
   chapters: [],
+  content: [],
 };
 
 const mockPlaylistItem1: PlaylistItem = {
@@ -429,73 +432,68 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should play term → meaning → example sequence', async () => {
-      const vocabPlaylistItem: PlaylistItem = {
-        type: 'vocab',
-        id: 'folder1',
-        title: 'Vocabulary Folder 1',
-      };
+        const vocabPlaylistItem: PlaylistItem = {
+            type: 'vocab',
+            id: 'folder1',
+            title: 'Vocabulary Folder 1',
+        };
 
-      await audioEngine.play(vocabPlaylistItem);
+        await audioEngine.play(vocabPlaylistItem);
 
-      await vi.waitFor(() => {
-        expect(ttsService.speak).toHaveBeenNthCalledWith(1, expect.objectContaining({
-          text: 'Hello',
-          lang: 'en',
-        }));
-      });
+        await vi.waitFor(() => {
+            expect(ttsService.speak).toHaveBeenNthCalledWith(1, expect.objectContaining({
+                text: 'Hello',
+                lang: 'en',
+            }));
+        });
 
-      let speakCall = vi.mocked(ttsService.speak).mock.calls[0][0];
-      speakCall.onEnd?.();
-      await vi.waitFor(() => {
-        expect(ttsService.speak).toHaveBeenNthCalledWith(2, expect.objectContaining({
-          text: 'Xin chào',
-          lang: 'vi',
-        }));
-      });
+        // Trigger end of first speech, wait for next
+        vi.mocked(ttsService.speak).mock.calls[0][0].onEnd?.();
+        await vi.waitFor(() => {
+            expect(ttsService.speak).toHaveBeenNthCalledWith(2, expect.objectContaining({
+                text: 'Xin chào',
+                lang: 'vi',
+            }));
+        });
 
-      speakCall = vi.mocked(ttsService.speak).mock.calls[1][0];
-      speakCall.onEnd?.();
-      await vi.waitFor(() => {
-        expect(ttsService.speak).toHaveBeenNthCalledWith(3, expect.objectContaining({
-          text: 'Hello world!',
-          lang: 'en',
-        }));
-      });
+        // Trigger end of second speech, wait for next
+        vi.mocked(ttsService.speak).mock.calls[1][0].onEnd?.();
+        await vi.waitFor(() => {
+            expect(ttsService.speak).toHaveBeenNthCalledWith(3, expect.objectContaining({
+                text: 'Hello world!',
+                lang: 'en',
+            }));
+        });
     });
 
     it('should skip example if not available', async () => {
-      const vocabPlaylistItem: PlaylistItem = {
-        type: 'vocab',
-        id: 'folder1',
-        title: 'Vocabulary Folder 1',
-      };
+        const vocabWithoutExample: VocabularyItem[] = [
+            { ...mockVocabItems[1], example: undefined }
+        ];
+        vi.mocked(vocabService.getVocabularyItemsByFolder).mockResolvedValue(vocabWithoutExample);
 
-      await audioEngine.play(vocabPlaylistItem);
+        const vocabPlaylistItem: PlaylistItem = { type: 'vocab', id: 'folder1', title: 'Folder 1' };
+        await audioEngine.play(vocabPlaylistItem);
 
-      await vi.waitFor(() => {
-        expect(ttsService.speak).toHaveBeenCalledTimes(1);
-      });
-
-      // Skip term, meaning, example of first item (3 segments)
-      for (let i = 0; i < 2; i++) {
-        const speakCall = vi.mocked(ttsService.speak).mock.calls[i][0];
-        speakCall.onEnd?.();
         await vi.waitFor(() => {
-          // The check `i + 2` is because each onEnd triggers a new call.
-          expect(ttsService.speak).toHaveBeenCalledTimes(i + 2);
+            expect(ttsService.speak).toHaveBeenNthCalledWith(1, expect.objectContaining({ text: 'Goodbye' }));
         });
-      }
 
-      // Now at the end of the first item
-      const lastCall = vi.mocked(ttsService.speak).mock.calls[2][0];
-      lastCall.onEnd?.();
+        vi.mocked(ttsService.speak).mock.calls[0][0].onEnd?.();
 
-      await vi.waitFor(() => {
-         // Now at second vocab item - should have term
-        expect(ttsService.speak).toHaveBeenLastCalledWith(expect.objectContaining({
-            text: 'Goodbye',
-        }));
-      });
+        await vi.waitFor(() => {
+            expect(ttsService.speak).toHaveBeenNthCalledWith(2, expect.objectContaining({ text: 'Tạm biệt' }));
+        });
+        
+        // This should trigger the end of the playlist, as there's no example and no next item
+        vi.mocked(ttsService.speak).mock.calls[1][0].onEnd?.();
+
+        await vi.waitFor(() => {
+            // No third call should be made
+            expect(ttsService.speak).toHaveBeenCalledTimes(2);
+            // The engine should be idle
+            expect(audioEngine.getState().status.type).toBe('idle');
+        });
     });
   });
 
@@ -783,10 +781,12 @@ describe('AudioEngine - Complete Test Suite', () => {
       
       vi.advanceTimersByTime(60 * 1000 + 100);
 
-      state = audioEngine.getState();
-      expect(state.status.type).toBe('active');
-      expect((state.status as any).state).toBe('paused');
-      expect(state.settings.sleepTimer.duration).toBeNull();
+      await vi.waitFor(() => {
+          state = audioEngine.getState();
+          expect(state.status.type).toBe('active');
+          expect((state.status as any).state).toBe('paused');
+          expect(state.settings.sleepTimer.duration).toBeNull();
+      });
     });
 
     it('should clear sleep timer', async () => {
