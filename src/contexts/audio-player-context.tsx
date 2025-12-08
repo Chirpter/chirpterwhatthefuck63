@@ -14,6 +14,8 @@ import type {
   PlaylistItem,
   Book,
   ChapterTitle,
+  PlaylistRepeatMode,
+  RepeatMode,
 } from '@/lib/types';
 import {
   audioEngine,
@@ -54,7 +56,7 @@ export interface AudioPlayerContextType extends AudioEngineState {
   clearPlaylist: () => void;
 
   // Settings
-  setRepeatMode: (mode: 'off' | 'one') => void;
+  setRepeatMode: (mode: 'off' | 'item') => void;
   setPlaylistRepeatMode: (mode: 'off' | 'all') => void;
   setTtsRate: (rate: number) => void;
   setTtsPitch: (pitch: number) => void;
@@ -78,7 +80,7 @@ export interface AudioPlayerContextType extends AudioEngineState {
   currentChapterDetails: any;
   ttsSettings: any;
   sleepTimerDuration: number | null;
-  repeatMode: 'off' | 'one';
+  repeatMode: 'off' | 'item';
   playlistRepeatMode: 'off' | 'all';
 }
 
@@ -101,9 +103,12 @@ const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
   if (typeof bookData.title === 'string') {
     title = bookData.title;
   } else if (typeof bookData.title === 'object' && bookData.title !== null) {
-    const primaryTitle = (bookData.title as ChapterTitle)[bookData.primaryLanguage] || 
-                        (bookData.title as ChapterTitle).primary;
-    title = primaryTitle || Object.values(bookData.title)[0] || 'Untitled Book';
+    // Safely access primary language, providing fallbacks
+    const primaryTitle = bookData.title[bookData.primaryLanguage] || 
+                         (bookData.title as any).primary || // Fallback for old format
+                         Object.values(bookData.title)[0] || 
+                         'Untitled Book';
+    title = primaryTitle;
   } else {
     title = 'Untitled Book';
   }
@@ -114,7 +119,7 @@ const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
     title: title, 
     data: bookData,
     primaryLanguage: bookData.primaryLanguage,
-    availableLanguages: bookData.availableLanguages,
+    availableLanguages: bookData.availableLanguages || [],
   };
 };
 
@@ -246,7 +251,8 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
         audioEngine.addToPlaylist({ 
           type: 'vocab', 
           id: folderId, 
-          title: folderName 
+          title: folderName,
+          data: {},
         });
       },
       
@@ -254,7 +260,8 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
         audioEngine.play({ 
           type: 'vocab', 
           id: folderId, 
-          title: folderName 
+          title: folderName,
+          data: {},
         });
       },
       
@@ -267,7 +274,7 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
         setPlayerState('collapsed');
       },
       
-      setRepeatMode: (mode: 'off' | 'one') => audioEngine.setRepeatMode(mode),
+      setRepeatMode: (mode: 'off' | 'item') => audioEngine.setRepeatMode(mode),
       
       setPlaylistRepeatMode: (mode: 'off' | 'all') => audioEngine.setPlaylistRepeatMode(mode),
       

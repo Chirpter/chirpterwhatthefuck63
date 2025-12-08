@@ -224,7 +224,6 @@ interface BaseLibraryItem extends BaseDocument {
   title: MultilingualContent;
   primaryLanguage: string;
   availableLanguages: string[];
-  bilingualFormat?: BilingualFormat;
   status: OverallStatus;
   progress?: number;
   isGlobal?: boolean;
@@ -234,6 +233,10 @@ interface BaseLibraryItem extends BaseDocument {
   presentationStyle: 'book' | 'card';
   content: Segment[];
   tags?: string[];
+  // --- PRESENTATION INTENT ---
+  bilingualFormat?: BilingualFormat;
+  preferredPresentationMode?: 'mono' | 'bilingual-sentence' | 'bilingual-phrase';
+  preferredLanguagePair?: [string, string];
 }
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
@@ -284,6 +287,7 @@ export interface Piece extends BaseLibraryItem {
     startTime?: number;
     endTime?: number;
   };
+  isComplete?: boolean;
 }
 
 export interface CreationFormValues {
@@ -347,7 +351,7 @@ export type LibraryItem = Book | Piece;
 
 export type PlaylistItem =
   | { type: 'book'; id: string; title: string; data: Book; primaryLanguage: string; availableLanguages: string[]; }
-  | { type: 'vocab'; id: string; title: string; };
+  | { type: 'vocab'; id: string; title: string; data: {} };
 
 
 export interface SpeechPlayableSegment {
@@ -358,7 +362,7 @@ export interface SpeechPlayableSegment {
   vocabItem?: VocabularyItem;
 }
 
-export type RepeatMode = 'off' | 'one';
+export type RepeatMode = 'off' | 'item';
 export type PlaylistRepeatMode = 'off' | 'all';
 
 export interface AudioProgressState {

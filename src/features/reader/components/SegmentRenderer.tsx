@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -121,8 +122,8 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
   const isSegmentPlaying = isPlaying;
 
   const renderContent = () => {
-    // If phrases are available, prioritize rendering them.
-    if (segment.phrases) {
+    // If phrases are available and we are in bilingual mode, prioritize rendering them.
+    if (segment.phrases && isBilingualMode) {
       return renderPhrases(segment.phrases, displayLang1, displayLang2, isSegmentPlaying, spokenLang, speechBoundary);
     }
     // Otherwise, fall back to rendering the full sentence content.

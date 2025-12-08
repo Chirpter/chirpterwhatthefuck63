@@ -46,7 +46,7 @@ export interface AudioSettings {
     voicesByLanguage: Record<string, string>;
   };
   repeat: {
-    track: 'off' | 'one';
+    track: 'off' | 'item';
     playlist: 'off' | 'all';
   };
   sleepTimer: {
@@ -275,7 +275,7 @@ class AudioEngine {
     });
   }
   
-  public setRepeatMode(mode: 'off' | 'one'): void {
+  public setRepeatMode(mode: 'off' | 'item'): void {
     this.updateSettings({
       repeat: { ...this.state.settings.repeat, track: mode }
     });
@@ -397,16 +397,24 @@ class AudioEngine {
     if (!track || !this.bookStatsCache) return 0;
     
     const { position } = this.state;
+    
     if (track.type === 'book' && position.chapterIndex !== null) {
-      const segmentsBefore = position.chapterIndex > 0 
-        ? this.bookStatsCache.segmentsPerChapter[position.chapterIndex - 1] 
-        : 0;
-      const totalPlayed = segmentsBefore + position.segmentIndex;
-      if (this.bookStatsCache.totalSegments === 0) return 0; // Avoid division by zero
-      return (totalPlayed / this.bookStatsCache.totalSegments) * 100;
+        const languagesBeingPlayed = this.currentPlaybackLanguages.length || 1;
+        
+        // This is the spoken segment index, so we need to divide by the number of languages to get the original segment index
+        const originalSegmentIndex = Math.floor(position.segmentIndex / languagesBeingPlayed);
+
+        const segmentsBefore = position.chapterIndex > 0 
+            ? this.bookStatsCache.segmentsPerChapter[position.chapterIndex - 1] 
+            : 0;
+        
+        const totalPlayedOriginalSegments = segmentsBefore + originalSegmentIndex;
+        
+        if (this.bookStatsCache.totalSegments === 0) return 0;
+        
+        return (totalPlayedOriginalSegments / this.bookStatsCache.totalSegments) * 100;
     }
     
-    // Vocab progress
     if (this.segmentsCache.length > 0) {
       return ((position.segmentIndex + 1) / this.segmentsCache.length) * 100;
     }
@@ -580,7 +588,7 @@ class AudioEngine {
       return this.generateBookSegments(item.data, this.state.position.chapterIndex ?? 0);
     }
     
-    if (item.type === 'vocab') {
+    if (item.type === 'vocab' && item.data) { // FIX: check for item.data
       return this.generateVocabSegments(item.id);
     }
     
@@ -637,26 +645,18 @@ class AudioEngine {
   
   private calculateBookStats(book: Book): BookCache {
     const segmentsPerChapter: number[] = [];
-    let totalSegments = 0;
+    let cumulativeOriginalSegments = 0;
     
-    const languagesToCount = this.currentPlaybackLanguages.length > 0 ? this.currentPlaybackLanguages : book.availableLanguages;
-
     book.chapters.forEach(chapter => {
-      const chapterSegmentCount = chapter.segments.reduce((count, seg) => {
-        let segCount = 0;
-        for (const lang of languagesToCount) {
-          if (seg.content[lang]?.trim()) {
-            segCount++;
-          }
-        }
-        return count + segCount;
-      }, 0);
-      
-      totalSegments += chapterSegmentCount;
-      segmentsPerChapter.push(totalSegments); // Cumulative
+      const originalSegmentCount = chapter.segments.length;
+      cumulativeOriginalSegments += originalSegmentCount;
+      segmentsPerChapter.push(cumulativeOriginalSegments);
     });
     
-    return { totalSegments, segmentsPerChapter };
+    return {
+      totalSegments: cumulativeOriginalSegments,
+      segmentsPerChapter,
+    };
   }
   
   // ============================================
@@ -767,9 +767,28 @@ class AudioEngine {
       if (!saved) return;
       
       const parsed = JSON.parse(saved);
+
+      // Deep merge settings to prevent wiping keys if the saved format is old
+      const mergedSettings = {
+        ...this.state.settings,
+        ...(parsed.settings || {}),
+        tts: {
+            ...this.state.settings.tts,
+            ...(parsed.settings?.tts || {}),
+        },
+        repeat: {
+            ...this.state.settings.repeat,
+            ...(parsed.settings?.repeat || {}),
+        },
+        sleepTimer: {
+            ...this.state.settings.sleepTimer,
+            ...(parsed.settings?.sleepTimer || {}),
+        }
+      };
+
       this.setState({
         playlist: parsed.playlist || [],
-        settings: parsed.settings || this.state.settings,
+        settings: mergedSettings,
       });
     } catch (e) {
       console.warn('Failed to load state from storage:', e);

@@ -45,6 +45,35 @@ interface LookupState {
   sentenceContext: string;
 }
 
+// --- NEW: Local Storage Logic for Presentation Mode ---
+const getStorageKey = (itemId: string) => `chirpter_reader_prefs_${itemId}`;
+
+const getStoredPresentationMode = (itemId: string): { displayLang1: string; displayLang2: string } | null => {
+    try {
+        const stored = localStorage.getItem(getStorageKey(itemId));
+        if (stored) {
+            const data = JSON.parse(stored);
+            // Basic validation
+            if (typeof data.displayLang1 === 'string' && typeof data.displayLang2 === 'string') {
+                return data;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to read presentation mode from localStorage", e);
+    }
+    return null;
+};
+
+const setStoredPresentationMode = (itemId: string, displayLang1: string, displayLang2: string) => {
+    try {
+        const data = { displayLang1, displayLang2 };
+        localStorage.setItem(getStorageKey(itemId), JSON.stringify(data));
+    } catch (e) {
+        console.error("Failed to save presentation mode to localStorage", e);
+    }
+};
+
+
 function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -76,22 +105,50 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [isCalculatingPages, setIsCalculatingPages] = useState(true);
   const readerPageInitializedRef = useRef(false);
 
-  // --- MULTI-LANGUAGE STATE ---
-  const [displayLang1, setDisplayLang1] = useState(item?.primaryLanguage || 'en');
-  const [displayLang2, setDisplayLang2] = useState('none'); // 'none' means monolingual view
+  // --- REFACTORED: Multi-language State ---
+  const [displayLang1, setDisplayLang1] = useState('en');
+  const [displayLang2, setDisplayLang2] = useState('none');
   
-  // The languages available in the book data (e.g., ['vi', 'en', 'fr'])
-  const availableLanguages = useMemo(() => item?.availableLanguages || [], [item]);
+  const availableLanguages = useMemo(() => item?.availableLanguages || ['en'], [item]);
 
-  // When the item loads, set the initial display languages
   useEffect(() => {
     if (item) {
-        setDisplayLang1(item.primaryLanguage || 'en');
-        // Default to monolingual view. The user can choose a secondary language.
-        setDisplayLang2('none');
+        // TIER 3: Check localStorage for user override
+        const storedPrefs = getStoredPresentationMode(item.id);
+        if (storedPrefs) {
+            setDisplayLang1(storedPrefs.displayLang1);
+            setDisplayLang2(storedPrefs.displayLang2);
+            return;
+        }
+
+        // TIER 2: Intelligent Suggestion (not implemented yet, fallback to Tier 1)
+        // This is where you could compare i18n.language with availableLanguages
+        
+        // TIER 1: Author's Intent (Default)
+        const primary = item.primaryLanguage || 'en';
+        let secondary = 'none';
+
+        if (item.bilingualFormat) { // bilingualFormat implies bilingual intent
+            const secondaryLang = item.availableLanguages.find(l => l !== primary);
+            if (secondaryLang) {
+                secondary = secondaryLang;
+            }
+        }
+        
+        setDisplayLang1(primary);
+        setDisplayLang2(secondary);
     }
   }, [item]);
   
+  const handleDisplayLang1Change = useCallback((lang: string) => {
+    setDisplayLang1(lang);
+    if (item) setStoredPresentationMode(item.id, lang, displayLang2);
+  }, [item, displayLang2]);
+
+  const handleDisplayLang2Change = useCallback((lang: string) => {
+    setDisplayLang2(lang);
+    if (item) setStoredPresentationMode(item.id, displayLang1, lang);
+  }, [item, displayLang1]);
   // --- END MULTI-LANGUAGE STATE ---
   
   useEffect(() => {
@@ -459,8 +516,8 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                           availableLanguages={availableLanguages}
                           displayLang1={displayLang1}
                           displayLang2={displayLang2}
-                          onDisplayLang1Change={setDisplayLang1}
-                          onDisplayLang2Change={setDisplayLang2}
+                          onDisplayLang1Change={handleDisplayLang1Change}
+                          onDisplayLang2Change={handleDisplayLang2Change}
                       />
                     </div>
                   )}
