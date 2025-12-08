@@ -19,7 +19,7 @@ import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { parseMarkdownToSegments } from '@/services/MarkdownParser';
 
 const GeneratePieceOutputSchema = z.object({
-  title: z.any().describe("A concise, creative title (1-7 words) for the work. It must be a JSON object with language codes as keys, e.g., {\"en\": \"Title\", \"vi\": \"Tiêu đề\"} for bilingual, or {\"en\": \"Title\"} for monolingual."),
+  title: z.record(z.string()).describe("A concise, creative title (1-7 words) for the work. It must be a JSON object with language codes as keys, e.g., {\"en\": \"Title\", \"vi\": \"Tiêu đề\"} for bilingual, or {\"en\": \"Title\"} for monolingual."),
   markdownContent: z.string().describe("The full content of the work, formatted in rich Markdown. Include paragraphs, lists, and blockquotes where appropriate."),
 });
 
@@ -76,9 +76,10 @@ const generatePieceContentFlow = ai.defineFlow(
       throw new Error("A user prompt is required.");
     }
     
-    const [primaryLanguage, secondaryLanguage] = input.origin.split('-');
+    const [primaryLanguage] = input.origin.split('-');
     
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
+    const secondaryLanguage = input.origin.split('-')[1];
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
     let bilingualInstruction = `Write in ${primaryLanguageLabel}.`;
@@ -102,7 +103,7 @@ const generatePieceContentFlow = ai.defineFlow(
         input.origin
     );
     
-    const finalTitle: MultilingualContent = aiOutput.title && typeof aiOutput.title === 'object' ? aiOutput.title : { [primaryLanguage]: "Untitled Piece" };
+    const finalTitle: MultilingualContent = aiOutput.title;
     const mainTitle = finalTitle[primaryLanguage] || Object.values(finalTitle)[0] || 'Untitled';
     
     return {
