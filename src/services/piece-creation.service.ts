@@ -31,7 +31,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
         finalUpdate = {
             title: contentResult.title,
             content: contentResult.generatedContent,
-            contentStatus: 'ready',
+            contentState: 'ready',
             status: 'draft',
             contentRetryCount: 0,
         };
@@ -39,7 +39,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
         const errorMessage = (err as Error).message;
         console.error(`Piece content generation failed for item ${pieceId}:`, errorMessage);
         finalUpdate = {
-            contentStatus: 'error',
+            contentState: 'error',
             status: 'draft',
             contentError: errorMessage,
         };
@@ -62,17 +62,6 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
     
     const creditCost = 1;
     const primaryLanguage = pieceFormData.primaryLanguage;
-    const secondaryLanguage = pieceFormData.availableLanguages.find(l => l !== primaryLanguage);
-
-    let originLanguages: string;
-    if (secondaryLanguage) {
-        originLanguages = `${primaryLanguage}-${secondaryLanguage}`;
-        if (pieceFormData.bilingualFormat === 'phrase') {
-            originLanguages += '-ph';
-        }
-    } else {
-        originLanguages = primaryLanguage;
-    }
 
     await adminDb.runTransaction(async (transaction) => {
         const userDocRef = adminDb.collection('users').doc(userId);
@@ -93,17 +82,18 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             type: 'piece',
             title: { [primaryLanguage]: pieceFormData.aiPrompt.substring(0, 50) },
             status: 'processing',
-            contentStatus: 'processing',
+            contentState: 'processing',
             contentRetryCount: 0,
-            originLanguages,
-            availableLanguages: pieceFormData.availableLanguages,
+            origin: pieceFormData.origin,
+            langs: pieceFormData.availableLanguages,
             prompt: pieceFormData.aiPrompt,
             tags: pieceFormData.tags || [],
-            presentationStyle: pieceFormData.presentationStyle || 'card',
+            display: pieceFormData.display || 'card',
             aspectRatio: pieceFormData.aspectRatio,
             content: [],
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
+            isBilingual: pieceFormData.availableLanguages.length > 1,
         };
         transaction.set(newWorkRef, removeUndefinedProps(initialWorkData));
         pieceId = newWorkRef.id;
@@ -140,7 +130,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         }
 
         const updatePayload: any = {
-            contentStatus: 'processing',
+            contentState: 'processing',
             status: 'processing',
             contentRetryCount: newPrompt ? 0 : FieldValue.increment(1),
             updatedAt: FieldValue.serverTimestamp(),
@@ -153,16 +143,15 @@ export async function regeneratePieceContent(userId: string, workId: string, new
 
     const promptToUse = newPrompt ?? workData.prompt;
     if (!promptToUse) {
-        await updateLibraryItem(userId, workId, { status: 'draft', contentStatus: 'error', contentError: "No prompt available." });
+        await updateLibraryItem(userId, workId, { status: 'draft', contentState: 'error', contentError: "No prompt available." });
         return;
     }
     
-    const [primaryLang, , format] = workData.originLanguages.split('-');
+    const [primaryLang, , format] = workData.origin.split('-');
 
     const contentInput: GeneratePieceInput = {
         userPrompt: promptToUse,
-        availableLanguages: workData.availableLanguages,
-        bilingualFormat: format === 'ph' ? 'phrase' : 'sentence',
+        origin: workData.origin,
     };
     
     processPieceGenerationPipeline(userId, workId, contentInput)
@@ -170,7 +159,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         console.error(`Background regeneration failed for work ${workId}:`, err);
         await updateLibraryItem(userId, workId, {
             status: 'draft',
-            contentStatus: 'error',
+            contentState: 'error',
             contentError: (err as Error).message || 'Content regeneration failed.',
         });
     });

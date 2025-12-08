@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -19,7 +20,7 @@ interface PieceItemCardProps {
 export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
   if (!work) return null;
 
-  const isReadable = work.contentStatus === 'ready';
+  const isReadable = work.contentState === 'ready';
 
   if (!isReadable) {
     // For now, we don't render processing/error cards for pieces in the library

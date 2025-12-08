@@ -38,7 +38,7 @@ async function processBookGenerationPipeline(
     processContentGenerationForBook(userId, bookId, contentInput),
     coverOption !== 'none'
       ? processCoverImageForBook(userId, bookId, coverOption, coverData, contentInput.prompt)
-      : Promise.resolve({ coverStatus: 'ignored' as const })
+      : Promise.resolve({ coverState: 'ignored' as const })
   ]);
 
   const finalUpdate: Partial<Book> = { status: 'draft' };
@@ -46,14 +46,14 @@ async function processBookGenerationPipeline(
   if (contentResult.status === 'fulfilled') {
     Object.assign(finalUpdate, contentResult.value);
   } else {
-    finalUpdate.contentStatus = 'error';
+    finalUpdate.contentState = 'error';
     finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
   }
 
   if (coverResult.status === 'fulfilled') {
     Object.assign(finalUpdate, coverResult.value);
   } else {
-    finalUpdate.coverStatus = 'error';
+    finalUpdate.coverState = 'error';
     finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
   }
 
@@ -93,13 +93,13 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   const coverImageAiPrompt = bookFormData.coverImageAiPrompt?.trim() || bookFormData.aiPrompt.trim();
 
-  // --- Construct the originLanguages string ---
+  // --- Construct the origin string ---
   const primaryLanguage = bookFormData.primaryLanguage;
   const secondaryLanguage = bookFormData.availableLanguages.find(l => l !== primaryLanguage);
   
-  let originLanguages = primaryLanguage;
+  let origin = primaryLanguage;
   if (secondaryLanguage) {
-      originLanguages += `-${secondaryLanguage}`;
+      origin += `-${secondaryLanguage}`;
   }
 
   await adminDb.runTransaction(async (transaction) => {
@@ -122,15 +122,15 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         type: 'book',
         title: { [primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
         status: 'processing',
-        contentStatus: 'processing',
-        coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
-        originLanguages,
-        availableLanguages: bookFormData.availableLanguages.filter(Boolean),
+        contentState: 'processing',
+        coverState: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
+        origin,
+        langs: bookFormData.availableLanguages.filter(Boolean),
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
         intendedLength: bookFormData.bookLength,
         isComplete: false,
-        presentationStyle: 'book',
+        display: 'book',
         contentRetryCount: 0,
         coverRetryCount: 0,
         chapters: [],
@@ -151,7 +151,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
-    originLanguages: originLanguages,
+    origin: origin,
     chaptersToGenerate: bookFormData.targetChapterCount,
     totalChapterOutlineCount: bookFormData.targetChapterCount,
     bookLength: bookFormData.bookLength,
@@ -172,7 +172,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
   try {
-    const [primaryLanguage] = contentInput.originLanguages.split('-');
+    const [primaryLanguage] = contentInput.origin.split('-');
     const contentResult = await generateBookContent({ ...contentInput });
     
     if (!contentResult || !contentResult.chapters || contentResult.chapters.length === 0) {
@@ -181,8 +181,8 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
     return {
       title: contentResult.bookTitle,
       chapters: contentResult.chapters,
-      chapterOutline: contentResult.chapterOutline,
-      contentStatus: 'ready',
+      outline: contentResult.chapterOutline,
+      contentState: 'ready',
       contentRetryCount: 0,
     };
   } catch (err) {
@@ -233,12 +233,12 @@ async function processCoverImageForBook(
 
       return {
         cover: removeUndefinedProps(coverUpdate),
-        coverStatus: 'ready',
+        coverState: 'ready',
         coverRetryCount: 0,
       };
     }
 
-    return { coverStatus: 'ignored' };
+    return { coverState: 'ignored' };
   } catch (err) {
     console.error(`Error in cover generation for book ${bookId}:`, (err as Error).message);
     throw err;
@@ -262,7 +262,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         }
 
         const book = bookDoc.data() as Book;
-        const [primaryLanguage, secondaryLanguage, format] = book.originLanguages.split('-');
+        const [primaryLanguage, secondaryLanguage, format] = book.origin.split('-');
 
         // Prevent re-processing if it's already in phrase format or not eligible (not bilingual)
         if (format === 'ph' || !secondaryLanguage) {
@@ -301,7 +301,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         // Update the book in Firestore with the new structure
         await bookDocRef.update({
             chapters: upgradedChapters,
-            originLanguages: `${book.originLanguages}-ph`, // Append '-ph' to mark as upgraded
+            origin: `${book.origin}-ph`, // Append '-ph' to mark as upgraded
             updatedAt: FieldValue.serverTimestamp(),
         });
 

@@ -97,17 +97,17 @@ export const useAdminBooks = () => {
         author: data.author,
         price: data.price,
         isBilingual: data.isBilingual,
-        primaryLanguage: data.primaryLanguage,
-        secondaryLanguage: data.secondaryLanguage,
+        origin: data.isBilingual ? `${'${data.primaryLanguage}'}-${'${data.secondaryLanguage}'}` : data.primaryLanguage,
+        langs: data.isBilingual ? [data.primaryLanguage, data.secondaryLanguage as string] : [data.primaryLanguage],
         tags: data.tags,
         isGlobal: true,
         type: 'book',
         chapters,
         status: 'published',
-        contentStatus: 'ready',
-        coverStatus: coverUrl ? 'ready' : 'ignored',
+        contentState: 'ready',
+        coverState: coverUrl ? 'ready' : 'ignored',
         labels: [], // Or derive from tags if needed
-        presentationStyle: 'book',
+        display: 'book',
         cover: coverUrl ? { url: coverUrl, type: 'upload' } : undefined,
       };
 

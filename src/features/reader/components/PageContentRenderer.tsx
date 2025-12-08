@@ -64,7 +64,7 @@ export function PageContentRenderer({
       let currentParagraph: Segment[] = [];
 
       segments.forEach(segment => {
-          if (segment.metadata.isParagraphStart && currentParagraph.length > 0) {
+          if (segment.metadata.isNewPara && currentParagraph.length > 0) {
               paragraphs.push(currentParagraph);
               currentParagraph = [];
           }

@@ -16,8 +16,8 @@ interface VocabFormState {
   meaning: string;
   example: string;
   folder: string;
-  termLanguage: string;
-  meaningLanguage: string;
+  termLang: string;
+  meanLang: string;
 }
 
 export function useVocabForm(options: UseVocabFormOptions) {
@@ -96,8 +96,8 @@ export function useVocabForm(options: UseVocabFormOptions) {
         meaning: formState.meaning.trim(),
         example: formState.example.trim() || undefined,
         folder: finalFolder,
-        termLanguage: formState.termLanguage,
-        meaningLanguage: formState.meaningLanguage,
+        termLang: formState.termLang,
+        meanLang: formState.meanLang,
       };
 
       await submitFn(dataToSubmit);

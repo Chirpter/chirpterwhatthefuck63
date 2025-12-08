@@ -136,7 +136,7 @@ export function useVocabulary({
     }
   }, [combinedFolders]);
 
-  const addItem = useCallback(async (newItemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memoryStrength' | 'streak' | 'attempts' | 'lastReviewed' | 'dueDate'>) => {
+  const addItem = useCallback(async (newItemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memStrength' | 'streak' | 'attempts' | 'lastReview' | 'dueDate'>) => {
     if (!user) throw new Error("User not authenticated");
     const itemWithContext = {
       ...newItemData,

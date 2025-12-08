@@ -83,7 +83,7 @@ export default function ShopView() {
 
     setIsPurchasing(true);
     try {
-      const title = (itemToPurchase.itemType === 'book' ? itemToPurchase.title[itemToPurchase.originLanguages.split('-')[0]] : itemToPurchase.name) || 'item';
+      const title = (itemToPurchase.itemType === 'book' ? itemToPurchase.title[itemToPurchase.origin.split('-')[0]] : itemToPurchase.name) || 'item';
       await purchaseGlobalItem(user.uid, itemToPurchase.id, itemToPurchase.itemType);
       toast({
         title: t('toast:purchaseSuccessTitle'),
@@ -215,7 +215,7 @@ export default function ShopView() {
             <AlertDialogHeader>
               <AlertDialogTitle className="font-headline">{t('shopPage:confirmPurchaseTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                {t('shopPage:confirmPurchaseDesc', { title: itemToPurchase.name || (itemToPurchase as Book).title[(itemToPurchase as Book).originLanguages.split('-')[0]], price: itemToPurchase.price })}
+                {t('shopPage:confirmPurchaseDesc', { title: itemToPurchase.name || (itemToPurchase as Book).title[(itemToPurchase as Book).origin.split('-')[0]], price: itemToPurchase.price })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

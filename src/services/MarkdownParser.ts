@@ -23,7 +23,7 @@ import { generateLocalUniqueId } from '@/lib/utils';
 
 // Enhanced configuration for parsing
 interface ParseConfig {
-  originLanguages: string;
+  origin: string;
 }
 
 // Helper to extract all text from a node and its children
@@ -125,14 +125,14 @@ function detectDialogue(text: string): boolean {
  */
 export function parseMarkdownToSegments(
   markdown: string, 
-  originLanguages: string,
+  origin: string,
 ): Segment[] {
   
   if (!markdown || !markdown.trim()) {
     return [];
   }
 
-  const [primaryLanguage, secondaryLanguage, format] = originLanguages.split('-');
+  const [primaryLanguage, secondaryLanguage, format] = origin.split('-');
   const isPhraseMode = format === 'ph';
   
   const segments: Segment[] = [];
@@ -142,7 +142,7 @@ export function parseMarkdownToSegments(
     const tree = remark().parse(markdown) as Root;
     
     tree.children.forEach(node => {
-      let isParagraphStart = true;
+      let isNewPara = true;
       
       const processContentNode = (contentNode: Content, isListItem = false) => {
         try {
@@ -167,7 +167,7 @@ export function parseMarkdownToSegments(
                     content: sentencePair,
                     formatting: {},
                     metadata: {
-                      isParagraphStart: isParagraphStart && index === 0 && !isListItem,
+                      isNewPara: isNewPara && index === 0 && !isListItem,
                     },
                  };
 
@@ -208,7 +208,7 @@ export function parseMarkdownToSegments(
                   content: contentObj,
                   formatting: { headingLevel: headingDepth },
                   metadata: {
-                    isParagraphStart: true,
+                    isNewPara: true,
                   }
                 });
               }
@@ -225,7 +225,7 @@ export function parseMarkdownToSegments(
                   content: { [primaryLanguage]: imageNode.url },
                   formatting: {},
                   metadata: {
-                    isParagraphStart: true,
+                    isNewPara: true,
                   }
                 });
               }
@@ -243,7 +243,7 @@ export function parseMarkdownToSegments(
                         content: { [primaryLanguage]: textContent },
                         formatting: {},
                         metadata: {
-                            isParagraphStart: isParagraphStart,
+                            isNewPara: isNewPara,
                         }
                     });
                 }
@@ -251,7 +251,7 @@ export function parseMarkdownToSegments(
             }
           }
           
-          isParagraphStart = false;
+          isNewPara = false;
         } catch (error) {
           console.error('Error processing content node:', error);
         }
@@ -271,11 +271,11 @@ export function parseMarkdownToSegments(
 /**
  * Converts unified segments into structured Chapter array with enhanced stats
  */
-export function segmentsToChapterStructure(segments: Segment[], originLanguages: string): Chapter[] {
+export function segmentsToChapterStructure(segments: Segment[], origin: string): Chapter[] {
   const chapters: Chapter[] = [];
   let currentChapter: Chapter | null = null;
   let chapterOrder = 0;
-  const [primaryLanguage] = originLanguages.split('-');
+  const [primaryLanguage] = origin.split('-');
 
 
   segments.forEach(segment => {

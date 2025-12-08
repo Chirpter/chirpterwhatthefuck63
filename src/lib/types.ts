@@ -52,7 +52,7 @@ export type PhraseMap = {
 };
 
 export interface SegmentMetadata {
-  isParagraphStart: boolean;
+  isNewPara: boolean;
   applyDropCap?: boolean;
   /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
@@ -216,16 +216,15 @@ interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
   title: MultilingualContent;
-  originLanguages: string;
-  availableLanguages: string[];
+  origin: string;
+  langs: string[];
   status: OverallStatus;
   progress?: number;
   isGlobal?: boolean;
   price?: number;
   originId?: string;
   prompt?: string;
-  presentationStyle: 'book' | 'card';
-  content: Segment[];
+  display: 'book' | 'card';
   tags?: string[];
 }
 
@@ -235,21 +234,21 @@ export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
  * @interface Book
  * @description Represents a full book, composed of multiple chapters.
  */
-export interface Book extends Omit<BaseLibraryItem, 'content'> {
+export interface Book extends BaseLibraryItem {
   type: 'book';
   author?: string;
-  contentStatus: JobStatus;
+  contentState: JobStatus;
   contentError?: string;
   contentRetryCount?: number;
   chapters: Chapter[];
 
-  coverStatus: JobStatus;
+  coverState: JobStatus;
   coverError?: string;
   cover?: Cover;
   imageHint?: string;
   coverRetryCount?: number;
 
-  chapterOutline?: ChapterOutlineItem[];
+  outline?: ChapterOutlineItem[];
   intendedLength?: BookLengthOptionValue;
   isComplete?: boolean;
   selectedBookmark?: BookmarkType;
@@ -269,7 +268,7 @@ export interface EditorSettings {
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
   content: Segment[];
-  contentStatus: JobStatus;
+  contentState: JobStatus;
   contentError?: string;
   contentRetryCount?: number;
   aspectRatio?: '1:1' | '3:4' | '4:3';
@@ -287,9 +286,9 @@ export interface CreationFormValues {
   aiPrompt: string;
   tags: string[];
   title: MultilingualContent;
-  presentationStyle: 'book' | 'card';
+  display: 'book' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
-  originLanguages: string;
+  origin: string;
   // Book specific fields
   coverImageOption: 'none' | 'upload' | 'ai';
   coverImageAiPrompt: string;
@@ -311,13 +310,13 @@ export interface VocabularyItem extends BaseDocument {
   term: string;
   meaning: string;
   partOfSpeech?: string;
-  termLanguage: string;
-  meaningLanguage: string;
+  termLang: string;
+  meanLang: string;
   sourceType?: 'book' | 'piece' | 'manual';
   sourceId?: string;
   sourceTitle?: MultilingualContent;
   example?: string;
-  exampleLanguage?: string;
+  exLang?: string;
   chapterId?: string;
   segmentId?: string; // Links back to a SentencePair ID
   sourceDeleted?: boolean;
@@ -325,10 +324,10 @@ export interface VocabularyItem extends BaseDocument {
   context?: VocabContext;
   // --- SRS Fields ---
   srsState: SrsState;
-  memoryStrength: number; // Represents the number of days the user is predicted to remember the word.
+  memStrength: number; // Represents the number of days the user is predicted to remember the word.
   streak: number; // The number of consecutive times the user has remembered the word correctly.
   attempts: number; // The total number of times the word has been reviewed.
-  lastReviewed: any; // Firestore Timestamp of the last interaction.
+  lastReview: any; // Firestore Timestamp of the last interaction.
   dueDate: any; // Firestore Timestamp for the next scheduled review.
   translation?: string;
   searchTerms?: string[];
@@ -341,8 +340,8 @@ export interface VocabularyItem extends BaseDocument {
 export type LibraryItem = Book | Piece;
 
 export type PlaylistItem =
-  | { type: 'book'; id: string; title: string; data: Book; originLanguages: string; availableLanguages: string[]; }
-  | { type: 'vocab'; id: string; title: string; data: {}; originLanguages: string; availableLanguages: string[]; };
+  | { type: 'book'; id: string; title: string; data: Book; origin: string; availableLanguages: string[]; }
+  | { type: 'vocab'; id: string; title: string; data: {}; origin: string; availableLanguages: string[]; };
 
 
 export interface SpeechPlayableSegment {
@@ -378,7 +377,7 @@ export interface VocabularyFilters {
   folder: string;
   searchTerm: string;
   srsState?: SrsState;
-  sortBy: 'createdAt' | 'term' | 'memoryStrength';
+  sortBy: 'createdAt' | 'term' | 'memStrength';
   sortOrder: 'asc' | 'desc';
   scope?: 'global' | 'local'; // New filter for context
   context?: VocabContext;      // New filter for context
@@ -410,7 +409,7 @@ export interface FoundClip {
 // --- Zod Schemas for Genkit Flows ---
 export const GeneratePieceInputSchema = z.object({
   userPrompt: z.string().describe('The specific details provided by the user for the work. Can be empty if a genre is provided.'),
-  originLanguages: z.string().describe('The language format string, e.g., "en", "en-vi", or "en-vi-ph".'),
+  origin: z.string().describe('The language format string, e.g., "en", "en-vi", or "en-vi-ph".'),
 });
 export type GeneratePieceInput = z.infer<typeof GeneratePieceInputSchema>;
 
@@ -421,7 +420,7 @@ export type GenerateChapterInput = z.infer<typeof GenerateChapterInputSchema>;
 
 export const GenerateBookContentInputSchema = z.object({
   prompt: z.string().describe('A prompt describing the book content to generate, or what should happen in the new chapters.'),
-  originLanguages: z.string().describe('The language format string, e.g., "en", "en-vi", or "en-vi-ph".'),
+  origin: z.string().describe('The language format string, e.g., "en", "en-vi", or "en-vi-ph".'),
   previousContentSummary: z.string().optional().describe('A summary of existing book content if generating additional chapters.'),
   chaptersToGenerate: z.number().describe('The number of chapter objects the AI should generate content for.'),
   totalChapterOutlineCount: z.number().optional().describe('The total number of chapters the full book outline should have.'),

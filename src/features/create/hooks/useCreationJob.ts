@@ -55,7 +55,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     const baseValues = {
         primaryLanguage: i18n.language,
         availableLanguages: [i18n.language],
-        originLanguages: i18n.language,
+        origin: i18n.language,
         tags: [],
     };
     if (type === 'book') {
@@ -70,7 +70,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
           targetChapterCount: defaultOption.defaultChapters,
           bookLength: defaultOption.value,
           generationScope: 'full',
-          presentationStyle: 'book',
+          display: 'book',
           aspectRatio: undefined,
         };
     } else { // piece
@@ -78,7 +78,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
           ...baseValues,
           aiPrompt: DEFAULT_PIECE_PROMPT,
           title: { primary: '' },
-          presentationStyle: 'card',
+          display: 'card',
           aspectRatio: '3:4',
           // Book specific fields (defaults)
           coverImageOption: 'none',
@@ -203,11 +203,11 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
         }
         
         // Append format only for bilingual
-        if (isBilingual && newState.originLanguages.endsWith('-ph')) {
+        if (isBilingual && newState.origin.endsWith('-ph')) {
            origin += '-ph';
         }
 
-        newState.originLanguages = origin;
+        newState.origin = origin;
 
         if (name === 'isBilingual') {
             newState.availableLanguages = value ? [primaryLang, ''] : [primaryLang];
@@ -215,16 +215,16 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
             newState.availableLanguages = [primaryLang, value];
         } else if (name === 'primaryLanguage') {
             newState.availableLanguages = [value, ...(prev.availableLanguages.filter(l => l !== prev.primaryLanguage && l !== value))];
-        } else if (name === 'originLanguages' && value.includes('-ph')) {
+        } else if (name === 'origin' && value.includes('-ph')) {
             // This is for the toggle
             if (isBilingual) {
-                if (prev.originLanguages.endsWith('-ph')) {
-                    newState.originLanguages = `${primaryLang}-${secondaryLang}`;
+                if (prev.origin.endsWith('-ph')) {
+                    newState.origin = `${primaryLang}-${secondaryLang}`;
                 } else {
-                    newState.originLanguages = `${primaryLang}-${secondaryLang}-ph`;
+                    newState.origin = `${primaryLang}-${secondaryLang}-ph`;
                 }
             } else {
-                newState.originLanguages = primaryLang; // No -ph for mono
+                newState.origin = primaryLang; // No -ph for mono
             }
         }
         
@@ -297,12 +297,12 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
   const handlePresentationStyleChange = useCallback((combinedValue: string) => {
     setFormData(prev => {
       if (combinedValue === 'book') {
-        return { ...prev, presentationStyle: 'book', aspectRatio: undefined };
+        return { ...prev, display: 'book', aspectRatio: undefined };
       }
       const parts = combinedValue.split('_');
       const style = parts[0] as 'card';
       const ratio = parts.slice(1).join(':') as '1:1' | '3:4' | '4:3';
-      return { ...prev, presentationStyle: style, aspectRatio: ratio };
+      return { ...prev, display: style, aspectRatio: ratio };
     });
   }, []);
 
@@ -325,7 +325,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
         } else { // Piece
             const contentInput: GeneratePieceInput = {
                 userPrompt: formData.aiPrompt,
-                originLanguages: formData.originLanguages,
+                origin: formData.origin,
             };
             jobId = await createPieceAndStartGeneration(user.uid, formData as PieceFormValues, contentInput);
         }
@@ -335,7 +335,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
         jobTimeoutRef.current = setTimeout(async () => {
           if (user && jobId && !finalizedId) {
             toast({ title: t('toast:jobTimeoutTitle'), description: t('toast:jobTimeoutDesc'), variant: 'destructive' });
-            await updateLibraryItem(user.uid, jobId, { status: 'draft', contentStatus: 'error', coverStatus: 'error' });
+            await updateLibraryItem(user.uid, jobId, { status: 'draft', contentState: 'error', coverState: 'error' });
             reset(type);
           }
         }, JOB_TIMEOUT_MS);
@@ -400,7 +400,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
       if (docSnap.exists()) {
         const item = { id: docSnap.id, ...docSnap.data() } as LibraryItem;
         setJobData(item);
-        const isDone = item.contentStatus !== 'processing' && (item.type === 'piece' || (item as Book).coverStatus !== 'processing');
+        const isDone = item.contentState !== 'processing' && (item.type === 'piece' || (item as Book).coverState !== 'processing');
         if (isDone) {
           if (user) sessionStorage.removeItem(`activeJobId_${user.uid}`);
           clearJobTimeout();

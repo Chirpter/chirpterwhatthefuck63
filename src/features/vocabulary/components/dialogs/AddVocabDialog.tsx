@@ -25,7 +25,7 @@ import { FOLDER_CONSTANTS } from '../../constants';
 interface AddVocabDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onSuccess: (itemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memoryStrength' | 'streak' | 'attempts' | 'lastReviewed' | 'dueDate'>) => void;
+  onSuccess: (itemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memStrength' | 'streak' | 'attempts' | 'lastReview' | 'dueDate'>) => void;
   allFolders: string[];
   initialFolder?: string;
   context?: VocabContext;
@@ -48,8 +48,8 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
     meaning: '', 
     example: '', 
     folder: initialFolder || FOLDER_CONSTANTS.UNORGANIZED, 
-    termLanguage: i18n.language, 
-    meaningLanguage: i18n.language 
+    termLang: i18n.language, 
+    meanLang: i18n.language 
   });
 
   // Use shared form hook
@@ -85,7 +85,7 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
 
   // Real-time validation feedback
   const vocabValidation = useMemo(() => 
-    getVocabValidation(newVocabItem)
+    getVocabValidation({ ...newVocabItem, termLanguage: newVocabItem.termLang, meaningLanguage: newVocabItem.meanLang })
   , [newVocabItem, getVocabValidation]);
 
   // Reset form when dialog opens
@@ -96,8 +96,8 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
         meaning: '', 
         example: '', 
         folder: initialFolder || FOLDER_CONSTANTS.UNORGANIZED, 
-        termLanguage: i18n.language, 
-        meaningLanguage: i18n.language 
+        termLang: i18n.language, 
+        meanLang: i18n.language 
       });
       resetForm();
     }
@@ -109,7 +109,7 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
       return;
     }
 
-    const success = await handleSubmit(newVocabItem, async (dataToSubmit: any) => {
+    const success = await handleSubmit({ ...newVocabItem, termLanguage: newVocabItem.termLang, meaningLanguage: newVocabItem.meanLang }, async (dataToSubmit: any) => {
       onSuccess({ ...dataToSubmit, context });
     });
 
@@ -119,8 +119,8 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
         meaning: '', 
         example: '', 
         folder: initialFolder || FOLDER_CONSTANTS.UNORGANIZED, 
-        termLanguage: i18n.language, 
-        meaningLanguage: i18n.language 
+        termLang: i18n.language, 
+        meanLang: i18n.language 
       });
     }
   }, [
@@ -172,8 +172,8 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
             {t('addVocabDialog.termLangLabel')}
           </Label>
           <Select 
-            value={newVocabItem.termLanguage} 
-            onValueChange={(value) => setNewVocabItem(p => ({...p, termLanguage: value}))}
+            value={newVocabItem.termLang} 
+            onValueChange={(value) => setNewVocabItem(p => ({...p, termLang: value}))}
             disabled={isSubmitting}
           >
             <SelectTrigger className="col-span-3">
@@ -203,8 +203,8 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
             {t('addVocabDialog.meaningLangLabel')}
           </Label>
           <Select 
-            value={newVocabItem.meaningLanguage} 
-            onValueChange={(value) => setNewVocabItem(p => ({...p, meaningLanguage: value}))}
+            value={newVocabItem.meanLang} 
+            onValueChange={(value) => setNewVocabItem(p => ({...p, meanLang: value}))}
             disabled={isSubmitting}
           >
             <SelectTrigger className="col-span-3">

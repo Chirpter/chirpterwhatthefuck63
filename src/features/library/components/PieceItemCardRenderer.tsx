@@ -55,13 +55,13 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
   const cardClassName = useMemo(() => {
     return cn(
       "w-full shadow-xl overflow-hidden",
-      item?.presentationStyle === 'card' 
+      item?.display === 'card' 
         ? `max-w-md ${aspectRatioClass}` 
         : 'max-w-3xl h-full', // For book mode, allow full height
       editorSettings.background,
       isPreview ? "h-full" : "max-h-full"
     );
-  }, [item?.presentationStyle, editorSettings.background, aspectRatioClass, isPreview]);
+  }, [item?.display, editorSettings.background, aspectRatioClass, isPreview]);
 
 
   // ---- RENDER LOGIC ----
@@ -78,14 +78,14 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
   }
   
   // Finalized state (used in CreateView)
-  if (item && item.contentStatus !== 'processing' && !isPreview) {
+  if (item && item.contentState !== 'processing' && !isPreview) {
      return (
         <div className={cn("h-full w-full flex flex-col items-center justify-center")}>
             <div className={cardClassName}>
                 <div className="h-full overflow-y-auto @container/content-card">
                     <PageContentRenderer
                         page={{ pageIndex: 0, items: segmentsToRender, estimatedHeight: 0 }}
-                        presentationStyle={item.presentationStyle}
+                        presentationStyle={item.display}
                         editorSettings={editorSettings}
                         itemData={item}
                     />
@@ -105,7 +105,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
 
   // Initial state or library preview state
   const isInitialState = !item;
-  const finalSegments = isInitialState ? [{ id: 'p1', order: 1, type: 'text', content: { primary: t('previewArea.piecePlaceholderDesktopHint') }, formatting: {}, metadata: { isParagraphStart: true, wordCount: {primary: 0}} }] : segmentsToRender;
+  const finalSegments = isInitialState ? [{ id: 'p1', order: 1, type: 'text', content: { primary: t('previewArea.piecePlaceholderDesktopHint') }, formatting: {}, metadata: { isNewPara: true, wordCount: {primary: 0}} }] : segmentsToRender;
   
   return (
       <div className="piece-preview-container w-full h-full flex flex-col items-center justify-center">
@@ -114,7 +114,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
               <div className="h-full w-full overflow-y-auto @container/content-card" >
                   <PageContentRenderer
                       page={{ pageIndex: 0, items: finalSegments, estimatedHeight: 0 }}
-                      presentationStyle={item?.presentationStyle || 'card'}
+                      presentationStyle={item?.display || 'card'}
                       editorSettings={editorSettings}
                       itemData={item}
                   />

@@ -121,7 +121,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     </div>
   ) : null;
   
-  const presentationStyleValue = formData.presentationStyle === 'book'
+  const presentationStyleValue = formData.display === 'book'
     ? 'book'
     : `card_${(formData.aspectRatio || '3:4').replace(':', '_')}`;
 
@@ -188,7 +188,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
             maxLength={MAX_PROMPT_LENGTH}
           />
           <div className="text-right text-xs text-muted-foreground pt-1">
-            {/* {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`} */}
+            {/* {`${'${formData.aiPrompt.length}'} / ${MAX_PROMPT_LENGTH}`} */}
           </div>
           {promptError === 'empty' && (
             <p className="text-xs text-destructive">{t('formErrors.prompt.empty')}</p>
@@ -198,8 +198,8 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
         <CreationLanguageSettings
           isBilingual={isBilingual}
           onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
-          isPhraseMode={formData.originLanguages.endsWith('-ph')}
-          onIsPhraseModeChange={() => handleValueChange('originLanguages', formData.originLanguages)}
+          isPhraseMode={formData.origin.endsWith('-ph')}
+          onIsPhraseModeChange={() => handleValueChange('origin', formData.origin)}
           primaryLanguage={formData.primaryLanguage}
           onPrimaryLangChange={(value) => handleValueChange('primaryLanguage', value)}
           secondaryLanguage={formData.availableLanguages[1]}

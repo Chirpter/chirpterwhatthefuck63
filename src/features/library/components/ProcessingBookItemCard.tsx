@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useContext } from 'react';
@@ -18,8 +19,8 @@ interface ProcessingBookItemCardProps {
 
 export function ProcessingBookItemCard({ book, onDelete }: ProcessingBookItemCardProps) {
   const { t } = useTranslation('bookCard');
-  const isContentFailed = book.contentStatus === 'error';
-  const isCoverFailed = book.coverStatus === 'error';
+  const isContentFailed = book.contentState === 'error';
+  const isCoverFailed = book.coverState === 'error';
   const title = book.title?.primary || t('untitled');
 
   return (
@@ -27,7 +28,7 @@ export function ProcessingBookItemCard({ book, onDelete }: ProcessingBookItemCar
         <div className="relative block w-full aspect-[3/4] rounded-lg overflow-hidden shadow-lg z-10">
             <CoverImage 
                 title={title}
-                coverStatus={book.coverStatus}
+                coverStatus={book.coverState}
                 className="w-full h-full"
                 isRetrying={false}
             />

@@ -189,7 +189,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
     setNewCoverPrompt('');
   };
 
-  const isReadable = book.contentStatus === 'ready';
+  const isReadable = book.contentState === 'ready';
   const ReaderLinkWrapper = (isReadable && !onPurchase) ? Link : 'div';
   const readerLinkProps = (isReadable && !onPurchase) ? { href: `/read/${book.id}` } : {};
   
@@ -205,7 +205,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
     });
   }, [availableBookmarks, ownedBookmarkIds, isProUser]);
 
-  const [primaryLang] = book.originLanguages.split('-');
+  const [primaryLang] = book.origin.split('-');
   const titleToDisplay = book.title[primaryLang] || Object.values(book.title)[0] || t('untitled');
   
   const renderProgressIndicator = () => {
@@ -264,7 +264,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
           <CoverImage 
             title={titleToDisplay}
             author={authorNameToDisplay}
-            coverStatus={book.coverStatus}
+            coverStatus={book.coverState}
             cover={book.cover}
             imageHint={book.imageHint}
             className="w-full h-full"
@@ -350,7 +350,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
                   {(book.tags && book.tags.length > 0) && book.tags.map(tag => (
                       <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
                   ))}
-                  {book.contentStatus === 'error' && (
+                  {book.contentState === 'error' && (
                     <Badge variant="destructive" asChild>
                       <button onClick={handleContentRetry} disabled={isRetryingContent || (book.contentRetryCount || 0) >= 3}>
                         {isRetryingContent ? <Icon name="Wand2" className="mr-1 h-3 w-3 animate-pulse" /> : <Icon name="RotateCw" className="mr-1 h-3 w-3" />}

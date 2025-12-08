@@ -36,8 +36,8 @@ interface EditedItemState {
     meaning: string;
     example: string;
     folder: string;
-    termLanguage: string;
-    meaningLanguage: string;
+    termLang: string;
+    meanLang: string;
 }
 
 const EditVocabDialog: React.FC<EditVocabDialogProps> = ({ 
@@ -55,8 +55,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
     meaning: "",
     example: "",
     folder: FOLDER_CONSTANTS.UNORGANIZED,
-    termLanguage: i18n.language,
-    meaningLanguage: i18n.language,
+    termLang: i18n.language,
+    meanLang: i18n.language,
   });
 
   // Use shared form hook
@@ -90,8 +90,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
       meaning: editedItem.meaning,
       example: editedItem.example,
       folder: editedItem.folder,
-      termLanguage: editedItem.termLanguage,
-      meaningLanguage: editedItem.meaningLanguage,
+      termLanguage: editedItem.termLang,
+      meaningLanguage: editedItem.meanLang,
     });
   }, [item, editedItem, getVocabValidation]);
 
@@ -102,8 +102,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
         meaning: item.meaning,
         example: item.example || '',
         folder: item.folder || FOLDER_CONSTANTS.UNORGANIZED,
-        termLanguage: getBcp47LangCode(item.termLanguage) || i18n.language,
-        meaningLanguage: getBcp47LangCode(item.meaningLanguage) || i18n.language,
+        termLang: getBcp47LangCode(item.termLang) || i18n.language,
+        meanLang: getBcp47LangCode(item.meanLang) || i18n.language,
       });
       resetForm();
     }
@@ -119,6 +119,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
       {
         term: item.term, // Not editable, but needed for validation
         ...editedItem,
+        termLanguage: editedItem.termLang,
+        meaningLanguage: editedItem.meanLang,
       },
       async (dataToSubmit: any) => {
         // Don't submit 'term' as it's not editable
@@ -178,8 +180,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
               {t('addVocabDialog.termLangLabel')}
             </Label>
             <Select 
-              value={editedItem.termLanguage} 
-              onValueChange={(value) => setEditedItem(prev => ({ ...prev, termLanguage: value }))}
+              value={editedItem.termLang} 
+              onValueChange={(value) => setEditedItem(prev => ({ ...prev, termLang: value }))}
               disabled={isSubmitting}
             >
               <SelectTrigger className="col-span-3">
@@ -213,8 +215,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
               {t('addVocabDialog.meaningLangLabel')}
             </Label>
             <Select 
-              value={editedItem.meaningLanguage} 
-              onValueChange={(value) => setEditedItem(prev => ({ ...prev, meaningLanguage: value }))}
+              value={editedItem.meanLang} 
+              onValueChange={(value) => setEditedItem(prev => ({ ...prev, meanLang: value }))}
               disabled={isSubmitting}
             >
               <SelectTrigger className="col-span-3">

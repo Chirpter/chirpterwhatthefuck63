@@ -61,8 +61,8 @@ const MemoryStrengthBar = memo<{ memoryStrength: number }>(({ memoryStrength }) 
     return (
         <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-muted/30 rounded-l-lg overflow-hidden">
             <div
-                className={`absolute bottom-0 left-0 w-full transition-all duration-500 ${getProgressGradient()}`}
-                style={{ height: `${fillHeightPercentage}%` }}
+                className={`absolute bottom-0 left-0 w-full transition-all duration-500 ${'${getProgressGradient()}'}`}
+                style={{ height: `${'${fillHeightPercentage}'}%` }}
             />
         </div>
     );
@@ -79,8 +79,8 @@ const VocabularyItemCardComponent: React.FC<VocabularyItemProps> = ({ item, onPr
   const sourceInfo = useMemo(() => {
     if (item.sourceType === 'book' && !item.sourceDeleted && item.sourceId) {
       const link = item.chapterId && item.segmentId 
-        ? `/read/${item.sourceId}?chapterId=${item.chapterId}&segmentId=${item.segmentId}`
-        : `/read/${item.sourceId}`;
+        ? `/read/${'${item.sourceId}'}?chapterId=${'${item.chapterId}'}&segmentId=${'${item.segmentId}'}`
+        : `/read/${'${item.sourceId}'}`;
       return { icon: 'BookOpen' as IconName, link };
     }
     return { icon: null, link: null };
@@ -88,8 +88,8 @@ const VocabularyItemCardComponent: React.FC<VocabularyItemProps> = ({ item, onPr
   
   const handlePronounceClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    onPronounce(item.term, item.termLanguage);
-  }, [item.term, item.termLanguage, onPronounce]);
+    onPronounce(item.term, item.termLang);
+  }, [item.term, item.termLang, onPronounce]);
 
   const handleEditClick = useCallback(() => {
     onEdit(item);

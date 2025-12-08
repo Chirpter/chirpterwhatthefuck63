@@ -92,7 +92,7 @@ export function getLevelStyles(level: number, plan: UserPlan, overrideTier?: Lev
   };
 }
 
-export const calculateSrsProgress = (memoryStrength: number = 0, srsState: SrsState = 'new'): number => {
+export const calculateSrsProgress = (memStrength: number = 0, srsState: SrsState = 'new'): number => {
   let lowerBound = 0;
   let upperBound = 0;
 
@@ -112,7 +112,7 @@ export const calculateSrsProgress = (memoryStrength: number = 0, srsState: SrsSt
   }
   
   const totalRange = upperBound - lowerBound;
-  const progressInRange = memoryStrength - lowerBound;
+  const progressInRange = memStrength - lowerBound;
   
   if (totalRange <= 0) return 0;
 
@@ -136,34 +136,34 @@ export const getSrsColor = (state: SrsState | undefined) => {
 };
 
 export const calculateVirtualMS = (item: VocabularyItem, currentDate: Date): number => {
-    const memoryStrength = item.memoryStrength || 0;
+    const memStrength = item.memStrength || 0;
     
-    if (item.srsState === 'long-term' || item.srsState === 'new' || !item.lastReviewed) {
-        return memoryStrength;
+    if (item.srsState === 'long-term' || item.srsState === 'new' || !item.lastReview) {
+        return memStrength;
     }
 
     const today = new Date(currentDate);
     today.setUTCHours(0, 0, 0, 0);
 
-    const lastReviewDate = new Date((item.lastReviewed as any).seconds ? 
-        (item.lastReviewed as any).seconds * 1000 : item.lastReviewed);
+    const lastReviewDate = new Date((item.lastReview as any).seconds ? 
+        (item.lastReview as any).seconds * 1000 : item.lastReview);
     lastReviewDate.setUTCHours(0, 0, 0, 0);
 
     const elapsedDays = (today.getTime() - lastReviewDate.getTime()) / (1000 * 3600 * 24);
     
     if (elapsedDays <= 0 || !isFinite(elapsedDays)) {
-        return memoryStrength;
+        return memStrength;
     }
     
-    const halfLife = memoryStrength;
+    const halfLife = memStrength;
     
     if (halfLife <= 0 || !isFinite(halfLife)) {
-        return Math.max(1, memoryStrength);
+        return Math.max(1, memStrength);
     }
     
-    const virtualStrength = memoryStrength * Math.pow(0.5, elapsedDays / halfLife);
+    const virtualStrength = memStrength * Math.pow(0.5, elapsedDays / halfLife);
 
-    return Math.max(1, isFinite(virtualStrength) ? virtualStrength : memoryStrength);
+    return Math.max(1, isFinite(virtualStrength) ? virtualStrength : memStrength);
 };
 
 /**

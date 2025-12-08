@@ -162,7 +162,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     
     await docRef.update({
         prompt: newPrompt,
-        contentStatus: 'processing',
+        contentState: 'processing',
         status: 'processing',
         chapters: [],
         contentRetryCount: 0, // Reset retry count on manual edit

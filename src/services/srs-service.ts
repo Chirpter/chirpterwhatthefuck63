@@ -122,9 +122,9 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
         newDueDate.setDate(today.getDate() + newInterval);
         
         updatedFields = {
-            memoryStrength: currentMs,
+            memStrength: currentMs,
             srsState: stateFromMs(currentMs),
-            lastReviewed: today,
+            lastReview: today,
             dueDate: newDueDate,
         };
     } else { // Standard Remembered/Forgot Logic
@@ -132,7 +132,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
         const totalAttempts = (item.attempts || 0) + 1;
         
         if (action === 'remembered' || action === 'tested_correct') {
-            const lastReview = item.lastReviewed ? new Date(item.lastReviewed) : today;
+            const lastReview = item.lastReview ? new Date(item.lastReview) : today;
             const dueDate = item.dueDate ? new Date(item.dueDate) : today;
             const elapsed = Math.max(0, (today.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
             const predicted_span = item.srsState === 'new' ? 1 : Math.max(1, (dueDate.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
@@ -147,7 +147,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
             currentMs += gain;
 
         } else { // 'forgot' or 'tested_incorrect'
-            const lastReview = item.lastReviewed ? new Date(item.lastReviewed) : today;
+            const lastReview = item.lastReview ? new Date(item.lastReview) : today;
             const dueDate = item.dueDate ? new Date(item.dueDate) : today;
             const elapsed = Math.max(0, (today.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
             const predicted_span = item.srsState === 'new' ? 1 : Math.max(1, (dueDate.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
@@ -174,11 +174,11 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
         newDueDate.setDate(today.getDate() + newInterval);
         
         updatedFields = {
-            memoryStrength: currentMs,
+            memStrength: currentMs,
             srsState: stateFromMs(currentMs),
             streak: newStreak,
             attempts: totalAttempts,
-            lastReviewed: today,
+            lastReview: today,
             dueDate: newDueDate,
         };
     }
@@ -186,7 +186,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
     // One more validation before database update
     if (!isFinite(currentMs) || currentMs < 0) {
         currentMs = MIN_MS;
-        updatedFields.memoryStrength = currentMs;
+        updatedFields.memStrength = currentMs;
         updatedFields.srsState = stateFromMs(currentMs);
     }
     
