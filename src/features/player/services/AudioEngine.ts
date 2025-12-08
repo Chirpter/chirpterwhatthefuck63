@@ -402,6 +402,7 @@ class AudioEngine {
         ? this.bookStatsCache.segmentsPerChapter[position.chapterIndex - 1] 
         : 0;
       const totalPlayed = segmentsBefore + position.segmentIndex;
+      if (this.bookStatsCache.totalSegments === 0) return 0; // Avoid division by zero
       return (totalPlayed / this.bookStatsCache.totalSegments) * 100;
     }
     
@@ -496,7 +497,6 @@ class AudioEngine {
   private speakCurrentSegment(): void {
     const segment = this.segmentsCache[this.state.position.segmentIndex];
     if (!segment) {
-      console.warn('No segment to speak');
       this.onSegmentEnd();
       return;
     }
@@ -590,27 +590,29 @@ class AudioEngine {
   private generateBookSegments(book: Book, chapterIndex: number): SpeechSegment[] {
     const chapter = book.chapters[chapterIndex];
     if (!chapter?.segments) return [];
-
+  
     const speechSegments: SpeechSegment[] = [];
-
+  
     for (const seg of chapter.segments) {
-        // Iterate through the languages requested for playback
-        for (const lang of this.currentPlaybackLanguages) {
-            const text = seg.content[lang]?.trim();
-            if (text) {
-                speechSegments.push({
-                    text: text,
-                    lang: lang,
-                    originalSegmentId: seg.id,
-                });
-            }
+      // Filter out languages not in the current playback selection
+      const languagesToPlay = this.currentPlaybackLanguages.filter(lang => seg.content[lang]);
+      
+      for (const lang of languagesToPlay) {
+        const text = seg.content[lang]?.trim();
+        if (text) {
+          speechSegments.push({
+            text,
+            lang,
+            originalSegmentId: seg.id,
+          });
         }
+      }
     }
     return speechSegments;
   }
   
   private async generateVocabSegments(folderId: string): Promise<SpeechSegment[]> {
-    if (!this.deps.user) return [];
+    if (!this.deps.user?.uid) return [];
     
     const items = await vocabService.getVocabularyItemsByFolder(
       this.deps.user.uid,
@@ -637,11 +639,16 @@ class AudioEngine {
     const segmentsPerChapter: number[] = [];
     let totalSegments = 0;
     
+    const languagesToCount = this.currentPlaybackLanguages.length > 0 ? this.currentPlaybackLanguages : book.availableLanguages;
+
     book.chapters.forEach(chapter => {
       const chapterSegmentCount = chapter.segments.reduce((count, seg) => {
-        let segCount = seg.content[book.primaryLanguage] ? 1 : 0;
-        const secondaryLanguage = book.availableLanguages.find(l => l !== book.primaryLanguage);
-        if (secondaryLanguage && seg.content[secondaryLanguage]) segCount++;
+        let segCount = 0;
+        for (const lang of languagesToCount) {
+          if (seg.content[lang]?.trim()) {
+            segCount++;
+          }
+        }
         return count + segCount;
       }, 0);
       
@@ -765,13 +772,9 @@ class AudioEngine {
         settings: parsed.settings || this.state.settings,
       });
     } catch (e) {
-      console.warn('Failed to load state:', e);
+      console.warn('Failed to load state from storage:', e);
     }
   }
 }
-
-// ============================================
-// EXPORT SINGLETON
-// ============================================
 
 export const audioEngine = new AudioEngine();

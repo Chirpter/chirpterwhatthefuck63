@@ -19,5 +19,5 @@ export const ai = genkit({
   ],
   // Set a default model that is available in Google AI for Developers.
   // Using 'gemini-2.0-flash' for fast and efficient generation.
-  model: 'googleai/gemini-2.0-flash',
+  model: 'googleai/gemini-2.5-flash',
 });

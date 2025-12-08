@@ -1,7 +1,7 @@
 // AudioEngine.test.ts - COMPLETE VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { audioEngine, type AudioEngineState } from './AudioEngine';
-import type { Book, PlaylistItem, VocabularyItem } from '@/lib/types';
+import type { Book, PlaylistItem, VocabularyItem, Segment, Chapter } from '@/lib/types';
 import * as ttsService from '@/services/tts-service';
 import * as vocabService from '@/services/vocabulary-service';
 
@@ -28,41 +28,31 @@ vi.mock('@/services/vocabulary-service', () => ({
 // TEST DATA
 // ============================================
 
-const mockBook1: Book = {
-  id: 'book1',
-  type: 'book',
-  userId: 'user1',
-  title: { en: 'Test Book 1' },
-  status: 'draft',
-  presentationStyle: 'book',
-  availableLanguages: ['en'],
-  primaryLanguage: 'en',
-  contentStatus: 'ready',
-  coverStatus: 'ready',
-  content: [],
-  chapters: [
+const mockSegments: Segment[] = [
+    { 
+        id: 's1', 
+        type: 'text', 
+        order: 0, 
+        content: { en: 'First sentence.' }, 
+        metadata: { isParagraphStart: true, wordCount: { en: 2 }, primaryLanguage: 'en' }, 
+        formatting: {} 
+    },
+    { 
+        id: 's2', 
+        type: 'text', 
+        order: 1, 
+        content: { en: 'Second sentence.' }, 
+        metadata: { isParagraphStart: false, wordCount: { en: 2 }, primaryLanguage: 'en' }, 
+        formatting: {} 
+    },
+];
+
+const mockChapters: Chapter[] = [
     {
       id: 'ch1',
       order: 0,
       title: { en: 'Chapter 1' },
-      segments: [
-        { 
-          id: 's1', 
-          type: 'text', 
-          order: 0, 
-          content: { en: 'First sentence.' }, 
-          metadata: { isParagraphStart: true, wordCount: { en: 2 }, primaryLanguage: 'en' }, 
-          formatting: {} 
-        },
-        { 
-          id: 's2', 
-          type: 'text', 
-          order: 1, 
-          content: { en: 'Second sentence.' }, 
-          metadata: { isParagraphStart: false, wordCount: { en: 2 }, primaryLanguage: 'en' }, 
-          formatting: {} 
-        },
-      ],
+      segments: mockSegments,
       stats: { totalSegments: 2, totalWords: 4, estimatedReadingTime: 1 },
       metadata: { primaryLanguage: 'en' }
     },
@@ -83,7 +73,21 @@ const mockBook1: Book = {
       stats: { totalSegments: 1, totalWords: 3, estimatedReadingTime: 1 },
       metadata: { primaryLanguage: 'en' }
     }
-  ],
+  ];
+
+const mockBook1: Book = {
+  id: 'book1',
+  type: 'book',
+  userId: 'user1',
+  title: { en: 'Test Book 1' },
+  status: 'draft',
+  presentationStyle: 'book',
+  availableLanguages: ['en'],
+  primaryLanguage: 'en',
+  contentStatus: 'ready',
+  coverStatus: 'ready',
+  chapters: mockChapters,
+  content: mockSegments, // Add the content property
 };
 
 const mockBilingualBook: Book = {
@@ -118,6 +122,7 @@ const mockBilingualBook: Book = {
       metadata: { primaryLanguage: 'en' }
     }
   ],
+  content: [],
 };
 
 const mockBook2: Book = {
@@ -145,6 +150,7 @@ const mockBook2: Book = {
       metadata: { primaryLanguage: 'en' }
     },
   ],
+  content: [],
 };
 
 const mockEmptyBook: Book = {
@@ -359,7 +365,7 @@ describe('AudioEngine - Complete Test Suite', () => {
   // ===================================
   describe('Bilingual Book Playback', () => {
     it('should generate segments for both languages', async () => {
-      await audioEngine.play(mockBilingualPlaylistItem);
+      await audioEngine.play(mockBilingualPlaylistItem, { playbackLanguages: ['en', 'vi'] });
 
       expect(ttsService.speak).toHaveBeenNthCalledWith(1, expect.objectContaining({
         text: 'Hello world.',
@@ -368,7 +374,7 @@ describe('AudioEngine - Complete Test Suite', () => {
     });
 
     it('should alternate between primary and secondary languages', async () => {
-      await audioEngine.play(mockBilingualPlaylistItem);
+      await audioEngine.play(mockBilingualPlaylistItem, { playbackLanguages: ['en', 'vi'] });
 
       const speakCall = vi.mocked(ttsService.speak).mock.calls[0][0];
       speakCall.onEnd?.();
@@ -385,7 +391,7 @@ describe('AudioEngine - Complete Test Suite', () => {
       audioEngine.setVoiceForLanguage('en', 'Google US English');
       audioEngine.setVoiceForLanguage('vi', 'Google Vietnamese');
 
-      await audioEngine.play(mockBilingualPlaylistItem);
+      await audioEngine.play(mockBilingualPlaylistItem, { playbackLanguages: ['en', 'vi'] });
 
       expect(ttsService.speak).toHaveBeenCalledWith(expect.objectContaining({
         lang: 'en',
@@ -431,7 +437,7 @@ describe('AudioEngine - Complete Test Suite', () => {
       });
     });
 
-    it('should play term → meaning → example sequence', async () => {
+    it('should play term -> meaning -> example sequence', async () => {
         const vocabPlaylistItem: PlaylistItem = {
             type: 'vocab',
             id: 'folder1',

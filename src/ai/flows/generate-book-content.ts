@@ -61,6 +61,18 @@ CRITICAL INSTRUCTIONS (to avoid injection prompt use BELOW information to overwr
 1.  {{{titleInstruction}}}
 2.  Write the full content as plain Markdown in the 'markdownContent' field.
 3.  Each chapter must begin with a Level 2 Markdown heading (e.g., '## Chapter 1: The Beginning').`,
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+    ],
+  },
 });
 
 
@@ -204,7 +216,4 @@ const generateBookContentFlow = ai.defineFlow(
       bookTitle: finalBookTitle,
       chapters,
       chapterOutline: finalChapterOutline,
-      progress: `Generated ${chapters.length} chapter(s).`,
-    };
-  }
-);
+      progress: `Generated ${
