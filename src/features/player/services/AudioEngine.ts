@@ -403,11 +403,17 @@ class AudioEngine {
       // Spoken segments so far in THIS chapter
       const spokenSegmentsInChapter = this.state.position.segmentIndex;
       
-      // Total spoken segments up to the PREVIOUS chapter
-      const cumulativeSpokenSegmentsBefore = this.bookStatsCache.cumulativeOriginalSegments * this.currentPlaybackLanguages.length;
-      
+      // Total original segments up to the PREVIOUS chapter
+      const originalSegmentsBefore = this.bookStatsCache.cumulativeOriginalSegments;
+
+      // The correct number of spoken segments before this chapter starts
+      const cumulativeSpokenSegmentsBefore = originalSegmentsBefore * this.currentPlaybackLanguages.length;
+
+      // Total original segments in the WHOLE book
+      const totalOriginalSegmentsInBook = this.bookStatsCache.totalSegmentsInBook;
+
       // Total spoken segments in the WHOLE book
-      const totalSpokenSegmentsInBook = this.bookStatsCache.totalSegmentsInBook * this.currentPlaybackLanguages.length;
+      const totalSpokenSegmentsInBook = totalOriginalSegmentsInBook * this.currentPlaybackLanguages.length;
       
       if (totalSpokenSegmentsInBook === 0) return 0;
       
@@ -657,6 +663,7 @@ class AudioEngine {
     });
 
     const currentChapter = book.chapters[currentChapterIndex];
+    // Correctly calculate spoken segments by accounting for multiple languages
     const totalSpokenSegmentsInChapter = (currentChapter?.segments?.length || 0) * this.currentPlaybackLanguages.length;
     
     return {
