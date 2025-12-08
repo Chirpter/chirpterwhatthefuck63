@@ -95,6 +95,7 @@ class AudioEngine {
   // === CACHE (separate from state!) ===
   private segmentsCache: SpeechSegment[] = [];
   private bookStatsCache: BookCache | null = null;
+  private currentPlaybackLanguages: string[] = [];
   
   // === LISTENERS ===
   private listeners = new Set<StateListener>();
@@ -125,7 +126,11 @@ class AudioEngine {
    */
   public async play(
     item: PlaylistItem,
-    options?: { chapterIndex?: number; segmentIndex?: number }
+    options?: { 
+      chapterIndex?: number; 
+      segmentIndex?: number;
+      playbackLanguages?: string[];
+    }
   ): Promise<void> {
     this.stop(); // Clean slate
     
@@ -133,7 +138,10 @@ class AudioEngine {
       // 1. Add to playlist if needed
       const playlistIndex = this.ensureInPlaylist(item);
       
-      // 2. Set position
+      // 2. Set languages to be played for this session
+      this.currentPlaybackLanguages = options?.playbackLanguages || item.availableLanguages;
+      
+      // 3. Set position
       this.setPosition({
         playlistIndex,
         chapterIndex: options?.chapterIndex ?? (item.type === 'book' ? 0 : null),
@@ -141,7 +149,7 @@ class AudioEngine {
         wordBoundary: null,
       });
       
-      // 3. Load track data
+      // 4. Load track data
       await this.loadAndPlayTrack(item);
       
     } catch (error: any) {
@@ -582,31 +590,21 @@ class AudioEngine {
   private generateBookSegments(book: Book, chapterIndex: number): SpeechSegment[] {
     const chapter = book.chapters[chapterIndex];
     if (!chapter?.segments) return [];
-  
-    const secondaryLanguage = book.availableLanguages.find(l => l !== book.primaryLanguage);
-    
+
     const speechSegments: SpeechSegment[] = [];
 
     for (const seg of chapter.segments) {
-      const primaryText = seg.content[book.primaryLanguage]?.trim();
-      if (primaryText) {
-        speechSegments.push({
-          text: primaryText,
-          lang: book.primaryLanguage,
-          originalSegmentId: seg.id,
-        });
-      }
-      
-      if (secondaryLanguage) {
-        const secondaryText = seg.content[secondaryLanguage]?.trim();
-        if (secondaryText) {
-            speechSegments.push({
-                text: secondaryText,
-                lang: secondaryLanguage,
-                originalSegmentId: seg.id,
-            });
+        // Iterate through the languages requested for playback
+        for (const lang of this.currentPlaybackLanguages) {
+            const text = seg.content[lang]?.trim();
+            if (text) {
+                speechSegments.push({
+                    text: text,
+                    lang: lang,
+                    originalSegmentId: seg.id,
+                });
+            }
         }
-      }
     }
     return speechSegments;
   }
@@ -678,6 +676,7 @@ class AudioEngine {
   private clearCache(): void {
     this.segmentsCache = [];
     this.bookStatsCache = null;
+    this.currentPlaybackLanguages = [];
   }
   
   private startSleepTimer(): void {

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -256,6 +257,11 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 
   const handlePlayPause = useCallback(() => {
     if (!item || !user) return;
+
+    const playbackLanguages = [displayLang1];
+    if (displayLang2 !== 'none') {
+        playbackLanguages.push(displayLang2);
+    }
     
     if (audioPlayer.isPlaying && audioPlayer.currentPlayingItem?.id === item.id) {
         audioPlayer.pauseAudio();
@@ -267,9 +273,9 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         
         let segmentIndexToStart = 0;
         
-        audioPlayer.startPlayback(item, { chapterIndex: chapterIdx, segmentIndex: segmentIndexToStart });
+        audioPlayer.startPlayback(item, { chapterIndex: chapterIdx, segmentIndex: segmentIndexToStart, playbackLanguages });
     }
-  }, [item, user, audioPlayer, currentChapterIndex]);
+  }, [item, user, audioPlayer, currentChapterIndex, displayLang1, displayLang2]);
   
   const isThisBookPlaying = audioPlayer.currentPlayingItem?.id === item?.id;
   const showPauseIcon = audioPlayer.isPlaying && isThisBookPlaying;
@@ -449,6 +455,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                           settings={editorSettings}
                           onSettingsChange={setEditorSettings}
                           onClose={() => setIsEditing(false)}
+                          bookTitle={item.title[displayLang1]}
                           availableLanguages={availableLanguages}
                           displayLang1={displayLang1}
                           displayLang2={displayLang2}
