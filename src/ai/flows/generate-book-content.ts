@@ -91,10 +91,10 @@ const generateBookContentFlow = ai.defineFlow(
 
     if (secondaryLanguage) {
         languageInstruction = `in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, with sentences paired using ' / ' as a separator.`;
-        titleInstruction = `A concise, creative title based on the story or prompt (1-7 words). It must be a JSON object with language codes as keys, e.g., {"${primaryLanguage}": "The Lost Key", "${secondaryLanguage}": "Chiếc Chìa Khóa Lạc"}.`;
+        titleInstruction = `A concise, creative title for the book. It must be a JSON object with language codes as keys, e.g., {"${primaryLanguage}": "The Lost Key", "${secondaryLanguage}": "Chiếc Chìa Khóa Lạc"}.`;
     } else {
         languageInstruction = `in ${primaryLanguageLabel}.`;
-        titleInstruction = `A concise, creative title based on the story or prompt (1-7 words) for the book. It must be a JSON object with the language code as the key, e.g., {"${primaryLanguage}": "The Lost Key"}.`;
+        titleInstruction = `A concise, creative title for the book. It must be a JSON object with the language code as the key, e.g., {"${primaryLanguage}": "The Lost Key"}.`;
     }
 
     let compactInstruction: string;
@@ -118,10 +118,10 @@ const generateBookContentFlow = ai.defineFlow(
     const dynamicOutputSchema = createOutputSchema(titleInstruction, outlineInstruction);
 
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateBookContentPrompt_v2', // Use a new name to avoid cache issues
+        name: 'generateBookContentPrompt_v3',
         input: { schema: PromptInputSchema },
         output: { schema: dynamicOutputSchema },
-        prompt: `{{{contextInstruction}}}\n\nCRITICAL INSTRUCTIONS:\n- {{{compactInstruction}}}\n- Follow the schema precisely for the output format.`,
+        prompt: `{{{contextInstruction}}}\n\nCRITICAL INSTRUCTIONS:\n- {{{compactInstruction}}}\n- Follow the schema precisely for the output format. Chapter titles should be level 2 headings (##).`,
         config: {
             safetySettings: [
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
@@ -155,9 +155,7 @@ const generateBookContentFlow = ai.defineFlow(
             title: { [primaryLanguage]: 'Content' },
             segments: unifiedSegments,
             stats: { totalSegments: unifiedSegments.length, totalWords: 0, estimatedReadingTime: 1 },
-            metadata: {
-                primaryLanguage: primaryLanguage,
-            }
+            metadata: {}
         }];
     }
     
@@ -182,9 +180,7 @@ const generateBookContentFlow = ai.defineFlow(
             id: generateLocalUniqueId(),
             title: titleObject,
             isGenerated,
-            metadata: {
-                primaryLanguage: primaryLanguage,
-            }
+            metadata: {}
         };
     });
     
