@@ -111,3 +111,4 @@ const generateCoverImageFlow = ai.defineFlow(
         return { imageUrl: media.url, bookId: input.bookId };
     }
   }
+);
