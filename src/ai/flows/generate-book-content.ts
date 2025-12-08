@@ -11,7 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import { z } from 'genkit';
-import type { ChapterOutlineItem, Chapter, GenerateBookContentInput, ChapterTitle } from '@/lib/types';
+import type { ChapterOutlineItem, Chapter, GenerateBookContentInput, MultilingualContent } from '@/lib/types';
 import { GenerateBookContentInputSchema } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
@@ -20,15 +20,16 @@ import { parseMarkdownToSegments, segmentsToChapterStructure } from '@/services/
 // Step 1: Define the raw output schema from the AI model.
 // The AI's job is to return a single, complete Markdown string.
 const GenerateBookContentOutputSchema = z.object({
-  bookTitle: z.any().describe("A concise, creative title for the book. It can be a string for monolingual, or an object { primary: string, secondary: string } for bilingual."),
+  bookTitle: z.any().describe("A concise, creative title for the book. It must be a JSON object with language codes as keys, e.g., {\"en\": \"Title\", \"vi\": \"Tiêu đề\"} for bilingual, or {\"en\": \"Title\"} for monolingual."),
   markdownContent: z.string().describe('The full content of the book or chapters, formatted in plain Markdown. Chapter titles should be level 2 headings (##).'),
   fullChapterOutline: z.array(z.string()).optional().describe('For longer books, the proposed list of titles for ALL chapters, including those not yet generated.'),
 });
 
+
 // Step 2: Define the final, processed output schema.
 // This is the structured data our application will use after parsing the Markdown.
 export interface ProcessedGenerateBookContentOutput {
-  bookTitle: ChapterTitle;
+  bookTitle: MultilingualContent;
   chapters: Chapter[];
   chapterOutline: ChapterOutlineItem[];
   progress: string;
@@ -113,7 +114,7 @@ const generateBookContentFlow = ai.defineFlow(
     
     const langParts = origin.split('-');
     const primaryLanguage = langParts[0];
-    const secondaryLanguage = langParts.length > 1 ? langParts[1] : undefined;
+    const secondaryLanguage = langParts.length > 1 && langParts[1] !== 'ph' ? langParts[1] : undefined;
     
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
@@ -122,11 +123,11 @@ const generateBookContentFlow = ai.defineFlow(
     let titleInstruction: string;
 
     if (secondaryLanguage) {
-        languageInstruction = `in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, sentence by line translation format`;
-        titleInstruction = `Create a title based on the story or user-provided title (1-7 words). Provide both ${primaryLanguageLabel} and ${secondaryLanguageLabel} versions, separated by ' / '. E.g., 'The Lost Key / Chiếc Chìa Khóa Lạc'. Return it in the 'bookTitle' field.`;
+        languageInstruction = `in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, with sentences paired using ' / ' as a separator.`;
+        titleInstruction = `Create a title based on the story or user prompt (1-7 words). Return a JSON object in 'bookTitle' with keys for language codes, e.g., {"${primaryLanguage}": "The Lost Key", "${secondaryLanguage}": "Chiếc Chìa Khóa Lạc"}.`;
     } else {
         languageInstruction = `in ${primaryLanguageLabel}`;
-        titleInstruction = `Create a title base on story or user title (1-7 words) for the book in the 'bookTitle' field.`;
+        titleInstruction = `Create a title based on the story or user prompt (1-7 words) for the book. Return a JSON object in 'bookTitle' with the language code as the key, e.g., {"${primaryLanguage}": "The Lost Key"}.`;
     }
 
 
@@ -180,21 +181,7 @@ const generateBookContentFlow = ai.defineFlow(
     }
     
     // Step 7: Process the title and chapter outline from the AI output.
-    let finalBookTitle: ChapterTitle;
-    if (typeof aiOutput.bookTitle === 'string') {
-        const titleParts = (aiOutput.bookTitle || "Untitled Book").split(/\s*[\/|]\s*/).map(p => p.trim());
-        finalBookTitle = {
-            primary: titleParts[0],
-            secondary: titleParts[1] || ''
-        };
-    } else if (typeof aiOutput.bookTitle === 'object' && aiOutput.bookTitle !== null && 'primary' in aiOutput.bookTitle && typeof (aiOutput.bookTitle as any).primary === 'string') {
-        finalBookTitle = {
-            primary: (aiOutput.bookTitle as any).primary,
-            secondary: (aiOutput.bookTitle as any).secondary || ''
-        };
-    } else {
-        finalBookTitle = { primary: "Untitled Book", secondary: "" };
-    }
+    let finalBookTitle: MultilingualContent = aiOutput.bookTitle && typeof aiOutput.bookTitle === 'object' ? aiOutput.bookTitle : { [primaryLanguage]: "Untitled Book" };
     
     const generatedChapterTitles = chapters.map(c => c.title[primaryLanguage] || Object.values(c.title)[0] || '');
     
@@ -205,12 +192,14 @@ const generateBookContentFlow = ai.defineFlow(
         
         const isGenerated = generatedChapterTitles.some(genTitle => genTitle.includes(primaryTitle));
         
+        const titleObject: MultilingualContent = { [primaryLanguage]: primaryTitle };
+        if (secondaryLanguage && secondaryTitleInOutline) {
+          titleObject[secondaryLanguage] = secondaryTitleInOutline;
+        }
+
         return {
             id: generateLocalUniqueId(),
-            title: { 
-                primary: primaryTitle, 
-                secondary: secondaryTitleInOutline 
-            },
+            title: titleObject,
             isGenerated,
             metadata: {
                 primaryLanguage: primaryLanguage,
@@ -218,12 +207,13 @@ const generateBookContentFlow = ai.defineFlow(
         };
     });
     
+    const mainTitle = finalBookTitle[primaryLanguage] || Object.values(finalBookTitle)[0] || 'Untitled';
     // Step 8: Return the final, structured object.
     return {
       bookTitle: finalBookTitle,
       chapters,
       chapterOutline: finalChapterOutline,
-      progress: `Generated ${chapters.length} chapters for "${finalBookTitle.primary}".`,
+      progress: `Generated ${chapters.length} chapters for "${mainTitle}".`,
     };
   }
 );

@@ -215,7 +215,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
                   <div className="w-8 h-8">
                       <CircularProgressbar
                           value={progressPercentage}
-                          text={`${'${Math.round(progressPercentage)}'}%`}
+                          text={`${Math.round(progressPercentage)}%`}
                           strokeWidth={10}
                           styles={buildStyles({
                               pathColor: `rgba(255, 255, 255, 0.7)`,

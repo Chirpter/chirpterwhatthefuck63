@@ -68,13 +68,15 @@ const RegeneratePromptDialog: React.FC<RegeneratePromptDialogProps> = ({
     }
   };
 
+  const title = item.title[Object.keys(item.title)[0]] || 'this item';
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="font-body sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="font-headline">{t('fixAndRetryContent')}</DialogTitle>
           <DialogDescription>
-            {t('fixAndRetryDescription', { title: item.title.primary })}
+            {t('fixAndRetryDescription', { title })}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

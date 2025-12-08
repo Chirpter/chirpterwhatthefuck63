@@ -339,9 +339,14 @@ export interface VocabularyItem extends BaseDocument {
 
 export type LibraryItem = Book | Piece;
 
-export type PlaylistItem =
-  | { type: 'book'; id: string; title: string; data: Book; origin: string; availableLanguages: string[]; }
-  | { type: 'vocab'; id: string; title: string; data: {}; origin: string; availableLanguages: string[]; };
+export interface PlaylistItem {
+  type: 'book' | 'vocab';
+  id: string;
+  title: string;
+  data: Partial<Book> | {}; // Partial<Book> for books, {} for vocab folders
+  primaryLanguage: string;
+  availableLanguages: string[];
+}
 
 
 export interface SpeechPlayableSegment {

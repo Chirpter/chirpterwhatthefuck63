@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, {
@@ -13,7 +14,7 @@ import type {
   LibraryItem,
   PlaylistItem,
   Book,
-  ChapterTitle,
+  MultilingualContent,
   PlaylistRepeatMode,
   RepeatMode,
 } from '@/lib/types';
@@ -98,7 +99,7 @@ const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
     }
     
     const bookData = item as Book;
-    const [primaryLang] = bookData.originLanguages.split('-');
+    const [primaryLang] = bookData.origin.split('-');
     
     let title: string;
     if (typeof bookData.title === 'string') {
@@ -106,7 +107,6 @@ const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
     } else if (typeof bookData.title === 'object' && bookData.title !== null) {
       // Safely access primary language, providing fallbacks
       title = bookData.title[primaryLang] || 
-              (bookData.title as any).primary || // Fallback for old format
               Object.values(bookData.title)[0] || 
               'Untitled Book';
     } else {
@@ -118,8 +118,9 @@ const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
       id: item.id, 
       title: title, 
       data: bookData,
-      originLanguages: bookData.originLanguages,
-      availableLanguages: bookData.availableLanguages || [],
+      origin: bookData.origin,
+      availableLanguages: bookData.langs || [],
+      primaryLanguage: primaryLang,
     };
   };
 

@@ -130,7 +130,7 @@ export default function ShopView() {
                     key={pack.id}
                     title={pack.name}
                     description={pack.description}
-                    price={`$${'${pack.priceUsd.toFixed(2)}'}`}
+                    price={`${pack.priceUsd.toFixed(2)}`}
                     icon={"Sparkles"}
                     onPurchase={() => toast({ title: t('common:comingSoon'), description: t('shopPage:iapComingSoon') })}
                   />
