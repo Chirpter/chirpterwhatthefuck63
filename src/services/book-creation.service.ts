@@ -281,7 +281,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
 
                 const phrases = primaryPhrases.map((phrase, i) => ({
                     [primaryLanguage]: phrase.trim(),
-                    [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim(),
+                    [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim()
                 }));
                 
                 const newSegment = { ...segment };
