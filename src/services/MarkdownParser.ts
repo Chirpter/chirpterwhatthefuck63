@@ -291,7 +291,7 @@ export function segmentsToChapterStructure(segments: Segment[], origin: string):
         segments: [], // Start with no segments, add non-heading segments below
         stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 },
         metadata: {
-          primaryLanguage: primaryLanguage,
+          // This field is no longer needed as it can be derived from the Book's top-level `origin` field.
         }
       };
     } else {
@@ -303,9 +303,7 @@ export function segmentsToChapterStructure(segments: Segment[], origin: string):
           title: { [primaryLanguage]: 'Introduction' },
           segments: [],
           stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 },
-          metadata: {
-            primaryLanguage: primaryLanguage,
-          }
+          metadata: {}
         };
       }
       currentChapter.segments.push(segment);
@@ -323,9 +321,7 @@ export function segmentsToChapterStructure(segments: Segment[], origin: string):
       title: { [primaryLanguage]: 'Content' },
       segments: segments,
       stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 },
-      metadata: {
-        primaryLanguage: primaryLanguage,
-      }
+      metadata: {}
     });
   }
 

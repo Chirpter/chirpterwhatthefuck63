@@ -101,9 +101,7 @@ export interface Chapter {
   title: MultilingualContent;
   segments: Segment[];
   stats: ChapterStats;
-  metadata: {
-    primaryLanguage: string;
-  };
+  metadata: {}; // This field is kept for potential future use but no longer holds primaryLanguage.
 }
 
 
@@ -111,9 +109,7 @@ export interface ChapterOutlineItem {
   id: string;
   title: MultilingualContent;
   isGenerated: boolean;
-  metadata: {
-    primaryLanguage: string;
-  };
+  metadata: {};
 }
 
 export type UserPlan = 'free' | 'pro';

@@ -106,13 +106,13 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [displayLang1, setDisplayLang1] = useState('en');
   const [displayLang2, setDisplayLang2] = useState('none'); // 'none' means monolingual
   
-  const availableLanguages = useMemo(() => item?.availableLanguages || ['en'], [item]);
+  const availableLanguages = useMemo(() => item?.langs || ['en'], [item]);
   
-  // This effect now reads from a single `originLanguages` field and localStorage
+  // This effect now reads from a single `origin` field and localStorage
   useEffect(() => {
     if (item) {
         const userOverride = getStoredPresentationIntent(item.id);
-        const intentToParse = userOverride || item.originLanguages;
+        const intentToParse = userOverride || item.origin;
         
         const parts = intentToParse.split('-');
         const lang1 = parts[0] || 'en';
@@ -135,7 +135,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     }
     
     // We get the format from the origin string itself, it's not a user choice in the toolbar
-    const originFormat = item.originLanguages.split('-')[2];
+    const originFormat = item.origin.split('-')[2];
     if (originFormat === 'ph') {
       newIntent += '-ph';
     }
@@ -485,7 +485,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                                                 )}
                                                 onClick={() => handleChapterSelect(index)}
                                             >
-                                                <span className="truncate">{chapter.title[chapter.metadata?.primaryLanguage || displayLang1]}</span>
+                                                <span className="truncate">{chapter.title[displayLang1]}</span>
                                             </Button>
                                         ))}
                                     </div>
@@ -496,7 +496,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                     <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm" onClick={handlePlayPause}>
                         <Icon name={playButtonIcon} className="h-4 w-4" />
                     </Button>
-                    {item.presentationStyle !== 'book' && (
+                    {item.display !== 'book' && (
                         <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm" onClick={() => setIsEditing(true)}>
                             <Icon name="PenLine" className="h-4 w-4" />
                         </Button>
