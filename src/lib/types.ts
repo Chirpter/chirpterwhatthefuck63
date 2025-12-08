@@ -235,7 +235,7 @@ export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
  * @interface Book
  * @description Represents a full book, composed of multiple chapters.
  */
-export interface Book extends BaseLibraryItem {
+export interface Book extends Omit<BaseLibraryItem, 'content'> {
   type: 'book';
   author?: string;
   contentStatus: JobStatus;
@@ -278,7 +278,7 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isComplete?: boolean;
-  isBilingual: boolean; // Add this line
+  isBilingual: boolean;
 }
 
 export interface CreationFormValues {
@@ -458,3 +458,5 @@ export type TierTask =
 
 // Renamed for better clarity. Represents the same structure as the old ChapterTitle.
 export type { MultilingualContent as ChapterTitle };
+
+    

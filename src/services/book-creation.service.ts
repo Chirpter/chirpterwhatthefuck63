@@ -93,20 +93,14 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   const coverImageAiPrompt = bookFormData.coverImageAiPrompt?.trim() || bookFormData.aiPrompt.trim();
 
-  // --- Construct the new originLanguages string ---
-  let originLanguages: string;
+  // --- Construct the originLanguages string ---
   const primaryLanguage = bookFormData.primaryLanguage;
   const secondaryLanguage = bookFormData.availableLanguages.find(l => l !== primaryLanguage);
   
-  if (bookFormData.availableLanguages.length > 1 && secondaryLanguage) {
-      originLanguages = `${primaryLanguage}-${secondaryLanguage}`;
-      if (bookFormData.bilingualFormat === 'phrase') {
-          originLanguages += '-ph';
-      }
-  } else {
-      originLanguages = primaryLanguage;
+  let originLanguages = primaryLanguage;
+  if (secondaryLanguage) {
+      originLanguages += `-${secondaryLanguage}`;
   }
-  // --- End ---
 
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
@@ -123,7 +117,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     });
     
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
-    const initialBookData: Omit<Book, 'id' | 'bilingualFormat'> = {
+    const initialBookData: Omit<Book, 'id'> = {
         userId,
         type: 'book',
         title: { [primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
@@ -140,7 +134,6 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         contentRetryCount: 0,
         coverRetryCount: 0,
         chapters: [],
-        content: [],
         cover: {
           type: bookFormData.coverImageOption,
           inputPrompt: coverImageAiPrompt,
@@ -158,8 +151,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
-    availableLanguages: bookFormData.availableLanguages.filter(Boolean),
-    bilingualFormat: bookFormData.bilingualFormat,
+    originLanguages: originLanguages,
     chaptersToGenerate: bookFormData.targetChapterCount,
     totalChapterOutlineCount: bookFormData.targetChapterCount,
     bookLength: bookFormData.bookLength,
@@ -180,8 +172,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
   try {
-    const primaryLang = contentInput.availableLanguages[0] || 'en';
-    const contentResult = await generateBookContent({ ...contentInput, primaryLanguage: primaryLang });
+    const [primaryLanguage] = contentInput.originLanguages.split('-');
+    const contentResult = await generateBookContent({ ...contentInput });
     
     if (!contentResult || !contentResult.chapters || contentResult.chapters.length === 0) {
       throw new ApiServiceError("AI returned empty or invalid content. This might be due to safety filters or an issue with the prompt.", "UNKNOWN");
@@ -340,3 +332,5 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
     // This function now just prepares and calls the main pipeline
 }
+
+    
