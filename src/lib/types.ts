@@ -76,14 +76,12 @@ export interface Segment {
   
   /**
    * For 'sentence' mode or monolingual content. Contains the full text.
-   * If this field exists, `phrases` should NOT.
    * @example { "en": "Hello, how are you?", "vi": "Xin chào, bạn khỏe không?" }
    */
   content: MultilingualContent;
   
   /**
    * For 'phrase' mode. Contains an array of pre-split phrase pairs.
-   * If this field exists, `content` should NOT.
    * @example [ { "en": "Hello,", "vi": "Xin chào," }, { "en": " how are you?", "vi": " bạn khỏe không?" } ]
    */
   phrases?: PhraseMap[];
@@ -168,6 +166,7 @@ export type OverallStatus = 'processing' | 'draft' | 'published' | 'archived';
 export type CoverJobType = 'none' | 'upload' | 'ai';
 export type BilingualFormat = 'sentence' | 'phrase';
 export type BilingualViewMode = 'primary' | 'secondary' | 'bilingual';
+export type PresentationMode = 'mono' | 'bilingual-sentence' | 'bilingual-phrase';
 
 
 export interface Cover {
@@ -233,10 +232,8 @@ interface BaseLibraryItem extends BaseDocument {
   presentationStyle: 'book' | 'card';
   content: Segment[];
   tags?: string[];
-  // --- PRESENTATION INTENT ---
   bilingualFormat?: BilingualFormat;
-  preferredPresentationMode?: 'mono' | 'bilingual-sentence' | 'bilingual-phrase';
-  preferredLanguagePair?: [string, string];
+  presentationIntent?: string; // e.g., "bilingual-sentence:en-vi"
 }
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
@@ -288,6 +285,7 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isComplete?: boolean;
+  isBilingual: boolean;
 }
 
 export interface CreationFormValues {

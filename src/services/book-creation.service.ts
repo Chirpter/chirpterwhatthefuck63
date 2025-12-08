@@ -5,7 +5,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { storage } from '@/lib/firebase';
-import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter } from "@/lib/types";
+import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter, PresentationMode } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { getUserProfile } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
@@ -93,6 +93,18 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   const coverImageAiPrompt = bookFormData.coverImageAiPrompt?.trim() || bookFormData.aiPrompt.trim();
 
+  // --- Construct the new presentationIntent ---
+  let presentationIntent: string;
+  const secondaryLang = bookFormData.availableLanguages.find(l => l !== bookFormData.primaryLanguage);
+
+  if (bookFormData.availableLanguages.length > 1 && secondaryLang) {
+    const mode: PresentationMode = bookFormData.bilingualFormat === 'phrase' ? 'bilingual-phrase' : 'bilingual-sentence';
+    presentationIntent = `${mode}:${bookFormData.primaryLanguage}-${secondaryLang}`;
+  } else {
+    presentationIntent = `mono:${bookFormData.primaryLanguage}`;
+  }
+  // --- End ---
+
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
@@ -117,7 +129,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         coverStatus: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
         primaryLanguage: bookFormData.primaryLanguage,
         availableLanguages: bookFormData.availableLanguages.filter(Boolean),
-        bilingualFormat: bookFormData.bilingualFormat,
+        presentationIntent, // Use the new single field
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
         intendedLength: bookFormData.bookLength,
@@ -290,7 +302,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
                 // Create a new segment object for the upgraded format
                 const newSegment = { ...segment };
                 newSegment.phrases = phrases;
-                delete (newSegment as Partial<Segment>).content; // Remove the old sentence-level content
+                // We no longer delete the content property, it can stay for fallback
                 return newSegment;
             });
             
@@ -301,6 +313,7 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
         await bookDocRef.update({
             chapters: upgradedChapters,
             bilingualFormat: 'phrase',
+            presentationIntent: `bilingual-phrase:${book.primaryLanguage}-${secondaryLanguage}`,
             updatedAt: FieldValue.serverTimestamp(),
         });
 

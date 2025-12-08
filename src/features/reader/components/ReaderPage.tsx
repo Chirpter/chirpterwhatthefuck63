@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import type { Book, Piece, LibraryItem, BookProgress, Page, Segment, BilingualFormat, Chapter, BilingualViewMode } from '@/lib/types';
+import type { Book, Piece, LibraryItem, BookProgress, Page, Segment, PresentationMode, Chapter, BilingualViewMode } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
@@ -48,14 +48,13 @@ interface LookupState {
 // --- NEW: Local Storage Logic for Presentation Mode ---
 const getStorageKey = (itemId: string) => `chirpter_reader_prefs_${itemId}`;
 
-const getStoredPresentationMode = (itemId: string): { displayLang1: string; displayLang2: string } | null => {
+const getStoredPresentationIntent = (itemId: string): string | null => {
     try {
         const stored = localStorage.getItem(getStorageKey(itemId));
         if (stored) {
             const data = JSON.parse(stored);
-            // Basic validation
-            if (typeof data.displayLang1 === 'string' && typeof data.displayLang2 === 'string') {
-                return data;
+            if (typeof data.presentationIntent === 'string') {
+                return data.presentationIntent;
             }
         }
     } catch (e) {
@@ -64,9 +63,9 @@ const getStoredPresentationMode = (itemId: string): { displayLang1: string; disp
     return null;
 };
 
-const setStoredPresentationMode = (itemId: string, displayLang1: string, displayLang2: string) => {
+const setStoredPresentationIntent = (itemId: string, presentationIntent: string) => {
     try {
-        const data = { displayLang1, displayLang2 };
+        const data = { presentationIntent };
         localStorage.setItem(getStorageKey(itemId), JSON.stringify(data));
     } catch (e) {
         console.error("Failed to save presentation mode to localStorage", e);
@@ -105,50 +104,50 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [isCalculatingPages, setIsCalculatingPages] = useState(true);
   const readerPageInitializedRef = useRef(false);
 
-  // --- REFACTORED: Multi-language State ---
+  // --- REFACTORED: Multi-language State from a single source ---
   const [displayLang1, setDisplayLang1] = useState('en');
-  const [displayLang2, setDisplayLang2] = useState('none');
+  const [displayLang2, setDisplayLang2] = useState('none'); // 'none' means monolingual
   
   const availableLanguages = useMemo(() => item?.availableLanguages || ['en'], [item]);
 
   useEffect(() => {
     if (item) {
-        // TIER 3: Check localStorage for user override
-        const storedPrefs = getStoredPresentationMode(item.id);
-        if (storedPrefs) {
-            setDisplayLang1(storedPrefs.displayLang1);
-            setDisplayLang2(storedPrefs.displayLang2);
-            return;
-        }
-
-        // TIER 2: Intelligent Suggestion (not implemented yet, fallback to Tier 1)
-        // This is where you could compare i18n.language with availableLanguages
+        const userOverride = getStoredPresentationIntent(item.id);
+        const intentToParse = userOverride || item.presentationIntent || `mono:${item.primaryLanguage}`;
         
-        // TIER 1: Author's Intent (Default)
-        const primary = item.primaryLanguage || 'en';
-        let secondary = 'none';
-
-        if (item.bilingualFormat) { // bilingualFormat implies bilingual intent
-            const secondaryLang = item.availableLanguages.find(l => l !== primary);
-            if (secondaryLang) {
-                secondary = secondaryLang;
-            }
-        }
+        const [mode, langs] = intentToParse.split(':');
+        const [lang1, lang2] = langs.split('-');
         
-        setDisplayLang1(primary);
-        setDisplayLang2(secondary);
+        setDisplayLang1(lang1 || item.primaryLanguage);
+        setDisplayLang2(mode === 'mono' ? 'none' : (lang2 || 'none'));
     }
+  }, [item]);
+
+  const updatePresentationIntent = useCallback((newDisplayLang1: string, newDisplayLang2: string) => {
+    if (!item) return;
+
+    let newIntent: string;
+    const mode: PresentationMode = newDisplayLang2 !== 'none' ? 'bilingual-sentence' : 'mono';
+    
+    if (mode === 'mono') {
+        newIntent = `mono:${newDisplayLang1}`;
+    } else {
+        newIntent = `${mode}:${newDisplayLang1}-${newDisplayLang2}`;
+    }
+
+    setStoredPresentationIntent(item.id, newIntent);
+    // Also update the state directly
+    setDisplayLang1(newDisplayLang1);
+    setDisplayLang2(newDisplayLang2);
   }, [item]);
   
   const handleDisplayLang1Change = useCallback((lang: string) => {
-    setDisplayLang1(lang);
-    if (item) setStoredPresentationMode(item.id, lang, displayLang2);
-  }, [item, displayLang2]);
+    updatePresentationIntent(lang, displayLang2);
+  }, [displayLang2, updatePresentationIntent]);
 
   const handleDisplayLang2Change = useCallback((lang: string) => {
-    setDisplayLang2(lang);
-    if (item) setStoredPresentationMode(item.id, displayLang1, lang);
-  }, [item, displayLang1]);
+    updatePresentationIntent(displayLang1, lang);
+  }, [displayLang1, updatePresentationIntent]);
   // --- END MULTI-LANGUAGE STATE ---
   
   useEffect(() => {
