@@ -95,13 +95,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 
   // --- Construct the origin string ---
   const primaryLanguage = bookFormData.primaryLanguage;
-  const secondaryLanguage = bookFormData.availableLanguages.find(l => l !== primaryLanguage);
   
-  let origin = primaryLanguage;
-  if (secondaryLanguage) {
-      origin += `-${secondaryLanguage}`;
-  }
-
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
@@ -124,7 +118,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         status: 'processing',
         contentState: 'processing',
         coverState: bookFormData.coverImageOption === 'none' ? 'ignored' : 'processing',
-        origin,
+        origin: bookFormData.origin,
         langs: bookFormData.availableLanguages.filter(Boolean),
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
@@ -151,7 +145,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
-    origin: origin,
+    origin: bookFormData.origin,
     chaptersToGenerate: bookFormData.targetChapterCount,
     totalChapterOutlineCount: bookFormData.targetChapterCount,
     bookLength: bookFormData.bookLength,
@@ -319,18 +313,199 @@ export async function upgradeBookToPhraseMode(userId: string, bookId: string): P
 export async function addChaptersToBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<void> {
   // This logic remains largely the same but would call the standardized processContentGenerationForBook if needed.
   // For simplicity, we'll keep the existing logic but ensure it uses Admin SDK correctly.
+  const adminDb = getAdminDb();
+  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+
+  try {
+      const bookDoc = await bookDocRef.get();
+      if (!bookDoc.exists) {
+          throw new ApiServiceError("Book not found.", "UNKNOWN");
+      }
+
+      const book = bookDoc.data() as Book;
+      const [primaryLanguage] = book.origin.split('-');
+
+      const contentResult = await generateBookContent({ ...contentInput });
+      
+      if (!contentResult || !contentResult.chapters || contentResult.chapters.length === 0) {
+        throw new ApiServiceError("AI returned empty or invalid content. This might be due to safety filters or an issue with the prompt.", "UNKNOWN");
+      }
+
+      // Ensure new chapters have unique IDs and correct order
+      const existingChaptersCount = book.chapters.length;
+      const newChapters = contentResult.chapters.map((chapter, index) => ({
+          ...chapter,
+          id: chapter.id || chapter.segments[0]?.id || chapter.segments[0]?.content?.[primaryLanguage] || `new-chapter-${existingChaptersCount + index}`, // Ensure unique ID
+          order: existingChaptersCount + index, // Set correct order
+      }));
+
+      // Update the book in Firestore with the new chapters
+      await bookDocRef.update({
+          chapters: FieldValue.arrayUnion(...newChapters),
+          outline: contentResult.chapterOutline,
+          updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      console.log(`Successfully added ${newChapters.length} chapters to book ${bookId}.`);
+
+  } catch (error) {
+      console.error(`Error adding chapters to book ${bookId}:`, error);
+      throw new ApiServiceError("Failed to add chapters to book.", "FIRESTORE", error as Error);
+  }
 }
 
 export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string | null): Promise<void> {
-    // This logic remains largely the same but calls the standardized processCoverImageForBook.
+  try {
+      const adminDb = getAdminDb();
+      const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+
+      const bookDoc = await bookDocRef.get();
+      if (!bookDoc.exists) {
+          throw new ApiServiceError("Book not found.", "UNKNOWN");
+      }
+
+      const book = bookDoc.data() as Book;
+
+      const [contentResult, coverResult] = await Promise.allSettled([
+          processContentGenerationForBook(userId, bookId, {
+              prompt: book.prompt,
+              origin: book.origin,
+              chaptersToGenerate: book.chapters.length,
+              totalChapterOutlineCount: book.chapters.length,
+              bookLength: book.intendedLength,
+              generationScope: 'full',
+          }),
+          processCoverImageForBook(userId, bookId, newCoverOption, data, book.prompt)
+      ]);
+
+      const finalUpdate: Partial<Book> = { status: 'draft' };
+
+      if (contentResult.status === 'fulfilled') {
+          Object.assign(finalUpdate, contentResult.value);
+      } else {
+          finalUpdate.contentState = 'error';
+          finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
+      }
+
+      if (coverResult.status === 'fulfilled') {
+          Object.assign(finalUpdate, coverResult.value);
+      } else {
+          finalUpdate.coverState = 'error';
+          finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
+      }
+
+      await bookDocRef.update(finalUpdate);
+      await checkAndUnlockAchievements(userId);
+  } catch (error) {
+      console.error(`Error Regenerating Book :`, error);
+      throw new ApiServiceError("Failed to Regenerate Book", "FIRESTORE", error as Error);
+  }
 }
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-    // This function now just prepares and calls the main pipeline
+    try {
+        const adminDb = getAdminDb();
+        const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+
+        const bookDoc = await bookDocRef.get();
+        if (!bookDoc.exists) {
+            throw new ApiServiceError("Book not found.", "UNKNOWN");
+        }
+
+        const book = bookDoc.data() as Book;
+        const updatedPrompt = newPrompt || book.prompt;
+
+        const updatePayload: any = {
+            contentState: 'processing',
+            status: 'processing',
+            updatedAt: FieldValue.serverTimestamp(),
+        };
+        if (newPrompt) updatePayload.prompt = newPrompt;
+
+        await bookDocRef.update(updatePayload);
+        
+        //Construct the content input
+        const contentInput: GenerateBookContentInput = {
+            prompt: updatedPrompt,
+            origin: book.origin,
+            chaptersToGenerate: book.chapters.length,
+            totalChapterOutlineCount: book.chapters.length,
+            bookLength: book.intendedLength,
+            generationScope: 'full',
+        };
+
+        const [contentResult, coverResult] = await Promise.allSettled([
+            processContentGenerationForBook(userId, bookId, contentInput),
+            processCoverImageForBook(userId, bookId, book.cover.type, book.cover.inputPrompt, book.prompt)
+        ]);
+
+        const finalUpdate: Partial<Book> = { status: 'draft' };
+
+        if (contentResult.status === 'fulfilled') {
+            Object.assign(finalUpdate, contentResult.value);
+        } else {
+            finalUpdate.contentState = 'error';
+            finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
+        }
+
+        if (coverResult.status === 'fulfilled') {
+            Object.assign(finalUpdate, coverResult.value);
+        } else {
+            finalUpdate.coverState = 'error';
+            finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
+        }
+        
+        await bookDocRef.update(finalUpdate);
+        await checkAndUnlockAchievements(userId);
+    } catch (error) {
+        console.error(`Error Regenerating Book :`, error);
+        throw new ApiServiceError("Failed to Regenerate Book", "FIRESTORE", error as Error);
+    }
 }
 
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
-    // This function now just prepares and calls the main pipeline
-}
+    try {
+        const adminDb = getAdminDb();
+        const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
 
-    
+        const bookDoc = await bookDocRef.get();
+        if (!bookDoc.exists) {
+            throw new ApiServiceError("Book not found.", "UNKNOWN");
+        }
+
+        const book = bookDoc.data() as Book;
+
+        const [contentResult, coverResult] = await Promise.allSettled([
+            processContentGenerationForBook(userId, bookId, {
+                prompt: book.prompt,
+                origin: book.origin,
+                chaptersToGenerate: book.chapters.length,
+                totalChapterOutlineCount: book.chapters.length,
+                bookLength: book.intendedLength,
+                generationScope: 'full',
+            }),
+            processCoverImageForBook(userId, bookId, book.cover.type, book.cover.inputPrompt, book.prompt)
+        ]);
+
+        const finalUpdate: Partial<Book> = { status: 'draft' };
+
+        if (contentResult.status === 'fulfilled') {
+            Object.assign(finalUpdate, contentResult.value);
+        } else {
+            finalUpdate.contentState = 'error';
+            finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
+        }
+
+        if (coverResult.status === 'fulfilled') {
+            Object.assign(finalUpdate, coverResult.value);
+        } else {
+            finalUpdate.coverState = 'error';
+            finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
+        }
+        await bookDocRef.update(finalUpdate);
+        await checkAndUnlockAchievements(userId);
+    } catch (error) {
+        console.error(`Error Regenerating Book :`, error);
+        throw new ApiServiceError("Failed to Regenerate Book", "FIRESTORE", error as Error);
+    }
+}

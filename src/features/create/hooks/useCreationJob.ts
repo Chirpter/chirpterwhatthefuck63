@@ -192,42 +192,41 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     
     setFormData(prev => {
         const newState = { ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value };
-
-        const isBilingual = newState.availableLanguages.length > 1 && newState.availableLanguages[1];
-        const primaryLang = newState.primaryLanguage;
-        const secondaryLang = isBilingual ? newState.availableLanguages.find(l => l !== primaryLang) : null;
-
-        let origin = primaryLang;
-        if (isBilingual && secondaryLang) {
-            origin += `-${secondaryLang}`;
+        
+        // This logic handles boolean 'isBilingual' and updates `availableLanguages`
+        if (name === 'isBilingual') {
+            const isBilingual = value;
+            const primaryLang = newState.primaryLanguage;
+            newState.availableLanguages = isBilingual ? [primaryLang, prev.availableLanguages[1] || ''] : [primaryLang];
+        } else if (name === 'secondaryLanguage') {
+            newState.availableLanguages = [newState.primaryLanguage, value];
+        } else if (name === 'primaryLanguage') {
+            const secondary = prev.availableLanguages.length > 1 ? prev.availableLanguages[1] : '';
+            newState.availableLanguages = [value, secondary];
         }
         
-        // Append format only for bilingual
-        if (isBilingual && newState.origin.endsWith('-ph')) {
-           origin += '-ph';
-        }
-
-        newState.origin = origin;
-
-        if (name === 'isBilingual') {
-            newState.availableLanguages = value ? [primaryLang, ''] : [primaryLang];
-        } else if (name === 'secondaryLanguage') {
-            newState.availableLanguages = [primaryLang, value];
-        } else if (name === 'primaryLanguage') {
-            newState.availableLanguages = [value, ...(prev.availableLanguages.filter(l => l !== prev.primaryLanguage && l !== value))];
-        } else if (name === 'origin' && value.includes('-ph')) {
-            // This is for the toggle
-            if (isBilingual) {
-                if (prev.origin.endsWith('-ph')) {
-                    newState.origin = `${primaryLang}-${secondaryLang}`;
-                } else {
-                    newState.origin = `${primaryLang}-${secondaryLang}-ph`;
-                }
-            } else {
-                newState.origin = primaryLang; // No -ph for mono
+        // Update origin based on availableLanguages and format
+        const [primary, secondary] = newState.availableLanguages;
+        let originString = primary || 'en';
+        if (secondary) {
+            originString += `-${secondary}`;
+            // Preserve the phrase format if it was toggled
+            if (prev.origin.endsWith('-ph')) {
+                originString += '-ph';
             }
         }
         
+        // Handle phrase mode toggle
+        if (name === 'origin' && secondary) {
+            if (prev.origin.endsWith('-ph')) {
+                originString = `${primary}-${secondary}`;
+            } else {
+                originString = `${primary}-${secondary}-ph`;
+            }
+        }
+        
+        newState.origin = originString;
+
         return newState;
     });
 

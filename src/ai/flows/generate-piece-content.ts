@@ -76,7 +76,7 @@ const generatePieceContentFlow = ai.defineFlow(
       throw new Error("A user prompt is required.");
     }
     
-    const [primaryLanguage, secondaryLanguage, format] = input.originLanguages.split('-');
+    const [primaryLanguage, secondaryLanguage] = input.origin.split('-');
     
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
@@ -99,7 +99,7 @@ const generatePieceContentFlow = ai.defineFlow(
     
     const generatedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
-        input.originLanguages
+        input.origin
     );
     
     let finalTitle: ChapterTitle;

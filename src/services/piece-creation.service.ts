@@ -77,7 +77,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         });
 
         const newWorkRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
-        const initialWorkData: Omit<Piece, 'id' | 'bilingualFormat'> = {
+        const initialWorkData: Omit<Piece, 'id'> = {
             userId,
             type: 'piece',
             title: { [primaryLanguage]: pieceFormData.aiPrompt.substring(0, 50) },
@@ -147,8 +147,6 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         return;
     }
     
-    const [primaryLang, , format] = workData.origin.split('-');
-
     const contentInput: GeneratePieceInput = {
         userPrompt: promptToUse,
         origin: workData.origin,

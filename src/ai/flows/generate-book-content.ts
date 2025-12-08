@@ -85,12 +85,16 @@ const generateBookContentFlow = ai.defineFlow(
     
     // Step 3: Prepare the detailed instructions for the AI.
     const userPrompt = input.prompt.slice(0, MAX_PROMPT_LENGTH);
-    const { bookLength, generationScope, originLanguages } = input;
+    const { bookLength, generationScope, origin } = input;
     
     let totalWords = 600;
     let maxOutputTokens = 1200;
 
     switch (bookLength) {
+        case 'short-story':
+            totalWords = 600;
+            maxOutputTokens = 1200;
+            break;
         case 'mini-book':
             totalWords = 1500;
             maxOutputTokens = 3000;
@@ -107,7 +111,7 @@ const generateBookContentFlow = ai.defineFlow(
     
     let compactInstruction: string;
     
-    const langParts = originLanguages.split('-');
+    const langParts = origin.split('-');
     const primaryLanguage = langParts[0];
     const secondaryLanguage = langParts.length > 1 ? langParts[1] : undefined;
     
@@ -156,11 +160,11 @@ const generateBookContentFlow = ai.defineFlow(
     // into the structured `Segment` format that our application uses internally.
     const unifiedSegments = parseMarkdownToSegments(
         aiOutput.markdownContent, 
-        originLanguages
+        origin
     );
     
     // Step 6: Convert the flat list of segments into structured chapters.
-    let chapters = segmentsToChapterStructure(unifiedSegments, originLanguages);
+    let chapters = segmentsToChapterStructure(unifiedSegments, origin);
 
     if (chapters.length === 0 && unifiedSegments.length > 0) {
         chapters = [{
@@ -168,7 +172,7 @@ const generateBookContentFlow = ai.defineFlow(
             order: 0,
             title: { [primaryLanguage]: 'Content' },
             segments: unifiedSegments,
-            stats: { totalSegments: unifiedSegments.length, totalWords: 0, estimatedReadingTime: 1 }, // Word count will be calculated below
+            stats: { totalSegments: unifiedSegments.length, totalWords: 0, estimatedReadingTime: 1 },
             metadata: {
                 primaryLanguage: primaryLanguage,
             }
@@ -223,5 +227,3 @@ const generateBookContentFlow = ai.defineFlow(
     };
   }
 );
-
-    
