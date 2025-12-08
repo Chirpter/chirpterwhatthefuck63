@@ -39,7 +39,7 @@ const mockBook1: Book = {
   primaryLanguage: 'en',
   contentStatus: 'ready',
   coverStatus: 'ready',
-  content: [],
+  content: [], // Required property
   chapters: [
     {
       id: 'ch1',
@@ -50,16 +50,16 @@ const mockBook1: Book = {
           id: 's1', 
           type: 'text', 
           order: 0, 
-          content: { primary: 'First sentence.' }, 
-          metadata: { isParagraphStart: true, wordCount: { primary: 2 }, primaryLanguage: 'en' }, 
+          content: { en: 'First sentence.' }, 
+          metadata: { isParagraphStart: true, wordCount: { en: 2 }, primaryLanguage: 'en' }, 
           formatting: {} 
         },
         { 
           id: 's2', 
           type: 'text', 
           order: 1, 
-          content: { primary: 'Second sentence.' }, 
-          metadata: { isParagraphStart: false, wordCount: { primary: 2 }, primaryLanguage: 'en' }, 
+          content: { en: 'Second sentence.' }, 
+          metadata: { isParagraphStart: false, wordCount: { en: 2 }, primaryLanguage: 'en' }, 
           formatting: {} 
         },
       ],
@@ -75,8 +75,8 @@ const mockBook1: Book = {
           id: 's3', 
           type: 'text', 
           order: 0, 
-          content: { primary: 'Chapter two sentence.' }, 
-          metadata: { isParagraphStart: true, wordCount: { primary: 3 }, primaryLanguage: 'en' }, 
+          content: { en: 'Chapter two sentence.' }, 
+          metadata: { isParagraphStart: true, wordCount: { en: 3 }, primaryLanguage: 'en' }, 
           formatting: {} 
         },
       ],
@@ -100,16 +100,16 @@ const mockBilingualBook: Book = {
           id: 's-bi-1', 
           type: 'text', 
           order: 0, 
-          content: { primary: 'Hello world.', secondary: 'Xin chào thế giới.' }, 
-          metadata: { isParagraphStart: true, wordCount: { primary: 2, secondary: 3 }, primaryLanguage: 'en' }, 
+          content: { en: 'Hello world.', vi: 'Xin chào thế giới.' }, 
+          metadata: { isParagraphStart: true, wordCount: { en: 2, vi: 3 }, primaryLanguage: 'en' }, 
           formatting: {} 
         },
         { 
           id: 's-bi-2', 
           type: 'text', 
           order: 1, 
-          content: { primary: 'Good morning.', secondary: 'Chào buổi sáng.' }, 
-          metadata: { isParagraphStart: false, wordCount: { primary: 2, secondary: 3 }, primaryLanguage: 'en' }, 
+          content: { en: 'Good morning.', vi: 'Chào buổi sáng.' }, 
+          metadata: { isParagraphStart: false, wordCount: { en: 2, vi: 3 }, primaryLanguage: 'en' }, 
           formatting: {} 
         },
       ],
@@ -133,8 +133,8 @@ const mockBook2: Book = {
           id: 's4', 
           type: 'text', 
           order: 0, 
-          content: { primary: 'Another book first sentence.' }, 
-          metadata: { isParagraphStart: true, wordCount: { primary: 4 }, primaryLanguage: 'en' }, 
+          content: { en: 'Another book first sentence.' }, 
+          metadata: { isParagraphStart: true, wordCount: { en: 4 }, primaryLanguage: 'en' }, 
           formatting: {} 
         },
       ],
@@ -255,7 +255,7 @@ describe('AudioEngine - Complete Test Suite', () => {
 
     it('should load settings from localStorage on init', () => {
       const savedState = {
-        playlist: [{ type: 'book', id: 'book1', title: 'Test Book 1' }],
+        playlist: [{ type: 'book', id: 'book1', title: 'Test Book 1', primaryLanguage: 'en', availableLanguages: ['en'] }],
         settings: {
           tts: { rate: 1.5, pitch: 1.2, voicesByLanguage: { en: 'test-voice' } },
           repeat: { track: 'one', playlist: 'all' },
@@ -476,18 +476,25 @@ describe('AudioEngine - Complete Test Suite', () => {
       });
 
       // Skip term, meaning, example of first item (3 segments)
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 2; i++) {
         const speakCall = vi.mocked(ttsService.speak).mock.calls[i][0];
         speakCall.onEnd?.();
         await vi.waitFor(() => {
+          // The check `i + 2` is because each onEnd triggers a new call.
           expect(ttsService.speak).toHaveBeenCalledTimes(i + 2);
         });
       }
 
-      // Now at second vocab item - should have term and meaning
-      expect(ttsService.speak).toHaveBeenCalledWith(expect.objectContaining({
-        text: 'Goodbye',
-      }));
+      // Now at the end of the first item
+      const lastCall = vi.mocked(ttsService.speak).mock.calls[2][0];
+      lastCall.onEnd?.();
+
+      await vi.waitFor(() => {
+         // Now at second vocab item - should have term
+        expect(ttsService.speak).toHaveBeenLastCalledWith(expect.objectContaining({
+            text: 'Goodbye',
+        }));
+      });
     });
   });
 
