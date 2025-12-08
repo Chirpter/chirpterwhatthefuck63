@@ -107,18 +107,24 @@ const generateBookContentFlow = ai.defineFlow(
     
     let compactInstruction: string;
     
-    const [primaryLanguage, secondaryLanguage] = originLanguages.split('-');
+    const langParts = originLanguages.split('-');
+    const primaryLanguage = langParts[0];
+    const secondaryLanguage = langParts.length > 1 ? langParts[1] : undefined;
     
     const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
     const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
 
-    let languageInstruction = `in ${primaryLanguageLabel}`;
-    let titleInstruction = `Create a title base on story or user title (1-7 words) for the book in the 'bookTitle' field.`;
+    let languageInstruction: string;
+    let titleInstruction: string;
 
-    if (secondaryLanguageLabel) {
+    if (secondaryLanguage) {
         languageInstruction = `in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, sentence by line translation format`;
         titleInstruction = `Create a title based on the story or user-provided title (1-7 words). Provide both ${primaryLanguageLabel} and ${secondaryLanguageLabel} versions, separated by ' / '. E.g., 'The Lost Key / Chiếc Chìa Khóa Lạc'. Return it in the 'bookTitle' field.`;
+    } else {
+        languageInstruction = `in ${primaryLanguageLabel}`;
+        titleInstruction = `Create a title base on story or user title (1-7 words) for the book in the 'bookTitle' field.`;
     }
+
 
     if (generationScope === 'firstFew' && input.totalChapterOutlineCount && input.totalChapterOutlineCount > 0) {
         const wordsPerChapter = Math.round(totalWords / input.totalChapterOutlineCount);
@@ -162,7 +168,7 @@ const generateBookContentFlow = ai.defineFlow(
             order: 0,
             title: { [primaryLanguage]: 'Content' },
             segments: unifiedSegments,
-            stats: { totalSegments: unifiedSegments.length, totalWords: unifiedSegments.reduce((sum, seg) => sum + (seg.content[primaryLanguage]?.split(/\s+/).length || 0), 0), estimatedReadingTime: 1 },
+            stats: { totalSegments: unifiedSegments.length, totalWords: 0, estimatedReadingTime: 1 }, // Word count will be calculated below
             metadata: {
                 primaryLanguage: primaryLanguage,
             }
@@ -217,3 +223,5 @@ const generateBookContentFlow = ai.defineFlow(
     };
   }
 );
+
+    
