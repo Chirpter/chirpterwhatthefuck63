@@ -71,8 +71,9 @@ interface SpeechSegment {
 
 // Cache for expensive computations (NOT in state)
 interface BookCache {
-  totalSegments: number;
-  segmentsPerChapter: number[];
+  totalSegmentsInBook: number; // Total original segments in the whole book
+  totalSpokenSegmentsInChapter: number; // Spoken segments for the CURRENT chapter
+  cumulativeOriginalSegments: number; // Original segments up to the start of the current chapter
 }
 
 // External event listener
@@ -139,7 +140,7 @@ class AudioEngine {
       const playlistIndex = this.ensureInPlaylist(item);
       
       // 2. Set languages to be played for this session
-      this.currentPlaybackLanguages = options?.playbackLanguages || item.availableLanguages;
+      this.currentPlaybackLanguages = options?.playbackLanguages || (item.availableLanguages.length > 1 ? item.availableLanguages : [item.primaryLanguage]);
       
       // 3. Set position
       this.setPosition({
@@ -399,20 +400,20 @@ class AudioEngine {
     const { position } = this.state;
     
     if (track.type === 'book' && position.chapterIndex !== null) {
-        const languagesBeingPlayed = this.currentPlaybackLanguages.length || 1;
-        
-        // This is the spoken segment index, so we need to divide by the number of languages to get the original segment index
-        const originalSegmentIndex = Math.floor(position.segmentIndex / languagesBeingPlayed);
-
-        const segmentsBefore = position.chapterIndex > 0 
-            ? this.bookStatsCache.segmentsPerChapter[position.chapterIndex - 1] 
-            : 0;
-        
-        const totalPlayedOriginalSegments = segmentsBefore + originalSegmentIndex;
-        
-        if (this.bookStatsCache.totalSegments === 0) return 0;
-        
-        return (totalPlayedOriginalSegments / this.bookStatsCache.totalSegments) * 100;
+      // Spoken segments so far in THIS chapter
+      const spokenSegmentsInChapter = this.state.position.segmentIndex;
+      
+      // Total spoken segments up to the PREVIOUS chapter
+      const cumulativeSpokenSegmentsBefore = this.bookStatsCache.cumulativeOriginalSegments * this.currentPlaybackLanguages.length;
+      
+      // Total spoken segments in the WHOLE book
+      const totalSpokenSegmentsInBook = this.bookStatsCache.totalSegmentsInBook * this.currentPlaybackLanguages.length;
+      
+      if (totalSpokenSegmentsInBook === 0) return 0;
+      
+      const totalPlayedSoFar = cumulativeSpokenSegmentsBefore + spokenSegmentsInChapter;
+      
+      return (totalPlayedSoFar / totalSpokenSegmentsInBook) * 100;
     }
     
     if (this.segmentsCache.length > 0) {
@@ -484,7 +485,7 @@ class AudioEngine {
       
       // 2. Calculate stats (for books)
       if (item.type === 'book' && item.data) {
-        this.bookStatsCache = this.calculateBookStats(item.data);
+        this.bookStatsCache = this.calculateBookStats(item.data, this.state.position.chapterIndex ?? 0);
       }
       
       // 3. Validate position
@@ -540,7 +541,7 @@ class AudioEngine {
     this.updatePosition({ wordBoundary: null });
 
     // If repeat is on, just replay the same segment
-    if (this.state.settings.repeat.track === 'one') {
+    if (this.state.settings.repeat.track === 'item') {
       this.speakCurrentSegment();
       return;
     }
@@ -588,7 +589,7 @@ class AudioEngine {
       return this.generateBookSegments(item.data, this.state.position.chapterIndex ?? 0);
     }
     
-    if (item.type === 'vocab' && item.data) { // FIX: check for item.data
+    if (item.type === 'vocab') {
       return this.generateVocabSegments(item.id);
     }
     
@@ -643,19 +644,25 @@ class AudioEngine {
     return speechSegments;
   }
   
-  private calculateBookStats(book: Book): BookCache {
-    const segmentsPerChapter: number[] = [];
+  private calculateBookStats(book: Book, currentChapterIndex: number): BookCache {
+    let totalSegmentsInBook = 0;
     let cumulativeOriginalSegments = 0;
     
-    book.chapters.forEach(chapter => {
-      const originalSegmentCount = chapter.segments.length;
-      cumulativeOriginalSegments += originalSegmentCount;
-      segmentsPerChapter.push(cumulativeOriginalSegments);
+    book.chapters.forEach((chapter, index) => {
+      const segmentCount = chapter.segments.length;
+      totalSegmentsInBook += segmentCount;
+      if (index < currentChapterIndex) {
+        cumulativeOriginalSegments += segmentCount;
+      }
     });
+
+    const currentChapter = book.chapters[currentChapterIndex];
+    const totalSpokenSegmentsInChapter = (currentChapter?.segments?.length || 0) * this.currentPlaybackLanguages.length;
     
     return {
-      totalSegments: cumulativeOriginalSegments,
-      segmentsPerChapter,
+      totalSegmentsInBook,
+      totalSpokenSegmentsInChapter,
+      cumulativeOriginalSegments,
     };
   }
   
