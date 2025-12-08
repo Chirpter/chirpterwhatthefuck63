@@ -93,11 +93,11 @@ export const useAdminBooks = () => {
       }
 
       const bookData: Omit<Book, 'id' | 'userId' | 'createdAt' | 'updatedAt'> = {
-        title: { primary: data.title },
+        title: { [data.primaryLanguage]: data.title },
         author: data.author,
         price: data.price,
         isBilingual: data.isBilingual,
-        origin: data.isBilingual ? `${'${data.primaryLanguage}'}-${'${data.secondaryLanguage}'}` : data.primaryLanguage,
+        origin: data.isBilingual ? `${data.primaryLanguage}-${data.secondaryLanguage}` : data.primaryLanguage,
         langs: data.isBilingual ? [data.primaryLanguage, data.secondaryLanguage as string] : [data.primaryLanguage],
         tags: data.tags,
         isGlobal: true,
