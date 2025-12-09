@@ -7,9 +7,9 @@ import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-import { regenerateBookContent, editBookCover } from './book-creation.service';
+// KHÔNG import các hàm từ book-creation.service nữa
 
-const getLibraryCollectionPath = (userId: string) => `users/${'${userId}'}/libraryItems`;
+const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
 interface GetLibraryItemsOptions {
   limit?: number;
@@ -75,7 +75,7 @@ export async function getLibraryItems(
     let code: ApiServiceError['code'] = 'FIRESTORE';
     if (error.code === 'permission-denied') code = 'PERMISSION';
     else if (error.code === 'unavailable') code = 'UNAVAILABLE';
-    throw new ApiServiceError(`Failed to fetch library items: ${'${error.message}'}`, code);
+    throw new ApiServiceError(`Failed to fetch library items: ${error.message}`, code);
   }
 }
 
@@ -168,10 +168,7 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
         }
         return null;
     } catch (error) {
-        console.error(`Error fetching item ${'${itemId}'} (server):`, error);
+        console.error(`Error fetching item ${itemId} (server):`, error);
         throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE');
     }
 }
-
-// Re-export for centralized access if needed by other server components.
-export { regenerateBookContent, editBookCover };

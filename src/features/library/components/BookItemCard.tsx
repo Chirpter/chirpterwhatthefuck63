@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import type { Book, LibraryItem, BookmarkType, SystemBookmark } from "@/lib/types";
@@ -24,7 +25,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { regenerateBookContent, editBookCover } from "@/services/library-service";
+// 3. Import các hàm server actions trực tiếp từ service của chúng
+import { regenerateBookContent, editBookCover } from "@/services/book-creation.service";
 import { useToast } from '@/hooks/useToast';
 import { DynamicBookmark } from "./DynamicBookmark";
 import { BookmarkCard } from "@/features/user/components/BookmarkCard";
@@ -358,7 +360,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
                       <button onClick={handleContentRetry} disabled={isRetryingContent || (book.contentRetryCount || 0) >= 3}>
                         {isRetryingContent ? <Icon name="Wand2" className="mr-1 h-3 w-3 animate-pulse" /> : <Icon name="RotateCw" className="mr-1 h-3 w-3" />}
                         {isContentPromptError ? t('fixAndRetryContent') : t('retryContent')}
-                        {(book.contentRetryCount || 0) > 0 && !isContentPromptError && ` (${(book.contentRetryCount || 0)}/3)`}
+                        {(book.contentRetryCount || 0) > 0 && !isContentPromptError && ` (${book.contentRetryCount || 0}/3)`}
                       </button>
                     </Badge>
                   )}

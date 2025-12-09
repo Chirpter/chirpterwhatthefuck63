@@ -1,5 +1,6 @@
 
 
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -18,7 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import type { LibraryItem } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { regenerateBookContent } from '@/services/library-service';
+// 4. Import trực tiếp từ service chịu trách nhiệm
+import { regenerateBookContent } from '@/services/book-creation.service';
 import { useToast } from '@/hooks/useToast';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { cn } from '@/lib/utils';
