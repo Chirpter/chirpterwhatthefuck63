@@ -38,10 +38,12 @@ export function NowPlayingCard({ item, onRemove, onPlay }: { item: TPlaylistItem
   const itemTitle = (item.data as Book)?.title?.primary || item.title;
   const itemAuthor = (item.data as Book)?.author || '';
 
+  // ✅ FIX: Use `id` instead of `itemId`
   const isThisItemPlaying = currentPlayingItem?.id === itemId && isPlaying;
   
   const handlePlayPauseFromPlaylist = (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    // ✅ FIX: Use `id` instead of `itemId`
     if (currentPlayingItem?.id === itemId) {
       if (isPlaying) {
         pauseAudio();

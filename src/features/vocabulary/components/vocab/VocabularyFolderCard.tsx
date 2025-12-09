@@ -91,7 +91,7 @@ export const VocabularyFolderCard: React.FC<VocabularyFolderCardProps> = ({
       <div
         onClick={onClick}
         className={cn(
-          "h-14 w-52 flex-shrink-0 cursor-pointer group shadow-sm transition-all duration-300 relative font-semibold text-sm rounded-lg border flex items-center justify-between pl-2 pr-3",
+          "h-14 w-52 flex-shrink-0 cursor-pointer group shadow-sm transition-all duration-300 relative font-semibold text-sm rounded-lg border flex items-center justify-between pl-2 pr-1",
           isSelected
             ? "bg-primary/10 border-primary ring-1 ring-primary"
             : "bg-card hover:bg-muted",

@@ -141,7 +141,8 @@ class AudioEngine {
       const playlistIndex = this.ensureInPlaylist(item);
       
       // 2. Set languages to be played for this session
-      this.currentPlaybackLanguages = options?.playbackLanguages || (item.availableLanguages.length > 1 ? item.availableLanguages : [item.primaryLanguage]);
+      const secondaryLang = item.availableLanguages.find(l => l !== item.primaryLanguage);
+      this.currentPlaybackLanguages = options?.playbackLanguages || (secondaryLang ? [item.primaryLanguage, secondaryLang] : [item.primaryLanguage]);
       
       // 3. Set position
       this.setPosition({
@@ -307,12 +308,8 @@ class AudioEngine {
   // ============================================
   
   public addToPlaylist(item: PlaylistItem): void {
-    // Avoid adding duplicates
-    if (this.state.playlist.some(p => p.id === item.id)) return;
-    
-    this.setState({
-      playlist: [...this.state.playlist, item]
-    });
+    // Avoid adding duplicates, but ensure data is fresh
+    this.ensureInPlaylist(item);
   }
   
   public removeFromPlaylist(itemId: string): void {
@@ -492,7 +489,7 @@ class AudioEngine {
       
       // 2. Calculate stats (for books)
       if (item.type === 'book' && item.data) {
-        this.bookStatsCache = this.calculateBookStats(item.data, this.state.position.chapterIndex ?? 0);
+        this.bookStatsCache = this.calculateBookStats(item.data as Book, this.state.position.chapterIndex ?? 0);
       }
       
       // 3. Validate position
@@ -544,22 +541,19 @@ class AudioEngine {
   }
   
   private onSegmentEnd(): void {
-    // Clear word boundary
     this.updatePosition({ wordBoundary: null });
 
-    // If repeat is on, just replay the same segment
+    // ✅ FIX: Correctly handle repeat mode
     if (this.state.settings.repeat.track === 'item') {
-      this.speakCurrentSegment();
+      this.speakCurrentSegment(); // Re-speak the current segment
       return;
     }
 
-    // Try to advance to the next segment
     const nextIndex = this.state.position.segmentIndex + 1;
     if (nextIndex < this.segmentsCache.length) {
       this.updatePosition({ segmentIndex: nextIndex });
       this.speakCurrentSegment();
     } else {
-      // If no more segments, try to advance the chapter or track
       this.nextChapter();
     }
   }
@@ -574,7 +568,7 @@ class AudioEngine {
     const { position } = this.state;
     const nextChapterIndex = (position.chapterIndex ?? 0) + 1;
     
-    if (nextChapterIndex < track.data.chapters.length) {
+    if (nextChapterIndex < ((track.data as Book).chapters?.length || 0)) {
       this.setPosition({
         ...position,
         chapterIndex: nextChapterIndex,
@@ -593,7 +587,7 @@ class AudioEngine {
   
   private async generateSegments(item: PlaylistItem): Promise<SpeechSegment[]> {
     if (item.type === 'book' && item.data) {
-      return this.generateBookSegments(item.data, this.state.position.chapterIndex ?? 0);
+      return this.generateBookSegments(item.data as Book, this.state.position.chapterIndex ?? 0);
     }
     
     if (item.type === 'vocab') {
@@ -604,7 +598,7 @@ class AudioEngine {
   }
   
   private generateBookSegments(book: Book, chapterIndex: number): SpeechSegment[] {
-    const chapter = book.chapters[chapterIndex];
+    const chapter = book.chapters?.[chapterIndex];
     if (!chapter?.segments) return [];
   
     const speechSegments: SpeechSegment[] = [];
@@ -655,15 +649,15 @@ class AudioEngine {
     let totalSegmentsInBook = 0;
     let cumulativeOriginalSegments = 0;
     
-    book.chapters.forEach((chapter, index) => {
-      const segmentCount = chapter.segments.length;
+    book.chapters?.forEach((chapter, index) => {
+      const segmentCount = chapter.segments?.length || 0;
       totalSegmentsInBook += segmentCount;
       if (index < currentChapterIndex) {
         cumulativeOriginalSegments += segmentCount;
       }
     });
 
-    const currentChapter = book.chapters[currentChapterIndex];
+    const currentChapter = book.chapters?.[currentChapterIndex];
     // Correctly calculate spoken segments by accounting for multiple languages
     const totalSpokenSegmentsInChapter = (currentChapter?.segments?.length || 0) * this.currentPlaybackLanguages.length;
     
@@ -682,7 +676,7 @@ class AudioEngine {
     const existingIndex = this.state.playlist.findIndex(p => p.id === item.id);
     
     if (existingIndex !== -1) {
-      // Update data if exists
+      // ✅ FIX: Update data if exists to ensure freshness
       const newPlaylist = [...this.state.playlist];
       newPlaylist[existingIndex] = item;
       this.setState({ playlist: newPlaylist });
@@ -811,4 +805,11 @@ class AudioEngine {
   }
 }
 
-export const audioEngine = new AudioEngine();
+// Lazy-initialized singleton pattern
+let instance: AudioEngine | null = null;
+export const audioEngine = (): AudioEngine => {
+    if (!instance) {
+        instance = new AudioEngine();
+    }
+    return instance;
+};

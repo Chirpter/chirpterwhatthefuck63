@@ -68,7 +68,8 @@ export interface AudioPlayerContextType extends AudioEngineState {
   isPlaying: boolean;
   isPaused: boolean;
   isLoading: boolean;
-  currentPlayingItem: (PlaylistItem & { itemId: string, originLanguages: string }) | null;
+  // ✅ FIX: Renamed itemId to id for consistency with PlaylistItem type
+  currentPlayingItem: (PlaylistItem & { originLanguages: string }) | null;
   overallProgressPercentage: number;
   chapterProgressPercentage: number;
   canGoNext: boolean;
@@ -134,25 +135,26 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
   const { user } = useUser();
   const { toast } = useToast();
   const { t } = useTranslation(['playlist', 'common', 'toast']);
+  const engine = audioEngine(); // Get the singleton instance
 
   // UI state (not managed by engine)
   const [playerState, setPlayerState] = useState<'expanded' | 'collapsed'>('collapsed');
 
   // Engine state (single source of truth)
   const [engineState, setEngineState] = useState<AudioEngineState>(
-    audioEngine.getState()
+    engine.getState()
   );
 
   // Subscribe to engine updates
   useEffect(() => {
-    const unsubscribe = audioEngine.subscribe(setEngineState);
+    const unsubscribe = engine.subscribe(setEngineState);
     return unsubscribe;
-  }, []);
+  }, [engine]);
 
   // Provide dependencies to the engine
   useEffect(() => {
-    audioEngine.setDependencies({ user, toast, t });
-  }, [user, toast, t]);
+    engine.setDependencies({ user, toast, t });
+  }, [user, toast, t, engine]);
 
   // Auto-expand player when playback starts
   useEffect(() => {
@@ -176,7 +178,6 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
     // ✅ FIX: Ensure originLanguages always has a valid fallback value ('en').
     const currentPlayingItem = rawCurrentItem ? {
         ...rawCurrentItem,
-        itemId: rawCurrentItem.id,
         originLanguages: rawCurrentItem.origin || rawCurrentItem.primaryLanguage || 'en',
     } : null;
 
@@ -187,7 +188,7 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
     const canGoNext = position.playlistIndex < playlist.length - 1;
     const canGoPrevious = position.playlistIndex > 0;
     
-    const overallProgressPercentage = audioEngine.progress;
+    const overallProgressPercentage = engine.progress;
     const chapterProgressPercentage = 0; // Simplified
 
     return {
@@ -199,11 +200,11 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
       canGoPrevious,
       overallProgressPercentage,
       chapterProgressPercentage,
-      availableSystemVoices: audioEngine.availableVoices,
-      currentSpokenSegmentLang: audioEngine.currentSegmentLanguage,
+      availableSystemVoices: engine.availableVoices,
+      currentSpokenSegmentLang: engine.currentSegmentLanguage,
       currentSpeechBoundary: position.wordBoundary,
     };
-  }, [engineState]);
+  }, [engineState, engine]);
 
   // ============================================
   // COMMAND FUNCTIONS (Delegate to engine)
@@ -216,30 +217,30 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
         options?: { chapterIndex?: number; segmentIndex?: number }
       ) => {
         const playlistItem = ensurePlaylistItem(itemToPlay);
-        audioEngine.play(playlistItem, options);
+        engine.play(playlistItem, options);
       },
       
-      pauseAudio: () => audioEngine.pause(),
+      pauseAudio: () => engine.pause(),
       
-      resumeAudio: () => audioEngine.resume(),
+      resumeAudio: () => engine.resume(),
       
       stopAudio: () => {
-        audioEngine.stop();
+        engine.stop();
         setPlayerState('collapsed');
       },
       
-      skipToNextItem: () => audioEngine.nextTrack(),
+      skipToNextItem: () => engine.nextTrack(),
       
-      skipToPreviousItem: () => audioEngine.previousTrack(),
+      skipToPreviousItem: () => engine.previousTrack(),
       
-      seekToSegment: (index: number) => audioEngine.seekToSegment(index),
+      seekToSegment: (index: number) => engine.seekToSegment(index),
       
-      skipForward: () => audioEngine.skipForward(),
+      skipForward: () => engine.skipForward(),
       
-      skipBackward: () => audioEngine.skipBackward(),
+      skipBackward: () => engine.skipBackward(),
       
       replay: () => {
-        audioEngine.seekToSegment(engineState.position.segmentIndex);
+        engine.seekToSegment(engineState.position.segmentIndex);
       },
       
       speakTextSnippet: (text: string, lang: string, onEnd?: () => void) => {
@@ -250,50 +251,54 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
       
       addBookToPlaylist: (book: LibraryItem) => {
         const playlistItem = ensurePlaylistItem(book);
-        audioEngine.addToPlaylist(playlistItem);
+        engine.addToPlaylist(playlistItem);
       },
       
       addVocabFolderToPlaylist: (folderId: string, folderName: string) => {
-        audioEngine.addToPlaylist({ 
+        engine.addToPlaylist({ 
           type: 'vocab', 
           id: folderId, 
           title: folderName,
           data: {},
+          primaryLanguage: 'en', // default, vocab engine will determine actual
+          availableLanguages: [],
         });
       },
       
       playVocabFolder: (folderId: string, folderName: string) => {
-        audioEngine.play({ 
+        engine.play({ 
           type: 'vocab', 
           id: folderId, 
           title: folderName,
           data: {},
+          primaryLanguage: 'en', // default
+          availableLanguages: [],
         });
       },
       
       removePlaylistItem: (itemId: string) => {
-        audioEngine.removeFromPlaylist(itemId);
+        engine.removeFromPlaylist(itemId);
       },
       
       clearPlaylist: () => {
-        audioEngine.clearPlaylist();
+        engine.clearPlaylist();
         setPlayerState('collapsed');
       },
       
-      setRepeatMode: (mode: 'off' | 'item') => audioEngine.setRepeatMode(mode),
+      setRepeatMode: (mode: 'off' | 'item') => engine.setRepeatMode(mode),
       
-      setPlaylistRepeatMode: (mode: 'off' | 'all') => audioEngine.setPlaylistRepeatMode(mode),
+      setPlaylistRepeatMode: (mode: 'off' | 'all') => engine.setPlaylistRepeatMode(mode),
       
-      setTtsRate: (rate: number) => audioEngine.setTtsRate(rate),
+      setTtsRate: (rate: number) => engine.setTtsRate(rate),
       
-      setTtsPitch: (pitch: number) => audioEngine.setTtsPitch(pitch),
+      setTtsPitch: (pitch: number) => engine.setTtsPitch(pitch),
       
       setVoiceForLanguage: (lang: string, voiceURI: string) => 
-        audioEngine.setVoiceForLanguage(lang, voiceURI),
+        engine.setVoiceForLanguage(lang, voiceURI),
       
-      setSleepTimer: (duration: number | null) => audioEngine.setSleepTimer(duration),
+      setSleepTimer: (duration: number | null) => engine.setSleepTimer(duration),
     }),
-    [engineState.position.segmentIndex]
+    [engineState.position.segmentIndex, engine]
   );
 
   // ============================================

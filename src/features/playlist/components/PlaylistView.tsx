@@ -48,7 +48,8 @@ export default function PlaylistView() {
   const [activeDisplayId, setActiveDisplayId] = useState<string | null>(null);
 
   const itemForDisplay = useMemo(() => {
-    const currentPlayingId = currentPlayingItem?.itemId;
+    // ✅ FIX: Use `id` instead of `itemId` for consistency
+    const currentPlayingId = currentPlayingItem?.id;
     if (currentPlayingId) {
         const playingItem = playlist.find(p => p.id === currentPlayingId);
         if (playingItem) return playingItem;
@@ -62,15 +63,17 @@ export default function PlaylistView() {
 
 
   useEffect(() => {
-    const currentPlayingId = currentPlayingItem?.itemId;
+    // ✅ FIX: Use `id` instead of `itemId`
+    const currentPlayingId = currentPlayingItem?.id;
     if (currentPlayingId) {
         setActiveDisplayId(currentPlayingId);
     }
-  }, [currentPlayingItem?.itemId]);
+  }, [currentPlayingItem?.id]);
 
   const handlePlayFromPlaylist = (item: TPlaylistItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (currentPlayingItem?.itemId === item.id && isPlaying) {
+    // ✅ FIX: Use `id` instead of `itemId`
+    if (currentPlayingItem?.id === item.id && isPlaying) {
       pauseAudio();
     } else {
       startPlayback(item);
@@ -191,7 +194,8 @@ export default function PlaylistView() {
                                 const itemId = item.id;
                                 const itemTitle = (item.data as Book)?.title?.primary || item.title;
                                 
-                                const isCurrentlyPlaying = currentPlayingItem?.itemId === itemId && isPlaying;
+                                // ✅ FIX: Use `id` instead of `itemId`
+                                const isCurrentlyPlaying = currentPlayingItem?.id === itemId && isPlaying;
                                 const selectedId = itemForDisplay?.id;
                                 const isSelected = selectedId === itemId;
 
