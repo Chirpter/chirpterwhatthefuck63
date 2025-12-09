@@ -183,3 +183,5 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
         throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE');
     }
 }
+
+    
