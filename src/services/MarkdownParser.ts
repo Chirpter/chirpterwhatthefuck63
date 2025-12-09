@@ -193,7 +193,10 @@ export function parseMarkdownToSegments(
               const headingDepth = (contentNode as any).depth || 1;
               
               if (headingText) {
-                const titleParts = headingText.split(/\s*[\/|]\s*/).map(p => p.trim());
+                // ✅ REFINED: Remove "Chapter X:" prefix from heading text before processing
+                const cleanHeadingText = headingText.replace(/^Chapter\s*\d+\s*:\s*/i, '');
+                
+                const titleParts = cleanHeadingText.split(/\s*[\/|]\s*/).map(p => p.trim());
                 const contentObj: ChapterTitle = {
                   [primaryLanguage]: titleParts[0],
                 };
