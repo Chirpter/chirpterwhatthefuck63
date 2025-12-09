@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -24,7 +25,7 @@ import { getFavoritesKey } from '@/lib/utils';
 
 const JOB_TIMEOUT_MS = 180000;
 const MAX_CHAPTER_COUNT = 15;
-const DEFAULT_BOOK_PROMPT = "A fantasy story about a lost dragon finding its way home. Title: Home";
+const DEFAULT_BOOK_PROMPT = "A fantasy story about a lost dragon finding its way home.";
 const DEFAULT_PIECE_PROMPT = "A short, motivational quote about perseverance.";
 
 interface UseCreationJobProps {
@@ -119,16 +120,10 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     return contentCost + coverCost;
   }, [type, mode, formData]);
 
-  /**
-   * TÍN HIỆU TỔNG QUÁT: `isBusy` là tín hiệu UI chính, cho biết hệ thống đang bận.
-   * Nó bật ON từ khi bắt đầu gửi yêu cầu (`isSubmitting`) và chỉ tắt OFF khi có kết quả cuối cùng (`finalizedId`).
-   */
   const isBusy = isSubmitting || (!!activeId && !finalizedId);
   
-  // PRE-CHECK 6: Kiểm tra số dư credit.
   const canGenerate = useMemo(() => user ? user.credits >= creditCost : false, [user, creditCost]);
 
-  // PRE-CHECK 2: Kiểm tra độ dài prompt.
   const promptError = useMemo(() => {
     if (formData.aiPrompt.length > MAX_PROMPT_LENGTH) {
       return 'too_long';
@@ -136,21 +131,16 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     return null;
   }, [formData.aiPrompt]);
 
-  // TỔNG HỢP TẤT CẢ CÁC BƯỚC PRE-CHECK
-  // Biến này trả về một chuỗi thông báo lỗi nếu có, hoặc chuỗi rỗng nếu mọi thứ hợp lệ.
   const validationMessage = useMemo(() => {
     const trimmedPrompt = formData.aiPrompt.trim();
-    // PRE-CHECK 1: Kiểm tra prompt có trống không.
     if (mode !== 'addChapters' && isPromptDefault) {
-      // Bỏ qua nếu là prompt mặc định
+      // Allow default prompt
     } else if (trimmedPrompt.length === 0) {
       return t('formErrors.prompt.empty');
     }
-    // (Kết hợp với Pre-check 2)
     if (promptError) {
       return t('formErrors.prompt.tooLong');
     }
-    // PRE-CHECK 3: Kiểm tra cấu hình ngôn ngữ.
     if (formData.availableLanguages.length > 1 && !formData.availableLanguages.find(l => l !== formData.primaryLanguage)) {
         return t('formErrors.language.secondaryMissing');
     }
@@ -158,18 +148,16 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
         return t('formErrors.language.sameLanguage');
     }
     if (type === 'book') {
-        // PRE-CHECK 4: Kiểm tra số lượng chương.
         const isChapterCountValid = formData.targetChapterCount >= minChaptersForCurrentLength && formData.targetChapterCount <= MAX_CHAPTER_COUNT;
         if (!isChapterCountValid) {
             return t('formErrors.chapters.outOfRange', { min: minChaptersForCurrentLength, max: MAX_CHAPTER_COUNT });
         }
-        // PRE-CHECK 5: Kiểm tra việc tải lên ảnh bìa.
         const isCoverValid = formData.coverImageOption !== 'upload' || (isProUser && !!formData.coverImageFile);
         if (!isCoverValid && formData.coverImageOption === 'upload') {
             return t('formErrors.cover.uploadMissing');
         }
     }
-    return ''; // Mọi thứ hợp lệ.
+    return '';
   }, [formData, type, mode, isProUser, minChaptersForCurrentLength, isPromptDefault, t, promptError]);
 
   // --- CALLBACKS & HANDLERS ---
@@ -199,7 +187,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     }
     
     setFormData(prev => {
-        const newState = { ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value };
+        let newState = { ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value };
         
         // This logic handles boolean 'isBilingual' and updates `availableLanguages`
         if (name === 'isBilingual') {
@@ -216,20 +204,16 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
         // Update origin based on availableLanguages and format
         const [primary, secondary] = newState.availableLanguages;
         let originString = primary || 'en';
-        if (secondary) {
-            originString += `-${secondary}`;
-            // Preserve the phrase format if it was toggled
-            if (prev.origin.endsWith('-ph')) {
-                originString += '-ph';
-            }
-        }
         
-        // Handle phrase mode toggle
-        if (name === 'origin' && secondary) {
-            if (prev.origin.endsWith('-ph')) {
-                originString = `${primary}-${secondary}`;
-            } else {
-                originString = `${primary}-${secondary}-ph`;
+        if (name === 'origin') { // This is how phrase mode is toggled
+            const currentFormat = prev.origin.split('-')[2];
+            const base = secondary ? `${primary}-${secondary}` : primary;
+            originString = currentFormat === 'ph' ? base : `${base}-ph`;
+        } else if (secondary) {
+            originString = `${primary}-${secondary}`;
+            const previousFormat = prev.origin.split('-')[2];
+            if (previousFormat === 'ph') {
+                originString += '-ph';
             }
         }
         
@@ -313,13 +297,10 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     });
   }, []);
 
-  // HÀM GỬI YÊU CẦU LÊN SERVER
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    // Chỉ gửi nếu tất cả các Pre-check đều đã qua
     if (isSubmitting || !user || !!validationMessage || !canGenerate) return;
     
-    // Bật trạng thái 'đang gửi' (isSubmitting)
     setIsSubmitting(true);
     setFinalizedId(null);
     clearJobTimeout();
@@ -327,25 +308,14 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
 
     try {
         if (type === 'book') {
-            if (mode === 'addChapters' && editingBookId) {
-                // Logic for adding chapters to an existing book
-            } else {
-                // Gọi hàm server-side và chờ nó trả về ID ngay lập tức
-                jobId = await generateBookContent(user.uid, formData);
-            }
-        } else { // Piece
-            const contentInput: GeneratePieceInput = {
-                userPrompt: formData.aiPrompt,
-                origin: formData.origin,
-            };
-            jobId = await createPieceAndStartGeneration(user.uid, formData as PieceFormValues, contentInput);
+            jobId = await generateBookContent(user.uid, formData);
+        } else {
+            jobId = await createPieceAndStartGeneration(user.uid, formData as PieceFormValues);
         }
         
-        // Nhận được ID, bắt đầu theo dõi
         setActiveId(jobId);
         sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
 
-        // Đặt một bộ đếm thời gian an toàn. Nếu quá lâu không có kết quả, sẽ báo lỗi.
         jobTimeoutRef.current = setTimeout(async () => {
           if (user && jobId && !finalizedId) {
             toast({ title: t('toast:jobTimeoutTitle'), description: t('toast:jobTimeoutDesc'), variant: 'destructive' });
@@ -361,7 +331,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
         setActiveId(null);
         clearJobTimeout();
     }
-  }, [formData, type, mode, editingBookId, isSubmitting, user, validationMessage, canGenerate, t, toast, clearJobTimeout, reset, finalizedId]);
+  }, [formData, type, isSubmitting, user, validationMessage, canGenerate, t, toast, clearJobTimeout, reset, finalizedId]);
 
   // --- EFFECTS ---
 
@@ -404,7 +374,6 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     }
   }, [user, finalizedId, activeId]);
 
-  // LẮNG NGHE SỰ THAY ĐỔI TỪ SERVER
   useEffect(() => {
     if (!user || !activeId) {
       clearJobTimeout();
@@ -414,16 +383,13 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const item = { id: docSnap.id, ...docSnap.data() } as LibraryItem;
-        // Cập nhật jobData, điều này sẽ kích hoạt re-render và cập nhật animation.
         setJobData(item);
         
-        // Kiểm tra xem job đã hoàn thành chưa
         const isDone = item.contentState !== 'processing' && (item.type === 'piece' || (item as Book).coverState !== 'processing');
         
         if (isDone) {
           if (user) sessionStorage.removeItem(`activeJobId_${user.uid}`);
           clearJobTimeout();
-          // Đặt finalizedId để báo hiệu kết thúc, dừng animation "bận".
           setFinalizedId(item.id);
           if (isSubmitting) setIsSubmitting(false);
         }
@@ -436,7 +402,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
   }, [user, activeId, isSubmitting, clearJobTimeout, reset, type]);
   
   useEffect(() => {
-    // Prefill form for "add chapters" mode
+    // This effect can be expanded to prefill form for "add chapters" mode
   }, [mode, editingBookId, t, toast, router, user]);
 
   return {
@@ -470,3 +436,4 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
   };
 };
 
+    
