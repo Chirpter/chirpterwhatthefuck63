@@ -1,4 +1,3 @@
-
 // src/services/vocabulary-service.ts
 'use server'; // This directive applies to syncVocabularyBatch only. Other functions are client-side.
 
@@ -243,8 +242,8 @@ export async function getVocabularyItemsPaginated(
         );
     }
     
-    const sortedCollection = query.sortBy(sortBy);
-    const sortedItems = sortOrder === 'desc' ? (await sortedCollection).reverse() : await sortedCollection;
+    const sortedCollection = query.orderBy(sortBy);
+    const sortedItems = sortOrder === 'desc' ? await sortedCollection.reverse().toArray() : await sortedCollection.toArray();
 
     const totalCount = sortedItems.length;
     const paginatedItems = sortedItems.slice(offset, offset + limit);
@@ -294,25 +293,6 @@ export async function getSrsStateCounts(userId: string): Promise<Record<SrsState
         return counts;
     } catch (error) {
         handleVocabularyError(error, 'getSrsStateCounts', VocabularyErrorCode.DB_QUERY_FAILED);
-    }
-}
-
-export async function getFoldersBySrsState(userId: string, srsState: SrsState): Promise<{ id: string; name: string; count: number }[]> {
-    const localDb = getLocalDbForUser(userId);
-    try {
-        const items = await localDb.vocabulary.where({ userId, srsState }).toArray();
-        const folderMap = new Map<string, number>();
-        items.forEach(item => {
-            const folder = resolveFolderForDisplay(item.folder);
-            folderMap.set(folder, (folderMap.get(folder) || 0) + 1);
-        });
-        return Array.from(folderMap.entries()).map(([name, count]) => ({
-            id: name,
-            name: name === FOLDER_CONSTANTS.UNORGANIZED ? 'Unorganized' : name,
-            count,
-        }));
-    } catch (error) {
-        handleVocabularyError(error, 'getFoldersBySrsState', VocabularyErrorCode.DB_QUERY_FAILED);
     }
 }
 

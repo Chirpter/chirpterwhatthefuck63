@@ -1,4 +1,3 @@
-
 // src/services/local-database.ts
 import Dexie, { type Table } from 'dexie';
 import type { VocabularyItem, SystemBookmark } from '@/lib/types';
