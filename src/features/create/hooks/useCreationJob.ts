@@ -185,43 +185,50 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     if (name === 'coverImageAiPrompt') {
       coverPromptManuallyEditedRef.current = true;
     }
-    
+  
     setFormData(prev => {
-        let newState = { ...prev, [name]: typeof value === 'function' ? value(prev[name]) : value };
-        
-        // This logic handles boolean 'isBilingual' and updates `availableLanguages`
-        if (name === 'isBilingual') {
-            const isBilingual = value;
-            const primaryLang = newState.primaryLanguage;
-            newState.availableLanguages = isBilingual ? [primaryLang, prev.availableLanguages[1] || ''] : [primaryLang];
-        } else if (name === 'secondaryLanguage') {
-            newState.availableLanguages = [newState.primaryLanguage, value];
-        } else if (name === 'primaryLanguage') {
-            const secondary = prev.availableLanguages.length > 1 ? prev.availableLanguages[1] : '';
-            newState.availableLanguages = [value, secondary];
+      const newState = { ...prev, [name]: value };
+  
+      // --- REFACTORED AND CORRECTED LOGIC ---
+      let isBilingual = newState.availableLanguages.length > 1;
+      let primaryLang = newState.primaryLanguage;
+      let secondaryLang = newState.availableLanguages.find(l => l !== primaryLang);
+      let isPhrase = prev.origin.endsWith('-ph');
+  
+      if (name === 'isBilingual') {
+        isBilingual = value;
+        if (!isBilingual) {
+          secondaryLang = undefined;
+        } else if (!secondaryLang) {
+          // Find a default secondary language if one isn't set
+          secondaryLang = LANGUAGES.find(l => l.value !== primaryLang)?.value;
         }
-        
-        // Update origin based on availableLanguages and format
-        const [primary, secondary] = newState.availableLanguages;
-        let originString = primary || 'en';
-        
-        if (name === 'origin') { // This is how phrase mode is toggled
-            const currentFormat = prev.origin.split('-')[2];
-            const base = secondary ? `${primary}-${secondary}` : primary;
-            originString = currentFormat === 'ph' ? base : `${base}-ph`;
-        } else if (secondary) {
-            originString = `${primary}-${secondary}`;
-            const previousFormat = prev.origin.split('-')[2];
-            if (previousFormat === 'ph') {
-                originString += '-ph';
-            }
+      } else if (name === 'primaryLanguage') {
+        primaryLang = value;
+        if (isBilingual && primaryLang === secondaryLang) {
+          // If primary is set to be the same as secondary, find a new secondary
+          secondaryLang = LANGUAGES.find(l => l.value !== primaryLang)?.value;
         }
-        
-        newState.origin = originString;
-
-        return newState;
+      } else if (name === 'secondaryLanguage') {
+        secondaryLang = value;
+      } else if (name === 'origin') { // Toggles phrase mode
+        isPhrase = !isPhrase;
+      }
+  
+      newState.primaryLanguage = primaryLang;
+      newState.availableLanguages = isBilingual && secondaryLang ? [primaryLang, secondaryLang] : [primaryLang];
+      
+      let originString = primaryLang;
+      if (isBilingual && secondaryLang) {
+        originString = `${primaryLang}-${secondaryLang}`;
+      }
+      if (isPhrase) {
+        originString += '-ph';
+      }
+      newState.origin = originString;
+  
+      return newState;
     });
-
   }, []);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -435,3 +442,5 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     promptError,
   };
 };
+
+    
