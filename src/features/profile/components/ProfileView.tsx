@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useRef, useMemo } from 'react';
@@ -74,7 +75,7 @@ interface JourneyTreeProps {
 const JourneyTree: React.FC<JourneyTreeProps> = ({ userLevel, userGender }) => {
   // TODO: Add logic to select the correct SVG based on userLevel.
   // For now, it's a placeholder.
-  const treeState = `Level ${userLevel}`;
+  const treeState = `Level ${'${userLevel}'}`;
   const character = userGender === 'female' ? 'Girl' : 'Boy';
 
   return (
@@ -146,7 +147,7 @@ const TimelinePost = ({ icon, title, description, children }: { icon: any, title
 
 
 export default function ProfileView() {
-    const { user, loading, reloadUser } = useUser();
+    const { user, loading, reloadUser, authUser } = useUser();
     const { toast } = useToast();
     const [isUploading, setIsUploading] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -188,7 +189,7 @@ export default function ProfileView() {
     };
 
 
-    if (loading || !user) {
+    if (loading || !user || !authUser) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Icon name="Loader2" className="h-12 w-12 animate-spin text-primary" />
@@ -236,7 +237,7 @@ export default function ProfileView() {
                                     <div className="relative flex-shrink-0 cursor-pointer">
                                         <div className={cn("rounded-full border-4 border-background", levelStyles.frameClasses)}>
                                             <Avatar className="h-24 w-24 md:h-32 md:w-32">
-                                                <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'User'} />
+                                                <AvatarImage src={authUser.photoURL || ''} alt={user.displayName || 'User'} />
                                                 <AvatarFallback className="text-4xl">{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                         </div>
@@ -250,7 +251,7 @@ export default function ProfileView() {
                                         <DialogTitle className="text-center font-headline">{user.displayName}'s Profile Photo</DialogTitle>
                                     </DialogHeader>
                                     <div className="aspect-square w-full rounded-lg overflow-hidden my-4 relative">
-                                        <Image src={user.photoURL || 'https://placehold.co/400x400.png'} alt={user.displayName || 'User'} layout="fill" objectFit="cover" />
+                                        <Image src={authUser.photoURL || 'https://placehold.co/400x400.png'} alt={user.displayName || 'User'} layout="fill" objectFit="cover" />
                                     </div>
                                     <Button className="w-full" onClick={() => avatarInputRef.current?.click()} disabled={isUploading}>
                                         {isUploading ? <Icon name="Loader2" className="h-4 w-4 animate-spin mr-2" /> : <Icon name="Image" className="h-4 w-4 mr-2" />}

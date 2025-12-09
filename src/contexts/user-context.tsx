@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef } from 'react';
@@ -18,6 +19,7 @@ export interface LevelUpInfo {
 
 interface UserContextType {
   user: User | null;
+  authUser: FirebaseUser | null; // Expose authUser here
   loading: boolean;
   error: string | null;
   levelUpInfo: LevelUpInfo | null;
@@ -86,12 +88,12 @@ async function createOrFetchUserProfile(authUserData: FirebaseUser): Promise<{ u
         const todayUtcString = new Date().toISOString().split('T')[0];
         const sanitizedDisplayName = authUserData.displayName 
             ? authUserData.displayName.replace(/[^\p{L}\p{N}\s]/gu, '').trim()
-            : `User-${authUserData.uid.substring(0, 5)}`;
+            : `User-${'${authUserData.uid.substring(0, 5)}'}`;
             
         const newUser: User = {
             uid: authUserData.uid,
             email: authUserData.email, 
-            displayName: sanitizedDisplayName || `User-${authUserData.uid.substring(0, 5)}`,
+            displayName: sanitizedDisplayName || `User-${'${authUserData.uid.substring(0, 5)}'}`,
             photoURL: authUserData.photoURL,
             coverPhotoURL: '',
             isAnonymous: authUserData.isAnonymous || false,
@@ -169,14 +171,15 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [authUser, fetchUser]);
 
-  const value = {
+  const value: UserContextType = {
     user,
+    authUser, // Expose authUser through this context
     loading: authLoading || loading,
     error,
     levelUpInfo,
     clearLevelUpInfo,
     reloadUser,
-    retryUserFetch: reloadUser, // Now they are the same
+    retryUserFetch: reloadUser,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
