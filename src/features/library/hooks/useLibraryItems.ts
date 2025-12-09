@@ -36,7 +36,9 @@ export const useLibraryItems = ({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [lastDoc, setLastDoc] = useState<DocumentData | null>(null);
+  
+  // FIX: Use useRef for lastDoc to prevent infinite loop.
+  const lastDocRef = useRef<DocumentData | null>(null);
   
   const pageRef = useRef(1); // For vocabulary pagination
   const isFetchingRef = useRef(false);
@@ -47,7 +49,7 @@ export const useLibraryItems = ({
     isFetchingRef.current = true;
     if (isInitialLoad) {
       setIsLoading(true);
-      setLastDoc(null);
+      lastDocRef.current = null; // Reset pagination cursor
       setItems([]);
       pageRef.current = 1;
     } else {
@@ -55,8 +57,7 @@ export const useLibraryItems = ({
     }
     setError(null);
 
-    // --- DEBUG LOGGING ---
-    console.log(`[useLibraryItems] Fetching... Initial: ${isInitialLoad}, Type: ${contentType || 'all'}, Status: ${status}, LastDoc: ${lastDoc ? 'Yes' : 'No'}`);
+    console.log(`[useLibraryItems] Fetching... Initial: ${isInitialLoad}, Type: ${contentType || 'all'}, Status: ${status}, LastDoc: ${lastDocRef.current ? 'Yes' : 'No'}`);
 
     try {
       let result;
@@ -77,11 +78,10 @@ export const useLibraryItems = ({
           contentType,
           status,
           limit,
-          startAfter: isInitialLoad ? null : lastDoc,
+          startAfter: isInitialLoad ? null : lastDocRef.current,
         });
-        // ✅ FIX: Use the modified serializable data for setting lastDoc
         result = { items: libResult.items, hasMore: !!libResult.lastDoc };
-        setLastDoc(libResult.lastDoc);
+        lastDocRef.current = libResult.lastDoc; // Update the ref
       }
       
       console.log(`[useLibraryItems] Fetched ${result.items.length} items. Has More: ${result.hasMore}`);
@@ -89,7 +89,6 @@ export const useLibraryItems = ({
       setHasMore(result.hasMore);
 
     } catch (err: any) {
-      // --- DEBUG LOGGING ---
       console.error(`[useLibraryItems] Failed to fetch ${contentType || 'items'}:`, err);
       setError(err);
     } finally {
@@ -97,11 +96,11 @@ export const useLibraryItems = ({
       setIsLoadingMore(false);
       isFetchingRef.current = false;
     }
-  }, [user, enabled, contentType, status, limit, folder, searchTerm, lastDoc]);
+  }, [user, enabled, contentType, status, limit, folder, searchTerm]); // REMOVED lastDoc from dependencies
   
   useEffect(() => {
     fetchItems(true);
-  }, [fetchItems]); // fetchItems now correctly memoizes all its dependencies
+  }, [fetchItems]);
 
   const loadMoreItems = useCallback(() => {
     if (hasMore && !isLoadingMore) {
