@@ -51,6 +51,8 @@ function splitIntoSentences(text: string): string[] {
  */
 function splitSentenceIntoPhrases(sentence: string): string[] {
     if (!sentence) return [];
+    // This regex matches any sequence of characters that are not a comma or semicolon,
+    // optionally followed by a comma or semicolon. It effectively splits by these delimiters.
     return sentence.match(/[^,;]+[,;]?/g) || [sentence];
 }
 
@@ -133,11 +135,15 @@ export function parseMarkdownToSegments(
             metadata: { isNewPara: index === 0 },
          };
 
+         // If in phrase mode and bilingual, parse phrases for this segment
          if (secondaryLanguage && isPhraseMode) {
             const secondaryText = sentencePair[secondaryLanguage] || '';
-            segment.phrases = splitSentenceIntoPhrases(primaryText).map((phrase, i) => ({
+            const primaryPhrases = splitSentenceIntoPhrases(primaryText);
+            const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
+            
+            segment.phrases = primaryPhrases.map((phrase, i) => ({
                 [primaryLanguage]: phrase.trim(),
-                [secondaryLanguage as string]: (splitSentenceIntoPhrases(secondaryText)[i] || '').trim()
+                [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim()
             }));
          }
          
@@ -166,11 +172,24 @@ export function parseBookMarkdown(
     let bookTitleText = 'Untitled Book';
     let contentStartIndex = 0;
 
-    // 1. Extract Book Title (H1)
-    const titleIndex = lines.findIndex(line => line.trim().startsWith('# '));
-    if (titleIndex !== -1) {
-        bookTitleText = lines[titleIndex].substring(2).trim();
-        contentStartIndex = titleIndex + 1;
+    // 1. Extract Book Title (look for H1 first, then H3 as fallback)
+    let titleLineIndex = lines.findIndex(line => line.trim().startsWith('# '));
+    let titlePrefix = '# ';
+    if (titleLineIndex === -1) {
+        titleLineIndex = lines.findIndex(line => line.trim().startsWith('### '));
+        titlePrefix = '### ';
+    }
+    
+    if (titleLineIndex !== -1) {
+        bookTitleText = lines[titleLineIndex].substring(titlePrefix.length).trim();
+        contentStartIndex = titleLineIndex + 1;
+    } else {
+        // Fallback: use the first non-empty line as the title
+        const firstNonEmptyLineIndex = lines.findIndex(line => line.trim() !== '');
+        if (firstNonEmptyLineIndex !== -1) {
+            bookTitleText = lines[firstNonEmptyLineIndex].trim();
+            contentStartIndex = firstNonEmptyLineIndex + 1;
+        }
     }
 
     const contentWithoutTitle = lines.slice(contentStartIndex).join('\n').trim();
@@ -211,12 +230,13 @@ export function parseBookMarkdown(
     }).filter(ch => ch.title[primaryLanguage] || ch.segments.length > 0); // Filter out empty chapters
 
     // 4. Finalize book title object
-    const finalBookTitle: MultilingualContent = { [primaryLanguage]: bookTitleText };
+    const finalBookTitle: MultilingualContent = {};
+    const titleParts = bookTitleText.split(/\s*[\/|]\s*/).map(t => t.trim());
+    finalBookTitle[primaryLanguage] = titleParts[0] || 'Untitled';
     if (secondaryLanguage) {
-        const titles = bookTitleText.split(/\s*[\/|]\s*/).map(t => t.trim());
-        finalBookTitle[primaryLanguage] = titles[0] || 'Untitled';
-        finalBookTitle[secondaryLanguage] = titles[1] || titles[0] || 'Untitled';
+        finalBookTitle[secondaryLanguage] = titleParts[1] || titleParts[0] || 'Chưa có tiêu đề';
     }
+
 
     return { title: finalBookTitle, chapters };
 }

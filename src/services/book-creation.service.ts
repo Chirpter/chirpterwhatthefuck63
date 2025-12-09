@@ -18,16 +18,13 @@ import { z } from 'genkit';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS, MAX_IMAGE_SIZE_BYTES } from '@/lib/constants';
 import sharp from 'sharp';
 
-// The output schema is now extremely simple, expecting just one field.
 const BookOutputSchema = z.object({
   markdownContent: z.string().describe("A single, unified Markdown string that contains the entire book content, including the book title (as a Level 1 heading) and all chapters (as Level 2 headings)."),
 });
 
-// The input schema is also simplified.
 const BookPromptInputSchema = z.object({
     fullInstruction: z.string(),
 });
-
 
 /**
  * The main pipeline for processing book generation. It runs content and cover generation in parallel.
@@ -165,27 +162,28 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
     const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookLength);
     const wordsPerChapter = Math.round(((bookLengthOption?.defaultChapters || 3) * 200) / (contentInput.chaptersToGenerate || 3));
 
-    const [primaryLanguage, secondaryLanguage] = origin.split('-');
+    const [primaryLanguage, secondaryLanguage, format] = origin.split('-');
     
-    // Construct the instruction based on whether it's a full book or a partial one (outline)
     const bookTypeInstruction = (generationScope === 'full' || !contentInput.totalChapterOutlineCount) ? 'full-book' : 'partial-book';
 
-    const criticalInstructions = [
-        `- Write a complete book with exactly ${contentInput.chaptersToGenerate} chapters.`,
-        `- Each chapter should be about ${wordsPerChapter} words.`
-    ];
+    const criticalInstructions: string[] = [];
 
-    if (bookTypeInstruction === 'partial-book') {
-        criticalInstructions[0] = `- Create a complete book outline with exactly ${contentInput.totalChapterOutlineCount} chapters.`;
-        criticalInstructions.splice(1, 0, `- Write the full Markdown content for ONLY THE FIRST ${contentInput.chaptersToGenerate} chapters.`);
-        criticalInstructions.splice(2, 0, `- For the remaining chapters (from chapter ${contentInput.chaptersToGenerate + 1} to ${contentInput.totalChapterOutlineCount}), only write their Markdown heading.`);
+    if (bookTypeInstruction === 'partial-book' && contentInput.totalChapterOutlineCount) {
+        criticalInstructions.push(`- Create a complete book outline with exactly ${contentInput.totalChapterOutlineCount} chapters.`);
+        criticalInstructions.push(`- Write the full Markdown content for ONLY THE FIRST ${contentInput.chaptersToGenerate} chapters.`);
+        criticalInstructions.push(`- For the remaining chapters (from chapter ${contentInput.chaptersToGenerate + 1} to ${contentInput.totalChapterOutlineCount}), only write their Markdown heading.`);
+    } else {
+        criticalInstructions.push(`- Write a complete book with exactly ${contentInput.chaptersToGenerate} chapters.`);
     }
+    criticalInstructions.push(`- Each chapter should be about ${wordsPerChapter} words.`);
 
     if (secondaryLanguage) {
         const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
+        const pairingUnit = format === 'ph' ? 'phrases' : 'sentences';
+        
         criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading (e.g., '# My Book Title / Tiêu đề sách').`);
-        criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using ' / ' as a separator.`);
+        criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with ${pairingUnit} paired using ' / ' as a separator.`);
     } else {
         const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         criticalInstructions.push(`- Write all content and titles in ${langLabel}.`);
@@ -201,7 +199,7 @@ ${criticalInstructions.join('\n')}
 `.trim();
 
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateUnifiedBookMarkdown_v4',
+        name: 'generateUnifiedBookMarkdown_v5',
         input: { schema: BookPromptInputSchema },
         output: { schema: BookOutputSchema },
         prompt: `{{{fullInstruction}}}`,
@@ -214,7 +212,6 @@ ${criticalInstructions.join('\n')}
           throw new ApiServiceError('AI returned empty or invalid content.', "UNKNOWN");
         }
         
-        // Use the new central parser to handle everything
         const { title: parsedTitle, chapters: finalChapters } = parseBookMarkdown(aiOutput.markdownContent, origin);
         
         return {
