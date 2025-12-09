@@ -122,7 +122,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
 
     const workData = await adminDb.runTransaction(async (transaction) => {
         const workSnap = await transaction.get(workDocRef);
-        if (!workSnap.exists()) throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
+        if (!workSnap.exists) throw new ApiServiceError("Work not found for content regeneration.", "UNKNOWN");
         
         const workData = workSnap.data() as Piece;
         if (!newPrompt && (workData.contentRetryCount || 0) >= MAX_RETRY_COUNT) {

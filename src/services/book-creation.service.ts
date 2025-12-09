@@ -19,27 +19,25 @@ import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS, MAX_IMAGE_SIZE_BYTES
 import sharp from 'sharp';
 
 /**
- * REFACTORED (v3): The simplest, most robust output schema yet.
- * - Titles are now simple strings.
- * - The server is responsible for wrapping them in the MultilingualContent object,
- *   which is more reliable than asking the AI to format JSON keys correctly.
+ * REFACTORED (v5): Final, user-approved prompt structure.
+ * This is the simplest and most robust approach. The AI is asked for two simple strings,
+ * and the server handles all parsing and structuring.
  */
 const BookOutputSchema = z.object({
-    bookTitle: z.string().describe('A concise, creative title for the entire book (e.g., "The Dragon\'s Journey").'),
-    chapters: z.array(z.object({
-        title: z.string().describe("The title for this specific chapter (e.g., 'The Storm')."),
-        content: z.string().describe("The full Markdown content for this chapter. For chapters that are only part of an outline, this MUST be an EMPTY STRING."),
-    })).describe("An array of ALL chapter objects for the entire book outline.")
+  bookTitle: z.string().describe('A concise, creative title for the entire book (e.g., "The Dragon\'s Journey").'),
+  markdownContent: z.string().describe("The full Markdown content for the book, with each chapter starting with a Level 2 heading (e.g., '## Chapter 1: The Beginning'). For outline-only chapters, only the heading should be present with no content following it."),
 });
 
 
 /**
- * REFACTORED (v3): Input schema is also simplified.
+ * REFACTORED (v5): Input schema matches the simplified prompt.
  */
 const BookPromptInputSchema = z.object({
-  contextInstruction: z.string(),
-  structureInstruction: z.string(),
-  languageInstruction: z.string(),
+  bookType: z.string().describe("Describes if this is a 'full-book' or a 'partial-book with outline'."),
+  prompt: z.string().describe("The user's core creative prompt for the story."),
+  structureInstruction: z.string().describe("Detailed instructions on chapter count, word count, and outlining."),
+  languageInstruction: z.string().describe("Instructions on what language(s) to write in."),
+  titleInstruction: z.string().describe("Instructions for generating the book title."),
 });
 
 
@@ -205,87 +203,69 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
     const { bookLength, generationScope, origin } = contentInput;
     
     // --- PROMPT ASSEMBLY (Server-side logic) ---
-    // The server constructs the detailed instructions for the AI.
+    // The server constructs the detailed instructions for the AI based on the user's choices.
     const [primaryLanguage, secondaryLanguage] = origin.split('-');
     const languageInstruction = secondaryLanguage
         ? `in bilingual ${LANGUAGES.find(l=>l.value===primaryLanguage)?.label} and ${LANGUAGES.find(l=>l.value===secondaryLanguage)?.label}, with sentences paired using ' / ' as a separator`
         : `in ${LANGUAGES.find(l=>l.value===primaryLanguage)?.label}`;
 
     let structureInstruction: string;
+    let bookType: string;
+
     if (generationScope === 'firstFew' && contentInput.totalChapterOutlineCount && contentInput.totalChapterOutlineCount > 0) {
-        structureInstruction = `Generate an array for a book of ${contentInput.totalChapterOutlineCount} chapters. Write full Markdown content for only the FIRST ${contentInput.chaptersToGenerate} chapters. For the remaining chapters, provide a title but leave the 'content' field as an EMPTY string.`;
+        bookType = 'partial-book with outline';
+        structureInstruction = `Write the first ${contentInput.chaptersToGenerate} chapters of a planned ${contentInput.totalChapterOutlineCount}-chapter book. For the remaining chapters, only write their Markdown heading (e.g., '## Chapter 3: The Discovery') and no other content.`;
     } else {
-        structureInstruction = `Generate an array of ${contentInput.chaptersToGenerate} chapters. Write the full Markdown content for ALL chapters.`;
+        bookType = 'full-book';
+        structureInstruction = `Write a complete book with exactly ${contentInput.chaptersToGenerate} chapters.`;
     }
     
     // Define the Genkit prompt with the simplified and improved structure.
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateBookContentPrompt_v8_simple_string_titles',
+        name: 'generateBookContentPrompt_v9_markdown',
         input: { schema: BookPromptInputSchema },
         output: { schema: BookOutputSchema },
-        prompt: `You are a creative writer. Write a book based on the theme: {{{contextInstruction}}}
+        prompt: `Write a {{bookType}} based on the prompt: "{{prompt}}"
 
 CRITICAL INSTRUCTIONS:
-1.  **Structure:** {{{structureInstruction}}}
-2.  **Language:** Write all content and titles {{{languageInstruction}}}.
+{{{structureInstruction}}}
+Write all content and titles {{languageInstruction}}.
+{{{titleInstruction}}}
 
-**REQUIRED OUTPUT FORMAT:**
+REQUIRED OUTPUT FORMAT:
 Your entire response MUST be a single, valid JSON object that strictly follows this structure:
 {
   "bookTitle": "string",
-  "chapters": [
-    {
-      "title": "string (The title of the chapter)",
-      "content": "string (Markdown content)"
-    }
-  ]
-}
-`,
+  "markdownContent": "string"
+}`,
     });
 
     const promptInput = { 
-        contextInstruction: userPrompt,
+        bookType,
+        prompt: userPrompt,
         structureInstruction,
         languageInstruction,
+        titleInstruction: `Create a title based on the story or user's prompt (1-7 words) for the 'bookTitle' field.`
     };
 
     try {
         // STEP 1: Wait for the AI to generate the structured JSON output.
         const { output: aiOutput } = await bookContentGenerationPrompt(promptInput);
 
-        if (!aiOutput || !aiOutput.chapters || aiOutput.chapters.length === 0) {
-          throw new ApiServiceError('AI returned empty or invalid chapter data.', "UNKNOWN");
+        if (!aiOutput || !aiOutput.markdownContent) {
+          throw new ApiServiceError('AI returned empty or invalid content.', "UNKNOWN");
         }
         
         // STEP 2: Process and structure the AI's simple string output.
-        const finalChapters: Chapter[] = aiOutput.chapters.map((chapterData, index) => {
-            const segments = parseMarkdownToSegments(chapterData.content || '', origin);
-            
-            const totalWords = segments.reduce((sum, segment) => {
-                const text = segment.content[primaryLanguage] || '';
-                return sum + text.split(/\s+/).filter(Boolean).length;
-            }, 0);
-            
-            // Server now takes the AI's simple string and creates the MultilingualContent object.
-            const chapterTitle: MultilingualContent = { [primaryLanguage]: chapterData.title };
-            if (secondaryLanguage) {
-                // In a future version, we could call a translation flow here.
-                // For now, we leave the secondary language title empty.
-                chapterTitle[secondaryLanguage] = '';
-            }
-            
-            return {
-                id: generateLocalUniqueId(),
-                order: index,
-                title: chapterTitle,
-                segments: segments,
-                stats: { totalSegments: segments.length, totalWords, estimatedReadingTime: Math.ceil(totalWords / 200) },
-                metadata: {},
-            };
-        });
+        // This logic now happens on the server, which is more reliable.
+        const segments = parseMarkdownToSegments(aiOutput.markdownContent, origin);
+        const finalChapters = segmentsToChapterStructure(segments, origin);
         
-        // The server also structures the book title.
+        // The server also structures the book title into the required multilingual format.
         const finalBookTitle: MultilingualContent = { [primaryLanguage]: aiOutput.bookTitle };
+        if (secondaryLanguage) {
+            finalBookTitle[secondaryLanguage] = ''; // Placeholder for future translation
+        }
         
         return {
           title: finalBookTitle,
@@ -498,6 +478,7 @@ export async function regenerateBookCover(userId: string, bookId: string): Promi
     
 
     
+
 
 
 
