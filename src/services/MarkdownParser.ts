@@ -18,6 +18,7 @@ import type {
   ChapterTitle,
   PhraseMap,
   LibraryItem,
+  MultilingualContent,
 } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
@@ -119,9 +120,8 @@ function detectDialogue(text: string): boolean {
 
 /**
  * MAIN PARSING FUNCTION - Converts Markdown to structured Segments
- * This function acts as the "Editor" that takes the raw AI manuscript (Markdown)
- * and transforms it into the structured data format (`Segment[]`) that our application uses.
- * This separation of concerns is critical for reliability and control.
+ * This function acts as the "Editor" that takes a chunk of Markdown (e.g., the content of one chapter)
+ * and transforms it into the structured data format (`Segment[]`).
  */
 export function parseMarkdownToSegments(
   markdown: string, 
@@ -188,53 +188,10 @@ export function parseMarkdownToSegments(
               break;
             }
             
-            case 'heading': {
-              const headingText = extractTextFromNode(contentNode).trim();
-              const headingDepth = (contentNode as any).depth || 1;
-              
-              if (headingText) {
-                // ✅ REFINED: Remove "Chapter X:" prefix from heading text before processing
-                const cleanHeadingText = headingText.replace(/^Chapter\s*\d+\s*:\s*/i, '');
-                
-                const titleParts = cleanHeadingText.split(/\s*[\/|]\s*/).map(p => p.trim());
-                const contentObj: ChapterTitle = {
-                  [primaryLanguage]: titleParts[0],
-                };
-                if (secondaryLanguage && titleParts[1]) {
-                    contentObj[secondaryLanguage] = titleParts[1];
-                }
-                
-                segments.push({
-                  id: generateLocalUniqueId(),
-                  order: globalSegmentOrder++,
-                  type: 'heading',
-                  content: contentObj,
-                  formatting: { headingLevel: headingDepth },
-                  metadata: {
-                    isNewPara: true,
-                  }
-                });
-              }
-              break;
-            }
-            
-            case 'image': {
-              const imageNode = contentNode as any;
-              if (imageNode.url) {
-                segments.push({
-                  id: generateLocalUniqueId(),
-                  order: globalSegmentOrder++,
-                  type: 'image',
-                  content: { [primaryLanguage]: imageNode.url },
-                  formatting: {},
-                  metadata: {
-                    isNewPara: true,
-                  }
-                });
-              }
-              break;
-            }
-            
+            // Headings and images are typically handled at a higher level (parseBookMarkdown)
+            // but we keep basic handling here for flexibility.
+            case 'heading':
+            case 'image': 
             default: {
                 const textContent = extractTextFromNode(contentNode).trim();
                 if (textContent) {
@@ -270,11 +227,88 @@ export function parseMarkdownToSegments(
   return segments;
 }
 
+/**
+ * NEW: The primary parser for the entire book's markdown content.
+ * It reliably extracts the book title and splits content into structured chapters.
+ */
+export function parseBookMarkdown(
+    markdown: string, 
+    origin: string
+): { title: MultilingualContent; chapters: Chapter[] } {
+    const [primaryLanguage, secondaryLanguage] = origin.split('-');
+    
+    const lines = markdown.split('\n');
+    let bookTitleText = 'Untitled Book';
+    let contentStartIndex = 0;
+
+    // 1. Extract Book Title (look for H1 first, then H3, then fallback)
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('# ')) {
+            bookTitleText = line.substring(2).trim();
+            contentStartIndex = i + 1;
+            break;
+        }
+    }
+    
+    const contentWithoutTitle = lines.slice(contentStartIndex).join('\n').trim();
+
+    // 2. Split content into chapter blocks based on H2 headings
+    const chapterBlocks = contentWithoutTitle.split(/\n(?=##\s)/).map(block => block.trim());
+    
+    // 3. Process each chapter block
+    const chapters: Chapter[] = chapterBlocks.map((block, index) => {
+        const chapterLines = block.split('\n');
+        const titleLine = chapterLines.length > 0 ? chapterLines[0].replace(/^##\s*/, '').trim() : `Chapter ${index + 1}`;
+        const chapterContentMarkdown = chapterLines.slice(1).join('\n').trim();
+
+        // Parse title for bilingualism
+        const titleParts = titleLine.split(/\s*[\/|]\s*/).map(p => p.trim());
+        const chapterTitle: MultilingualContent = {
+            [primaryLanguage]: titleParts[0],
+        };
+        if (secondaryLanguage && titleParts[1]) {
+            chapterTitle[secondaryLanguage] = titleParts[1];
+        }
+
+        // Parse content into segments
+        const segments = chapterContentMarkdown ? parseMarkdownToSegments(chapterContentMarkdown, origin) : [];
+        
+        // Calculate stats
+        const totalWords = segments.reduce((sum, seg) => sum + (seg.content[primaryLanguage] ? calculateWordCount(seg.content[primaryLanguage]) : 0), 0);
+
+        return {
+            id: generateLocalUniqueId(),
+            order: index,
+            title: chapterTitle,
+            segments,
+            stats: {
+                totalSegments: segments.length,
+                totalWords: totalWords,
+                estimatedReadingTime: Math.ceil(totalWords / 200),
+            },
+            metadata: {},
+        };
+    });
+    
+    // 4. Finalize book title object
+    const finalBookTitle: MultilingualContent = { [primaryLanguage]: bookTitleText };
+    if (secondaryLanguage) {
+        const titles = bookTitleText.split(/\s*[\/|]\s*/).map(t => t.trim());
+        finalBookTitle[primaryLanguage] = titles[0];
+        finalBookTitle[secondaryLanguage] = titles[1] || titles[0];
+    }
+
+    return { title: finalBookTitle, chapters };
+}
+
 
 /**
- * Converts unified segments into structured Chapter array with enhanced stats
+ * Converts unified segments into structured Chapter array.
+ * This function is now a legacy helper, `parseBookMarkdown` is the preferred method for new books.
  */
 export function segmentsToChapterStructure(segments: Segment[], origin: string): Chapter[] {
+  // This logic can be simplified or deprecated if parseBookMarkdown is always used for new content
   const chapters: Chapter[] = [];
   let currentChapter: Chapter | null = null;
   let chapterOrder = 0;
@@ -291,15 +325,12 @@ export function segmentsToChapterStructure(segments: Segment[], origin: string):
         id: segment.id,
         order: chapterOrder++,
         title: segment.content,
-        segments: [], // Start with no segments, add non-heading segments below
+        segments: [], 
         stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 },
-        metadata: {
-          // This field is no longer needed as it can be derived from the Book's top-level `origin` field.
-        }
+        metadata: {}
       };
     } else {
       if (!currentChapter) {
-        // Create a default first chapter if content starts without a heading
         currentChapter = {
           id: generateLocalUniqueId(),
           order: chapterOrder++,
@@ -317,8 +348,6 @@ export function segmentsToChapterStructure(segments: Segment[], origin: string):
     chapters.push(currentChapter);
   }
   
-  // FIXED: If no chapters were created (e.g. no headings) but there are segments,
-  // create a single default chapter to hold them.
   if (chapters.length === 0 && segments.length > 0) {
     chapters.push({
       id: generateLocalUniqueId(),
@@ -330,17 +359,14 @@ export function segmentsToChapterStructure(segments: Segment[], origin: string):
     });
   }
 
-  // Calculate stats for each chapter
   chapters.forEach(chapter => {
     chapter.stats.totalSegments = chapter.segments.length;
-    
     const totalWords = chapter.segments.reduce((sum, segment) => {
         const text = segment.content[primaryLanguage] || '';
         return sum + calculateWordCount(text);
     }, 0);
-    
     chapter.stats.totalWords = totalWords;
-    chapter.stats.estimatedReadingTime = Math.ceil(totalWords / 200); // Avg reading speed
+    chapter.stats.estimatedReadingTime = Math.ceil(totalWords / 200);
   });
 
   return chapters;
@@ -374,7 +400,6 @@ export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Se
           return [];
       }
       
-      // A chapter's content IS its segments.
       const segments = chapter.segments || [];
       return segments;
     }
