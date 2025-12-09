@@ -14,17 +14,21 @@ import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 import { getStorage } from 'firebase-admin/storage';
 
+const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
+
+// Schemas for Genkit prompts
 const BookOutputSchema = z.object({
-  markdownContent: z.string().describe("A single, unified Markdown string that contains the entire book content, including the book title (as a Level 1 Markdown heading, e.g., '# Title') and all chapters (as Level 2 headings, e.g., '## Chapter 1')."),
+  markdownContent: z.string().describe("A single, unified Markdown string that contains the entire book content, including the book title (as a Level 1 Markdown heading, e.g., '# Title') and all chapters (as Level 2 headings, e.g., '## Chapter 1: The Beginning')."),
 });
 
 const BookPromptInputSchema = z.object({
     fullInstruction: z.string(),
 });
 
+
 /**
- * The main pipeline for processing book generation.
- * This is a "fire-and-forget" background process.
+ * The main background pipeline for processing all book generation tasks.
+ * This function is not exported and is only called internally by this service.
  */
 async function processBookGenerationPipeline(
   userId: string,
@@ -60,7 +64,7 @@ async function processBookGenerationPipeline(
 
 
 /**
- * Creates a book document and initiates the generation pipeline.
+ * The main exported function to create a new book and start its generation process.
  */
 export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
   const adminDb = getAdminDb();
@@ -76,7 +80,6 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     }
   }
 
-  // Cover generation costs 1 credit if it's 'ai' or 'upload'
   if (bookFormData.coverImageOption === 'ai' || bookFormData.coverImageOption === 'upload') {
       creditCost += 1;
   }
@@ -153,8 +156,9 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   return bookId;
 }
 
+
 /**
- * Handles the AI content generation part of the pipeline using the simplified markdown approach.
+ * Handles the AI content generation part of the pipeline.
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
@@ -230,6 +234,10 @@ ${criticalInstructions.join('\n')}
     }
 }
 
+
+/**
+ * Handles the cover image generation or upload part of the pipeline.
+ */
 async function processCoverImageForBook(
   userId: string,
   bookId: string,
@@ -244,18 +252,17 @@ async function processCoverImageForBook(
   try {
     let coverUrl: string;
 
-    if (coverJobType === 'upload') {
-        const file = data as File;
+    if (coverJobType === 'upload' && data instanceof File) {
         const bucket = getStorage().bucket();
         const filePath = `user-uploads/${userId}/${bookId}/cover-${Date.now()}`;
         const fileUpload = bucket.file(filePath);
 
-        await fileUpload.save(Buffer.from(await file.arrayBuffer()), {
-            metadata: { contentType: file.type },
+        await fileUpload.save(Buffer.from(await data.arrayBuffer()), {
+            metadata: { contentType: data.type },
         });
         coverUrl = await fileUpload.getSignedUrl({ action: 'read', expires: '03-09-2491' }).then(urls => urls[0]);
-    } else { // 'ai'
-        const prompt = (data as string) || fallbackPrompt || "A beautiful book cover";
+    } else if (coverJobType === 'ai' && typeof data === 'string') {
+        const prompt = data || fallbackPrompt || "A beautiful book cover";
         const imageGenerationPrompt = `Create a 3:4 ratio stylized and artistic illustration for a book cover inspired by "${prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
         
         const { media } = await ai.generate({
@@ -265,10 +272,12 @@ async function processCoverImageForBook(
 
         if (!media || !media.url) throw new Error("AI image generation failed to return a valid image.");
         coverUrl = media.url;
+    } else {
+        throw new Error("Invalid data provided for cover processing.");
     }
 
     return {
-      cover: { type: coverJobType, url: coverUrl },
+      cover: { type: coverJobType, url: coverUrl, inputPrompt: typeof data === 'string' ? data : undefined },
       coverState: 'ready',
       coverRetryCount: 0,
     };
@@ -278,30 +287,80 @@ async function processCoverImageForBook(
   }
 }
 
-export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
+/**
+ * Regenerates the entire content of a book based on a new or existing prompt.
+ */
+export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
     const adminDb = getAdminDb();
-    
-    await updateLibraryItem(userId, bookId, { 
-        coverState: 'processing', 
-        status: 'processing', 
-        coverRetryCount: 0 
+    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
+    const book = docSnap.data() as Book;
+
+    const contentInput: GenerateBookContentInput = {
+        prompt: newPrompt || book.prompt || '',
+        origin: book.origin,
+        bookLength: book.intendedLength || 'short-story',
+        chaptersToGenerate: book.chapters.length || 1
+    };
+
+    await updateLibraryItem(userId, bookId, {
+        status: 'processing',
+        contentState: 'processing',
+        chapters: [],
+        outline: [],
+        contentRetryCount: newPrompt ? 0 : (book.contentRetryCount || 0) + 1,
+        prompt: newPrompt || book.prompt,
     });
 
     try {
-        const bookDoc = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
-        const bookData = bookDoc.data() as Book;
-
-        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data, bookData.prompt);
-        await updateLibraryItem(userId, bookId, { ...coverUpdate, status: 'draft' });
+        const contentUpdate = await processContentGenerationForBook(userId, bookId, contentInput);
+        await updateLibraryItem(userId, bookId, { ...contentUpdate, status: 'draft' });
     } catch (error) {
         await updateLibraryItem(userId, bookId, {
             status: 'draft',
-            coverState: 'error',
-            coverError: (error as Error).message,
+            contentState: 'error',
+            contentError: (error as Error).message,
         });
         throw error;
     }
 }
 
 
-const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
+/**
+ * Edits or regenerates the cover of an existing book.
+ */
+export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
+    const adminDb = getAdminDb();
+    const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+    
+    // Set status to processing
+    await bookDocRef.update({ 
+        coverState: 'processing', 
+        status: 'processing', 
+        coverRetryCount: 0,
+        updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    try {
+        const bookDoc = await bookDocRef.get();
+        if (!bookDoc.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
+        
+        const bookData = bookDoc.data() as Book;
+        
+        // Pass the book's original prompt as a fallback for AI generation
+        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data, bookData.prompt);
+        
+        // Update with the new cover info and set status back to draft
+        await bookDocRef.update({ ...coverUpdate, status: 'draft', updatedAt: FieldValue.serverTimestamp() });
+
+    } catch (error) {
+        // If anything fails, set state to error
+        await bookDocRef.update({
+            status: 'draft',
+            coverState: 'error',
+            coverError: (error as Error).message,
+            updatedAt: FieldValue.serverTimestamp(),
+        });
+        throw error;
+    }
+}

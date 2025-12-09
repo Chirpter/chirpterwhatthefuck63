@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { regenerateBookContent, regenerateBookCover } from "@/services/library-service";
+import { regenerateBookContent, editBookCover } from "@/services/library-service";
 import { useToast } from '@/hooks/useToast';
 import { DynamicBookmark } from "./DynamicBookmark";
 import { BookmarkCard } from "@/features/user/components/BookmarkCard";
@@ -113,10 +113,20 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
     return audioProgress.overallProgress;
   }, [currentPlayingItem, book.id, overallProgressPercentage, audioProgress]);
   
-  const handleCoverUploadRetry = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // This logic is now part of regenerateBookCover if needed, or a new dedicated service function.
-    // For now, it's simplified. A more robust implementation would call a service here.
-    toast({ title: 'Feature coming soon', description: 'Uploading covers directly from here is being developed.' });
+  const handleCoverUploadRetry = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsRetryingCover(true);
+    try {
+      await editBookCover(user.uid, book.id, 'upload', file);
+      toast({ title: t('toast:regenCoverTitle'), description: t('toast:regenDesc') });
+    } catch (err) {
+      toast({ title: t('common:error'), description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setIsRetryingCover(false);
+    }
   };
 
   const isContentPromptError = useMemo(() =>
@@ -147,16 +157,14 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
   
   const handleCoverRetry = () => {
     if (isRetryingCover || !user) return;
-
-    setIsRetryingCover(true);
     
     if (book.cover?.type === 'upload') {
         coverUploadInputRef.current?.click();
-        setIsRetryingCover(false);
         return;
     }
     
-    regenerateBookCover(user.uid, book.id)
+    setIsRetryingCover(true);
+    editBookCover(user.uid, book.id, 'ai', book.cover?.inputPrompt || book.prompt || '')
         .then(() => toast({ title: t('toast:regenCoverTitle'), description: t('toast:regenDesc') }))
         .catch(err => toast({ title: t('common:error'), description: (err as Error).message, variant: 'destructive'}))
         .finally(() => setIsRetryingCover(false));
@@ -166,9 +174,17 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
   const [isSubmittingNewCover, setIsSubmittingNewCover] = useState(false);
 
   const handleGenerateNewCover = async () => {
-    // This function will now also be part of a service, e.g., editBookCover.
-    // The component shouldn't contain this much business logic.
-    toast({ title: 'Feature coming soon', description: 'Generating new covers is being refined.' });
+    if (!user || !newCoverPrompt.trim()) return;
+    setIsSubmittingNewCover(true);
+    try {
+        await editBookCover(user.uid, book.id, 'ai', newCoverPrompt);
+        toast({ title: t('toast:regenCoverTitle'), description: t('toast:regenDesc') });
+        handleCancelGenerateCover();
+    } catch (err) {
+        toast({ title: t('common:error'), description: (err as Error).message, variant: 'destructive' });
+    } finally {
+        setIsSubmittingNewCover(false);
+    }
   };
 
   const handleCancelGenerateCover = () => {

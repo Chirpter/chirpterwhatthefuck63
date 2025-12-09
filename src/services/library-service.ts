@@ -155,35 +155,13 @@ export async function getGlobalBooks(
 }
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-  const adminDb = getAdminDb();
-  const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
-  if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
-  const book = docSnap.data() as Book;
-
-  // Delegate to the specialized service
+  // This function now acts as a public API layer, calling the specialized service.
   await serviceRegenerateBookContent(userId, bookId, newPrompt);
 }
 
-export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
-  const adminDb = getAdminDb();
-  const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
-  if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
-  const book = docSnap.data() as Book;
-
-  if (!book.cover || book.cover.type === 'none') {
-    throw new ApiServiceError("No cover information to regenerate from.", "VALIDATION");
-  }
-
-  const dataToProcess = book.cover.type === 'ai'
-    ? book.cover.inputPrompt || book.prompt || ''
-    : null; // For upload, we trigger client interaction, no data here
-
-  if (dataToProcess === null) {
-      throw new ApiServiceError("Cannot regenerate uploaded cover from server.", "VALIDATION");
-  }
-
-  // Delegate to the specialized service
-  await serviceEditBookCover(userId, bookId, book.cover.type, dataToProcess);
+export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
+  // This function now acts as a public API layer, calling the specialized service.
+  await serviceEditBookCover(userId, bookId, newCoverOption, data);
 }
 
 
