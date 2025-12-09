@@ -1,5 +1,3 @@
-
-
 // src/services/library-service.ts
 'use server';
 
@@ -8,7 +6,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-import { regenerateBookContent as serviceRegenerateBookContent, editBookCover as serviceEditBookCover } from './book-creation.service';
+import { regenerateBookContent, editBookCover } from './book-creation.service';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -154,15 +152,7 @@ export async function getGlobalBooks(
   }
 }
 
-export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-  // This function now acts as a public API layer, calling the specialized service.
-  await serviceRegenerateBookContent(userId, bookId, newPrompt);
-}
-
-export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
-  // This function now acts as a public API layer, calling the specialized service.
-  await serviceEditBookCover(userId, bookId, newCoverOption, data);
-}
+export { regenerateBookContent, editBookCover };
 
 
 export async function getLibraryItemById(userId: string, itemId: string): Promise<LibraryItem | null> {
@@ -183,5 +173,3 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
         throw new ApiServiceError('Failed to fetch library item.', 'FIRESTORE');
     }
 }
-
-    
