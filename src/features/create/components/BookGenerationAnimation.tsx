@@ -124,13 +124,12 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
   const coverStatus = bookJobData?.coverState;
 
   // --- ANIMATION LOGIC ---
-  // The core animation of the book opening is ONLY tied to the content generation process.
-  // This allows the cover generation to happen in the background without affecting this primary animation.
   
-  // ✅ TÍN HIỆU MỞ SÁCH:
-  // Animation mở sách chỉ được kích hoạt khi và chỉ khi 'contentStatus' có giá trị là 'processing'.
-  // Đây là tín hiệu cụ thể cho biết "hệ thống đang viết nội dung".
+  // ✅ START SIGNAL: The book opening animation is triggered *only* when the content is being processed.
   const isBookOpen = contentStatus === 'processing';
+  
+  // 🛑 END SIGNAL: The book closing animation is triggered implicitly when `isBookOpen` becomes `false`.
+  // This happens as soon as `contentStatus` changes from 'processing' to 'ready' or 'error'.
   
   // The status message displayed to the user is derived from the state of both pipelines.
   const statusMessage = useMemo(() => {
