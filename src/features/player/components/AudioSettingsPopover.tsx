@@ -14,7 +14,7 @@ import { Icon } from '@/components/ui/icons';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { LANGUAGES } from '@/lib/constants';
 import { getBcp47LangCode, cn } from '@/lib/utils';
-import type { RepeatMode, LibraryItem, PlaylistRepeatMode } from '@/lib/types';
+import type { RepeatMode, LibraryItem, PlaylistRepeatMode, PlaylistItem } from '@/lib/types';
 import { useMobile } from '@/hooks/useMobile';
 import { Separator } from '@/components/ui/separator';
 import { useSettings } from '@/contexts/settings-context';
@@ -41,15 +41,12 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
         setSleepTimer,
     } = useAudioPlayer();
 
-    // ✅ FIX: Safely access rate and pitch from ttsSettings, providing default values.
     const ttsRate = ttsSettings?.rate ?? 1.0;
     const ttsPitch = ttsSettings?.pitch ?? 1.0;
     const selectedVoiceURIs = ttsSettings?.voices ?? {};
     
     const { autoplayEnabled, setAutoplayEnabled } = useSettings();
 
-    // Determine the source of language info: the passed `item` prop (from ReaderPage)
-    // or the `currentPlayingItem` from context (for MiniPlayer).
     const languageSource = useMemo(() => {
         const source = item ?? (currentPlayingItem ? { // Reconstruct a compatible object from context
             availableLanguages: currentPlayingItem.availableLanguages,
@@ -58,10 +55,11 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
 
         if (!source) return null;
         
-        const secondaryLanguage = source.availableLanguages.find(l => l !== source.primaryLanguage);
+        const availableLangs = source.availableLanguages || [];
+        const secondaryLanguage = availableLangs.find(l => l !== source.primaryLanguage);
 
         return {
-            availableLanguages: source.availableLanguages,
+            availableLanguages: availableLangs,
             primaryLanguage: getBcp47LangCode(source.primaryLanguage),
             secondaryLanguage: secondaryLanguage ? getBcp47LangCode(secondaryLanguage) : undefined,
         };
@@ -70,7 +68,6 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
     const primaryLangBcp47 = languageSource?.primaryLanguage;
     const voicesForPrimaryLang = useMemo(() => {
         if (!primaryLangBcp47) return [];
-        // Match base language (e.g., 'en' matches 'en-US', 'en-GB')
         return availableSystemVoices.filter(v => (getBcp47LangCode(v.lang) || v.lang).startsWith(primaryLangBcp47));
     }, [availableSystemVoices, primaryLangBcp47]);
     const currentSelectedPrimaryVoiceURI = useMemo(() => primaryLangBcp47 ? selectedVoiceURIs[primaryLangBcp47] || "" : "", [selectedVoiceURIs, primaryLangBcp47]);
@@ -78,7 +75,6 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
     const secondaryLangBcp47 = languageSource?.secondaryLanguage;
     const voicesForSecondaryLang = useMemo(() => {
         if (!secondaryLangBcp47) return [];
-        // Match base language
         return availableSystemVoices.filter(v => (getBcp47LangCode(v.lang) || v.lang).startsWith(secondaryLangBcp47));
     }, [availableSystemVoices, secondaryLangBcp47]);
     const currentSelectedSecondaryVoiceURI = useMemo(() => secondaryLangBcp47 ? selectedVoiceURIs[secondaryLangBcp47] || "" : "", [selectedVoiceURIs, secondaryLangBcp47]);
@@ -92,7 +88,7 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
     ];
 
     const handleMiniPlayerRepeatToggle = () => {
-        const nextMode: RepeatMode = repeatMode === 'off' ? 'one' : 'off';
+        const nextMode: RepeatMode = repeatMode === 'item' ? 'off' : 'item';
         setRepeatMode(nextMode);
     };
     
@@ -122,7 +118,7 @@ const AudioSettingsPopoverContent: React.FC<AudioSettingsPopoverContentProps> = 
                         <Label htmlFor="r-off-popover" className="text-xs">{t('audioSettings.repeatOffShort')}</Label>
                     </div>
                     <div className="flex items-center space-x-1">
-                        <RadioGroupItem value="one" id="r-one-popover" />
+                        <RadioGroupItem value="item" id="r-one-popover" />
                         <Label htmlFor="r-one-popover" className="text-xs">{t('audioSettings.repeatItemShort')}</Label>
                     </div>
                     </RadioGroup>
