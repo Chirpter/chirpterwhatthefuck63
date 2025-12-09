@@ -227,37 +227,53 @@ export async function getVocabularyItemsPaginated(
     context,
   } = options;
 
+  // --- DEBUG LOGGING ---
+  console.log('[DEBUG] getVocabularyItemsPaginated called with:', { userId, ...options });
+
   try {
     let query: Collection<VocabularyItem, string> = localDb.vocabulary.where('userId').equals(userId);
     
     if (context) {
-        query = query.and(item => item.context === context);
+      console.log(`[DEBUG] Filtering by context: ${context}`);
+      query = query.and(item => item.context === context);
     }
     if (folder && folder !== 'all') {
-        query = query.and(item => resolveFolderForDisplay(item.folder) === folder);
+      console.log(`[DEBUG] Filtering by folder: ${folder}`);
+      query = query.and(item => resolveFolderForDisplay(item.folder) === folder);
     }
     if (searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_SEARCH_QUERY_LENGTH) {
-        const searchLower = searchTerm.toLowerCase();
-        query = query.and(item => 
-            (item.searchTerms || []).some(st => st.includes(searchLower))
-        );
+      const searchLower = searchTerm.toLowerCase();
+      console.log(`[DEBUG] Filtering by search term: ${searchLower}`);
+      query = query.and(item => 
+        (item.searchTerms || []).some(st => st.includes(searchLower))
+      );
     }
     
     // Perform sorting and pagination directly in Dexie
     const sortedCollection = query.orderBy(sortBy);
 
     if (sortOrder === 'desc') {
-        sortedCollection.reverse();
+      sortedCollection.reverse();
     }
     
-    // To check if there's more, we fetch one more item than the limit
-    const items = await sortedCollection.offset(offset).limit(limit + 1).toArray();
+    // --- DEBUG LOGGING: Wrap query execution in try/catch ---
+    let items;
+    try {
+        console.log(`[DEBUG] Executing query: offset=${offset}, limit=${limit + 1}`);
+        items = await sortedCollection.offset(offset).limit(limit + 1).toArray();
+        console.log(`[DEBUG] Query successful, received ${items.length} items.`);
+    } catch (dexieError) {
+        console.error('[DEBUG] Dexie query execution FAILED. Error:', dexieError);
+        // Re-throw the original error so it can be caught by the outer handler
+        throw dexieError;
+    }
     
     const hasMore = items.length > limit;
     const paginatedItems = items.slice(0, limit);
 
     return { items: paginatedItems, hasMore };
   } catch (error) {
+    // This will now catch the error re-thrown from the inner block
     handleVocabularyError(error, 'getVocabularyItemsPaginated', VocabularyErrorCode.DB_QUERY_FAILED);
   }
 }
@@ -281,13 +297,8 @@ export async function getFolderCounts(userId: string): Promise<Record<string, nu
 export async function getUniqueFolders(userId: string): Promise<string[]> {
     const localDb = getLocalDbForUser(userId);
     try {
-        const allItemsWithFolders = await localDb.vocabulary
-            .where('userId').equals(userId)
-            .and(item => typeof item.folder === 'string' && item.folder.trim() !== '')
-            .toArray();
-
+        const allItemsWithFolders = await localDb.vocabulary.where('userId').equals(userId).and(item => typeof item.folder === 'string' && item.folder.trim() !== '').toArray();
         const folderSet = new Set(allItemsWithFolders.map(item => item.folder!));
-        
         return Array.from(folderSet).sort((a, b) => a.localeCompare(b));
     } catch (error) {
         handleVocabularyError(error, 'getUniqueFolders', VocabularyErrorCode.DB_QUERY_FAILED);
@@ -338,3 +349,5 @@ export async function getVocabularyItemsByFolder(
         handleVocabularyError(error, 'getVocabularyItemsByFolder', VocabularyErrorCode.DB_QUERY_FAILED);
     }
 }
+
+    
