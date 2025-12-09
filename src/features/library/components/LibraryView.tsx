@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useCallback, lazy, Suspense, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, lazy, Suspense, useState, useEffect, useMemo, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +37,6 @@ import { useToast } from '@/hooks/useToast';
 import { useVocabulary } from '@/features/vocabulary/hooks/useVocabulary';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { BookmarkStyleProvider } from './BookmarkStyleProvider';
-import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { getSystemBookmarks, getBookmarkMetadata } from '@/services/bookmark-service';
 
 // Lazy load components
@@ -371,9 +370,8 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
 }
 
 export default function LibraryView(props: LibraryViewProps) {
+  // REMOVED AudioPlayerProvider from here. It is now global.
   return (
-    <AudioPlayerProvider>
       <LibraryViewContent {...props} />
-    </AudioPlayerProvider>
   );
 }

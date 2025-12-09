@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -11,7 +10,7 @@ import { Icon, type IconName } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
-import { useAudioPlayer, AudioPlayerProvider } from '@/contexts/audio-player-context';
+import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { useUser } from '@/contexts/user-context';
@@ -586,9 +585,8 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 }
 
 export const ReaderPage = (props: { isPreview?: boolean }) => {
+  // This no longer needs to provide the AudioPlayerProvider.
   return (
-    <AudioPlayerProvider>
       <ReaderView {...props} />
-    </AudioPlayerProvider>
   );
 }
