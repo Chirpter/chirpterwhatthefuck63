@@ -68,7 +68,7 @@ export interface AudioPlayerContextType extends AudioEngineState {
   isPlaying: boolean;
   isPaused: boolean;
   isLoading: boolean;
-  currentPlayingItem: (PlaylistItem & { itemId: string }) | null;
+  currentPlayingItem: (PlaylistItem & { itemId: string, originLanguages: string }) | null;
   overallProgressPercentage: number;
   chapterProgressPercentage: number;
   canGoNext: boolean;
@@ -99,7 +99,7 @@ const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
     }
     
     const bookData = item as Book;
-    const [primaryLang] = bookData.origin.split('-');
+    const [primaryLang] = (bookData.origin || 'en').split('-');
     
     let title: string;
     if (typeof bookData.title === 'string') {
@@ -173,7 +173,12 @@ export const AudioPlayerProvider: React.FC<{ children: ReactNode }> = ({
         ? playlist[position.playlistIndex] || null
         : null;
 
-    const currentPlayingItem = rawCurrentItem ? { ...rawCurrentItem, itemId: rawCurrentItem.id } : null;
+    // ✅ FIX: Ensure originLanguages always has a valid fallback value ('en').
+    const currentPlayingItem = rawCurrentItem ? {
+        ...rawCurrentItem,
+        itemId: rawCurrentItem.id,
+        originLanguages: rawCurrentItem.origin || rawCurrentItem.primaryLanguage || 'en',
+    } : null;
 
     const isPlaying = status.type === 'active' && status.state === 'playing';
     const isPaused = status.type === 'active' && status.state === 'paused';

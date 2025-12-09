@@ -69,7 +69,8 @@ export function ExpandedPlayer() {
         // A more advanced implementation could be done inside the engine
     };
 
-    const [primaryLang] = currentPlayingItem.originLanguages.split('-');
+    // ✅ FIX: Provide a fallback of 'en' to prevent crash on split
+    const [primaryLang] = (currentPlayingItem.originLanguages || 'en').split('-');
     const bookTitleToShow = currentPlayingItem.title;
     
     const chapterTitleToShow = useMemo(() => {
