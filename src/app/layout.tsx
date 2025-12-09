@@ -38,6 +38,7 @@ const Loader = () => (
   </div>
 );
 
+// RootLayout is now a pure Server Component again, only responsible for the main page structure.
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -68,9 +69,8 @@ export default async function RootLayout({
         notoSerif.variable
       )}>
         <Suspense fallback={<Loader />}>
-          <ClientProviders initialBookmarks={combinedBookmarks}>
+            {/* The providers have been moved to AppLayoutContent */}
             {children}
-          </ClientProviders>
         </Suspense>
         <Toaster />
       </body>
