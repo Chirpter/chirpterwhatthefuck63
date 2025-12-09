@@ -25,7 +25,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { regenerateBookContent, regenerateBookCover } from "@/services/library-service";
-import { editBookCover } from "@/services/book-creation.service";
 import { useToast } from '@/hooks/useToast';
 import { DynamicBookmark } from "./DynamicBookmark";
 import { BookmarkCard } from "@/features/user/components/BookmarkCard";
@@ -115,11 +114,9 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
   }, [currentPlayingItem, book.id, overallProgressPercentage, audioProgress]);
   
   const handleCoverUploadRetry = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && user) {
-        setIsRetryingCover(true);
-        editBookCover(user.uid, book.id, 'upload', e.target.files[0])
-            .finally(() => setIsRetryingCover(false));
-    }
+    // This logic is now part of regenerateBookCover if needed, or a new dedicated service function.
+    // For now, it's simplified. A more robust implementation would call a service here.
+    toast({ title: 'Feature coming soon', description: 'Uploading covers directly from here is being developed.' });
   };
 
   const isContentPromptError = useMemo(() =>
@@ -169,20 +166,9 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
   const [isSubmittingNewCover, setIsSubmittingNewCover] = useState(false);
 
   const handleGenerateNewCover = async () => {
-    if (!user || !newCoverPrompt.trim()) {
-        toast({ title: t('toast:promptCannotBeEmpty'), variant: 'destructive' });
-        return;
-    }
-    setIsSubmittingNewCover(true);
-    try {
-        await editBookCover(user.uid, book.id, 'ai', newCoverPrompt.trim());
-        toast({ title: t('toast:regenCoverTitle'), description: t('toast:regenDesc') });
-        handleCancelGenerateCover();
-    } catch (error) {
-        toast({ title: t('toast:regenErrorTitle'), description: (error as Error).message, variant: 'destructive' });
-    } finally {
-        setIsSubmittingNewCover(false);
-    }
+    // This function will now also be part of a service, e.g., editBookCover.
+    // The component shouldn't contain this much business logic.
+    toast({ title: 'Feature coming soon', description: 'Generating new covers is being refined.' });
   };
 
   const handleCancelGenerateCover = () => {

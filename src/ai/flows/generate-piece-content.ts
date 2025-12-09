@@ -13,5 +13,3 @@ export async function generatePieceContent(userId: string, input: PieceFormValue
   // Delegate the entire process to the dedicated service.
   return createPieceAndStartGeneration(userId, input);
 }
-
-    

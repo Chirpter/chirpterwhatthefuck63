@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -8,7 +9,7 @@ import { useToast } from '@/hooks/useToast';
 import { updateLibraryItem } from '@/services/library-service';
 import { getLibraryItemById } from '@/services/client/library-service';
 import { generateBookContent } from '@/ai/flows/generate-book-content';
-import { createPieceAndStartGeneration, regeneratePieceContent } from '@/services/piece-creation.service';
+import { generatePieceContent } from '@/ai/flows/generate-piece-content';
 import type { GenerateBookContentInput } from '@/lib/types';
 import type { GeneratePieceInput } from '@/lib/types';
 import type { Book, Piece, LibraryItem, CreationFormValues, PieceFormValues } from '@/lib/types';
@@ -310,7 +311,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
         if (type === 'book') {
             jobId = await generateBookContent(user.uid, formData);
         } else {
-            jobId = await createPieceAndStartGeneration(user.uid, formData as PieceFormValues);
+            jobId = await generatePieceContent(user.uid, formData as PieceFormValues);
         }
         
         setActiveId(jobId);

@@ -164,6 +164,7 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
     const wordsPerChapter = Math.round(((bookLengthOption?.defaultChapters || 3) * 200) / (contentInput.chaptersToGenerate || 3));
 
     const [primaryLanguage, secondaryLanguage, format] = origin.split('-');
+    const isPhraseMode = format === 'ph';
     
     const bookTypeInstruction = (generationScope === 'full' || !contentInput.totalChapterOutlineCount) ? 'full-book' : 'partial-book';
 
@@ -182,7 +183,7 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
         const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
         
-        const pairingUnit = format === 'ph' ? 'meaningful chunks' : 'sentences';
+        const pairingUnit = isPhraseMode ? 'meaningful chunks' : 'sentences';
         
         criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading, with bilingual versions separated by ' / ' (e.g., '# My Title / Tiêu đề của tôi').`);
         criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with ${pairingUnit} paired using ' / ' as a separator.`);
@@ -278,14 +279,16 @@ async function processCoverImageForBook(
 }
 
 export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
-    await updateLibraryItem(userId, bookId, {
-        coverState: 'processing',
-        status: 'processing',
-        coverRetryCount: 0
+    const adminDb = getAdminDb();
+    
+    await updateLibraryItem(userId, bookId, { 
+        coverState: 'processing', 
+        status: 'processing', 
+        coverRetryCount: 0 
     });
 
     try {
-        const bookDoc = await getAdminDb().collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+        const bookDoc = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
         const bookData = bookDoc.data() as Book;
 
         const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data, bookData.prompt);
@@ -299,5 +302,6 @@ export async function editBookCover(userId: string, bookId: string, newCoverOpti
         throw error;
     }
 }
+
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;

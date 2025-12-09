@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
@@ -235,5 +236,3 @@ export async function regeneratePieceContent(userId: string, workId: string, new
 }
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
-
-    

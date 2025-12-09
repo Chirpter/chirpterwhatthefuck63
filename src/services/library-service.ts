@@ -1,4 +1,5 @@
 
+
 // src/services/library-service.ts
 'use server';
 
@@ -7,7 +8,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-import { processContentGenerationForBook, editBookCover } from './book-creation.service'; // Assuming processContentGenerationForBook is there
+import { regenerateBookContent as serviceRegenerateBookContent, editBookCover as serviceEditBookCover } from './book-creation.service';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -154,38 +155,13 @@ export async function getGlobalBooks(
 }
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-    const adminDb = getAdminDb();
-    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
-    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
-    const book = docSnap.data() as Book;
+  const adminDb = getAdminDb();
+  const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+  if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
+  const book = docSnap.data() as Book;
 
-    const contentInput = {
-        prompt: newPrompt || book.prompt || '',
-        origin: book.origin,
-        bookLength: book.intendedLength || 'short-story',
-        chaptersToGenerate: book.chapters.length || 1,
-        generationScope: book.chapters.length > 3 ? 'full' : 'firstFew',
-    };
-
-    await updateLibraryItem(userId, bookId, {
-        status: 'processing',
-        contentState: 'processing',
-        chapters: [],
-        contentRetryCount: newPrompt ? 0 : (book.contentRetryCount || 0) + 1,
-        prompt: newPrompt || book.prompt,
-    });
-
-    try {
-        const contentUpdate = await processContentGenerationForBook(userId, bookId, contentInput);
-        await updateLibraryItem(userId, bookId, { ...contentUpdate, status: 'draft' });
-    } catch (error) {
-        await updateLibraryItem(userId, bookId, {
-            status: 'draft',
-            contentState: 'error',
-            contentError: (error as Error).message,
-        });
-        throw error;
-    }
+  // Delegate to the specialized service
+  await serviceRegenerateBookContent(userId, bookId, newPrompt);
 }
 
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
@@ -202,7 +178,12 @@ export async function regenerateBookCover(userId: string, bookId: string): Promi
     ? book.cover.inputPrompt || book.prompt || ''
     : null; // For upload, we trigger client interaction, no data here
 
-  await editBookCover(userId, bookId, book.cover.type, dataToProcess);
+  if (dataToProcess === null) {
+      throw new ApiServiceError("Cannot regenerate uploaded cover from server.", "VALIDATION");
+  }
+
+  // Delegate to the specialized service
+  await serviceEditBookCover(userId, bookId, book.cover.type, dataToProcess);
 }
 
 
