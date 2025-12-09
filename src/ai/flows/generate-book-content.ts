@@ -114,7 +114,7 @@ const generateBookContentFlow = ai.defineFlow(
     
     const contextInstruction = input.previousContentSummary
       ? `Continue a story from the summary: <previous_summary>${input.previousContentSummary}</previous_summary>. The new chapters should be about: ${userPrompt}`
-      : `Write a book based on the prompt: ${userPrompt}`;
+      : userPrompt;
     
     const titleInstructionText = "Create a title based on the story or user's prompt (1-7 words) for the book in the 'bookTitle' field.";
 
