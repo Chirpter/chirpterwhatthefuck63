@@ -59,14 +59,14 @@ function splitSentenceIntoPhrases(sentence: string): string[] {
 /**
  * Robust bilingual content pairing logic for sentences using a ' / ' separator.
  */
-function pairBilingualSentences(sentences: string[], primaryLang: string, secondaryLang: string | undefined): MultilingualContent[] {
+function pairBilingualContent(items: string[], primaryLang: string, secondaryLang: string | undefined): MultilingualContent[] {
     if (!secondaryLang) {
-        return sentences.map(s => ({ [primaryLang]: s }));
+        return items.map(s => ({ [primaryLang]: s }));
     }
 
     const pairs: MultilingualContent[] = [];
     
-    sentences.forEach(line => {
+    items.forEach(line => {
         const parts = line.split(/\s+\/\s+/);
         if (parts.length >= 2) {
             pairs.push({
@@ -99,6 +99,7 @@ function detectDialogue(text: string): boolean {
 
 /**
  * MAIN PARSING FUNCTION - Converts a Markdown CHUNK to structured Segments.
+ * This is the core logic that transforms raw text blocks into our application's data structure.
  */
 export function parseMarkdownToSegments(
   markdown: string, 
@@ -115,14 +116,14 @@ export function parseMarkdownToSegments(
   try {
     const tree = remark().parse(markdown) as Root;
     
-    tree.children.forEach(node => {
+    tree.children.forEach((node, pIndex) => {
       const paragraphText = extractTextFromNode(node).trim();
       if (!paragraphText) return;
 
       const sentences = splitIntoSentences(paragraphText);
-      const sentencePairs = pairBilingualSentences(sentences, primaryLanguage, secondaryLanguage);
+      const sentencePairs = pairBilingualContent(sentences, primaryLanguage, secondaryLanguage);
       
-      sentencePairs.forEach((sentencePair, index) => {
+      sentencePairs.forEach((sentencePair) => {
          const primaryText = sentencePair[primaryLanguage];
          if (!primaryText) return;
 
@@ -132,24 +133,38 @@ export function parseMarkdownToSegments(
             type: detectDialogue(primaryText) ? 'dialog' : 'text',
             content: sentencePair,
             formatting: {},
-            metadata: { isNewPara: index === 0 },
+            metadata: { isNewPara: true }, // Will be refined later
          };
-
-         // If in phrase mode and bilingual, parse phrases for this segment
-         if (secondaryLanguage && isPhraseMode) {
+         
+         // If in phrase mode and bilingual, parse and add the `phrases` field.
+         if (isPhraseMode && secondaryLanguage) {
             const secondaryText = sentencePair[secondaryLanguage] || '';
             const primaryPhrases = splitSentenceIntoPhrases(primaryText);
             const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
             
             segment.phrases = primaryPhrases.map((phrase, i) => ({
                 [primaryLanguage]: phrase.trim(),
-                [secondaryLanguage as string]: (secondaryPhrases[i] || '').trim()
+                [secondaryLanguage]: (secondaryPhrases[i] || '').trim()
             }));
          }
          
          segments.push(segment);
       });
     });
+
+    // Refine isNewPara metadata based on actual paragraphs from the markdown tree
+    let segmentIndex = 0;
+    tree.children.forEach(node => {
+      if (node.type === 'paragraph' && segmentIndex < segments.length) {
+        segments[segmentIndex].metadata.isNewPara = true;
+        
+        // Find how many segments this paragraph generated to advance the index correctly
+        const paragraphText = extractTextFromNode(node).trim();
+        const sentenceCount = splitIntoSentences(paragraphText).length;
+        segmentIndex += sentenceCount;
+      }
+    });
+
   } catch (error) {
     console.error('Error parsing markdown chunk to segments:', error);
     return [];
@@ -172,7 +187,7 @@ export function parseBookMarkdown(
     let bookTitleText = 'Untitled Book';
     let contentStartIndex = 0;
 
-    // 1. Extract Book Title (look for H1 first, then H3 as fallback)
+    // 1. Extract Book Title (H1 is primary, H3 is fallback)
     let titleLineIndex = lines.findIndex(line => line.trim().startsWith('# '));
     let titlePrefix = '# ';
     if (titleLineIndex === -1) {
@@ -184,7 +199,6 @@ export function parseBookMarkdown(
         bookTitleText = lines[titleLineIndex].substring(titlePrefix.length).trim();
         contentStartIndex = titleLineIndex + 1;
     } else {
-        // Fallback: use the first non-empty line as the title
         const firstNonEmptyLineIndex = lines.findIndex(line => line.trim() !== '');
         if (firstNonEmptyLineIndex !== -1) {
             bookTitleText = lines[firstNonEmptyLineIndex].trim();
@@ -227,7 +241,7 @@ export function parseBookMarkdown(
             },
             metadata: {},
         };
-    }).filter(ch => ch.title[primaryLanguage] || ch.segments.length > 0); // Filter out empty chapters
+    }).filter(ch => (ch.title[primaryLanguage] && ch.title[primaryLanguage].trim() !== '') || ch.segments.length > 0);
 
     // 4. Finalize book title object
     const finalBookTitle: MultilingualContent = {};

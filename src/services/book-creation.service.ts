@@ -178,7 +178,7 @@ ${criticalInstructions.join('\n')}
 `.trim();
 
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateUnifiedBookMarkdown_v6',
+        name: 'generateUnifiedBookMarkdown_v7',
         input: { schema: BookPromptInputSchema },
         output: { schema: BookOutputSchema },
         prompt: `{{{fullInstruction}}}`,
