@@ -49,7 +49,7 @@ export function useVocabulary({
   );
   
   // Centralized data fetching for vocabulary items, now using the shared hook
-  const { items: vocabulary, isLoading, hasMore, loadMore, error, clearError } = useLibraryItems({
+  const { items: vocabulary, isLoading, hasMore, loadMore, error, clearError, mutate } = useLibraryItems({
     contentType: 'vocabulary',
     enabled: enabled,
     folder: folderFilter,
@@ -76,24 +76,31 @@ export function useVocabulary({
       context: newItemData.context || (scope === 'local' ? context : 'manual'),
     };
     
+    // The vocabulary service now requires the user object
     const addedItem = await vocabService.addVocabularyItem(user, itemWithContext);
     
     if (addedItem.folder) {
         addTransientFolder(addedItem.folder);
     }
     
+    // Manually update local state via mutate
+    mutate(prevItems => [addedItem, ...prevItems]);
+
     return addedItem;
-  }, [user, addTransientFolder, scope, context]);
+  }, [user, addTransientFolder, scope, context, mutate]);
 
   const updateItem = useCallback(async (updatedItemData: VocabularyItem) => {
     if (!user) throw new Error("User not authenticated");
-    return await vocabService.updateVocabularyItem(user, updatedItemData.id, updatedItemData);
-  }, [user]);
+    const updated = await vocabService.updateVocabularyItem(user, updatedItemData.id, updatedItemData);
+    mutate(prevItems => prevItems.map(item => item.id === updated.id ? updated : item));
+    return updated;
+  }, [user, mutate]);
 
   const deleteItem = useCallback(async (itemId: string) => {
     if (!user) throw new Error("User not authenticated");
     await vocabService.deleteVocabularyItem(user, itemId);
-  }, [user]);
+    mutate(prevItems => prevItems.filter(item => item.id !== itemId));
+  }, [user, mutate]);
 
   return {
     vocabulary,

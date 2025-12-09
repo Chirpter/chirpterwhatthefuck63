@@ -12,6 +12,8 @@ import { convertTimestamps, removeUndefinedProps } from '@/lib/utils';
 import type { SyncAction } from '@/services/local-database';
 import type { Collection } from 'dexie';
 import { checkAndUnlockAchievements } from './achievement-service';
+import type { User as AuthUser } from 'firebase/auth';
+
 
 const UNORGANIZED_FOLDER_NAME = 'unorganized';
 
@@ -212,7 +214,7 @@ const generateSearchTerms = (term: string, meaning: string, example?: string): s
 };
 
 export async function addVocabularyItem(
-  user: User,
+  user: AuthUser,
   itemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memoryStrength' | 'streak' | 'attempts' | 'lastReviewed' | 'dueDate'>
 ): Promise<VocabularyItem> {
   console.log('[addVocabularyItem] START - Term:', itemData.term);
@@ -300,7 +302,7 @@ export async function addVocabularyItem(
 }
 
 export async function updateVocabularyItem(
-  user: User,
+  user: AuthUser,
   itemId: string,
   updates: Partial<Omit<VocabularyItem, 'id' | 'userId' | 'createdAt'>>
 ): Promise<VocabularyItem> {
@@ -349,7 +351,7 @@ export async function updateVocabularyItem(
   }
 }
 
-export async function deleteVocabularyItem(user: User, itemId: string): Promise<void> {
+export async function deleteVocabularyItem(user: AuthUser, itemId: string): Promise<void> {
   const localDb = getLocalDbForUser(user.uid);
   if (!itemId) throw new Error('Item ID is required for deletion');
 

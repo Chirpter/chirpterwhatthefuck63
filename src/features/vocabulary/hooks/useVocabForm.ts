@@ -18,6 +18,8 @@ interface VocabFormState {
   folder: string;
   termLang: string;
   meanLang: string;
+  termLanguage: string;
+  meaningLanguage: string;
 }
 
 export function useVocabForm(options: UseVocabFormOptions) {
@@ -29,7 +31,7 @@ export function useVocabForm(options: UseVocabFormOptions) {
   const [error, setError] = useState<string | null>(null);
 
   // Real-time vocab validation
-  const getVocabValidation = useCallback((formState: VocabFormState) => {
+  const getVocabValidation = useCallback((formState: Partial<VocabFormState>) => {
     return validateVocabFields({
       term: formState.term,
       meaning: formState.meaning,
@@ -72,21 +74,25 @@ export function useVocabForm(options: UseVocabFormOptions) {
     formState: VocabFormState,
     submitFn: (data: any) => Promise<void>
   ) => {
+    console.log('[useVocabForm] HandleSubmit called with formState:', formState);
     // Validate vocab fields
     const vocabValidation = getVocabValidation(formState);
     if (!vocabValidation.isValid) {
       setError(vocabValidation.error!);
+      console.error('[useVocabForm] Vocab validation failed:', vocabValidation.error);
       return false;
     }
 
     // Validate folder if creating new
     if (isCreatingNewFolder && !folderValidation.isValid) {
       setError(folderValidation.error!);
+       console.error('[useVocabForm] Folder validation failed:', folderValidation.error);
       return false;
     }
 
     setError(null);
     setIsSubmitting(true);
+    console.log('[useVocabForm] Submitting...');
 
     try {
       const finalFolder = resolveFinalFolder(formState.folder);
@@ -96,20 +102,22 @@ export function useVocabForm(options: UseVocabFormOptions) {
         meaning: formState.meaning.trim(),
         example: formState.example.trim() || undefined,
         folder: finalFolder,
-        termLang: formState.termLang,
-        meanLang: formState.meanLang,
+        termLang: formState.termLanguage,
+        meanLang: formState.meaningLanguage,
       };
-
+      
+      console.log('[useVocabForm] Data prepared for submission:', dataToSubmit);
       await submitFn(dataToSubmit);
       
       if (onSubmitSuccess) {
         onSubmitSuccess();
       }
-      
+      console.log('[useVocabForm] Submit successful.');
       return true;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown error');
       setError(error.message);
+      console.error('[useVocabForm] Submit error:', error);
       
       if (onSubmitError) {
         onSubmitError(error);
@@ -118,6 +126,7 @@ export function useVocabForm(options: UseVocabFormOptions) {
       return false;
     } finally {
       setIsSubmitting(false);
+       console.log('[useVocabForm] Submission process finished.');
     }
   }, [
     isCreatingNewFolder,

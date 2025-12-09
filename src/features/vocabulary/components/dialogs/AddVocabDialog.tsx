@@ -39,7 +39,7 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
   initialFolder,
   context = 'manual'
 }) => {
-  const { user } = useAuth();
+  const { user: authUser } = useAuth(); // Use authUser as it's from Firebase Auth
   const { t, i18n } = useTranslation(['vocabularyPage', 'common', 'toast']);
   const { toast } = useToast();
   
@@ -104,12 +104,16 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
   }, [isOpen, i18n.language, initialFolder, resetForm]);
 
   const handleAddNewVocabItem = useCallback(async () => {
-    if (!user) {
-      toast({ title: t('toast:authError'), variant: "destructive" });
+    console.log('[AddVocabDialog] Attempting to add new item. User object:', authUser);
+    if (!authUser) {
+      toast({ title: t('toast:authErrorTitle'), description: t('toast:authErrorDesc'), variant: "destructive" });
+      console.error('[AddVocabDialog] Auth user is null. Cannot proceed.');
       return;
     }
 
     const success = await handleSubmit({ ...newVocabItem, termLanguage: newVocabItem.termLang, meaningLanguage: newVocabItem.meanLang }, async (dataToSubmit: any) => {
+      // The `onSuccess` prop is now called with the data. 
+      // The `useVocabulary` hook will handle the actual `addItem` call.
       onSuccess({ ...dataToSubmit, context });
     });
 
@@ -124,7 +128,7 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
       });
     }
   }, [
-    user,
+    authUser,
     newVocabItem,
     context,
     initialFolder,
