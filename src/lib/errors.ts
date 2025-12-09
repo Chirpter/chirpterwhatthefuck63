@@ -1,3 +1,4 @@
+// src/lib/errors.ts
 
 /**
  * @fileoverview Centralized place for custom error types used across the application.

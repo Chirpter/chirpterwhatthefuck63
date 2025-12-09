@@ -1,4 +1,4 @@
-
+// src/features/user/components/LevelUpDialog.tsx
 
 "use client";
 
@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { motion } from 'framer-motion';
-import type { LevelUpInfo } from '@/contexts/auth-context';
+import type { LevelUpInfo } from '@/contexts/user-context'; // Corrected import path
 
 interface LevelUpDialogProps {
   isOpen: boolean;

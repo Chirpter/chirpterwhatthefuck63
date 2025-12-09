@@ -1,15 +1,100 @@
-
-
+// src/services/user-service.ts
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { User } from '@/lib/types';
+import type { User, UserAchievement } from '@/lib/types';
 import { ApiServiceError } from '@/lib/errors';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { getLevelStyles } from '@/lib/utils';
 import { ACHIEVEMENTS } from '@/lib/achievements';
+import { convertTimestamps } from '@/lib/utils';
+
 
 const USERS_COLLECTION = 'users';
+
+/**
+ * The definitive server-side function to either fetch an existing user profile
+ * or create a new one for a newly authenticated user. Also handles daily login rewards.
+ * @param userId - The UID of the authenticated user.
+ * @returns An object containing the user profile and optional level up info.
+ */
+export async function createOrFetchUserProfile(userId: string): Promise<{ user: User, leveledUpInfo: { newLevel: number, oldLevel: number } | null }> {
+    const adminDb = getAdminDb();
+    const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
+
+    return await adminDb.runTransaction(async (transaction) => {
+        const userDoc = await transaction.get(userDocRef);
+
+        if (userDoc.exists) {
+            const existingUser = userDoc.data() as User;
+            const todayUtcString = new Date().toISOString().split('T')[0];
+
+            if (existingUser.lastLoginDate === todayUtcString) {
+                return { user: convertTimestamps(existingUser), leveledUpInfo: null };
+            }
+
+            const oldLevel = existingUser.level || 0;
+            const newLevel = oldLevel + 1;
+            
+            const dailyLoginAchievement = ACHIEVEMENTS.find(a => a.id === 'daily_login');
+            let reward = 10; // Default reward
+
+            if (dailyLoginAchievement && dailyLoginAchievement.tiers[0]) {
+                const tier = dailyLoginAchievement.tiers[0];
+                reward = tier.creditReward;
+
+                const userLevelTier = getLevelStyles(oldLevel, existingUser.plan).tier;
+                if (tier.levelBonus && userLevelTier !== 'gold') {
+                    reward += tier.levelBonus[userLevelTier] || 0;
+                }
+                if (existingUser.plan === 'pro' && tier.proBonus) {
+                    reward += tier.proBonus;
+                }
+            }
+
+            transaction.update(userDocRef, {
+                lastLoginDate: todayUtcString,
+                level: newLevel,
+                'stats.level': newLevel,
+                credits: FieldValue.increment(reward),
+            });
+            
+            const updatedUser = { ...existingUser, level: newLevel, lastLoginDate: todayUtcString, credits: existingUser.credits + reward };
+            return { user: convertTimestamps(updatedUser), leveledUpInfo: { newLevel, oldLevel } };
+            
+        } else {
+            const { getAuth } = await import('firebase-admin/auth');
+            const authUser = await getAuth().getUser(userId);
+
+            const todayUtcString = new Date().toISOString().split('T')[0];
+            const sanitizedDisplayName = authUser.displayName 
+                ? authUser.displayName.replace(/[^\p{L}\p{N}\s]/gu, '').trim()
+                : `User-${userId.substring(0, 5)}`;
+            
+            const newUser: User = {
+                uid: userId,
+                email: authUser.email,
+                displayName: sanitizedDisplayName || `User-${userId.substring(0, 5)}`,
+                photoURL: authUser.photoURL,
+                coverPhotoURL: '',
+                isAnonymous: authUser.disabled,
+                plan: 'free',
+                credits: 10,
+                role: 'user',
+                level: 1,
+                lastLoginDate: todayUtcString,
+                stats: { booksCreated: 0, piecesCreated: 0, vocabSaved: 0, flashcardsMastered: 0, coversGeneratedByAI: 0, bilingualBooksCreated: 0, vocabAddedToPlaylist: 0, level: 1 },
+                achievements: [],
+                purchasedBookIds: [],
+                ownedBookmarkIds: [],
+            };
+
+            transaction.set(userDocRef, newUser);
+            return { user: convertTimestamps(newUser), leveledUpInfo: { oldLevel: 0, newLevel: 1 } };
+        }
+    });
+}
+
 
 export async function getUserProfile(userId: string): Promise<User | null> {
   const adminDb = getAdminDb();
@@ -17,7 +102,7 @@ export async function getUserProfile(userId: string): Promise<User | null> {
   const docSnap = await userDocRef.get();
 
   if (docSnap.exists) {
-    return docSnap.data() as User;
+    return convertTimestamps(docSnap.data() as User);
   }
   return null;
 }
@@ -134,8 +219,11 @@ export async function claimAchievement(
     
     const userAchievement = user.achievements?.find(a => a.id === achievementId);
     
-    if (!userAchievement) {
-      throw new ApiServiceError("Achievement not unlocked by user.", "VALIDATION");
+    // In this model, the achievement might not exist yet if it's the first claim.
+    const lastClaimedLevel = userAchievement?.lastClaimedLevel || 0;
+    
+    if (lastClaimedLevel >= tierLevel) {
+      throw new ApiServiceError("Reward for this tier has already been claimed.", "VALIDATION");
     }
 
     const targetTier = achievementDef.tiers.find(t => t.level === tierLevel);
@@ -144,10 +232,6 @@ export async function claimAchievement(
       throw new ApiServiceError("Target tier not found for this achievement.", "VALIDATION");
     }
     
-    if (userAchievement.lastClaimedLevel >= tierLevel) {
-      throw new ApiServiceError("Reward for this tier has already been claimed.", "VALIDATION");
-    }
-
     const statValue = user.stats?.[achievementDef.statToTrack] as number || 0;
     
     if (statValue < targetTier.goal) {
@@ -169,18 +253,28 @@ export async function claimAchievement(
       }
     }
     
-    const newAchievements = user.achievements!.map(a => 
-      a.id === achievementId ? { ...a, lastClaimedLevel: tierLevel } : a
-    );
+    let updatedAchievements = [...(user.achievements || [])];
+    if (userAchievement) {
+        updatedAchievements = updatedAchievements.map(a => 
+            a.id === achievementId ? { ...a, lastClaimedLevel: tierLevel } : a
+        );
+    } else {
+        updatedAchievements.push({
+            id: achievementId,
+            unlockedAt: new Date().toISOString(),
+            lastClaimedLevel: tierLevel
+        });
+    }
 
     transaction.update(userDocRef, {
       credits: FieldValue.increment(totalReward),
-      achievements: newAchievements,
+      achievements: updatedAchievements,
     });
     
     return { reward: totalReward, newLevel: tierLevel };
   });
 }
+
 
 export async function recordPlaylistAdd(userId: string): Promise<void> {
   const adminDb = getAdminDb();

@@ -1,4 +1,4 @@
-
+// src/lib/types.ts
 
 import { VOCABULARY_CONSTANTS, BOOK_LENGTH_OPTIONS } from "./constants";
 import { z } from 'zod';
@@ -237,13 +237,11 @@ export interface Book extends BaseLibraryItem {
   contentError?: string;
   contentRetryCount?: number;
   chapters: Chapter[];
-
   coverState: JobStatus;
   coverError?: string;
   cover?: Cover;
   imageHint?: string;
   coverRetryCount?: number;
-
   outline?: ChapterOutlineItem[];
   intendedLength?: BookLengthOptionValue;
   isComplete?: boolean;
