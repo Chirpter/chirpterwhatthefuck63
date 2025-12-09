@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -201,7 +200,7 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
             />
         </div>
         <div className="mt-4 text-muted-foreground h-6 text-sm text-center">
-            {isFormBusy ? t('status.finishing') : t('previewArea.bookPlaceholder')}
+            {isFormBusy ? t('loading.inProgress') : t('previewArea.bookPlaceholder')}
         </div>
     </div>
   );
