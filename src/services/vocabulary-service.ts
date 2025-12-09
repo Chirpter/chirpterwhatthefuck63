@@ -32,7 +32,7 @@ import { resolveFolderForDisplay } from '@/features/vocabulary/utils/folder.util
  */
 export async function fetchAllVocabularyFromFirestore(userId: string): Promise<VocabularyItem[]> {
   try {
-    const vocabCollectionRef = collection(db, `users/${userId}/vocabulary`);
+    const vocabCollectionRef = collection(db, `users/${'${userId}'}/vocabulary`);
     const q = query(vocabCollectionRef, orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(docSnap => {
@@ -53,7 +53,7 @@ export async function fetchAllVocabularyFromFirestore(userId: string): Promise<V
 export async function syncVocabularyBatch(userId: string, actions: SyncAction[]): Promise<void> {
   try {
     const batch = writeBatch(db);
-    const vocabCollectionRef = collection(db, `users/${userId}/vocabulary`);
+    const vocabCollectionRef = collection(db, `users/${'${userId}'}/vocabulary`);
 
     for (const action of actions) {
       const docRef = doc(vocabCollectionRef, action.key);
@@ -243,18 +243,25 @@ export async function getVocabularyItemsPaginated(
         );
     }
     
+    // Perform sorting and pagination directly in Dexie
     const sortedCollection = query.orderBy(sortBy);
-    const sortedItems = sortOrder === 'desc' ? await sortedCollection.reverse().toArray() : await sortedCollection.toArray();
 
-    const totalCount = sortedItems.length;
-    const paginatedItems = sortedItems.slice(offset, offset + limit);
-    const hasMore = offset + limit < totalCount;
+    if (sortOrder === 'desc') {
+        sortedCollection.reverse();
+    }
+    
+    // To check if there's more, we fetch one more item than the limit
+    const items = await sortedCollection.offset(offset).limit(limit + 1).toArray();
+    
+    const hasMore = items.length > limit;
+    const paginatedItems = items.slice(0, limit);
 
     return { items: paginatedItems, hasMore };
   } catch (error) {
     handleVocabularyError(error, 'getVocabularyItemsPaginated', VocabularyErrorCode.DB_QUERY_FAILED);
   }
 }
+
 
 export async function getFolderCounts(userId: string): Promise<Record<string, number>> {
   const localDb = getLocalDbForUser(userId);
@@ -274,14 +281,11 @@ export async function getFolderCounts(userId: string): Promise<Record<string, nu
 export async function getUniqueFolders(userId: string): Promise<string[]> {
     const localDb = getLocalDbForUser(userId);
     try {
-        const uniqueFolders = await localDb.vocabulary
+        const allItemsWithFolders = await localDb.vocabulary
             .where('userId').equals(userId)
-            .filter(item => typeof item.folder === 'string' && item.folder.trim() !== '')
-            .keys(keys => Array.from(new Set(keys.map((key: any) => key.folder)))) as any;
+            .and(item => typeof item.folder === 'string' && item.folder.trim() !== '')
+            .toArray();
 
-        // The above query might not work as expected with all Dexie versions.
-        // A more robust, though slightly less performant, fallback is to fetch and reduce.
-        const allItemsWithFolders = await localDb.vocabulary.where('userId').equals(userId).and(item => !!item.folder).toArray();
         const folderSet = new Set(allItemsWithFolders.map(item => item.folder!));
         
         return Array.from(folderSet).sort((a, b) => a.localeCompare(b));
@@ -320,7 +324,6 @@ export async function getVocabularyItemsByFolderAndSrsState(
     }
 }
 
-// NEWLY EXPORTED FUNCTION
 export async function getVocabularyItemsByFolder(
     userId: string, 
     folder: string
