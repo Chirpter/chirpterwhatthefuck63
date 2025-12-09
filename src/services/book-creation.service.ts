@@ -82,7 +82,7 @@ async function processBookGenerationPipeline(
 /**
  * The main exported function to create a new book and start its generation process.
  */
-export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
+async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
   const adminDb = getAdminDb();
   let bookId = '';
 
@@ -301,4 +301,94 @@ async function processCoverImageForBook(
     console.error(`Cover image processing failed for book ${bookId}:`, error);
     throw new ApiServiceError("Cover image generation failed.", "UNKNOWN");
   }
+}
+
+export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
+  const adminDb = getAdminDb();
+  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+
+  const bookData = await adminDb.runTransaction(async (transaction) => {
+    const bookSnap = await transaction.get(bookDocRef);
+    if (!bookSnap.exists) throw new ApiServiceError("Book not found for content regeneration.", "UNKNOWN");
+    const currentData = bookSnap.data() as Book;
+
+    const updatePayload: any = {
+      contentState: 'processing',
+      status: 'processing',
+      contentRetryCount: newPrompt ? 0 : (currentData.contentRetryCount || 0) + 1,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (newPrompt) updatePayload.prompt = newPrompt;
+
+    transaction.update(bookDocRef, updatePayload);
+    return currentData;
+  });
+
+  const contentInput: GenerateBookContentInput = {
+    prompt: newPrompt || bookData.prompt || '',
+    origin: bookData.origin,
+    bookLength: bookData.intendedLength || 'short-story',
+    generationScope: bookData.chapters.length > 3 ? 'full' : 'firstFew',
+    chaptersToGenerate: bookData.chapters.length || 3,
+  };
+  
+  processBookGenerationPipeline(
+    userId, 
+    bookId, 
+    contentInput, 
+    'none' // Don't touch the cover during content regen
+  ).catch(async (err) => {
+    console.error(`Background content regeneration failed for book ${bookId}:`, err);
+    await updateLibraryItem(userId, bookId, {
+      status: 'draft',
+      contentState: 'error',
+      contentError: (err as Error).message || 'Content regeneration failed.',
+    });
+  });
+}
+
+export async function editBookCover(
+  userId: string, 
+  bookId: string, 
+  newCoverOption: 'ai' | 'upload',
+  data: File | string,
+): Promise<void> {
+  const adminDb = getAdminDb();
+  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+
+  const bookData = await adminDb.runTransaction(async (transaction) => {
+    const bookSnap = await transaction.get(bookDocRef);
+    if (!bookSnap.exists) throw new ApiServiceError("Book not found for cover edit.", "UNKNOWN");
+    
+    transaction.update(bookDocRef, {
+      coverState: 'processing',
+      status: 'processing',
+      coverRetryCount: (bookSnap.data()?.coverRetryCount || 0) + 1,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return bookSnap.data() as Book;
+  });
+
+  const contentInput: GenerateBookContentInput = {
+    prompt: bookData.prompt || '',
+    origin: bookData.origin,
+    bookLength: bookData.intendedLength || 'short-story',
+    generationScope: 'full',
+    chaptersToGenerate: bookData.chapters.length || 0,
+  };
+
+  processBookGenerationPipeline(
+    userId, 
+    bookId, 
+    contentInput, // Pass content input for context
+    newCoverOption,
+    data
+  ).catch(async (err) => {
+    console.error(`Background cover edit failed for book ${bookId}:`, err);
+    await updateLibraryItem(userId, bookId, {
+      status: 'draft',
+      coverState: 'error',
+      coverError: (err as Error).message || 'Cover processing failed.',
+    });
+  });
 }
