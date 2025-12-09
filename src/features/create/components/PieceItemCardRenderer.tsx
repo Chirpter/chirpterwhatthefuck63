@@ -71,7 +71,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
      return (
       <div className={cn("flex flex-col items-center justify-center text-center h-full")}>
         <Icon name="Wand2" className="h-16 w-16 text-primary/80 mx-auto mb-4 animate-pulse" />
-        <p className="text-md text-muted-foreground font-body">{t('loading.inProgress')}</p>
+        <p className="text-md text-muted-foreground font-body">{t('status.contentProcessing')}</p>
         <p className="text-sm text-muted-foreground/70 font-body mt-2">{t('loading.stayOnPage')}</p>
       </div>
     );
@@ -95,7 +95,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
                 <Button variant="link" asChild className="text-lg font-semibold font-headline p-0 h-auto">
                     <Link href="/library/other">
                         <Icon name="Library" className="mr-2 h-5 w-5" />
-                        Complete!
+                        {t('status.complete')}
                     </Link>
                 </Button>
             </div>

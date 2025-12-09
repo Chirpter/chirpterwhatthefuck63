@@ -58,7 +58,7 @@ const FinalStateDisplay: React.FC<{ book: Book }> = ({ book }) => {
                 <Button variant="link" asChild className="text-lg font-semibold font-headline p-0 h-auto">
                     <Link href="/library/book">
                         <Icon name="Library" className="mr-2 h-5 w-5" />
-                        Complete!
+                        {t('status.complete')}
                     </Link>
                 </Button>
             </div>
@@ -200,7 +200,7 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
             />
         </div>
         <div className="mt-4 text-muted-foreground h-6 text-sm text-center">
-            {isFormBusy ? t('loading.inProgress') : t('previewArea.bookPlaceholder')}
+            {isFormBusy ? t('status.conceptualizing') : t('previewArea.bookPlaceholder')}
         </div>
     </div>
   );

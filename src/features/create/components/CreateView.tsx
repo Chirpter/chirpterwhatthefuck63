@@ -133,7 +133,7 @@ export default function CreateView() {
                 disabled={isSubmitDisabled}
             >
                 {isBusy ? (
-                    <><Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> {t('generateButton.loading')}</>
+                    <><Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> {t('status.conceptualizing')}</>
                 ) : !canGenerate && !validationMessage && user ? (
                     <><Icon name="Info" className="mr-2 h-4 w-4" /> {t('common:insufficientCreditsTitle')}</>
                 ) : (
