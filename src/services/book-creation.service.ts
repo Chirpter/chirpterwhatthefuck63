@@ -15,7 +15,7 @@ import { ApiServiceError } from "../lib/errors";
 import { parseMarkdownToSegments, segmentsToChapterStructure } from './MarkdownParser';
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
+import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS, MAX_IMAGE_SIZE_BYTES } from '@/lib/constants';
 import sharp from 'sharp';
 
 // Internal schema to build the AI's output instructions dynamically
@@ -46,6 +46,7 @@ const PromptInputSchema = z.object({
 
 /**
  * The main pipeline for processing book generation. It runs content and cover generation in parallel.
+ * This is a "fire-and-forget" background process.
  * @param userId - The ID of the user.
  * @param bookId - The ID of the book being processed.
  * @param contentInput - The input for the AI content generation flow.
@@ -64,8 +65,8 @@ async function processBookGenerationPipeline(
   const [contentResult, coverResult] = await Promise.allSettled([
     processContentGenerationForBook(userId, bookId, contentInput),
     
-    // This is the conditional logic for the cover pipeline.
-    // It only runs if the user has selected 'ai' or 'upload'.
+    // SERVER VALIDATION 2: Conditional Cover Pipeline
+    // This pipeline only runs if the user has selected 'ai' or 'upload'.
     coverOption !== 'none'
       ? processCoverImageForBook(userId, bookId, coverOption, coverData, contentInput.prompt)
       : Promise.resolve({ coverState: 'ignored' as const }) // If 'none', it resolves instantly.
@@ -75,7 +76,6 @@ async function processBookGenerationPipeline(
 
   if (contentResult.status === 'fulfilled') {
     // Content generation succeeded.
-    // The result is a partial Book object with `title`, `chapters`, `outline`, etc.
     Object.assign(finalUpdate, contentResult.value);
   } else {
     // Content generation failed.
@@ -92,12 +92,15 @@ async function processBookGenerationPipeline(
     finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
   }
 
+  // Update the book with the final results of both pipelines.
   await updateLibraryItem(userId, bookId, finalUpdate);
+  // After updating, check if any new achievements were unlocked.
   await checkAndUnlockAchievements(userId);
 }
 
 /**
  * Creates a book document and initiates the generation pipeline. This is the entry point.
+ * This function performs critical server-side validation.
  * @param userId - The ID of the user.
  * @param bookFormData - The data from the creation form.
  * @returns The ID of the newly created book.
@@ -106,17 +109,45 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const adminDb = getAdminDb();
   let bookId = '';
 
+  // SERVER VALIDATION 1: User Profile
+  // Ensure the user exists and we can access their profile for credit checks.
   const userProfile = await getUserProfile(userId);
   if (!userProfile) throw new ApiServiceError("User profile not found.", "AUTH");
   
-  // Note: Pro feature checks and credit cost calculation would happen here in a real app.
+  // SERVER VALIDATION 2: Credit Check (within a transaction)
+  // Calculate the cost on the server to prevent manipulation from the client.
+  let creditCost = 0;
+  const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookFormData.bookLength);
+  if (bookLengthOption) {
+    if (bookFormData.bookLength === 'standard-book') {
+        creditCost = bookFormData.generationScope === 'full' ? 8 : 2;
+    } else {
+        creditCost = { 'short-story': 1, 'mini-book': 2, 'long-book': 15 }[bookFormData.bookLength] || 1;
+    }
+  }
+  if (bookFormData.coverImageOption === 'ai' || bookFormData.coverImageOption === 'upload') {
+      creditCost += 1; // Simplified cost for any cover action
+  }
   
   const primaryLanguage = bookFormData.primaryLanguage;
 
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
-    // Credit deduction logic would be here...
+    const userDoc = await transaction.get(userDocRef);
+    if (!userDoc.exists) throw new ApiServiceError("User not found.", "AUTH");
+    
+    // Securely check credits on the server
+    if ((userDoc.data()?.credits || 0) < creditCost) {
+      throw new ApiServiceError("Insufficient credits.", "VALIDATION");
+    }
+    
+    // Deduct credits and update stats atomically
+    transaction.update(userDocRef, {
+        credits: FieldValue.increment(-creditCost),
+        'stats.booksCreated': FieldValue.increment(1)
+    });
 
+    // Create the initial book document
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
     const initialBookData: Omit<Book, 'id'> = {
         userId,
@@ -155,7 +186,6 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     chaptersToGenerate: bookFormData.targetChapterCount,
   };
   
-  // The cover data can be a prompt string (for AI) or a File object (for upload).
   const coverData = bookFormData.coverImageOption === 'ai' ? bookFormData.coverImageAiPrompt : bookFormData.coverImageFile;
 
   // Fire and forget the pipeline. It will run in the background.
@@ -171,9 +201,11 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  * @returns A partial Book object with the generated content and updated status.
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
+    // SERVER VALIDATION 3: Sanitize and truncate user input before sending to AI
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;
     
+    // Server-side calculation of word count and token limits
     let totalWords = 600;
     let maxOutputTokens = 1200;
 
@@ -311,6 +343,14 @@ async function processCoverImageForBook(
     
     // Case 1: User uploaded a file
     if (coverOption === 'upload' && imageData instanceof File) {
+        // SERVER VALIDATION 4: File Size and Type (though client already checks)
+        if (imageData.size > MAX_IMAGE_SIZE_BYTES) {
+            throw new ApiServiceError(`File size exceeds limit of ${MAX_IMAGE_SIZE_BYTES / 1024 / 1024}MB.`, 'VALIDATION');
+        }
+        if (!imageData.type.startsWith('image/')) {
+            throw new ApiServiceError('Invalid file type. Only images are allowed.', 'VALIDATION');
+        }
+
       const arrayBuffer = await imageData.arrayBuffer();
       optimizedBuffer = await sharp(Buffer.from(arrayBuffer))
         .resize(512, 683, { fit: 'cover', position: 'center' })
@@ -329,7 +369,6 @@ async function processCoverImageForBook(
       const storagePath = `covers/${userId}/${bookId}/cover.webp`;
       const imageRef = storageRef(storage, storagePath);
       
-      // Convert buffer to data URL for upload
       const dataUrl = `data:image/webp;base64,${optimizedBuffer.toString('base64')}`;
       
       await uploadString(imageRef, dataUrl, 'data_url');
@@ -349,16 +388,13 @@ async function processCoverImageForBook(
       };
     }
 
-    // If no action was taken (e.g., AI prompt was empty)
     return { coverState: 'ignored' };
 
   } catch (err) {
     console.error(`Error in cover generation for book ${bookId}:`, (err as Error).message);
-    throw err; // Re-throw to be caught by Promise.allSettled
+    throw err;
   }
 }
-
-// ... other functions (addChaptersToBook, editBookCover) would be similarly refactored ...
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -366,7 +402,6 @@ export async function addChaptersToBook(userId: string, bookId: string, contentI
   const adminDb = getAdminDb();
   const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
 
-  // Update book status to 'processing' before starting
   await bookDocRef.update({
     status: 'processing',
     contentState: 'processing',
@@ -377,7 +412,7 @@ export async function addChaptersToBook(userId: string, bookId: string, contentI
     const { chapters, title } = await processContentGenerationForBook(userId, bookId, contentInput);
 
     await bookDocRef.update({
-      title: title || FieldValue.delete(), // Keep old title if new one is not generated
+      title: title || FieldValue.delete(),
       chapters: FieldValue.arrayUnion(...(chapters || [])),
       status: 'draft',
       contentState: 'ready',
@@ -402,7 +437,7 @@ export async function editBookCover(userId: string, bookId: string, newCoverOpti
     });
 
     try {
-        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data);
+        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data, undefined);
         await updateLibraryItem(userId, bookId, { ...coverUpdate, status: 'draft' });
     } catch (error) {
         await updateLibraryItem(userId, bookId, {
@@ -415,14 +450,15 @@ export async function editBookCover(userId: string, bookId: string, newCoverOpti
 }
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-    const docSnap = await getAdminDb().collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+    const adminDb = getAdminDb();
+    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
     if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
     const book = docSnap.data() as Book;
 
     const contentInput: GenerateBookContentInput = {
         prompt: newPrompt || book.prompt || '',
         origin: book.origin,
-        bookLength: book.intendedLength,
+        bookLength: book.intendedLength || 'short-story',
         chaptersToGenerate: book.chapters.length || 1
     };
 
@@ -449,7 +485,8 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 }
 
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
-    const docSnap = await getAdminDb().collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+    const adminDb = getAdminDb();
+    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
     if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
     const book = docSnap.data() as Book;
 
