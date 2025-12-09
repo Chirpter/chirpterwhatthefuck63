@@ -67,6 +67,7 @@ async function processBookGenerationPipeline(
     
     // SERVER VALIDATION 2: Conditional Cover Pipeline
     // This pipeline only runs if the user has selected 'ai' or 'upload'.
+    // This is a key part of how the three cover options are handled consistently.
     coverOption !== 'none'
       ? processCoverImageForBook(userId, bookId, coverOption, coverData, contentInput.prompt)
       : Promise.resolve({ coverState: 'ignored' as const }) // If 'none', it resolves instantly.
@@ -109,12 +110,12 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const adminDb = getAdminDb();
   let bookId = '';
 
-  // SERVER VALIDATION 1: User Profile
-  // Ensure the user exists and we can access their profile for credit checks.
+  // SERVER VALIDATION 1: User Profile & Credits
+  // Ensure the user exists and has enough credits before doing anything else.
+  // This check is performed within a transaction to prevent race conditions.
   const userProfile = await getUserProfile(userId);
   if (!userProfile) throw new ApiServiceError("User profile not found.", "AUTH");
   
-  // SERVER VALIDATION 2: Credit Check (within a transaction)
   // Calculate the cost on the server to prevent manipulation from the client.
   let creditCost = 0;
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookFormData.bookLength);
@@ -201,7 +202,10 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  * @returns A partial Book object with the generated content and updated status.
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
-    // SERVER VALIDATION 3: Sanitize and truncate user input before sending to AI
+    // SERVER VALIDATION 3: Sanitize and truncate user input before sending to AI.
+    // This prevents API errors from oversized prompts and is a basic security measure.
+    // Relying on the AI model's `max_input_tokens` is not reliable as it often results
+    // in a hard failure (e.g., 400 Bad Request) instead of graceful truncation.
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;
     
