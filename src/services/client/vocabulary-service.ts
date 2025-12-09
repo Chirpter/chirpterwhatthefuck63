@@ -167,69 +167,64 @@ export async function getVocabularyItemsPaginated(
   console.log('[DEBUG] Entering getVocabularyItemsPaginated with options:', { userId, folder, searchTerm, limit, offset, sortBy, sortOrder, context });
 
   try {
-    let query: Collection<VocabularyItem, string> = localDb.vocabulary.where({ userId });
+    // 1. Start with the base query for the user
+    let baseQuery: Collection<VocabularyItem, string> = localDb.vocabulary.where({ userId });
     console.log('[DEBUG] Initial query created for userId:', userId);
 
-    if (context) {
-        query = query.and(item => item.context === context);
-        console.log('[DEBUG] Applied context filter:', context);
-    }
-    
-    if (folder && folder !== 'all') {
+    // 2. Fetch all matching items first (we will filter in-memory)
+    const allMatchingItems = await baseQuery.toArray();
+    console.log(`[DEBUG] Fetched ${allMatchingItems.length} total items for user to filter.`);
+
+    // 3. Apply filters in-memory
+    const filteredItems = allMatchingItems.filter(item => {
+      let passes = true;
+      if (context && item.context !== context) {
+        passes = false;
+      }
+      if (passes && folder && folder !== 'all') {
         if (folder === FOLDER_CONSTANTS.UNORGANIZED) {
-            query = query.and(item => !item.folder);
-            console.log('[DEBUG] Applied folder filter: unorganized');
+          passes = !item.folder;
         } else {
-            query = query.and(item => item.folder === folder);
-            console.log('[DEBUG] Applied folder filter:', folder);
+          passes = item.folder === folder;
         }
-    }
-    
-    if (searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_QUERY_LENGTH) {
+      }
+      if (passes && searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_QUERY_LENGTH) {
         const searchLower = searchTerm.toLowerCase();
-        query = query.and(item => 
-            (item.searchTerms || []).some(st => st.includes(searchLower))
-        );
-        console.log('[DEBUG] Applied search filter:', searchTerm);
-    }
-    
-    let sortedCollection = query.orderBy(sortBy);
-    console.log('[DEBUG] Applied sort by:', sortBy);
+        passes = (item.searchTerms || []).some(st => st.includes(searchLower));
+      }
+      return passes;
+    });
+    console.log(`[DEBUG] Found ${filteredItems.length} items after filtering.`);
 
-    if (sortOrder === 'desc') {
-        sortedCollection = sortedCollection.reverse();
-        console.log('[DEBUG] Applied sort order: desc');
-    }
+    // 4. Sort the filtered results
+    filteredItems.sort((a, b) => {
+      const valA = a[sortBy as keyof VocabularyItem];
+      const valB = b[sortBy as keyof VocabularyItem];
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    console.log('[DEBUG] Sorting applied.');
 
-    let items;
-    try {
-        console.log('[DEBUG] Executing query with offset/limit...', { offset, limit });
-        items = await sortedCollection.offset(offset).limit(limit + 1).toArray();
-        console.log('[DEBUG] Query successful. Items found:', items.length);
-    } catch (e: any) {
-        console.error("===================================================");
-        console.error("!!! DEXIE QUERY FAILED - RAW ERROR !!!");
-        console.error("===================================================");
-        console.error("Error Name:", e.name);
-        console.error("Error Message:", e.message);
-        console.error("Error Stack:", e.stack);
-        console.error("Query Details:", { userId, folder, searchTerm, limit, offset, sortBy, sortOrder, context });
-        console.error("===================================================");
-        // Re-throw the error to be caught by the outer try-catch
-        throw e;
-    }
-    
-    const hasMore = items.length > limit;
-    const paginatedItems = items.slice(0, limit);
+    // 5. Paginate the final, sorted array
+    const paginatedItems = filteredItems.slice(offset, offset + limit);
+    const hasMore = filteredItems.length > offset + limit;
     console.log('[DEBUG] Pagination result:', { hasMore, returnedItems: paginatedItems.length });
 
     return { items: paginatedItems, hasMore };
-  } catch (error) {
-    // This will now catch the re-thrown error from the inner block as well.
+
+  } catch (error: any) {
+    console.error("===================================================");
+    console.error("!!! DEXIE QUERY FAILED - RAW ERROR !!!");
+    console.error("===================================================");
+    console.error("Error Name:", error.name);
+    console.error("Error Message:", error.message);
+    console.error("Error Stack:", error.stack);
+    console.error("Query Details:", { userId, folder, searchTerm, limit, offset, sortBy, sortOrder, context });
+    console.error("===================================================");
     handleVocabularyError(error, 'getVocabularyItemsPaginated', VocabularyErrorCode.DB_QUERY_FAILED);
   }
 }
-
 
 export async function getFolderCounts(userId: string): Promise<Record<string, number>> {
   const localDb = getLocalDbForUser(userId);
@@ -249,7 +244,10 @@ export async function getFolderCounts(userId: string): Promise<Record<string, nu
 export async function getUniqueFolders(userId: string): Promise<string[]> {
     const localDb = getLocalDbForUser(userId);
     try {
-        const allItemsWithFolders = await localDb.vocabulary.where('userId').equals(userId).and(item => typeof item.folder === 'string' && item.folder.trim() !== '').toArray();
+        const allItemsWithFolders = await localDb.vocabulary
+            .where('userId').equals(userId)
+            .and(item => typeof item.folder === 'string' && item.folder.trim() !== '')
+            .toArray();
         const folderSet = new Set(allItemsWithFolders.map(item => item.folder!));
         return Array.from(folderSet).sort((a, b) => a.localeCompare(b));
     } catch (error) {
