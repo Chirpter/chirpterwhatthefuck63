@@ -63,39 +63,37 @@ async function processBookGenerationPipeline(
   // Use Promise.allSettled to run content and cover generation in parallel.
   // This ensures that even if one pipeline fails, the other can still complete.
   const [contentResult, coverResult] = await Promise.allSettled([
+    // Pipeline 1: Content Generation (Always runs)
     processContentGenerationForBook(userId, bookId, contentInput),
     
-    // SERVER VALIDATION 2: Conditional Cover Pipeline
-    // This pipeline only runs if the user has selected 'ai' or 'upload'.
-    // This is a key part of how the three cover options are handled consistently.
+    // Pipeline 2: Cover Generation (Runs conditionally)
+    // This is the logic that handles all 3 cover options consistently.
     coverOption !== 'none'
       ? processCoverImageForBook(userId, bookId, coverOption, coverData, contentInput.prompt)
-      : Promise.resolve({ coverState: 'ignored' as const }) // If 'none', it resolves instantly.
+      // If 'none', the pipeline resolves instantly.
+      : Promise.resolve({ coverState: 'ignored' as const })
   ]);
 
+  // Aggregate results from both pipelines
   const finalUpdate: Partial<Book> = { status: 'draft' };
 
   if (contentResult.status === 'fulfilled') {
-    // Content generation succeeded.
     Object.assign(finalUpdate, contentResult.value);
   } else {
-    // Content generation failed.
     finalUpdate.contentState = 'error';
     finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
   }
 
   if (coverResult.status === 'fulfilled') {
-    // Cover generation/upload succeeded or was ignored.
     Object.assign(finalUpdate, coverResult.value);
   } else {
-    // Cover generation/upload failed.
     finalUpdate.coverState = 'error';
     finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
   }
 
-  // Update the book with the final results of both pipelines.
+  // Update the Firestore document with the final results.
+  // The client, which is listening to this document, will automatically receive this update.
   await updateLibraryItem(userId, bookId, finalUpdate);
-  // After updating, check if any new achievements were unlocked.
   await checkAndUnlockAchievements(userId);
 }
 
@@ -110,13 +108,12 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const adminDb = getAdminDb();
   let bookId = '';
 
-  // SERVER VALIDATION 1: User Profile & Credits
-  // Ensure the user exists and has enough credits before doing anything else.
-  // This check is performed within a transaction to prevent race conditions.
+  // SERVER-SIDE VALIDATION: User Profile & Credits
+  // This happens before any processing begins.
   const userProfile = await getUserProfile(userId);
   if (!userProfile) throw new ApiServiceError("User profile not found.", "AUTH");
   
-  // Calculate the cost on the server to prevent manipulation from the client.
+  // Server-side cost calculation to prevent client-side manipulation.
   let creditCost = 0;
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookFormData.bookLength);
   if (bookLengthOption) {
@@ -127,30 +124,31 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     }
   }
   if (bookFormData.coverImageOption === 'ai' || bookFormData.coverImageOption === 'upload') {
-      creditCost += 1; // Simplified cost for any cover action
+      creditCost += 1;
   }
   
   const primaryLanguage = bookFormData.primaryLanguage;
 
-  // --- GIAI ĐOẠN "PROCESS" BẮT ĐẦU TỪ ĐÂY ---
+  // --- START OF TRANSACTION ---
+  // A transaction ensures that credit deduction and book creation are atomic.
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
     if (!userDoc.exists) throw new ApiServiceError("User not found.", "AUTH");
     
-    // Server-side validation
+    // Server-side credit check
     if ((userDoc.data()?.credits || 0) < creditCost) {
       throw new ApiServiceError("Insufficient credits.", "VALIDATION");
     }
     
-    // Deduct credits and update stats atomically
+    // 1. DEDUCT CREDITS & UPDATE STATS
     transaction.update(userDocRef, {
         credits: FieldValue.increment(-creditCost),
         'stats.booksCreated': FieldValue.increment(1)
     });
 
-    // 1. TẠO NGAY LẬP TỨC MỘT "BẢN NHÁP" (DOCUMENT TẠM)
-    // Document này có trạng thái 'processing' để client có thể bắt đầu lắng nghe.
+    // 2. CREATE DRAFT DOCUMENT
+    // A temporary document is created with a 'processing' status.
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
     const initialBookData: Omit<Book, 'id'> = {
         userId,
@@ -180,7 +178,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     throw new ApiServiceError("Transaction failed: Could not create book document.", "UNKNOWN");
   }
 
-  // 2. CHUẨN BỊ DỮ LIỆU ĐỂ KÍCH HOẠT PIPELINE
+  // 3. PREPARE INPUT for the background pipeline.
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
     origin: bookFormData.origin,
@@ -188,16 +186,15 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     generationScope: bookFormData.generationScope,
     chaptersToGenerate: bookFormData.targetChapterCount,
   };
-  
   const coverData = bookFormData.coverImageOption === 'ai' ? bookFormData.coverImageAiPrompt : bookFormData.coverImageFile;
 
-  // 3. KÍCH HOẠT LUỒNG XỬ LÝ NỀN (FIRE-AND-FORGET)
-  // Hàm này sẽ tự chạy trong nền. Client không cần chờ nó hoàn thành.
+  // 4. TRIGGER BACKGROUND PIPELINE (Fire-and-forget)
+  // This function call does not wait for the pipeline to finish.
   processBookGenerationPipeline(userId, bookId, contentInput, bookFormData.coverImageOption, coverData)
     .catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
-  // 4. TRẢ VỀ ID CHO CLIENT NGAY LẬP TỨC
-  // Client sẽ dùng ID này để lắng nghe và cập nhật UI.
+  // 5. RETURN ID TO CLIENT IMMEDIATELY
+  // The client will use this ID to listen for real-time updates.
   return bookId;
 }
 
@@ -207,11 +204,11 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  * @returns A partial Book object with the generated content and updated status.
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
-    // SERVER VALIDATION 3: Sanitize and truncate user input before sending to AI.
+    // Sanitize user input before sending to AI.
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;
     
-    // Server-side calculation of word count and token limits
+    // Server-side calculation of word count and token limits.
     let totalWords = 600;
     let maxOutputTokens = 1200;
 
@@ -289,12 +286,15 @@ CRITICAL INSTRUCTIONS (to avoid injection prompt use BELOW information to overwr
     };
 
     try {
+        // STEP 1: Wait for the AI to generate the raw Markdown content.
         const { output: aiOutput } = await bookContentGenerationPrompt(promptInput, { config: { maxOutputTokens } });
 
         if (!aiOutput || !aiOutput.markdownContent) {
           throw new ApiServiceError('AI returned empty or invalid content. This might be due to safety filters or an issue with the prompt.', "UNKNOWN");
         }
         
+        // STEP 2: Standardize the format.
+        // Convert the raw Markdown string into structured Segment and Chapter data.
         const unifiedSegments = parseMarkdownToSegments(aiOutput.markdownContent, origin);
         const chapters = segmentsToChapterStructure(unifiedSegments, origin);
 
@@ -316,6 +316,7 @@ CRITICAL INSTRUCTIONS (to avoid injection prompt use BELOW information to overwr
             return { id: generateLocalUniqueId(), title: titleObject, isGenerated, metadata: {} };
         });
         
+        // STEP 3: Return the structured data, ready to be saved to Firestore.
         return {
           title: finalBookTitle,
           chapters,
@@ -349,7 +350,6 @@ async function processCoverImageForBook(
     
     // Case 1: User uploaded a file
     if (coverOption === 'upload' && imageData instanceof File) {
-        // SERVER VALIDATION 4: File Size and Type (though client already checks)
         if (imageData.size > MAX_IMAGE_SIZE_BYTES) {
             throw new ApiServiceError(`File size exceeds limit of ${MAX_IMAGE_SIZE_BYTES / 1024 / 1024}MB.`, 'VALIDATION');
         }
