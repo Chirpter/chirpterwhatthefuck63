@@ -1,3 +1,4 @@
+
 // src/services/vocabulary-service.ts
 'use server'; // This directive applies to syncVocabularyBatch only. Other functions are client-side.
 
@@ -271,17 +272,24 @@ export async function getFolderCounts(userId: string): Promise<Record<string, nu
 }
 
 export async function getUniqueFolders(userId: string): Promise<string[]> {
-  const localDb = getLocalDbForUser(userId);
-  try {
-    const folderSet = new Set<string>();
-    await localDb.vocabulary.where('userId').equals(userId).each(item => {
-      if (item.folder) folderSet.add(item.folder);
-    });
-    return Array.from(folderSet).sort((a,b) => a.localeCompare(b));
-  } catch (error) {
-    handleVocabularyError(error, 'getUniqueFolders', VocabularyErrorCode.DB_QUERY_FAILED);
-  }
+    const localDb = getLocalDbForUser(userId);
+    try {
+        const uniqueFolders = await localDb.vocabulary
+            .where('userId').equals(userId)
+            .filter(item => typeof item.folder === 'string' && item.folder.trim() !== '')
+            .keys(keys => Array.from(new Set(keys.map((key: any) => key.folder)))) as any;
+
+        // The above query might not work as expected with all Dexie versions.
+        // A more robust, though slightly less performant, fallback is to fetch and reduce.
+        const allItemsWithFolders = await localDb.vocabulary.where('userId').equals(userId).and(item => !!item.folder).toArray();
+        const folderSet = new Set(allItemsWithFolders.map(item => item.folder!));
+        
+        return Array.from(folderSet).sort((a, b) => a.localeCompare(b));
+    } catch (error) {
+        handleVocabularyError(error, 'getUniqueFolders', VocabularyErrorCode.DB_QUERY_FAILED);
+    }
 }
+
 
 export async function getSrsStateCounts(userId: string): Promise<Record<SrsState, number>> {
     const localDb = getLocalDbForUser(userId);

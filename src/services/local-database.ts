@@ -1,3 +1,4 @@
+
 // src/services/local-database.ts
 import Dexie, { type Table } from 'dexie';
 import type { VocabularyItem, SystemBookmark } from '@/lib/types';
@@ -54,7 +55,7 @@ export class ChirpterLocalDB extends Dexie {
 
   constructor(dbName: string) {
     super(dbName);
-    this.version(15).stores({
+    this.version(16).stores({
       vocabulary: `
         id,
         userId,
