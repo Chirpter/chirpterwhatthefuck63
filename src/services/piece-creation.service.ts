@@ -25,16 +25,7 @@ function getLibraryCollectionPath(userId: string): string {
 }
 
 /**
- * NEW: This is the server action entrypoint.
- * It delegates the entire creation and generation process to other functions in this service.
- */
-export async function generatePieceContent(userId: string, input: PieceFormValues): Promise<string> {
-  // Delegate the entire process to the dedicated service.
-  return createPieceAndStartGeneration(userId, input);
-}
-
-/**
- * The main pipeline for processing "piece" generation.
+ * The main background pipeline for processing "piece" generation.
  */
 async function processPieceGenerationPipeline(userId: string, pieceId: string, pieceFormData: PieceFormValues): Promise<void> {
     let finalUpdate: Partial<Piece>;
@@ -240,6 +231,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         title: workData.title,
         display: workData.display,
         aspectRatio: workData.aspectRatio,
+        type: 'piece'
     };
     
     processPieceGenerationPipeline(userId, workId, pieceFormData)

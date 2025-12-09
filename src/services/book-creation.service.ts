@@ -11,7 +11,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 import { getStorage } from 'firebase-admin/storage';
-// 1. Import updateLibraryItem để sử dụng nội bộ
 import { updateLibraryItem } from "./library-service";
 
 
@@ -24,11 +23,6 @@ const BookOutputSchema = z.object({
 const BookPromptInputSchema = z.object({
     fullInstruction: z.string(),
 });
-
-// 2. Hàm này bây giờ là một "server action", là điểm vào cho client
-export async function generateBookContent(userId: string, input: CreationFormValues): Promise<string> {
-  return createBookAndStartGeneration(userId, input);
-}
 
 /**
  * The main background pipeline for processing all book generation tasks.
@@ -74,8 +68,9 @@ async function processBookGenerationPipeline(
 
 /**
  * The main exported function to create a new book and start its generation process.
+ * This function is INTERNAL to the server and is called by the creation-service facade.
  */
-async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
+export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
   const adminDb = getAdminDb();
   let bookId = '';
 

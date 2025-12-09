@@ -7,10 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { updateLibraryItem } from '@/services/library-service';
 import { getLibraryItemById } from '@/services/client/library-service';
-import { generateBookContent } from '@/services/book-creation.service';
-import { generatePieceContent } from '@/services/piece-creation.service';
-import type { GenerateBookContentInput } from '@/lib/types';
-import type { GeneratePieceInput } from '@/lib/types';
+// NEW: Import the single facade function
+import { createLibraryItem } from '@/services/creation-service';
 import type { Book, Piece, LibraryItem, CreationFormValues, PieceFormValues } from '@/lib/types';
 import { 
   LANGUAGES, 
@@ -56,6 +54,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     if (type === 'book') {
         return {
           ...baseValues,
+          type: 'book', // Add type for the facade
           aiPrompt: DEFAULT_BOOK_PROMPT,
           title: { primary: '' },
           coverImageOption: 'ai',
@@ -71,6 +70,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     } else { // piece
         return {
           ...baseValues,
+          type: 'piece', // Add type for the facade
           aiPrompt: DEFAULT_PIECE_PROMPT,
           title: { primary: '' },
           display: 'card',
@@ -187,47 +187,53 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     }
   
     setFormData(prev => {
-      const newState = { ...prev, [name]: value };
-  
-      // --- REFACTORED AND CORRECTED LOGIC ---
-      let isBilingual = newState.availableLanguages.length > 1;
-      let primaryLang = newState.primaryLanguage;
-      let secondaryLang = newState.availableLanguages.find(l => l !== primaryLang);
-      let isPhrase = prev.origin.endsWith('-ph');
-  
-      if (name === 'isBilingual') {
-        isBilingual = value;
-        if (!isBilingual) {
-          secondaryLang = undefined;
-        } else if (!secondaryLang) {
-          // Find a default secondary language if one isn't set
-          secondaryLang = LANGUAGES.find(l => l.value !== primaryLang)?.value;
+        const newState = { ...prev };
+        (newState as any)[name] = value;
+    
+        if (name === 'isBilingual') {
+            const isBilingual = value;
+            if (isBilingual && newState.availableLanguages.length === 1) {
+                const secondary = LANGUAGES.find(l => l.value !== newState.primaryLanguage)?.value || 'es';
+                newState.availableLanguages = [newState.primaryLanguage, secondary];
+            } else if (!isBilingual) {
+                newState.availableLanguages = [newState.primaryLanguage];
+            }
         }
-      } else if (name === 'primaryLanguage') {
-        primaryLang = value;
-        if (isBilingual && primaryLang === secondaryLang) {
-          // If primary is set to be the same as secondary, find a new secondary
-          secondaryLang = LANGUAGES.find(l => l.value !== primaryLang)?.value;
+    
+        if (name === 'primaryLanguage') {
+            const newPrimary = value;
+            if (newState.availableLanguages.length > 1) {
+                const oldSecondary = newState.availableLanguages[1];
+                newState.availableLanguages = newPrimary === oldSecondary 
+                    ? [newPrimary, newState.primaryLanguage]
+                    : [newPrimary, oldSecondary];
+            } else {
+                newState.availableLanguages = [newPrimary];
+            }
         }
-      } else if (name === 'secondaryLanguage') {
-        secondaryLang = value;
-      } else if (name === 'origin') { // Toggles phrase mode
-        isPhrase = !isPhrase;
-      }
-  
-      newState.primaryLanguage = primaryLang;
-      newState.availableLanguages = isBilingual && secondaryLang ? [primaryLang, secondaryLang] : [primaryLang];
-      
-      let originString = primaryLang;
-      if (isBilingual && secondaryLang) {
-        originString = `${primaryLang}-${secondaryLang}`;
-      }
-      if (isPhrase) {
-        originString += '-ph';
-      }
-      newState.origin = originString;
-  
-      return newState;
+    
+        if (name === 'secondaryLanguage') {
+            const newSecondary = value;
+            if (newSecondary && newSecondary !== 'none') {
+                 newState.availableLanguages = [newState.primaryLanguage, newSecondary];
+            } else {
+                 newState.availableLanguages = [newState.primaryLanguage];
+            }
+        }
+
+        const isBilingual = newState.availableLanguages.length > 1;
+        const pLang = newState.primaryLanguage;
+        const sLang = isBilingual ? newState.availableLanguages[1] : undefined;
+        let originString = pLang;
+        if (isBilingual && sLang) {
+            originString += `-${sLang}`;
+        }
+        if (newState.origin.endsWith('-ph')) {
+            originString += '-ph';
+        }
+        newState.origin = originString;
+
+        return newState;
     });
   }, []);
   
@@ -314,11 +320,8 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     let jobId = '';
 
     try {
-        if (type === 'book') {
-            jobId = await generateBookContent(user.uid, formData);
-        } else {
-            jobId = await generatePieceContent(user.uid, formData as PieceFormValues);
-        }
+        // Call the single facade function
+        jobId = await createLibraryItem(formData);
         
         setActiveId(jobId);
         sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
@@ -442,5 +445,3 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     promptError,
   };
 };
-
-    
