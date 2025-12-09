@@ -30,7 +30,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, c
 
         finalUpdate = {
             title: contentResult.title,
-            content: contentResult.generatedContent,
+            generatedContent: contentResult.generatedContent,
             contentState: 'ready',
             status: 'draft',
             contentRetryCount: 0,
@@ -90,7 +90,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             tags: pieceFormData.tags || [],
             display: pieceFormData.display || 'card',
             aspectRatio: pieceFormData.aspectRatio,
-            content: [],
+            generatedContent: [],
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
             isBilingual: pieceFormData.availableLanguages.length > 1,

@@ -177,7 +177,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
 
     case 'text':
     case 'dialog':
-        return renderContent();
+        return <span data-segment-id={segment.id}>{renderContent()}</span>;
     
     default:
         return null;

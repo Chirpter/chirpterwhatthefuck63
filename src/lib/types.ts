@@ -259,11 +259,11 @@ export interface EditorSettings {
 /**
  * @interface Piece
  * @description Represents a shorter, single-part work like an article, poem, or dialogue.
- * It does not have chapters; its `content` is a direct array of Segments.
+ * It does not have chapters.
  */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
-  content: Segment[];
+  generatedContent: Segment[];
   contentState: JobStatus;
   contentError?: string;
   contentRetryCount?: number;
@@ -458,5 +458,3 @@ export type TierTask =
 
 // Renamed for better clarity. Represents the same structure as the old ChapterTitle.
 export type { MultilingualContent as ChapterTitle };
-
-    

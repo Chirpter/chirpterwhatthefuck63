@@ -148,17 +148,18 @@ function VocabVideosView() {
             id: selectedResult.videoId,
             type: 'piece',
             userId: user.uid,
-            contentStatus: 'ready',
+            contentState: 'ready',
             title: { primary: '' },
-            primaryLanguage: 'en',
-            isBilingual: false,
+            origin: 'en',
+            langs: ['en'],
             status: 'draft',
             presentationStyle: 'card',
-            content: [],
+            generatedContent: [],
             contextData: {
                 startTime: selectedResult.start,
                 endTime: selectedResult.end,
-            }
+            },
+            isBilingual: false,
         };
         handleTextSelection(event, sourceItem, selectedResult.context);
     }
@@ -228,7 +229,7 @@ function VocabVideosView() {
               isRepeating={isRepeating}
               onNext={handleNext}
               isAutoSkipping={isAutoSkipping}
-              setIsAutoSkipping={setIsAutoSkipping}
+              onAutoSkipChange={setIsAutoSkipping}
               hasPrevious={selectedIndex > 0}
               hasNext={selectedIndex < clips.length - 1}
               repeatCount={repeatCount}
