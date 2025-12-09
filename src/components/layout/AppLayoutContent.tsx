@@ -12,8 +12,6 @@ import { Button } from '@/components/ui/button';
 import AppHeader from './AppHeader';
 import { Logo } from '../ui/Logo';
 import { AppErrorManager } from '@/services/error-manager';
-import { ClientProviders } from '@/providers/client-providers';
-import { useBookmarks } from '@/contexts/bookmark-context';
 
 // Lazy load the LevelUpDialog as it's not always needed
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
@@ -64,7 +62,6 @@ const AuthenticatedContent = ({ children }: { children: React.ReactNode }) => {
         retryUserFetch
     } = useUser();
     const { logout } = useAuth();
-    const { availableBookmarks } = useBookmarks();
 
     useEffect(() => {
         AppErrorManager.initialize();
@@ -75,43 +72,41 @@ const AuthenticatedContent = ({ children }: { children: React.ReactNode }) => {
     }
 
     return (
-        <ClientProviders initialBookmarks={availableBookmarks}>
-            <div className="flex flex-col min-h-screen">
-                <AppHeader />
+        <div className="flex flex-col min-h-screen">
+            <AppHeader />
 
-                <main className={cn(
-                    "flex-1 bg-background relative", 
-                    "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
-                )}>
-                    {userError && !user ? (
-                        <UserProfileError 
-                            error={userError}
-                            onRetry={retryUserFetch}
-                            onLogout={logout}
-                        />
-                    ) : !user ? (
-                        <div className="flex h-full w-full items-center justify-center">
-                            <div className="text-center">
-                                <Icon name="Loader2" className="h-10 w-10 animate-spin text-primary mx-auto" />
-                                <p className="mt-2 text-sm text-muted-foreground">Finalizing your profile...</p>
-                            </div>
+            <main className={cn(
+                "flex-1 bg-background relative", 
+                "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
+            )}>
+                {userError && !user ? (
+                    <UserProfileError 
+                        error={userError}
+                        onRetry={retryUserFetch}
+                        onLogout={logout}
+                    />
+                ) : !user ? (
+                    <div className="flex h-full w-full items-center justify-center">
+                        <div className="text-center">
+                            <Icon name="Loader2" className="h-10 w-10 animate-spin text-primary mx-auto" />
+                            <p className="mt-2 text-sm text-muted-foreground">Finalizing your profile...</p>
                         </div>
-                    ) : (
-                        children
-                    )}
-                </main>
-                
-                <Suspense fallback={null}>
-                    {levelUpInfo && (
-                        <LevelUpDialog 
-                            isOpen={!!levelUpInfo}
-                            onClose={clearLevelUpInfo}
-                            levelUpInfo={levelUpInfo}
-                        />
-                    )}
-                </Suspense>
-            </div>
-        </ClientProviders>
+                    </div>
+                ) : (
+                    children
+                )}
+            </main>
+            
+            <Suspense fallback={null}>
+                {levelUpInfo && (
+                    <LevelUpDialog 
+                        isOpen={!!levelUpInfo}
+                        onClose={clearLevelUpInfo}
+                        levelUpInfo={levelUpInfo}
+                    />
+                )}
+            </Suspense>
+        </div>
     );
 };
 

@@ -69,8 +69,9 @@ export default async function RootLayout({
         notoSerif.variable
       )}>
         <Suspense fallback={<Loader />}>
-            {/* The providers have been moved to AppLayoutContent */}
+          <ClientProviders initialBookmarks={combinedBookmarks}>
             {children}
+          </ClientProviders>
         </Suspense>
         <Toaster />
       </body>
