@@ -5,7 +5,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { storage } from '@/lib/firebase';
-import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter, ChapterTitle, PresentationMode } from "@/lib/types";
+import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter, ChapterTitle, PresentationMode, MultilingualContent } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
 import { getUserProfile } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
@@ -18,32 +18,27 @@ import { z } from 'genkit';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS, MAX_IMAGE_SIZE_BYTES } from '@/lib/constants';
 import sharp from 'sharp';
 
-// ARCHITECTURAL NOTE: This is the new, superior schema for AI output.
-// It requests a structured array of chapter objects directly.
-// This is clearer for the AI, eliminates parsing steps on our server,
-// and elegantly handles the "first-few-chapters" use case by allowing the 'content'
-// field to be an empty string for outlined-only chapters.
-const createOutputSchema = (
-    titleInstruction: string
-) => z.object({
-    bookTitle: z.any().describe(titleInstruction),
+/**
+ * REFACTORED: The new, simpler output schema for the AI.
+ * AI now returns simple strings for titles, and the server handles language keys.
+ * This is more robust and less prone to AI formatting errors.
+ */
+const BookOutputSchema = z.object({
+    bookTitle: z.string().describe('A concise, creative title for the entire book (1-7 words). This should be a simple string.'),
     chapters: z.array(z.object({
-        title: z.any().describe('The title for this specific chapter. Must be a JSON object with language codes as keys, e.g. {"en": "The Awakening"}.'),
-        content: z.string().describe("The full Markdown content for this chapter. For chapters that are only part of an outline, this should be an EMPTY string."),
-    })).describe("An array of all chapter objects, including those with and without content.")
+        title: z.string().describe("The title for this specific chapter. This should be a simple string, e.g., 'The Awakening'."),
+        content: z.string().describe("The full Markdown content for this chapter. For chapters that are only part of an outline, this MUST be an EMPTY STRING."),
+    })).describe("An array of ALL chapter objects for the entire book outline.")
 });
 
 
-// Internal schema for crafting the precise prompt to the AI.
-const PromptInputSchema = z.object({
-  prompt: z.string(),
-  origin: z.string(),
-  compactInstruction: z.string(),
+/**
+ * REFACTORED: A much simpler input schema for the AI prompt.
+ */
+const BookPromptInputSchema = z.object({
   contextInstruction: z.string(),
-  titleInstruction: z.string(),
-  chaptersToGenerate: z.number(),
-  totalChapterOutlineCount: z.number().optional(),
-  previousContentSummary: z.string().optional(),
+  structureInstruction: z.string(),
+  languageInstruction: z.string(),
 });
 
 
@@ -110,13 +105,11 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const adminDb = getAdminDb();
   let bookId = '';
 
-  // SERVER-SIDE VALIDATION 1: User Profile and Credits
-  // This is a critical security step. Client-side checks are for UX only.
+  // SERVER-SIDE VALIDATION 1: User Profile check.
   const userProfile = await getUserProfile(userId);
   if (!userProfile) throw new ApiServiceError("User profile not found.", "AUTH");
   
-  // SERVER-SIDE VALIDATION 2: Credit Calculation
-  // Recalculate cost on the server to prevent client-side manipulation.
+  // SERVER-SIDE VALIDATION 2: Recalculate credit cost on the server to prevent manipulation.
   let creditCost = 0;
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookFormData.bookLength);
   if (bookLengthOption) {
@@ -132,32 +125,30 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   const primaryLanguage = bookFormData.primaryLanguage;
 
-  // STEP 1: ATOMIC TRANSACTION
-  // A transaction ensures that credit deduction and book creation happen together or not at all.
+  // STEP 1: ATOMIC TRANSACTION for safety (deduct credits, create document).
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
     if (!userDoc.exists) throw new ApiServiceError("User not found.", "AUTH");
     
-    // SERVER-SIDE VALIDATION 3: Final Credit Check within Transaction
+    // SERVER-SIDE VALIDATION 3: Final credit check within transaction.
     if ((userDoc.data()?.credits || 0) < creditCost) {
       throw new ApiServiceError("Insufficient credits.", "VALIDATION");
     }
     
-    // Action 1: Deduct credits and update user stats
+    // Action 1: Deduct credits and update stats.
     transaction.update(userDocRef, {
         credits: FieldValue.increment(-creditCost),
         'stats.booksCreated': FieldValue.increment(1)
     });
 
-    // Action 2: Create the initial "draft" document for the book.
-    // The client will start listening to this document for real-time updates.
+    // Action 2: Create the initial "draft" book document.
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
     const initialBookData: Omit<Book, 'id'> = {
         userId,
         type: 'book',
         title: { [primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
-        status: 'processing', // Initial status while pipelines run
+        status: 'processing',
         contentState: 'processing',
         coverState: bookFormData.coverImageOption !== 'none' ? 'processing' : 'ignored',
         origin: bookFormData.origin,
@@ -192,14 +183,11 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   };
   const coverData = bookFormData.coverImageOption === 'ai' ? bookFormData.coverImageAiPrompt : bookFormData.coverImageFile;
 
-  // STEP 3: TRIGGER BACKGROUND PIPELINE (Fire-and-forget)
-  // This function call does not wait for the pipeline to finish.
-  // It runs in the background, and the client gets updates via Firestore listener.
+  // STEP 3: TRIGGER BACKGROUND PIPELINE (Fire-and-forget).
   processBookGenerationPipeline(userId, bookId, contentInput, bookFormData.coverImageOption, coverData)
     .catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
-  // STEP 4: RETURN ID TO CLIENT IMMEDIATELY
-  // This allows the client UI to immediately switch to the processing/animation state.
+  // STEP 4: RETURN ID TO CLIENT IMMEDIATELY.
   return bookId;
 }
 
@@ -209,90 +197,51 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  * @returns A partial Book object with the generated content and updated status.
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
-    // SERVER-SIDE SANITIZATION: Ensure prompt is within length limits.
+    // SERVER-SIDE SANITIZATION of prompt length.
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;
     
-    let totalWords = 600;
-    let maxOutputTokens = 1200;
-
-    switch (bookLength) {
-        case 'short-story': totalWords = 600; maxOutputTokens = 1200; break;
-        case 'mini-book': totalWords = 1500; maxOutputTokens = 3000; break;
-        case 'standard-book': totalWords = 4500; maxOutputTokens = (generationScope === 'full') ? 9000 : 1200; break;
-        case 'long-book': totalWords = 5000; maxOutputTokens = 9000; break;
-    }
-    
     // --- PROMPT ASSEMBLY ---
-    
     const [primaryLanguage, secondaryLanguage] = origin.split('-');
-    const primaryLanguageLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage || '';
-    const secondaryLanguageLabel = secondaryLanguage ? (LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage) : '';
+    const languageInstruction = secondaryLanguage
+        ? `in bilingual ${LANGUAGES.find(l=>l.value===primaryLanguage)?.label} and ${LANGUAGES.find(l=>l.value===secondaryLanguage)?.label}, with sentences paired using ' / ' as a separator`
+        : `in ${LANGUAGES.find(l=>l.value===primaryLanguage)?.label}`;
 
-    let languageInstruction: string;
-    let titleJsonInstruction: string;
-
-    if (secondaryLanguage) {
-        languageInstruction = `in bilingual ${primaryLanguageLabel} and ${secondaryLanguageLabel}, with sentences paired using ' / ' as a separator.`;
-        titleJsonInstruction = `A concise, creative title for the book. Must be a JSON object with language codes, e.g., {"${primaryLanguage}": "Title", "${secondaryLanguage}": "Tiêu đề"}.`;
-    } else {
-        languageInstruction = `in ${primaryLanguageLabel}.`;
-        titleJsonInstruction = `A concise, creative title for the book. Must be a JSON object, e.g., {"${primaryLanguage}": "Title"}.`;
-    }
-
-    let compactInstruction: string;
+    let structureInstruction: string;
     if (generationScope === 'firstFew' && contentInput.totalChapterOutlineCount && contentInput.totalChapterOutlineCount > 0) {
-        const wordsPerChapter = Math.round(totalWords / contentInput.totalChapterOutlineCount);
-        compactInstruction = `Generate an array of ${contentInput.totalChapterOutlineCount} chapters. Write the full Markdown content for only the FIRST ${contentInput.chaptersToGenerate} chapters (about ${wordsPerChapter} words each). For the remaining chapters, provide the title but leave the 'content' field as an EMPTY string. The language must be ${languageInstruction}.`;
+        structureInstruction = `Generate an array for a book of ${contentInput.totalChapterOutlineCount} chapters. Write full Markdown content for only the FIRST ${contentInput.chaptersToGenerate} chapters. For the remaining chapters, provide a title but leave the 'content' field as an EMPTY string.`;
     } else {
-        const wordsPerChapter = Math.round(totalWords / (contentInput.chaptersToGenerate || 1));
-        compactInstruction = `Generate an array of ${contentInput.chaptersToGenerate} chapters, with about ${wordsPerChapter} words per chapter. Write the full Markdown content for ALL chapters. The language must be ${languageInstruction}.`;
+        structureInstruction = `Generate an array of ${contentInput.chaptersToGenerate} chapters. Write the full Markdown content for ALL chapters.`;
     }
     
-    const contextInstruction = contentInput.previousContentSummary
-      ? `Continue a story from the summary: <previous_summary>${contentInput.previousContentSummary}</previous_summary>. The new chapters should be about: ${userPrompt}`
-      : userPrompt;
-    
-    const titleInstructionText = "Create a title for the entire book based on the story or prompt.";
-    
-    // The new, improved output schema definition.
-    const dynamicOutputSchema = createOutputSchema(titleJsonInstruction);
-
+    // Define the Genkit prompt with the new simple structure
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateBookContentPrompt_v6_structured',
-        input: { schema: PromptInputSchema },
-        output: { schema: dynamicOutputSchema },
-        prompt: `Write a book based on: {{{contextInstruction}}}
+        name: 'generateBookContentPrompt_v7_simple_output',
+        input: { schema: BookPromptInputSchema },
+        output: { schema: BookOutputSchema },
+        prompt: `You are a creative writer. Write a book based on the prompt: {{{contextInstruction}}}
 
 CRITICAL INSTRUCTIONS:
-1.  {{{titleInstruction}}}
-2.  {{{compactInstruction}}}
-`,
-        config: {
-            safetySettings: [
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-            ],
-        },
+1.  **Title:** Create a concise, creative title for the entire book.
+2.  **Structure:** ${'{{{structureInstruction}}}'}
+3.  **Language:** Write all content and titles ${'{{{languageInstruction}}}'}.`,
     });
 
     const promptInput = { 
-        ...contentInput, 
-        prompt: userPrompt, 
-        compactInstruction, 
-        contextInstruction,
-        titleInstruction: titleInstructionText,
+        contextInstruction: userPrompt,
+        structureInstruction,
+        languageInstruction,
     };
 
     try {
         // STEP 1: Wait for the AI to generate the structured JSON output.
-        const { output: aiOutput } = await bookContentGenerationPrompt(promptInput, { config: { maxOutputTokens } });
+        const { output: aiOutput } = await bookContentGenerationPrompt(promptInput);
 
         if (!aiOutput || !aiOutput.chapters || aiOutput.chapters.length === 0) {
           throw new ApiServiceError('AI returned empty or invalid chapter data.', "UNKNOWN");
         }
         
-        // STEP 2: Process the structured AI output.
+        // STEP 2: Process the AI output. Now much simpler.
         const finalChapters: Chapter[] = aiOutput.chapters.map((chapterData, index) => {
             const segments = parseMarkdownToSegments(chapterData.content || '', origin);
             
@@ -301,36 +250,27 @@ CRITICAL INSTRUCTIONS:
                 return sum + text.split(/\s+/).filter(Boolean).length;
             }, 0);
             
+            // Server wraps the simple string title into the required MultilingualContent object.
+            const chapterTitle: MultilingualContent = {
+                [primaryLanguage]: chapterData.title,
+            };
+            // If bilingual, we could call a translation flow here if needed, but for now, we just use the primary.
+            
             return {
                 id: generateLocalUniqueId(),
                 order: index,
-                title: chapterData.title,
+                title: chapterTitle,
                 segments: segments,
-                stats: {
-                    totalSegments: segments.length,
-                    totalWords,
-                    estimatedReadingTime: Math.ceil(totalWords / 200),
-                },
+                stats: { totalSegments: segments.length, totalWords, estimatedReadingTime: Math.ceil(totalWords / 200) },
                 metadata: {},
             };
         });
 
-        // The outline is now implicitly derived from the titles of all generated chapters.
-        const finalChapterOutline = finalChapters.map(chapter => ({
-            id: chapter.id,
-            title: chapter.title,
-            isGenerated: chapter.segments.length > 0,
-            metadata: {},
-        }));
-        
-        const finalBookTitle = aiOutput.bookTitle && typeof aiOutput.bookTitle === 'object' 
-            ? aiOutput.bookTitle 
-            : { [primaryLanguage]: "Untitled Book" };
+        const finalBookTitle: MultilingualContent = { [primaryLanguage]: aiOutput.bookTitle };
         
         return {
           title: finalBookTitle,
           chapters: finalChapters,
-          outline: finalChapterOutline,
           contentState: 'ready',
           contentRetryCount: 0,
         };
@@ -539,4 +479,5 @@ export async function regenerateBookCover(userId: string, bookId: string): Promi
     
 
     
+
 
