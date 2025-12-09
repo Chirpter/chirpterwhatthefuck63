@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -125,6 +126,10 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
   // --- ANIMATION LOGIC ---
   // The core animation of the book opening is ONLY tied to the content generation process.
   // This allows the cover generation to happen in the background without affecting this primary animation.
+  
+  // ✅ TÍN HIỆU MỞ SÁCH:
+  // Animation mở sách chỉ được kích hoạt khi và chỉ khi 'contentStatus' có giá trị là 'processing'.
+  // Đây là tín hiệu cụ thể cho biết "hệ thống đang viết nội dung".
   const isBookOpen = contentStatus === 'processing';
   
   // The status message displayed to the user is derived from the state of both pipelines.
