@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -50,8 +48,8 @@ const Typewriter: React.FC<{ text: string }> = ({ text: fullText }) => {
 
 const FinalStateDisplay: React.FC<{ book: Book }> = ({ book }) => {
     const { t } = useTranslation(['createPage', 'common']);
-    const contentSuccess = book.contentStatus === 'ready';
-    const coverSuccess = book.coverStatus === 'ready' || book.coverStatus === 'ignored';
+    const contentSuccess = book.contentState === 'ready';
+    const coverSuccess = book.coverState === 'ready' || book.coverState === 'ignored';
 
     if (contentSuccess && coverSuccess) {
          return (
@@ -120,57 +118,79 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
   const { t } = useTranslation(['createPage']);
   const { user } = useUser();
   
-  const contentStatus = bookJobData?.contentStatus;
-  const coverStatus = bookJobData?.coverStatus;
+  // Extract statuses from the job data. These are the "signals" that drive the animation.
+  const contentStatus = bookJobData?.contentState;
+  const coverStatus = bookJobData?.coverState;
 
+  // --- ANIMATION LOGIC ---
+  // The core animation of the book opening is ONLY tied to the content generation process.
+  // This allows the cover generation to happen in the background without affecting this primary animation.
   const isBookOpen = contentStatus === 'processing';
   
+  // The status message displayed to the user is derived from the state of both pipelines.
   const statusMessage = useMemo(() => {
+    // If the form isn't busy, show the default placeholder.
     if (!isFormBusy) return t('previewArea.bookPlaceholder');
     
+    // Prioritize showing the content generation status.
     if (contentStatus === 'processing') {
       return t('status.contentProcessing');
     }
     
+    // If content is done, show the cover generation status.
     if (coverStatus === 'processing') {
       return t('status.coverProcessing');
     }
     
+    // Fallback message while waiting for the final state.
     return t('status.finishing');
   }, [isFormBusy, contentStatus, coverStatus, t]);
 
 
+  // --- RENDER LOGIC ---
+
+  // RENDER STATE 1: FINALIZED
+  // If a finalizedId exists, it means both pipelines are complete (success or error).
+  // We stop all "in-progress" animations and show the final result.
   if (finalizedBookId && bookJobData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full p-4 overflow-hidden">
         <div className="perspective-container" style={{ width: '255px', height: '357px' }}>
+          {/* BookPreview now shows the final state with the actual cover/title */}
           <BookPreview
-            isOpen={false}
-            pageContent=""
+            isOpen={false} // The book is always closed in the final state.
+            pageContent="" // No typewriter effect needed.
             finalBook={bookJobData}
             finalUser={user}
           />
         </div>
+        {/* FinalStateDisplay shows "Complete!" or error details. */}
         <FinalStateDisplay book={bookJobData} />
       </div>
     );
   }
 
-  // Animation is active or it's the initial placeholder view
+  // RENDER STATE 2: IN-PROGRESS OR INITIAL
+  // This is the default view before starting, or the active animation view during generation.
   return (
     <div className={cn(
       "flex flex-col items-center justify-center min-h-full p-4 overflow-hidden rounded-lg",
-      isFormBusy && "border-2 border-dashed border-primary"
+      isFormBusy && "border-2 border-dashed border-primary" // Visual feedback that a job is running.
     )}>
         <div className="perspective-container" style={{ width: '255px', height: '357px' }}>
             <BookPreview 
+                // The `isOpen` prop triggers the 3D book opening animation in CSS.
+                // This is ONLY true when `contentStatus` is 'processing'.
                 isOpen={isBookOpen}
+                // The typewriter effect is shown inside the book when it's open.
                 pageContent={"In a realm of floating islands and crystalline rivers, a young dragon named Ignis discovered an ancient, silent library. It wasn't filled with books, but with slumbering memories waiting for a storyteller to awaken them. He took a deep breath, a tiny flame dancing on his snout, and began his tale..."}
+                // `finalBook` prop is used to render the cover. It will show the processing state if `coverStatus` is 'processing'.
                 finalBook={bookJobData || undefined}
                 finalUser={user}
             />
         </div>
         <div className="mt-4 text-muted-foreground h-6 text-sm text-center">
+            {/* The status message dynamically updates based on the memoized logic above. */}
             {isFormBusy ? statusMessage : t('previewArea.bookPlaceholder')}
         </div>
     </div>
