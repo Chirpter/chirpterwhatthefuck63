@@ -1,92 +1,37 @@
 
-// ===================================================================
-// DEBUG SCRIPT - Add vào useLibrary hook tạm thời để debug
-// ===================================================================
+// src/features/library/hooks/useLibrary.ts
 
-"use client";
-
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
 import type { LibraryItem, OverallStatus } from '@/lib/types';
 import { getLibraryItems, deleteLibraryItem as serviceDeleteLibraryItem, updateLibraryItem } from '@/services/library-service';
+import { useLibraryItems } from './useLibraryItems';
 
 interface UseLibraryProps {
-  contentType: "book" | "piece";
+  contentType?: "book" | "piece";
 }
 
 export const useLibrary = ({ contentType }: UseLibraryProps) => {
-  const [allItems, setAllItems] = useState<LibraryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { t } = useTranslation(['common', 'libraryPage', 'toast']);
+  const { toast } = useToast();
+  const { user } = useUser();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<OverallStatus | 'all'>("all");
-  const { user } = useUser();
-  const { t } = useTranslation();
-  const { toast } = useToast();
   const [itemToDelete, setItemToDelete] = useState<LibraryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchIdRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    if (!user?.uid) {
-      setIsLoading(false);
-      setAllItems([]);
-      return;
-    }
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const { signal } = controller;
-
-    const performFetch = async () => {
-      setIsLoading(true);
-      
-      const currentFetchId = ++fetchIdRef.current;
-      
-      try {
-        const result = await getLibraryItems(
-          user.uid, 
-          { 
-            contentType,
-            status: 'all',
-            limit: 100
-          }
-        );
-
-        if (currentFetchId === fetchIdRef.current && !signal.aborted) {
-          setAllItems(result.items);
-        }
-        
-      } catch (error: any) {
-        // Only show errors for the latest fetch and if it's not an abort error
-        if (error.name !== 'AbortError' && currentFetchId === fetchIdRef.current) {
-          console.error('[useLibrary] Fetch error:', error);
-          toast({
-            title: t('common:error'),
-            description: t('libraryPage:toastFailedToLoad'),
-            variant: 'destructive',
-          });
-        }
-      } finally {
-        if (currentFetchId === fetchIdRef.current && !signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    performFetch();
-
-    return () => {
-      controller.abort();
-    };
-  }, [user?.uid, contentType, t, toast]);
+  // Use the new centralized data fetching hook
+  const {
+    items: allItems,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMoreItems,
+    mutate, // Function to update local state
+  } = useLibraryItems({ contentType, status: 'all', limit: 100 });
 
   const filteredItems = useMemo(() => {
     let itemsToFilter = allItems;
@@ -118,7 +63,7 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
     
     try {
       await serviceDeleteLibraryItem(user.uid, itemToDelete.id);
-      setAllItems(prev => prev.filter(item => item.id !== itemToDelete.id));
+      mutate(prevItems => prevItems?.filter(item => item.id !== itemToDelete.id) || []);
       
       toast({
         title: t("common:success"),
@@ -128,8 +73,7 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
       });
       
     } catch (error) {
-      console.error('[useLibrary] ❌ Delete error:', error);
-      
+      console.error('[useLibrary] Delete error:', error);
       toast({
         title: t("common:error"),
         description: t("libraryPage:toastFailedToDelete", { 
@@ -142,48 +86,50 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
       setIsDeleting(false);
       setItemToDelete(null);
     }
-  }, [itemToDelete, user, t, toast]);
+  }, [itemToDelete, user, t, toast, mutate]);
 
   const handleBookmarkChange = useCallback(async (itemId: string, newBookmarkId: string) => {
     if (!user) return;
-    
-    const originalItems = [...allItems];
-    
-    setAllItems(prev => prev.map(item => 
-      item.id === itemId && item.type === 'book' 
-        ? { ...item, selectedBookmark: newBookmarkId } 
-        : item
-    ));
+
+    mutate(prevItems => {
+        if (!prevItems) return [];
+        return prevItems.map(item => 
+          item.id === itemId && item.type === 'book' 
+            ? { ...item, selectedBookmark: newBookmarkId } 
+            : item
+        );
+    });
     
     try {
       await updateLibraryItem(user.uid, itemId, { selectedBookmark: newBookmarkId });
-      
     } catch (err) {
-      console.error('[useLibrary] ❌ Bookmark update error:', err);
-      
+      console.error('[useLibrary] Bookmark update error:', err);
       toast({ 
         title: t('common:error'), 
         description: t('bookCard:toastBookmarkError'), 
         variant: 'destructive' 
       });
-      
-      setAllItems(originalItems);
+      // Optional: Revert local state on error
+      mutate(prevItems => {
+        if (!prevItems) return [];
+        return prevItems.map(item =>
+          item.id === itemId
+            ? { ...item, selectedBookmark: allItems.find(i => i.id === itemId)?.selectedBookmark || 'default' }
+            : item
+        );
+      });
     }
-  }, [user, allItems, toast, t]);
+  }, [user, allItems, toast, t, mutate]);
 
   const cancelDelete = useCallback(() => {
     setItemToDelete(null);
   }, []);
 
-  const loadMoreItems = async () => {
-    console.warn('[useLibrary] ⚠️ Pagination not implemented yet');
-  };
-
   return {
     filteredItems,
     isLoading,
-    isLoadingMore: false,
-    hasMore: false,
+    isLoadingMore,
+    hasMore,
     loadMoreItems,
     searchTerm,
     statusFilter,

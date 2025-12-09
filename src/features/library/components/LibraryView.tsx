@@ -93,9 +93,8 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   
   const isVocabActive = contentType === 'vocabulary';
   
-  // useLibrary no longer needs initialItems
   const libraryHook = useLibrary({ 
-      contentType: isVocabActive ? 'book' : contentType,
+      contentType: isVocabActive ? undefined : contentType,
   });
   
   const vocabularyHook = useVocabulary({ enabled: isVocabActive });
@@ -372,7 +371,6 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
 }
 
 export default function LibraryView(props: LibraryViewProps) {
-  // initialItems is no longer needed here as fetching is client-side
   return (
     <AudioPlayerProvider>
       <LibraryViewContent {...props} />
