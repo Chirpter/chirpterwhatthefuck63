@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '@/contexts/user-context';
 import { useToast } from '@/hooks/useToast';
-import * as vocabService from "@/services/vocabulary-service";
+import { updateVocabularyItem as serviceUpdateVocabularyItem } from '@/services/client/vocabulary-service';
 import type { VocabularyItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,8 +95,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
         meaning: item.meaning,
         example: item.example || '',
         folder: item.folder || FOLDER_CONSTANTS.UNORGANIZED,
-        termLanguage: getBcp47LangCode(item.termLang) || i18n.language,
-        meaningLanguage: getBcp47LangCode(item.meanLang) || i18n.language,
+        termLanguage: getBcp47LangCode(item.termLanguage) || i18n.language,
+        meaningLanguage: getBcp47LangCode(item.meaningLanguage) || i18n.language,
       });
       resetForm();
     }
@@ -115,7 +115,7 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
       },
       async (dataToSubmit: any) => {
         const { term, ...updates } = dataToSubmit;
-        const updatedItem = await vocabService.updateVocabularyItem(user, item.id, updates);
+        const updatedItem = await serviceUpdateVocabularyItem(user, item.id, updates);
         toast({ title: t('toast:vocabUpdatedTitle'), description: t('toast:vocabUpdatedDesc', { term: item.term }) });
         onSuccess(updatedItem);
       }
@@ -301,5 +301,3 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
 };
 
 export default EditVocabDialog;
-
-    

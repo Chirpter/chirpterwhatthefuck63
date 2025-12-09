@@ -11,7 +11,7 @@
  * mastering a word calls a secure server-side function for validation before
  * awarding progress.
  */
-
+'use client';
 import { getLocalDbForUser } from './local-database';
 import type { VocabularyItem, SrsState, User } from '@/lib/types';
 import { LEARNING_THRESHOLD_DAYS, MASTERED_THRESHOLD_DAYS } from '@/lib/constants';
@@ -120,7 +120,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
         newDueDate.setDate(today.getDate() + newInterval);
         
         updatedFields = {
-            memStrength: currentMs,
+            memoryStrength: currentMs,
             srsState: stateFromMs(currentMs),
             lastReviewed: today,
             dueDate: newDueDate,
@@ -171,7 +171,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
         newDueDate.setDate(today.getDate() + newInterval);
         
         updatedFields = {
-            memStrength: currentMs,
+            memoryStrength: currentMs,
             srsState: stateFromMs(currentMs),
             streak: newStreak,
             attempts: totalAttempts,
@@ -182,7 +182,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
     
     if (!isFinite(currentMs) || currentMs < 0) {
         currentMs = MIN_MS;
-        updatedFields.memStrength = currentMs;
+        updatedFields.memoryStrength = currentMs;
         updatedFields.srsState = stateFromMs(currentMs);
     }
     
@@ -200,5 +200,3 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
     throw new Error('Failed to update vocabulary progress.');
   }
 }
-
-    

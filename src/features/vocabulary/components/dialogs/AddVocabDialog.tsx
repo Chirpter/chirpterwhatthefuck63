@@ -3,7 +3,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/auth-context';
 import { useUser } from '@/contexts/user-context'; // Import useUser
 import { useToast } from '@/hooks/useToast';
 import type { VocabularyItem, VocabContext, User } from '@/lib/types';
@@ -287,5 +286,3 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
 };
 
 export default AddVocabDialog;
-
-    

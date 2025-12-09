@@ -3,7 +3,7 @@
 
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import * as vocabService from "@/services/vocabulary-service";
+import { getVocabularyItemsByFolderAndSrsState } from '@/services/client/vocabulary-service';
 import type { VocabularyItem, SrsState } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -16,7 +16,7 @@ export const useVocabForFlashcards = (folder: string | null, srsState: SrsState 
         async () => {
             if (!user || !folder || !srsState) return [];
             try {
-                const items = await vocabService.getVocabularyItemsByFolderAndSrsState(
+                const items = await getVocabularyItemsByFolderAndSrsState(
                     user.uid, 
                     folder, 
                     srsState

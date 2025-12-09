@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '@/contexts/user-context';
 import { useToast } from '@/hooks/useToast';
-import * as vocabService from "@/services/vocabulary-service";
+import { deleteVocabularyItem as serviceDeleteVocabularyItem } from '@/services/client/vocabulary-service';
 import type { VocabularyItem, User } from '@/lib/types';
 import {
   AlertDialog,
@@ -48,7 +48,7 @@ const DeleteVocabAlert: React.FC<DeleteVocabAlertProps> = ({ isOpen, onOpenChang
     
     setIsDeleting(true);
     try {
-      await vocabService.deleteVocabularyItem(user as User, item.id);
+      await serviceDeleteVocabularyItem(user, item.id);
       toast({ 
         title: t("toast:deleteSuccessTitle"), 
         description: t("toast:deleteSuccessDesc", { title: item.term }) 
@@ -100,5 +100,3 @@ const DeleteVocabAlert: React.FC<DeleteVocabAlertProps> = ({ isOpen, onOpenChang
 };
 
 export default DeleteVocabAlert;
-
-    

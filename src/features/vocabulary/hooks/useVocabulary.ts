@@ -5,7 +5,14 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useUser } from "@/contexts/user-context";
 import { useLiveQuery } from "dexie-react-hooks";
 import type { VocabularyItem, VocabularyFilters, VocabContext } from "@/lib/types";
-import * as vocabService from "@/services/vocabulary-service";
+import { 
+  getVocabularyItemsPaginated, 
+  addVocabularyItem as serviceAddVocabularyItem,
+  updateVocabularyItem as serviceUpdateVocabularyItem,
+  deleteVocabularyItem as serviceDeleteVocabularyItem,
+  getUniqueFolders,
+  getFolderCounts,
+} from '@/services/client/vocabulary-service';
 import { useDebounce } from "@/hooks/useDebounce";
 import { useLibraryItems } from "@/features/library/hooks/useLibraryItems";
 
@@ -35,8 +42,8 @@ export function useVocabulary({
         if (!user?.uid || !enabled) return { folders: [], folderCounts: { unorganized: 0 } };
         try {
             const [folders, folderCounts] = await Promise.all([
-                vocabService.getUniqueFolders(user.uid),
-                vocabService.getFolderCounts(user.uid),
+                getUniqueFolders(user.uid),
+                getFolderCounts(user.uid),
             ]);
             return { folders, folderCounts };
         } catch (err: any) {
@@ -77,7 +84,7 @@ export function useVocabulary({
     };
     
     // The vocabulary service now requires the user object
-    const addedItem = await vocabService.addVocabularyItem(user, itemWithContext);
+    const addedItem = await serviceAddVocabularyItem(user, itemWithContext);
     
     if (addedItem.folder) {
         addTransientFolder(addedItem.folder);
@@ -91,14 +98,14 @@ export function useVocabulary({
 
   const updateItem = useCallback(async (updatedItemData: VocabularyItem) => {
     if (!user) throw new Error("User not authenticated");
-    const updated = await vocabService.updateVocabularyItem(user, updatedItemData.id, updatedItemData);
+    const updated = await serviceUpdateVocabularyItem(user, updatedItemData.id, updatedItemData);
     mutate(prevItems => prevItems.map(item => item.id === updated.id ? updated : item));
     return updated;
   }, [user, mutate]);
 
   const deleteItem = useCallback(async (itemId: string) => {
     if (!user) throw new Error("User not authenticated");
-    await vocabService.deleteVocabularyItem(user, itemId);
+    await serviceDeleteVocabularyItem(user, itemId);
     mutate(prevItems => prevItems.filter(item => item.id !== itemId));
   }, [user, mutate]);
 

@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import * as vocabService from "@/services/vocabulary-service";
+import { getSrsStateCounts, getFoldersBySrsState } from '@/services/client/vocabulary-service';
 import type { VocabularyItem, SrsState } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -25,8 +25,8 @@ export const useStudyDecks = ({ selectedSrsState }: useStudyDecksProps) => {
             if (!user) return { srsCounts: { new: 0, learning: 0, 'short-term': 0, 'long-term': 0 }, folders: [] };
 
             try {
-                const srsCounts = await vocabService.getSrsStateCounts(user.uid);
-                const folders = await vocabService.getFoldersBySrsState(user.uid, selectedSrsState);
+                const srsCounts = await getSrsStateCounts(user.uid);
+                const folders = await getFoldersBySrsState(user.uid, selectedSrsState);
                 return { srsCounts, folders };
             } catch (error) {
                 console.error("Failed to fetch study deck data:", error);
