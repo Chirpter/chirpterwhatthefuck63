@@ -314,6 +314,8 @@ export function segmentsToChapterStructure(segments: Segment[], origin: string):
     chapters.push(currentChapter);
   }
   
+  // FIXED: If no chapters were created (e.g. no headings) but there are segments,
+  // create a single default chapter to hold them.
   if (chapters.length === 0 && segments.length > 0) {
     chapters.push({
       id: generateLocalUniqueId(),
@@ -379,3 +381,5 @@ export function getItemSegments(item: LibraryItem, chapterIndex: number = 0): Se
   
   return [];
 }
+
+    
