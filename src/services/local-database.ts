@@ -54,29 +54,17 @@ export class ChirpterLocalDB extends Dexie {
 
   constructor(dbName: string) {
     super(dbName);
-    this.version(14).stores({
+    this.version(15).stores({
       vocabulary: `
-        id, 
+        id,
         userId,
         folder,
         srsState,
         dueDate,
         createdAt,
-        term,
-        memoryStrength,
-        sourceId,
-        sourceType,
-        termLanguage,
-        meaningLanguage,
         [userId+folder],
         [userId+srsState],
-        [userId+folder+srsState],
-        [userId+srsState+dueDate],
         [userId+createdAt],
-        [userId+term],
-        [userId+memoryStrength],
-        [userId+folder+createdAt],
-        [userId+folder+term],
         *searchTerms
       `,
       diary: 'id',
