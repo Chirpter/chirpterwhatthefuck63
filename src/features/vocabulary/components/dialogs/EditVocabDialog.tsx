@@ -36,8 +36,8 @@ interface EditedItemState {
     meaning: string;
     example: string;
     folder: string;
-    termLang: string;
-    meanLang: string;
+    termLanguage: string;
+    meaningLanguage: string;
 }
 
 const EditVocabDialog: React.FC<EditVocabDialogProps> = ({ 
@@ -55,18 +55,16 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
     meaning: "",
     example: "",
     folder: FOLDER_CONSTANTS.UNORGANIZED,
-    termLang: i18n.language,
-    meanLang: i18n.language,
+    termLanguage: i18n.language,
+    meaningLanguage: i18n.language,
   });
 
-  // Use shared form hook
   const {
     isCreatingNewFolder,
     newFolderName,
     isSubmitting,
     error,
     setNewFolderName,
-    setError,
     setIsCreatingNewFolder,
     getVocabValidation,
     folderValidation,
@@ -82,28 +80,23 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
     },
   });
 
-  // Real-time validation (for edited item)
   const vocabValidation = useMemo(() => {
     if (!item) return { isValid: false, error: null };
     return getVocabValidation({
-      term: item.term, // term is not editable, but needed for validation
+      term: item.term,
       meaning: editedItem.meaning,
       example: editedItem.example,
-      folder: editedItem.folder,
-      termLanguage: editedItem.termLang,
-      meaningLanguage: editedItem.meanLang,
     });
   }, [item, editedItem, getVocabValidation]);
 
-  // Initialize form when item changes
   useEffect(() => {
     if (item && isOpen) {
       setEditedItem({
         meaning: item.meaning,
         example: item.example || '',
         folder: item.folder || FOLDER_CONSTANTS.UNORGANIZED,
-        termLang: getBcp47LangCode(item.termLang) || i18n.language,
-        meanLang: getBcp47LangCode(item.meanLang) || i18n.language,
+        termLanguage: getBcp47LangCode(item.termLang) || i18n.language,
+        meaningLanguage: getBcp47LangCode(item.meanLang) || i18n.language,
       });
       resetForm();
     }
@@ -111,41 +104,23 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
 
   const handleEditSave = useCallback(async () => {
     if (!user || !item) {
-      setError(t("toast:authError") || "User not authenticated");
+      toast({ title: t('toast:authError'), variant: 'destructive' });
       return;
     }
 
-    const success = await handleSubmit(
+    await handleSubmit(
       {
-        term: item.term, // Not editable, but needed for validation
+        term: item.term,
         ...editedItem,
-        termLanguage: editedItem.termLang,
-        meaningLanguage: editedItem.meanLang,
       },
       async (dataToSubmit: any) => {
-        // Don't submit 'term' as it's not editable
         const { term, ...updates } = dataToSubmit;
-        
         const updatedItem = await vocabService.updateVocabularyItem(user, item.id, updates);
-        
-        toast({ 
-          title: t('toast:vocabUpdatedTitle'), 
-          description: t('toast:vocabUpdatedDesc', { term: item.term }) 
-        });
-        
+        toast({ title: t('toast:vocabUpdatedTitle'), description: t('toast:vocabUpdatedDesc', { term: item.term }) });
         onSuccess(updatedItem);
       }
     );
-  }, [
-    user,
-    item,
-    editedItem,
-    handleSubmit,
-    setError,
-    toast,
-    t,
-    onSuccess,
-  ]);
+  }, [user, item, editedItem, handleSubmit, toast, t, onSuccess]);
 
   const handleFolderSelectChange = useCallback((value: string) => {
     if (value === 'new') {
@@ -156,10 +131,7 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
     }
   }, [setIsCreatingNewFolder]);
 
-  // Early return if no item
-  if (!item) {
-    return null;
-  }
+  if (!item) return null;
   
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -180,8 +152,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
               {t('addVocabDialog.termLangLabel')}
             </Label>
             <Select 
-              value={editedItem.termLang} 
-              onValueChange={(value) => setEditedItem(prev => ({ ...prev, termLang: value }))}
+              value={editedItem.termLanguage} 
+              onValueChange={(value) => setEditedItem(prev => ({ ...prev, termLanguage: value }))}
               disabled={isSubmitting}
             >
               <SelectTrigger className="col-span-3">
@@ -215,8 +187,8 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
               {t('addVocabDialog.meaningLangLabel')}
             </Label>
             <Select 
-              value={editedItem.meanLang} 
-              onValueChange={(value) => setEditedItem(prev => ({ ...prev, meanLang: value }))}
+              value={editedItem.meaningLanguage} 
+              onValueChange={(value) => setEditedItem(prev => ({ ...prev, meaningLanguage: value }))}
               disabled={isSubmitting}
             >
               <SelectTrigger className="col-span-3">
@@ -287,7 +259,7 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
                 />
               </div>
               {folderValidation.error && (
-                <div className="col-span-4 text-sm text-destructive">
+                <div className="col-span-4 text-sm text-destructive text-right">
                   {folderValidation.error}
                 </div>
               )}
@@ -295,7 +267,7 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
           )}
 
           {vocabValidation.error && (
-            <div className="col-span-4 text-sm text-destructive">
+            <div className="col-span-4 text-sm text-destructive text-right">
               {vocabValidation.error}
             </div>
           )}
@@ -329,3 +301,5 @@ const EditVocabDialog: React.FC<EditVocabDialogProps> = ({
 };
 
 export default EditVocabDialog;
+
+    

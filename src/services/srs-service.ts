@@ -102,15 +102,13 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
 
     let currentMs = calculateVirtualMS(item, today);
     
-    // Validate currentMs to prevent NaN propagation
-    if (!currentMs || !isFinite(currentMs) || currentMs < 0) {
+    if (!isFinite(currentMs) || currentMs < 0) {
         console.warn(`Invalid MS detected: ${currentMs}, resetting to 1`);
         currentMs = 1;
     }
     
     let updatedFields: Partial<VocabularyItem> = {};
     
-    // --- Handle Mastered Test Logic ---
     if (item.srsState === 'long-term' && (action === 'tested_correct' || action === 'tested_incorrect')) {
         if (action === 'tested_incorrect') {
             currentMs = MASTERED_THRESHOLD_DAYS - MASTERED_TEST_PENALTY;
@@ -124,16 +122,16 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
         updatedFields = {
             memStrength: currentMs,
             srsState: stateFromMs(currentMs),
-            lastReview: today,
+            lastReviewed: today,
             dueDate: newDueDate,
         };
-    } else { // Standard Remembered/Forgot Logic
+    } else {
         let newStreak = item.streak || 0;
         const totalAttempts = (item.attempts || 0) + 1;
         
         if (action === 'remembered' || action === 'tested_correct') {
-            const lastReview = item.lastReview ? new Date(item.lastReview) : today;
-            const dueDate = item.dueDate ? new Date(item.dueDate) : today;
+            const lastReview = item.lastReviewed ? new Date((item.lastReviewed as any).seconds ? (item.lastReviewed as any).seconds * 1000 : item.lastReviewed) : today;
+            const dueDate = item.dueDate ? new Date((item.dueDate as any).seconds ? (item.dueDate as any).seconds * 1000 : item.dueDate) : today;
             const elapsed = Math.max(0, (today.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
             const predicted_span = item.srsState === 'new' ? 1 : Math.max(1, (dueDate.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
             
@@ -146,9 +144,9 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
             const gain = BASE_GAIN * trustFactor * streakBonus;
             currentMs += gain;
 
-        } else { // 'forgot' or 'tested_incorrect'
-            const lastReview = item.lastReview ? new Date(item.lastReview) : today;
-            const dueDate = item.dueDate ? new Date(item.dueDate) : today;
+        } else {
+            const lastReview = item.lastReviewed ? new Date((item.lastReviewed as any).seconds ? (item.lastReviewed as any).seconds * 1000 : item.lastReviewed) : today;
+            const dueDate = item.dueDate ? new Date((item.dueDate as any).seconds ? (item.dueDate as any).seconds * 1000 : item.dueDate) : today;
             const elapsed = Math.max(0, (today.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
             const predicted_span = item.srsState === 'new' ? 1 : Math.max(1, (dueDate.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
             
@@ -163,8 +161,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
             newStreak = 0;
         }
         
-        // Final validation before saving
-        if (!currentMs || !isFinite(currentMs) || currentMs < 0) {
+        if (!isFinite(currentMs) || currentMs < 0) {
             console.warn(`Final MS invalid: ${currentMs}, resetting to ${MIN_MS}`);
             currentMs = MIN_MS;
         }
@@ -178,23 +175,20 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
             srsState: stateFromMs(currentMs),
             streak: newStreak,
             attempts: totalAttempts,
-            lastReview: today,
+            lastReviewed: today,
             dueDate: newDueDate,
         };
     }
     
-    // One more validation before database update
     if (!isFinite(currentMs) || currentMs < 0) {
         currentMs = MIN_MS;
         updatedFields.memStrength = currentMs;
         updatedFields.srsState = stateFromMs(currentMs);
     }
     
-    // --- Update Local DB and trigger server validation for achievements ---
     const finalItem = { ...item, ...updatedFields };
     await localDb.vocabulary.update(itemId, removeUndefinedProps(updatedFields));
     
-    // If the item has just been mastered, call the secure function to record it.
     if (updatedFields.srsState === 'long-term' && item.srsState !== 'long-term') {
       await validateAndRecordMastery(user.uid, itemId);
     }
@@ -206,3 +200,5 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
     throw new Error('Failed to update vocabulary progress.');
   }
 }
+
+    

@@ -17,10 +17,11 @@ import type {
   Book,
   Chapter,
   Segment,
+  VocabularyItem,
 } from '@/lib/types';
 import * as ttsService from '@/services/tts-service';
 import { getSystemVoices } from '@/services/tts-service';
-import * as vocabService from '@/services/vocabulary-service';
+import { getVocabularyItemsByFolder } from '@/services/vocabulary-service';
 
 // ============================================
 // TYPES - Clean & Minimal
@@ -629,7 +630,7 @@ class AudioEngine {
   private async generateVocabSegments(folderId: string): Promise<SpeechSegment[]> {
     if (!this.deps.user?.uid) return [];
     
-    const items = await vocabService.getVocabularyItemsByFolder(
+    const items = await getVocabularyItemsByFolder(
       this.deps.user.uid,
       folderId
     );
@@ -811,5 +812,3 @@ class AudioEngine {
 }
 
 export const audioEngine = new AudioEngine();
-
-    

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useUser } from '@/contexts/user-context';
 import { useToast } from '@/hooks/useToast';
 import * as vocabService from "@/services/vocabulary-service";
-import type { VocabularyItem } from '@/lib/types';
+import type { VocabularyItem, User } from '@/lib/types';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +32,6 @@ const DeleteVocabAlert: React.FC<DeleteVocabAlertProps> = ({ isOpen, onOpenChang
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Early return nếu item null
   if (!item) {
     return null;
   }
@@ -49,7 +48,7 @@ const DeleteVocabAlert: React.FC<DeleteVocabAlertProps> = ({ isOpen, onOpenChang
     
     setIsDeleting(true);
     try {
-      await vocabService.deleteVocabularyItem(user, item.id);
+      await vocabService.deleteVocabularyItem(user as User, item.id);
       toast({ 
         title: t("toast:deleteSuccessTitle"), 
         description: t("toast:deleteSuccessDesc", { title: item.term }) 
@@ -101,3 +100,5 @@ const DeleteVocabAlert: React.FC<DeleteVocabAlertProps> = ({ isOpen, onOpenChang
 };
 
 export default DeleteVocabAlert;
+
+    

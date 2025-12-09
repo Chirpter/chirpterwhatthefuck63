@@ -1,16 +1,17 @@
+// src/services/sync-service.ts
+'use client';
 
 /**
  * @fileoverview Client-side service to manage the synchronization queue.
- * This service reads from the local IndexedDB queue and sends batches of
- * changes to the server.
- * Implements an optimized sync engine with intelligent batching and operation coalescing.
+ * This service collects changes made in IndexedDB and sends them to the server.
  */
 
 import { getLocalDbForUser, type SyncAction } from './local-database';
 import { syncVocabularyBatch, fetchAllVocabularyFromFirestore } from '@/services/vocabulary-service';
+import { ApiServiceError } from '@/lib/errors';
 
-const BATCH_DELAY = 5000; // 5 seconds
-const MAX_BATCH_SIZE = 100;
+const BATCH_DELAY = 10000; // 10 seconds
+const MAX_BATCH_SIZE = 50;
 
 class OptimizedSyncEngine {
   private batchBuffer = new Map<string, SyncAction>();
@@ -18,7 +19,7 @@ class OptimizedSyncEngine {
   private isFlushing = false;
   private userId: string;
   private maxRetries = 3;
-  private retryDelay = 1000;
+  private retryDelay = 2000;
 
   constructor(userId: string) {
     this.userId = userId;
@@ -34,33 +35,19 @@ class OptimizedSyncEngine {
     };
 
     if (existing) {
-      // Coalesce operations: combine multiple updates for the same item.
       if (newAction.type === 'delete') {
-        // If it's a delete action, it overrides any previous actions.
         this.batchBuffer.set(key, newAction);
       } else if (existing.type === 'create' && newAction.type === 'update') {
-        // If we created and then updated, just send one 'create' with merged data.
-        this.batchBuffer.set(key, {
-          ...existing,
-          payload: { ...existing.payload, ...newAction.payload },
-          timestamp: newAction.timestamp,
-        });
+        this.batchBuffer.set(key, { ...existing, payload: { ...existing.payload, ...newAction.payload }, timestamp: newAction.timestamp });
       } else if (existing.type === 'update' && newAction.type === 'update') {
-        // If we updated multiple times, merge the updates into one.
-        this.batchBuffer.set(key, {
-          ...existing,
-          payload: { ...existing.payload, ...newAction.payload },
-          timestamp: newAction.timestamp,
-        });
+        this.batchBuffer.set(key, { ...existing, payload: { ...existing.payload, ...newAction.payload }, timestamp: newAction.timestamp });
       } else {
-        // Handle cases like update after delete, which shouldn't happen with good logic but is safe to handle.
         this.batchBuffer.set(key, newAction);
       }
     } else {
       this.batchBuffer.set(key, newAction);
     }
     
-    // Flush immediately if the batch is large or contains deletions.
     const hasDeletes = Array.from(this.batchBuffer.values()).some(a => a.type === 'delete');
     if (this.batchBuffer.size >= MAX_BATCH_SIZE || hasDeletes) {
       await this.flushBatch();
@@ -89,28 +76,22 @@ class OptimizedSyncEngine {
     try {
       await syncVocabularyBatch(this.userId, actionsToSync);
     } catch (error: any) {
-      // NEW: Intelligent error handling
-      const isPermanentFailure = error.code === 'permission-denied';
+      const isPermanentFailure = error instanceof ApiServiceError && error.code === 'PERMISSION';
 
       if (isPermanentFailure) {
-          console.warn("Sync batch failed due to a permanent error (Permission Denied). The data is invalid and will not be retried.", { failedActions: actionsToSync, error });
-          // Do not re-queue the actions, effectively discarding them.
+        console.warn("Sync batch failed due to a permanent error (Permission Denied). The data will not be retried.", { failedActions: actionsToSync, error });
       } else if (retryCount < this.maxRetries) {
-          console.error(`Sync batch failed (attempt ${retryCount + 1}), retrying...`, error);
-          // If it's not a permanent error, put items back in the buffer to be retried
-          actionsToSync.forEach(action => {
-            const key = `${action.table}_${action.key}`;
-            if (!this.batchBuffer.has(key)) {
-               this.batchBuffer.set(key, action);
-            }
-          });
-          
-          setTimeout(() => {
-            this.flushBatch(retryCount + 1);
-          }, this.retryDelay * Math.pow(2, retryCount)); // Exponential backoff
+        console.error(`Sync batch failed (attempt ${retryCount + 1}), retrying...`, error);
+        actionsToSync.forEach(action => {
+          const key = `${action.table}_${action.key}`;
+          if (!this.batchBuffer.has(key)) {
+             this.batchBuffer.set(key, action);
+          }
+        });
+        
+        setTimeout(() => this.flushBatch(retryCount + 1), this.retryDelay * Math.pow(2, retryCount));
       } else {
-          console.error(`Sync batch failed after all ${this.maxRetries} retries. Giving up.`, { failedActions: actionsToSync, error });
-          // After all retries, the actions are effectively discarded.
+        console.error(`Sync batch failed after all ${this.maxRetries} retries. Giving up.`, { failedActions: actionsToSync, error });
       }
     } finally {
       this.isFlushing = false;
@@ -119,11 +100,10 @@ class OptimizedSyncEngine {
 
   stop() {
     if (this.flushTimeout) {
-        clearTimeout(this.flushTimeout);
+      clearTimeout(this.flushTimeout);
     }
   }
 }
-
 
 const syncEngineInstances = new Map<string, OptimizedSyncEngine>();
 
@@ -134,37 +114,12 @@ function getSyncEngine(userId: string): OptimizedSyncEngine {
     return syncEngineInstances.get(userId)!;
 }
 
-
-/**
- * Public facing function to add an action to the sync queue for the given user.
- */
 export async function enqueueSync(
     userId: string,
     action: Omit<SyncAction, 'timestamp' | 'id'>
 ): Promise<void> {
     const engine = getSyncEngine(userId);
     await engine.enqueueSyncAction(action);
-}
-
-
-/**
- * Fetches all data from Firestore and populates the local IndexedDB.
- * This is intended to run once per user per device.
- * @param userId The UID of the user.
- */
-export async function syncFirestoreToLocal(userId: string): Promise<void> {
-    const localDb = getLocalDbForUser(userId);
-    try {
-        const firestoreItems = await fetchAllVocabularyFromFirestore(userId);
-        
-        if (firestoreItems.length > 0) {
-            await localDb.vocabulary.bulkPut(firestoreItems);
-            console.log(`Successfully synced ${firestoreItems.length} items from Firestore to local DB.`);
-        }
-        
-    } catch (error) {
-        console.error("Error during Firestore to local sync:", error);
-    }
 }
 
 const hasInitialSyncBeenPerformed = (userId: string): boolean => {
@@ -177,16 +132,19 @@ const markInitialSyncAsPerformed = (userId: string): void => {
     localStorage.setItem(key, 'true');
 };
 
-
 export async function performInitialSync(userId: string): Promise<boolean> {
     if (hasInitialSyncBeenPerformed(userId)) {
         return true;
     }
     
-    console.log("Performing initial sync for user:", userId);
-
     try {
-        await syncFirestoreToLocal(userId);
+        const localDb = getLocalDbForUser(userId);
+        const firestoreItems = await fetchAllVocabularyFromFirestore(userId);
+        
+        if (firestoreItems.length > 0) {
+            await localDb.vocabulary.bulkPut(firestoreItems);
+        }
+        
         markInitialSyncAsPerformed(userId);
         return true;
     } catch (error) {
@@ -194,3 +152,5 @@ export async function performInitialSync(userId: string): Promise<boolean> {
         return false;
     }
 }
+
+    
