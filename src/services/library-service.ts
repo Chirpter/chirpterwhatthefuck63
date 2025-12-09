@@ -1,4 +1,3 @@
-
 // src/services/library-service.ts
 'use server';
 
@@ -48,7 +47,11 @@ export async function getLibraryItems(
     query = query.where('type', '==', contentType);
   }
   if (startAfterDoc) {
-    query = query.startAfter(startAfterDoc);
+    // Reconstruct the document snapshot from plain data if necessary
+    const startAfterSnapshot = await adminDb.collection(getLibraryCollectionPath(userId)).doc(startAfterDoc.id).get();
+    if(startAfterSnapshot.exists) {
+        query = query.startAfter(startAfterSnapshot);
+    }
   }
   
   query = query.limit(queryLimit);
@@ -62,9 +65,12 @@ export async function getLibraryItems(
         return convertTimestamps(itemWithId) as LibraryItem;
     });
 
-    const lastDocData = querySnapshot.docs.length > 0 
+    const lastVisible = querySnapshot.docs.length > 0 
       ? querySnapshot.docs[querySnapshot.docs.length - 1] 
       : null;
+    
+    // ✅ FIX: Return serializable data, not the complex DocumentSnapshot object.
+    const lastDocData = lastVisible ? { id: lastVisible.id, ...lastVisible.data() } : null;
     
     return {
       items,
@@ -129,7 +135,10 @@ export async function getGlobalBooks(
         query = query.where('price', '==', 0);
     }
     if (startAfterDoc) {
-        query = query.startAfter(startAfterDoc);
+        const startAfterSnapshot = await adminDb.collection('globalBooks').doc(startAfterDoc.id).get();
+        if(startAfterSnapshot.exists) {
+           query = query.startAfter(startAfterSnapshot);
+        }
     }
     
     query = query.limit(queryLimit);
@@ -143,9 +152,12 @@ export async function getGlobalBooks(
       return convertTimestamps({ id: docSnap.id, ...rawData }) as Book;
     });
 
+    const lastVisible = querySnapshot.docs.length > 0 ? querySnapshot.docs[querySnapshot.docs.length - 1] : null;
+    const lastDocData = lastVisible ? { id: lastVisible.id, ...lastVisible.data() } : null;
+
     return {
       items,
-      lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
+      lastDoc: lastDocData,
     };
   } catch (error: any) {
     console.error('Error in getGlobalBooks (server):', error);

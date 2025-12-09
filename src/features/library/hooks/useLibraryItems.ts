@@ -1,4 +1,3 @@
-
 // src/features/library/hooks/useLibraryItems.ts
 'use client';
 
@@ -56,6 +55,9 @@ export const useLibraryItems = ({
     }
     setError(null);
 
+    // --- DEBUG LOGGING ---
+    console.log(`[useLibraryItems] Fetching... Initial: ${isInitialLoad}, Type: ${contentType || 'all'}, Status: ${status}, LastDoc: ${lastDoc ? 'Yes' : 'No'}`);
+
     try {
       let result;
       if (contentType === 'vocabulary') {
@@ -77,16 +79,19 @@ export const useLibraryItems = ({
           limit,
           startAfter: isInitialLoad ? null : lastDoc,
         });
+        // ✅ FIX: Use the modified serializable data for setting lastDoc
         result = { items: libResult.items, hasMore: !!libResult.lastDoc };
         setLastDoc(libResult.lastDoc);
       }
       
+      console.log(`[useLibraryItems] Fetched ${result.items.length} items. Has More: ${result.hasMore}`);
       setItems(prev => isInitialLoad ? result.items : [...prev, ...result.items]);
       setHasMore(result.hasMore);
 
     } catch (err: any) {
-      setError(err);
+      // --- DEBUG LOGGING ---
       console.error(`[useLibraryItems] Failed to fetch ${contentType || 'items'}:`, err);
+      setError(err);
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
