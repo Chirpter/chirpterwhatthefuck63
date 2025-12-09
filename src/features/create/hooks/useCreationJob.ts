@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -436,5 +434,3 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     promptError,
   };
 };
-
-    
