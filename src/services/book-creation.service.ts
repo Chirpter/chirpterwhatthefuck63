@@ -3,23 +3,18 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
-import { storage } from '@/lib/firebase';
-import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter, MultilingualContent, PresentationMode } from "@/lib/types";
+import type { Book, CreationFormValues, GenerateBookContentInput } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
-import { getUserProfile } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
-import { generateCoverImage } from "@/ai/flows/generate-cover-image-flow";
 import { updateLibraryItem } from "./library-service";
 import { ApiServiceError } from "../lib/errors";
 import { parseBookMarkdown } from './MarkdownParser';
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
-import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS, MAX_IMAGE_SIZE_BYTES } from '@/lib/constants';
-import sharp from 'sharp';
+import { z } from 'zod';
+import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 
 const BookOutputSchema = z.object({
-  markdownContent: z.string().describe("A single, unified Markdown string that contains the entire book content, including the book title (as a Level 1 heading) and all chapters (as Level 2 headings)."),
+  markdownContent: z.string().describe("A single, unified Markdown string that contains the entire book content, including the book title (as a Level 1 Markdown heading, e.g., '# Title') and all chapters (as Level 2 headings, e.g., '## Chapter 1')."),
 });
 
 const BookPromptInputSchema = z.object({
@@ -27,21 +22,16 @@ const BookPromptInputSchema = z.object({
 });
 
 /**
- * The main pipeline for processing book generation. It runs content and cover generation in parallel.
+ * The main pipeline for processing book generation.
  * This is a "fire-and-forget" background process.
  */
 async function processBookGenerationPipeline(
   userId: string,
   bookId: string,
-  contentInput: GenerateBookContentInput,
-  coverOption: CoverJobType,
-  coverData: File | string | null
+  contentInput: GenerateBookContentInput
 ) {
-  const [contentResult, coverResult] = await Promise.allSettled([
+  const [contentResult] = await Promise.allSettled([
     processContentGenerationForBook(userId, bookId, contentInput),
-    coverOption !== 'none'
-      ? processCoverImageForBook(userId, bookId, coverOption, coverData, contentInput.prompt)
-      : Promise.resolve({ coverState: 'ignored' as const })
   ]);
 
   const finalUpdate: Partial<Book> = { status: 'draft' };
@@ -53,16 +43,10 @@ async function processBookGenerationPipeline(
     finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
   }
 
-  if (coverResult.status === 'fulfilled') {
-    Object.assign(finalUpdate, coverResult.value);
-  } else {
-    finalUpdate.coverState = 'error';
-    finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
-  }
-
   await updateLibraryItem(userId, bookId, finalUpdate);
   await checkAndUnlockAchievements(userId);
 }
+
 
 /**
  * Creates a book document and initiates the generation pipeline.
@@ -71,9 +55,6 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   const adminDb = getAdminDb();
   let bookId = '';
 
-  const userProfile = await getUserProfile(userId);
-  if (!userProfile) throw new ApiServiceError("User profile not found.", "AUTH");
-  
   let creditCost = 0;
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookFormData.bookLength);
   if (bookLengthOption) {
@@ -83,10 +64,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         creditCost = { 'short-story': 1, 'mini-book': 2, 'long-book': 15 }[bookFormData.bookLength] || 1;
     }
   }
-  if (bookFormData.coverImageOption === 'ai' || bookFormData.coverImageOption === 'upload') {
-      creditCost += 1;
-  }
-  
+
   const primaryLanguage = bookFormData.primaryLanguage;
 
   await adminDb.runTransaction(async (transaction) => {
@@ -114,7 +92,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         title: { [primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
         status: 'processing',
         contentState: 'processing',
-        coverState: bookFormData.coverImageOption !== 'none' ? 'processing' : 'ignored',
+        coverState: 'ignored',
         origin: bookFormData.origin,
         langs: bookFormData.availableLanguages,
         prompt: bookFormData.aiPrompt,
@@ -144,9 +122,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     chaptersToGenerate: bookFormData.targetChapterCount,
     totalChapterOutlineCount: (bookFormData.bookLength === 'standard-book' || bookFormData.bookLength === 'long-book') ? bookFormData.targetChapterCount : undefined,
   };
-  const coverData = bookFormData.coverImageOption === 'ai' ? bookFormData.coverImageAiPrompt : bookFormData.coverImageFile;
 
-  processBookGenerationPipeline(userId, bookId, contentInput, bookFormData.coverImageOption, coverData)
+  processBookGenerationPipeline(userId, bookId, contentInput)
     .catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
   return bookId;
@@ -180,9 +157,11 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
     if (secondaryLanguage) {
         const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
-        const pairingUnit = format === 'ph' ? 'phrases' : 'sentences';
         
-        criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading (e.g., '# My Book Title / Tiêu đề sách').`);
+        // This is where we implement Option 1
+        const pairingUnit = format === 'ph' ? 'meaningful chunks' : 'sentences';
+        
+        criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading, with bilingual versions separated by ' / ' (e.g., '# My Title / Tiêu đề của tôi').`);
         criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with ${pairingUnit} paired using ' / ' as a separator.`);
     } else {
         const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
@@ -199,7 +178,7 @@ ${criticalInstructions.join('\n')}
 `.trim();
 
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateUnifiedBookMarkdown_v5',
+        name: 'generateUnifiedBookMarkdown_v6',
         input: { schema: BookPromptInputSchema },
         output: { schema: BookOutputSchema },
         prompt: `{{{fullInstruction}}}`,
@@ -227,193 +206,4 @@ ${criticalInstructions.join('\n')}
     }
 }
 
-
-/**
- * Handles the cover image generation/upload part of the pipeline.
- */
-async function processCoverImageForBook(
-  userId: string,
-  bookId: string,
-  coverOption: CoverJobType,
-  imageData: File | string | null,
-  fallbackPrompt?: string
-): Promise<Partial<Book>> {
-  const coverInputPrompt = (coverOption === 'ai' && typeof imageData === 'string' && imageData.trim()) ? imageData : fallbackPrompt;
-
-  try {
-    let optimizedBuffer: Buffer | null = null;
-    
-    if (coverOption === 'upload' && imageData instanceof File) {
-        if (imageData.size > MAX_IMAGE_SIZE_BYTES) {
-            throw new ApiServiceError(`File size exceeds limit of ${MAX_IMAGE_SIZE_BYTES / 1024 / 1024}MB.`, 'VALIDATION');
-        }
-        if (!imageData.type.startsWith('image/')) {
-            throw new ApiServiceError('Invalid file type. Only images are allowed.', 'VALIDATION');
-        }
-
-      const arrayBuffer = await imageData.arrayBuffer();
-      optimizedBuffer = await sharp(Buffer.from(arrayBuffer))
-        .resize(512, 683, { fit: 'cover', position: 'center' })
-        .webp({ quality: 80 }).toBuffer();
-    } 
-    else if (coverOption === 'ai' && coverInputPrompt) {
-      const { imageUrl } = await generateCoverImage({ prompt: coverInputPrompt, bookId });
-      if (imageUrl.startsWith('data:image/')) {
-        const base64Data = imageUrl.split(',')[1];
-        optimizedBuffer = Buffer.from(base64Data, 'base64');
-      }
-    }
-
-    if (optimizedBuffer) {
-      const storagePath = `covers/${userId}/${bookId}/cover.webp`;
-      const imageRef = storageRef(storage, storagePath);
-      
-      const dataUrl = `data:image/webp;base64,${optimizedBuffer.toString('base64')}`;
-      
-      await uploadString(imageRef, dataUrl, 'data_url');
-      const downloadURL = await getDownloadURL(imageRef);
-
-      const coverUpdate: Cover = {
-        type: coverOption,
-        url: downloadURL,
-        createdAt: new Date().toISOString(),
-        inputPrompt: coverInputPrompt,
-      };
-
-      return {
-        cover: removeUndefinedProps(coverUpdate),
-        coverState: 'ready',
-        coverRetryCount: 0,
-      };
-    }
-
-    return { coverState: 'ignored' };
-
-  } catch (err) {
-    console.error(`Error in cover generation for book ${bookId}:`, (err as Error).message);
-    throw err;
-  }
-}
-
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
-
-export async function addChaptersToBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<void> {
-  const adminDb = getAdminDb();
-  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
-
-  await bookDocRef.update({
-    status: 'processing',
-    contentState: 'processing',
-    updatedAt: FieldValue.serverTimestamp(),
-  });
-
-  try {
-    const { title, chapters } = await processContentGenerationForBook(userId, bookId, contentInput);
-
-    await bookDocRef.update({
-      title: title || FieldValue.delete(),
-      chapters: FieldValue.arrayUnion(...(chapters || [])),
-      status: 'draft',
-      contentState: 'ready',
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  } catch (error) {
-    await bookDocRef.update({
-      status: 'draft',
-      contentState: 'error',
-      contentError: (error as Error).message,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    throw error;
-  }
-}
-
-export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
-    await updateLibraryItem(userId, bookId, { 
-        coverState: 'processing', 
-        status: 'processing', 
-        coverRetryCount: 0 
-    });
-
-    try {
-        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data, undefined);
-        await updateLibraryItem(userId, bookId, { ...coverUpdate, status: 'draft' });
-    } catch (error) {
-        await updateLibraryItem(userId, bookId, {
-            status: 'draft',
-            coverState: 'error',
-            coverError: (error as Error).message,
-        });
-        throw error;
-    }
-}
-
-export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-    const adminDb = getAdminDb();
-    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
-    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
-    const book = docSnap.data() as Book;
-
-    const contentInput: GenerateBookContentInput = {
-        prompt: newPrompt || book.prompt || '',
-        origin: book.origin,
-        bookLength: book.intendedLength || 'short-story',
-        chaptersToGenerate: book.chapters.length || 1
-    };
-
-    await updateLibraryItem(userId, bookId, {
-        status: 'processing',
-        contentState: 'processing',
-        chapters: [],
-        outline: [],
-        contentRetryCount: newPrompt ? 0 : (book.contentRetryCount || 0) + 1,
-        prompt: newPrompt || book.prompt,
-    });
-
-    try {
-        const contentUpdate = await processContentGenerationForBook(userId, bookId, contentInput);
-        await updateLibraryItem(userId, bookId, { ...contentUpdate, status: 'draft' });
-    } catch (error) {
-        await updateLibraryItem(userId, bookId, {
-            status: 'draft',
-            contentState: 'error',
-            contentError: (error as Error).message,
-        });
-        throw error;
-    }
-}
-
-export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
-    const adminDb = getAdminDb();
-    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
-    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
-    const book = docSnap.data() as Book;
-
-    if (!book.cover || book.cover.type === 'none') {
-        throw new ApiServiceError("No cover information to regenerate from.", "VALIDATION");
-    }
-
-    await updateLibraryItem(userId, bookId, {
-        status: 'processing',
-        coverState: 'processing',
-        coverRetryCount: (book.coverRetryCount || 0) + 1,
-    });
-
-    try {
-        const coverUpdate = await processCoverImageForBook(
-            userId, 
-            bookId, 
-            book.cover.type, 
-            book.cover.inputPrompt || book.prompt || '',
-            book.prompt
-        );
-        await updateLibraryItem(userId, bookId, { ...coverUpdate, status: 'draft' });
-    } catch (error) {
-        await updateLibraryItem(userId, bookId, {
-            status: 'draft',
-            coverState: 'error',
-            coverError: (error as Error).message,
-        });
-        throw error;
-    }
-}
