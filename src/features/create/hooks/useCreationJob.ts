@@ -125,6 +125,12 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
     return contentCost + coverCost;
   }, [type, mode, formData]);
 
+  /**
+   * Tín hiệu `isBusy` là "công tắc" chính điều khiển toàn bộ trạng thái chờ của giao diện.
+   * Nó là `true` (BẬN) trong suốt quá trình từ khi người dùng nhấn nút cho đến khi có kết quả cuối cùng.
+   * - `isSubmitting`: `true` trong khoảnh khắc gửi yêu cầu lên server và chờ nhận lại `jobId`.
+   * - `!!activeId && !finalizedId`: `true` trong suốt thời gian server đang xử lý (đã có ID công việc nhưng chưa có ID kết quả cuối cùng).
+   */
   const isBusy = isSubmitting || (!!activeId && !finalizedId);
   const canGenerate = useMemo(() => user ? user.credits >= creditCost : false, [user, creditCost]);
 
