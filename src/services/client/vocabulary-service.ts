@@ -164,39 +164,36 @@ export async function getVocabularyItemsPaginated(
     context,
   } = options;
 
-  try {
-    let query: Collection<VocabularyItem, string> = localDb.vocabulary;
+  console.log('[VocabService] Fetching with options:', { userId, folder, searchTerm, limit, offset, sortBy, sortOrder, context });
 
-    // Build compound filter object for Dexie
-    const filters: { [key: string]: any } = { userId };
+  try {
+    // Start with the base query for the user
+    let query: Collection<VocabularyItem, string> = localDb.vocabulary.where({ userId });
+
+    // Chain additional filters
     if (context) {
-      filters.context = context;
+        query = query.and(item => item.context === context);
     }
+    
     if (folder && folder !== 'all') {
-        // Handle unorganized items correctly
         if (folder === FOLDER_CONSTANTS.UNORGANIZED) {
-            query = query.where('userId').equals(userId).and(item => !item.folder);
+            query = query.and(item => !item.folder);
         } else {
-            filters.folder = folder;
+            query = query.and(item => item.folder === folder);
         }
     }
-     
-    // Apply initial filters
-    query = query.where(filters);
     
-    // Apply search term filter separately if needed
-    if (searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_SEARCH_QUERY_LENGTH) {
-      const searchLower = searchTerm.toLowerCase();
-      query = query.and(item => 
-        (item.searchTerms || []).some(st => st.includes(searchLower))
-      );
+    if (searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_QUERY_LENGTH) {
+        const searchLower = searchTerm.toLowerCase();
+        query = query.and(item => 
+            (item.searchTerms || []).some(st => st.includes(searchLower))
+        );
     }
     
-    // Perform sorting and pagination directly in Dexie
+    // Sorting must be applied before pagination
     let sortedCollection = query.orderBy(sortBy);
-
     if (sortOrder === 'desc') {
-      sortedCollection = sortedCollection.reverse();
+        sortedCollection = sortedCollection.reverse();
     }
     
     const items = await sortedCollection.offset(offset).limit(limit + 1).toArray();
@@ -206,6 +203,7 @@ export async function getVocabularyItemsPaginated(
 
     return { items: paginatedItems, hasMore };
   } catch (error) {
+    console.error('[VocabService] Dexie query failed:', error);
     handleVocabularyError(error, 'getVocabularyItemsPaginated', VocabularyErrorCode.DB_QUERY_FAILED);
   }
 }
