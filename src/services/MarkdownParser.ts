@@ -35,16 +35,21 @@ const extractTextFromNode = (node: Content): string => {
 
 /**
  * Enhanced sentence boundary detection with better punctuation handling.
+ * It now correctly splits sentences ending with quotes.
  */
 function splitIntoSentences(text: string): string[] {
   if (!text) return [];
-  const sentenceBoundaryRegex = /(?<=[.!?…])\s+(?=[A-Z])|(?<=[.!?…]["'])\s+(?=[A-Z])|\n/;
+  // This regex looks for a sentence-ending punctuation mark (. ! ? …)
+  // which may be followed by quotes, and then whitespace that is followed by an uppercase letter.
+  // This is a common heuristic for sentence splitting. It also handles newlines as sentence breaks.
+  const sentenceBoundaryRegex = /(?<=[.!?…]["']?)\s+(?=[A-Z])|\n+/;
   
   return text
     .split(sentenceBoundaryRegex)
     .map(s => s.trim())
     .filter(s => s.length > 0);
 }
+
 
 /**
  * Splits a sentence into smaller phrases based on commas and semicolons.
@@ -57,7 +62,7 @@ function splitSentenceIntoPhrases(sentence: string): string[] {
 }
 
 /**
- * Robust bilingual content pairing logic for sentences using a ' / ' separator.
+ * Robust bilingual content pairing logic for sentences or phrases using a ' / ' separator.
  */
 function pairBilingualContent(items: string[], primaryLang: string, secondaryLang: string | undefined): MultilingualContent[] {
     if (!secondaryLang) {
@@ -74,6 +79,7 @@ function pairBilingualContent(items: string[], primaryLang: string, secondaryLan
                 [secondaryLang]: parts.slice(1).join(' / ').trim()
             });
         } else {
+            // If no separator is found, assign the whole line to the primary language.
             pairs.push({ [primaryLang]: line.trim() });
         }
     });
@@ -100,6 +106,7 @@ function detectDialogue(text: string): boolean {
 /**
  * MAIN PARSING FUNCTION - Converts a Markdown CHUNK to structured Segments.
  * This is the core logic that transforms raw text blocks into our application's data structure.
+ * It now handles the 'phrase' mode by creating the optional `phrases` array.
  */
 export function parseMarkdownToSegments(
   markdown: string, 
@@ -116,40 +123,43 @@ export function parseMarkdownToSegments(
   try {
     const tree = remark().parse(markdown) as Root;
     
-    tree.children.forEach((node, pIndex) => {
-      const paragraphText = extractTextFromNode(node).trim();
-      if (!paragraphText) return;
+    tree.children.forEach((node) => {
+        if (node.type !== 'paragraph') return;
+        
+        const paragraphText = extractTextFromNode(node).trim();
+        if (!paragraphText) return;
 
-      const sentences = splitIntoSentences(paragraphText);
-      const sentencePairs = pairBilingualContent(sentences, primaryLanguage, secondaryLanguage);
-      
-      sentencePairs.forEach((sentencePair) => {
-         const primaryText = sentencePair[primaryLanguage];
-         if (!primaryText) return;
+        const sentences = splitIntoSentences(paragraphText);
+        const sentencePairs = pairBilingualContent(sentences, primaryLanguage, secondaryLanguage);
+        
+        sentencePairs.forEach((sentencePair) => {
+            const primaryText = sentencePair[primaryLanguage];
+            if (!primaryText) return;
 
-         const segment: Segment = {
-            id: generateLocalUniqueId(),
-            order: globalSegmentOrder++,
-            type: detectDialogue(primaryText) ? 'dialog' : 'text',
-            content: sentencePair,
-            formatting: {},
-            metadata: { isNewPara: true }, // Will be refined later
-         };
-         
-         // If in phrase mode and bilingual, parse and add the `phrases` field.
-         if (isPhraseMode && secondaryLanguage) {
-            const secondaryText = sentencePair[secondaryLanguage] || '';
-            const primaryPhrases = splitSentenceIntoPhrases(primaryText);
-            const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
+            const segment: Segment = {
+                id: generateLocalUniqueId(),
+                order: globalSegmentOrder++,
+                type: detectDialogue(primaryText) ? 'dialog' : 'text',
+                content: sentencePair, // Always store the full sentence
+                formatting: {},
+                metadata: { isNewPara: false }, // Will be refined later
+            };
             
-            segment.phrases = primaryPhrases.map((phrase, i) => ({
-                [primaryLanguage]: phrase.trim(),
-                [secondaryLanguage]: (secondaryPhrases[i] || '').trim()
-            }));
-         }
+            // --- PHRASE ENHANCEMENT STEP ---
+            if (isPhraseMode && secondaryLanguage) {
+                const secondaryText = sentencePair[secondaryLanguage] || '';
+                const primaryPhrases = splitSentenceIntoPhrases(primaryText);
+                const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
+                
+                // Simple 1-to-1 mapping based on array index. Assumes AI provides corresponding phrases.
+                segment.phrases = primaryPhrases.map((phrase, i) => ({
+                    [primaryLanguage]: phrase.trim(),
+                    [secondaryLanguage]: (secondaryPhrases[i] || '').trim()
+                }));
+            }
          
-         segments.push(segment);
-      });
+            segments.push(segment);
+        });
     });
 
     // Refine isNewPara metadata based on actual paragraphs from the markdown tree
@@ -158,7 +168,6 @@ export function parseMarkdownToSegments(
       if (node.type === 'paragraph' && segmentIndex < segments.length) {
         segments[segmentIndex].metadata.isNewPara = true;
         
-        // Find how many segments this paragraph generated to advance the index correctly
         const paragraphText = extractTextFromNode(node).trim();
         const sentenceCount = splitIntoSentences(paragraphText).length;
         segmentIndex += sentenceCount;
@@ -176,6 +185,7 @@ export function parseMarkdownToSegments(
 /**
  * THE DEFINITIVE PARSER for an entire book's markdown content.
  * It extracts the book title (from H1) and splits the content into structured chapters (from H2).
+ * This function now has smarter fallback logic for finding the book title.
  */
 export function parseBookMarkdown(
     markdown: string, 
@@ -187,10 +197,11 @@ export function parseBookMarkdown(
     let bookTitleText = 'Untitled Book';
     let contentStartIndex = 0;
 
-    // 1. Extract Book Title (H1 is primary, H3 is fallback)
+    // --- ENHANCED TITLE PARSING ---
     let titleLineIndex = lines.findIndex(line => line.trim().startsWith('# '));
     let titlePrefix = '# ';
     if (titleLineIndex === -1) {
+        // Fallback 1: Look for H3
         titleLineIndex = lines.findIndex(line => line.trim().startsWith('### '));
         titlePrefix = '### ';
     }
@@ -199,6 +210,7 @@ export function parseBookMarkdown(
         bookTitleText = lines[titleLineIndex].substring(titlePrefix.length).trim();
         contentStartIndex = titleLineIndex + 1;
     } else {
+        // Fallback 2: Use the first non-empty line
         const firstNonEmptyLineIndex = lines.findIndex(line => line.trim() !== '');
         if (firstNonEmptyLineIndex !== -1) {
             bookTitleText = lines[firstNonEmptyLineIndex].trim();
@@ -208,23 +220,20 @@ export function parseBookMarkdown(
 
     const contentWithoutTitle = lines.slice(contentStartIndex).join('\n').trim();
 
-    // 2. Split content into chapter blocks based on H2 headings
+    // Split content into chapter blocks based on H2 headings
     const chapterBlocks = contentWithoutTitle.split(/\n(?=##\s)/).map(block => block.trim());
     
-    // 3. Process each chapter block
     const chapters: Chapter[] = chapterBlocks.map((block, index) => {
         const chapterLines = block.split('\n');
         const titleLine = chapterLines.length > 0 ? chapterLines[0].replace(/^##\s*/, '').trim() : `Chapter ${index + 1}`;
         const chapterContentMarkdown = chapterLines.slice(1).join('\n').trim();
 
-        // Parse title for bilingualism
         const titleParts = titleLine.split(/\s*[\/|]\s*/).map(p => p.trim());
-        const chapterTitle: MultilingualContent = { [primaryLanguage]: titleParts[0] };
+        const chapterTitle: MultilingualContent = { [primaryLanguage]: titleParts[0] || `Chapter ${index + 1}` };
         if (secondaryLanguage && titleParts[1]) {
             chapterTitle[secondaryLanguage] = titleParts[1];
         }
 
-        // Parse content into segments
         const segments = chapterContentMarkdown ? parseMarkdownToSegments(chapterContentMarkdown, origin) : [];
         
         const totalWords = segments.reduce((sum, seg) => sum + (seg.content[primaryLanguage] ? calculateWordCount(seg.content[primaryLanguage]) : 0), 0);
@@ -243,14 +252,12 @@ export function parseBookMarkdown(
         };
     }).filter(ch => (ch.title[primaryLanguage] && ch.title[primaryLanguage].trim() !== '') || ch.segments.length > 0);
 
-    // 4. Finalize book title object
     const finalBookTitle: MultilingualContent = {};
     const titleParts = bookTitleText.split(/\s*[\/|]\s*/).map(t => t.trim());
     finalBookTitle[primaryLanguage] = titleParts[0] || 'Untitled';
     if (secondaryLanguage) {
         finalBookTitle[secondaryLanguage] = titleParts[1] || titleParts[0] || 'Chưa có tiêu đề';
     }
-
 
     return { title: finalBookTitle, chapters };
 }
