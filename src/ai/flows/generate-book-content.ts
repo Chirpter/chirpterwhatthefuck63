@@ -9,7 +9,7 @@
  * and separating business logic.
  */
 
-import type { GenerateBookContentInput } from '@/lib/types';
+import type { CreationFormValues } from '@/lib/types';
 import { createBookAndStartGeneration } from '@/services/book-creation.service';
 
 /**
@@ -18,10 +18,10 @@ import { createBookAndStartGeneration } from '@/services/book-creation.service';
  * data parsing, and final object assembly.
  *
  * @param userId - The ID of the user creating the book.
- * @param input - The structured input data for book generation.
+ * @param input - The structured input data for book generation from the form.
  * @returns A promise that resolves to the ID of the newly created book document.
  */
-export async function generateBookContent(userId: string, input: GenerateBookContentInput): Promise<string> {
+export async function generateBookContent(userId: string, input: CreationFormValues): Promise<string> {
   // Delegate the entire process to the dedicated service.
   // The service will handle creating the initial document, running the AI pipeline,
   // and updating the document with the final content.

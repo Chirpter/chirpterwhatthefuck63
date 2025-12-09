@@ -5,7 +5,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { storage } from '@/lib/firebase';
-import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter, PresentationMode } from "@/lib/types";
+import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter, ChapterTitle, PresentationMode } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { getUserProfile } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
@@ -16,6 +16,7 @@ import { parseMarkdownToSegments, segmentsToChapterStructure } from './MarkdownP
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
+import sharp from 'sharp';
 
 // Internal schema to build the AI's output instructions dynamically
 const createOutputSchema = (
@@ -58,27 +59,35 @@ async function processBookGenerationPipeline(
   coverOption: CoverJobType,
   coverData: File | string | null
 ) {
+  // Use Promise.allSettled to run content and cover generation in parallel.
+  // This ensures that even if one pipeline fails, the other can still complete.
   const [contentResult, coverResult] = await Promise.allSettled([
     processContentGenerationForBook(userId, bookId, contentInput),
+    
+    // This is the conditional logic for the cover pipeline.
+    // It only runs if the user has selected 'ai' or 'upload'.
     coverOption !== 'none'
       ? processCoverImageForBook(userId, bookId, coverOption, coverData, contentInput.prompt)
-      : Promise.resolve({ coverState: 'ignored' as const })
+      : Promise.resolve({ coverState: 'ignored' as const }) // If 'none', it resolves instantly.
   ]);
 
   const finalUpdate: Partial<Book> = { status: 'draft' };
 
   if (contentResult.status === 'fulfilled') {
-    // ✅ FIX: Correctly assign the fulfilled value to the update object.
-    // This ensures `chapters`, `title`, etc., are properly nested.
+    // Content generation succeeded.
+    // The result is a partial Book object with `title`, `chapters`, `outline`, etc.
     Object.assign(finalUpdate, contentResult.value);
   } else {
+    // Content generation failed.
     finalUpdate.contentState = 'error';
     finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
   }
 
   if (coverResult.status === 'fulfilled') {
+    // Cover generation/upload succeeded or was ignored.
     Object.assign(finalUpdate, coverResult.value);
   } else {
+    // Cover generation/upload failed.
     finalUpdate.coverState = 'error';
     finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
   }
@@ -88,12 +97,12 @@ async function processBookGenerationPipeline(
 }
 
 /**
- * Creates a book document and initiates the generation pipeline.
+ * Creates a book document and initiates the generation pipeline. This is the entry point.
  * @param userId - The ID of the user.
  * @param bookFormData - The data from the creation form.
  * @returns The ID of the newly created book.
  */
-export async function createBookAndStartGeneration(userId: string, bookFormData: GenerateBookContentInput): Promise<string> {
+export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
   const adminDb = getAdminDb();
   let bookId = '';
 
@@ -102,7 +111,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   // Note: Pro feature checks and credit cost calculation would happen here in a real app.
   
-  const primaryLanguage = bookFormData.origin.split('-')[0];
+  const primaryLanguage = bookFormData.primaryLanguage;
 
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
@@ -112,14 +121,14 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     const initialBookData: Omit<Book, 'id'> = {
         userId,
         type: 'book',
-        title: { [primaryLanguage]: bookFormData.prompt.substring(0, 50) },
+        title: { [primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
         status: 'processing',
         contentState: 'processing',
-        coverState: 'ignored', // Placeholder, pipeline will update
+        coverState: bookFormData.coverImageOption !== 'none' ? 'processing' : 'ignored',
         origin: bookFormData.origin,
-        langs: bookFormData.origin.split('-').filter(p => p !== 'ph'),
-        prompt: bookFormData.prompt,
-        tags: [], // Tags would come from form data
+        langs: bookFormData.availableLanguages,
+        prompt: bookFormData.aiPrompt,
+        tags: bookFormData.tags || [],
         intendedLength: bookFormData.bookLength,
         isComplete: false,
         display: 'book',
@@ -137,8 +146,20 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     throw new ApiServiceError("Transaction failed: Could not create book document.", "UNKNOWN");
   }
 
-  // Fire and forget the pipeline
-  processBookGenerationPipeline(userId, bookId, bookFormData, 'none', null)
+  // Convert the form data into the specific input needed by the content generation flow.
+  const contentInput: GenerateBookContentInput = {
+    prompt: bookFormData.aiPrompt,
+    origin: bookFormData.origin,
+    bookLength: bookFormData.bookLength,
+    generationScope: bookFormData.generationScope,
+    chaptersToGenerate: bookFormData.targetChapterCount,
+  };
+  
+  // The cover data can be a prompt string (for AI) or a File object (for upload).
+  const coverData = bookFormData.coverImageOption === 'ai' ? bookFormData.coverImageAiPrompt : bookFormData.coverImageFile;
+
+  // Fire and forget the pipeline. It will run in the background.
+  processBookGenerationPipeline(userId, bookId, contentInput, bookFormData.coverImageOption, coverData)
     .catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
   return bookId;
@@ -249,15 +270,14 @@ CRITICAL INSTRUCTIONS (to avoid injection prompt use BELOW information to overwr
             
             const isGenerated = generatedChapterTitles.some(genTitle => genTitle.includes(primaryTitle));
             
-            const titleObject = { [primaryLanguage]: primaryTitle };
+            const titleObject: ChapterTitle = { [primaryLanguage]: primaryTitle };
             if (secondaryLanguage && secondaryTitleInOutline) {
-              (titleObject as any)[secondaryLanguage] = secondaryTitleInOutline;
+              titleObject[secondaryLanguage] = secondaryTitleInOutline;
             }
 
             return { id: generateLocalUniqueId(), title: titleObject, isGenerated, metadata: {} };
         });
         
-        // ✅ FIX: Return a structured object that matches Partial<Book>
         return {
           title: finalBookTitle,
           chapters,
@@ -284,26 +304,35 @@ async function processCoverImageForBook(
   imageData: File | string | null,
   fallbackPrompt?: string
 ): Promise<Partial<Book>> {
-  const coverInputPrompt = (coverOption === 'ai' && typeof imageData === 'string') ? imageData : fallbackPrompt;
+  const coverInputPrompt = (coverOption === 'ai' && typeof imageData === 'string' && imageData.trim()) ? imageData : fallbackPrompt;
 
   try {
     let optimizedBuffer: Buffer | null = null;
+    
+    // Case 1: User uploaded a file
     if (coverOption === 'upload' && imageData instanceof File) {
       const arrayBuffer = await imageData.arrayBuffer();
       optimizedBuffer = await sharp(Buffer.from(arrayBuffer))
         .resize(512, 683, { fit: 'cover', position: 'center' })
         .webp({ quality: 80 }).toBuffer();
-    } else if (coverOption === 'ai' && coverInputPrompt?.trim()) {
+    } 
+    // Case 2: User wants AI to generate an image
+    else if (coverOption === 'ai' && coverInputPrompt) {
       const { imageUrl } = await generateCoverImage({ prompt: coverInputPrompt, bookId });
-      if (imageUrl.startsWith('data:image/webp;base64,')) {
-        optimizedBuffer = Buffer.from(imageUrl.split(',')[1], 'base64');
+      if (imageUrl.startsWith('data:image/')) {
+        const base64Data = imageUrl.split(',')[1];
+        optimizedBuffer = Buffer.from(base64Data, 'base64');
       }
     }
 
     if (optimizedBuffer) {
       const storagePath = `covers/${userId}/${bookId}/cover.webp`;
       const imageRef = storageRef(storage, storagePath);
-      await uploadString(imageRef, `data:image/webp;base64,${optimizedBuffer.toString('base64')}`, 'data_url');
+      
+      // Convert buffer to data URL for upload
+      const dataUrl = `data:image/webp;base64,${optimizedBuffer.toString('base64')}`;
+      
+      await uploadString(imageRef, dataUrl, 'data_url');
       const downloadURL = await getDownloadURL(imageRef);
 
       const coverUpdate: Cover = {
@@ -320,28 +349,135 @@ async function processCoverImageForBook(
       };
     }
 
+    // If no action was taken (e.g., AI prompt was empty)
     return { coverState: 'ignored' };
+
   } catch (err) {
     console.error(`Error in cover generation for book ${bookId}:`, (err as Error).message);
-    throw err;
+    throw err; // Re-throw to be caught by Promise.allSettled
   }
 }
 
 // ... other functions (addChaptersToBook, editBookCover) would be similarly refactored ...
 
+const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
+
 export async function addChaptersToBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<void> {
-  // This logic remains largely the same but would call the standardized processContentGenerationForBook if needed.
-  // For simplicity, we'll keep the existing logic but ensure it uses Admin SDK correctly.
+  const adminDb = getAdminDb();
+  const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+
+  // Update book status to 'processing' before starting
+  await bookDocRef.update({
+    status: 'processing',
+    contentState: 'processing',
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  try {
+    const { chapters, title } = await processContentGenerationForBook(userId, bookId, contentInput);
+
+    await bookDocRef.update({
+      title: title || FieldValue.delete(), // Keep old title if new one is not generated
+      chapters: FieldValue.arrayUnion(...(chapters || [])),
+      status: 'draft',
+      contentState: 'ready',
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    await bookDocRef.update({
+      status: 'draft',
+      contentState: 'error',
+      contentError: (error as Error).message,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    throw error;
+  }
 }
 
-export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string | null): Promise<void> {
-  // Logic remains the same
+export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
+    await updateLibraryItem(userId, bookId, { 
+        coverState: 'processing', 
+        status: 'processing', 
+        coverRetryCount: 0 
+    });
+
+    try {
+        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data);
+        await updateLibraryItem(userId, bookId, { ...coverUpdate, status: 'draft' });
+    } catch (error) {
+        await updateLibraryItem(userId, bookId, {
+            status: 'draft',
+            coverState: 'error',
+            coverError: (error as Error).message,
+        });
+        throw error;
+    }
 }
 
 export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-    // Logic remains the same
+    const docSnap = await getAdminDb().collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
+    const book = docSnap.data() as Book;
+
+    const contentInput: GenerateBookContentInput = {
+        prompt: newPrompt || book.prompt || '',
+        origin: book.origin,
+        bookLength: book.intendedLength,
+        chaptersToGenerate: book.chapters.length || 1
+    };
+
+    await updateLibraryItem(userId, bookId, {
+        status: 'processing',
+        contentState: 'processing',
+        chapters: [],
+        outline: [],
+        contentRetryCount: newPrompt ? 0 : (book.contentRetryCount || 0) + 1,
+        prompt: newPrompt || book.prompt,
+    });
+
+    try {
+        const contentUpdate = await processContentGenerationForBook(userId, bookId, contentInput);
+        await updateLibraryItem(userId, bookId, { ...contentUpdate, status: 'draft' });
+    } catch (error) {
+        await updateLibraryItem(userId, bookId, {
+            status: 'draft',
+            contentState: 'error',
+            contentError: (error as Error).message,
+        });
+        throw error;
+    }
 }
 
 export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
-    // Logic remains the same
+    const docSnap = await getAdminDb().collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
+    const book = docSnap.data() as Book;
+
+    if (!book.cover || book.cover.type === 'none') {
+        throw new ApiServiceError("No cover information to regenerate from.", "VALIDATION");
+    }
+
+    await updateLibraryItem(userId, bookId, {
+        status: 'processing',
+        coverState: 'processing',
+        coverRetryCount: (book.coverRetryCount || 0) + 1,
+    });
+
+    try {
+        const coverUpdate = await processCoverImageForBook(
+            userId, 
+            bookId, 
+            book.cover.type, 
+            book.cover.inputPrompt || book.prompt || '',
+            book.prompt
+        );
+        await updateLibraryItem(userId, bookId, { ...coverUpdate, status: 'draft' });
+    } catch (error) {
+        await updateLibraryItem(userId, bookId, {
+            status: 'draft',
+            coverState: 'error',
+            coverError: (error as Error).message,
+        });
+        throw error;
+    }
 }

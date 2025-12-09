@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -146,6 +147,7 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
   // RENDER STATE 2: CONTENT IS PROCESSING (Second Priority)
   // This state is prioritized over cover generation. While content is being written,
   // the book is shown as open, regardless of the cover's status.
+  // The book closes as soon as this state is no longer active.
   if (contentStatus === 'processing') {
     return (
         <div className={cn("flex flex-col items-center justify-center min-h-full p-4 overflow-hidden rounded-lg", isFormBusy && "border-2 border-dashed border-primary")}>
@@ -165,7 +167,7 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
   }
   
   // RENDER STATE 3: COVER IS PROCESSING (Third Priority)
-  // This animation is only shown if content is FINISHED, but the cover is still being generated.
+  // This animation is ONLY shown if content is FINISHED, but the cover is still being generated.
   // If the cover finishes before the content, this state will be skipped entirely.
   if (coverStatus === 'processing') {
     return (

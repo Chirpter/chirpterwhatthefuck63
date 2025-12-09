@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -8,11 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { updateLibraryItem } from '@/services/library-service';
 import { getLibraryItemById } from '@/services/client/library-service';
-import { 
-    createBookAndStartGeneration, 
-    addChaptersToBook, 
-    regenerateBookContent 
-} from '@/services/book-creation.service';
+import { generateBookContent } from '@/ai/flows/generate-book-content';
 import { createPieceAndStartGeneration, regeneratePieceContent } from '@/services/piece-creation.service';
 import type { GenerateBookContentInput } from '@/lib/types';
 import type { GeneratePieceInput } from '@/lib/types';
@@ -126,10 +123,9 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
   }, [type, mode, formData]);
 
   /**
-   * Tín hiệu `isBusy` là "công tắc" chính điều khiển toàn bộ trạng thái chờ của giao diện.
-   * Nó là `true` (BẬN) trong suốt quá trình từ khi người dùng nhấn nút cho đến khi có kết quả cuối cùng.
-   * - `isSubmitting`: `true` trong khoảnh khắc gửi yêu cầu lên server và chờ nhận lại `jobId`.
-   * - `!!activeId && !finalizedId`: `true` trong suốt thời gian server đang xử lý (đã có ID công việc nhưng chưa có ID kết quả cuối cùng).
+   * isBusy: A signal to control the UI's loading state. It's ON from submission until the job is finalized.
+   * - isSubmitting: True only during the initial API call to start the job.
+   * - !!activeId && !finalizedId: True while the background job is running.
    */
   const isBusy = isSubmitting || (!!activeId && !finalizedId);
   const canGenerate = useMemo(() => user ? user.credits >= creditCost : false, [user, creditCost]);
@@ -325,7 +321,7 @@ export const useCreationJob = ({ type, editingBookId, mode }: UseCreationJobProp
             if (mode === 'addChapters' && editingBookId) {
                 // Logic for adding chapters to an existing book
             } else {
-                jobId = await createBookAndStartGeneration(user.uid, formData);
+                jobId = await generateBookContent(user.uid, formData);
             }
         } else { // Piece
             const contentInput: GeneratePieceInput = {
