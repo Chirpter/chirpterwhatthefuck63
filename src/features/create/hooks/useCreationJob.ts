@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -6,8 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { updateLibraryItem } from '@/services/library-service';
 import { getLibraryItemById } from '@/services/client/library-service';
-import { generateBookContent } from '@/ai/flows/generate-book-content';
-import { generatePieceContent } from '@/ai/flows/generate-piece-content';
+import { generateBookContent } from '@/services/book-creation.service';
+import { generatePieceContent } from '@/services/piece-creation.service';
 import type { GenerateBookContentInput } from '@/lib/types';
 import type { GeneratePieceInput } from '@/lib/types';
 import type { Book, Piece, LibraryItem, CreationFormValues, PieceFormValues } from '@/lib/types';

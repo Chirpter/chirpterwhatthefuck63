@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
@@ -22,13 +21,22 @@ const PiecePromptInputSchema = z.object({
 });
 
 /**
+ * NEW: This is the server action entrypoint.
+ * It delegates the entire creation and generation process to other functions in this service.
+ */
+export async function generatePieceContent(userId: string, input: PieceFormValues): Promise<string> {
+  // Delegate the entire process to the dedicated service.
+  return createPieceAndStartGeneration(userId, input);
+}
+
+/**
  * The main pipeline for processing "piece" generation.
  */
 async function processPieceGenerationPipeline(userId: string, pieceId: string, pieceFormData: PieceFormValues): Promise<void> {
     let finalUpdate: Partial<Piece>;
 
     try {
-        const contentResult = await generatePieceContent(pieceFormData);
+        const contentResult = await generateSinglePieceContent(pieceFormData);
         if (!contentResult || !contentResult.generatedContent) {
             throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
@@ -112,7 +120,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 /**
  * Generates content for a "piece" using a unified Markdown approach.
  */
-export async function generatePieceContent(pieceFormData: PieceFormValues): Promise<Partial<Piece>> {
+async function generateSinglePieceContent(pieceFormData: PieceFormValues): Promise<Partial<Piece>> {
     const userPrompt = (pieceFormData.aiPrompt || '').slice(0, MAX_PROMPT_LENGTH);
     if (!userPrompt) {
       throw new Error("A user prompt is required.");
@@ -235,4 +243,6 @@ export async function regeneratePieceContent(userId: string, workId: string, new
     });
 }
 
-const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
+function getLibraryCollectionPath(userId: string): string {
+    return `users/${userId}/libraryItems`;
+}

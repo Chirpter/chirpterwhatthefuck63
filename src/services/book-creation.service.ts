@@ -24,6 +24,23 @@ const BookPromptInputSchema = z.object({
     fullInstruction: z.string(),
 });
 
+/**
+ * NEW: This is the server action entrypoint.
+ * Generates book content by invoking the book creation service.
+ * The service handles all the complex logic of prompt engineering, AI calls,
+ * data parsing, and final object assembly.
+ *
+ * @param userId - The ID of the user creating the book.
+ * @param input - The structured input data for book generation from the form.
+ * @returns A promise that resolves to the ID of the newly created book document.
+ */
+export async function generateBookContent(userId: string, input: CreationFormValues): Promise<string> {
+  // Delegate the entire process to the dedicated service.
+  // The service will handle creating the initial document, running the AI pipeline,
+  // and updating the document with the final content.
+  return createBookAndStartGeneration(userId, input);
+}
+
 
 /**
  * The main background pipeline for processing all book generation tasks.
@@ -264,7 +281,7 @@ async function processCoverImageForBook(
         const prompt = data || fallbackPrompt || "A beautiful book cover";
         const imageGenerationPrompt = `Create a 3:4 ratio stylized and artistic illustration for a book cover inspired by "${prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
         
-        const { media } = await ai.generate({
+        const {media} = await ai.generate({
             model: 'googleai/imagen-4.0-fast-generate-001',
             prompt: imageGenerationPrompt,
         });
@@ -285,83 +302,3 @@ async function processCoverImageForBook(
     throw new ApiServiceError("Cover image generation failed.", "UNKNOWN");
   }
 }
-
-/**
- * Regenerates the entire content of a book based on a new or existing prompt.
- */
-export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
-    const adminDb = getAdminDb();
-    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
-    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
-    const book = docSnap.data() as Book;
-
-    const contentInput: GenerateBookContentInput = {
-        prompt: newPrompt || book.prompt || '',
-        origin: book.origin,
-        bookLength: book.intendedLength || 'short-story',
-        chaptersToGenerate: book.chapters.length || 1
-    };
-
-    await updateLibraryItem(userId, bookId, {
-        status: 'processing',
-        contentState: 'processing',
-        chapters: [],
-        outline: [],
-        contentRetryCount: newPrompt ? 0 : (book.contentRetryCount || 0) + 1,
-        prompt: newPrompt || book.prompt,
-    });
-
-    try {
-        const contentUpdate = await processContentGenerationForBook(userId, bookId, contentInput);
-        await updateLibraryItem(userId, bookId, { ...contentUpdate, status: 'draft' });
-    } catch (error) {
-        await updateLibraryItem(userId, bookId, {
-            status: 'draft',
-            contentState: 'error',
-            contentError: (error as Error).message,
-        });
-        throw error;
-    }
-}
-
-
-/**
- * Edits or regenerates the cover of an existing book.
- */
-export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
-    const adminDb = getAdminDb();
-    const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
-    
-    // Set status to processing
-    await bookDocRef.update({ 
-        coverState: 'processing', 
-        status: 'processing', 
-        coverRetryCount: 0,
-        updatedAt: FieldValue.serverTimestamp(),
-    });
-
-    try {
-        const bookDoc = await bookDocRef.get();
-        if (!bookDoc.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
-        
-        const bookData = bookDoc.data() as Book;
-        
-        // Pass the book's original prompt as a fallback for AI generation
-        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data, bookData.prompt);
-        
-        // Update with the new cover info and set status back to draft
-        await bookDocRef.update({ ...coverUpdate, status: 'draft', updatedAt: FieldValue.serverTimestamp() });
-
-    } catch (error) {
-        // If anything fails, set state to error
-        await bookDocRef.update({
-            status: 'draft',
-            coverState: 'error',
-            coverError: (error as Error).message,
-            updatedAt: FieldValue.serverTimestamp(),
-        });
-        throw error;
-    }
-}
-
-    
