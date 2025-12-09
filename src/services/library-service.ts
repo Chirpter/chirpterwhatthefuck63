@@ -1,3 +1,4 @@
+
 // src/services/library-service.ts
 'use server';
 
@@ -6,6 +7,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
+import { processContentGenerationForBook, editBookCover } from './book-creation.service'; // Assuming processContentGenerationForBook is there
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -73,8 +75,6 @@ export async function getLibraryItems(
     let code: ApiServiceError['code'] = 'FIRESTORE';
     if (error.code === 'permission-denied') code = 'PERMISSION';
     else if (error.code === 'unavailable') code = 'UNAVAILABLE';
-    // FIX: Do not pass the original error object which may contain circular references.
-    // Pass only the message string.
     throw new ApiServiceError(`Failed to fetch library items: ${error.message}`, code);
   }
 }
@@ -153,24 +153,56 @@ export async function getGlobalBooks(
   }
 }
 
-// These functions from the original `book-creation.service` are now here
-// because they are server actions related to library items.
-
-export async function regenerateBookContent(userId: string, bookId: string, newPrompt: string): Promise<void> {
+export async function regenerateBookContent(userId: string, bookId: string, newPrompt?: string): Promise<void> {
     const adminDb = getAdminDb();
-    const docRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
-    
-    await docRef.update({
-        prompt: newPrompt,
-        contentState: 'processing',
+    const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+    if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
+    const book = docSnap.data() as Book;
+
+    const contentInput = {
+        prompt: newPrompt || book.prompt || '',
+        origin: book.origin,
+        bookLength: book.intendedLength || 'short-story',
+        chaptersToGenerate: book.chapters.length || 1,
+        generationScope: book.chapters.length > 3 ? 'full' : 'firstFew',
+    };
+
+    await updateLibraryItem(userId, bookId, {
         status: 'processing',
+        contentState: 'processing',
         chapters: [],
-        contentRetryCount: 0, // Reset retry count on manual edit
-        updatedAt: FieldValue.serverTimestamp(),
+        contentRetryCount: newPrompt ? 0 : (book.contentRetryCount || 0) + 1,
+        prompt: newPrompt || book.prompt,
     });
 
-    // In a real scenario, you would trigger the background generation pipeline here.
-    // For this mock, we'll just update the status.
+    try {
+        const contentUpdate = await processContentGenerationForBook(userId, bookId, contentInput);
+        await updateLibraryItem(userId, bookId, { ...contentUpdate, status: 'draft' });
+    } catch (error) {
+        await updateLibraryItem(userId, bookId, {
+            status: 'draft',
+            contentState: 'error',
+            contentError: (error as Error).message,
+        });
+        throw error;
+    }
+}
+
+export async function regenerateBookCover(userId: string, bookId: string): Promise<void> {
+  const adminDb = getAdminDb();
+  const docSnap = await adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+  if (!docSnap.exists) throw new ApiServiceError("Book not found.", "UNKNOWN");
+  const book = docSnap.data() as Book;
+
+  if (!book.cover || book.cover.type === 'none') {
+    throw new ApiServiceError("No cover information to regenerate from.", "VALIDATION");
+  }
+
+  const dataToProcess = book.cover.type === 'ai'
+    ? book.cover.inputPrompt || book.prompt || ''
+    : null; // For upload, we trigger client interaction, no data here
+
+  await editBookCover(userId, bookId, book.cover.type, dataToProcess);
 }
 
 

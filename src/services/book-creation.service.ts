@@ -3,7 +3,7 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Book, CreationFormValues, GenerateBookContentInput } from "@/lib/types";
+import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { updateLibraryItem } from "./library-service";
@@ -12,6 +12,7 @@ import { parseBookMarkdown } from './MarkdownParser';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
+import { getStorage } from 'firebase-admin/storage';
 
 const BookOutputSchema = z.object({
   markdownContent: z.string().describe("A single, unified Markdown string that contains the entire book content, including the book title (as a Level 1 Markdown heading, e.g., '# Title') and all chapters (as Level 2 headings, e.g., '## Chapter 1')."),
@@ -28,10 +29,13 @@ const BookPromptInputSchema = z.object({
 async function processBookGenerationPipeline(
   userId: string,
   bookId: string,
-  contentInput: GenerateBookContentInput
+  contentInput: GenerateBookContentInput,
+  coverJobType: CoverJobType,
+  coverData?: File | string | null
 ) {
-  const [contentResult] = await Promise.allSettled([
+  const [contentResult, coverResult] = await Promise.allSettled([
     processContentGenerationForBook(userId, bookId, contentInput),
+    processCoverImageForBook(userId, bookId, coverJobType, coverData, contentInput.prompt)
   ]);
 
   const finalUpdate: Partial<Book> = { status: 'draft' };
@@ -41,6 +45,13 @@ async function processBookGenerationPipeline(
   } else {
     finalUpdate.contentState = 'error';
     finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
+  }
+
+  if (coverResult.status === 'fulfilled') {
+    Object.assign(finalUpdate, coverResult.value);
+  } else {
+    finalUpdate.coverState = 'error';
+    finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
   }
 
   await updateLibraryItem(userId, bookId, finalUpdate);
@@ -65,6 +76,11 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     }
   }
 
+  // Cover generation costs 1 credit if it's 'ai' or 'upload'
+  if (bookFormData.coverImageOption === 'ai' || bookFormData.coverImageOption === 'upload') {
+      creditCost += 1;
+  }
+
   const primaryLanguage = bookFormData.primaryLanguage;
 
   await adminDb.runTransaction(async (transaction) => {
@@ -83,6 +99,9 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     if (bookFormData.availableLanguages.length > 1) {
       statUpdates['stats.bilingualBooksCreated'] = FieldValue.increment(1);
     }
+    if (bookFormData.coverImageOption === 'ai') {
+        statUpdates['stats.coversGeneratedByAI'] = FieldValue.increment(1);
+    }
     transaction.update(userDocRef, statUpdates);
 
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
@@ -92,7 +111,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         title: { [primaryLanguage]: bookFormData.aiPrompt.substring(0, 50) },
         status: 'processing',
         contentState: 'processing',
-        coverState: 'ignored',
+        coverState: bookFormData.coverImageOption !== 'none' ? 'processing' : 'ignored',
         origin: bookFormData.origin,
         langs: bookFormData.availableLanguages,
         prompt: bookFormData.aiPrompt,
@@ -123,8 +142,13 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     totalChapterOutlineCount: (bookFormData.bookLength === 'standard-book' || bookFormData.bookLength === 'long-book') ? bookFormData.targetChapterCount : undefined,
   };
 
-  processBookGenerationPipeline(userId, bookId, contentInput)
-    .catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
+  processBookGenerationPipeline(
+    userId, 
+    bookId, 
+    contentInput,
+    bookFormData.coverImageOption,
+    bookFormData.coverImageOption === 'upload' ? bookFormData.coverImageFile : bookFormData.coverImageAiPrompt
+  ).catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
   return bookId;
 }
@@ -158,7 +182,6 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
         const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
         
-        // This is where we implement Option 1
         const pairingUnit = format === 'ph' ? 'meaningful chunks' : 'sentences';
         
         criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading, with bilingual versions separated by ' / ' (e.g., '# My Title / Tiêu đề của tôi').`);
@@ -203,6 +226,77 @@ ${criticalInstructions.join('\n')}
     } catch (error) {
         console.error(`Content generation failed for book ${bookId}:`, (error as Error).message);
         throw new ApiServiceError('AI content generation failed. This might be due to safety filters or a temporary issue. Please try a different prompt.', "UNKNOWN");
+    }
+}
+
+async function processCoverImageForBook(
+  userId: string,
+  bookId: string,
+  coverJobType: CoverJobType,
+  data?: File | string | null,
+  fallbackPrompt?: string
+): Promise<Partial<Book>> {
+  if (coverJobType === 'none' || !data) {
+    return { coverState: 'ignored' };
+  }
+
+  try {
+    let coverUrl: string;
+
+    if (coverJobType === 'upload') {
+        const file = data as File;
+        const bucket = getStorage().bucket();
+        const filePath = `user-uploads/${userId}/${bookId}/cover-${Date.now()}`;
+        const fileUpload = bucket.file(filePath);
+
+        await fileUpload.save(Buffer.from(await file.arrayBuffer()), {
+            metadata: { contentType: file.type },
+        });
+        coverUrl = await fileUpload.getSignedUrl({ action: 'read', expires: '03-09-2491' }).then(urls => urls[0]);
+    } else { // 'ai'
+        const prompt = (data as string) || fallbackPrompt || "A beautiful book cover";
+        const imageGenerationPrompt = `Create a 3:4 ratio stylized and artistic illustration for a book cover inspired by "${prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
+        
+        const { media } = await ai.generate({
+            model: 'googleai/imagen-4.0-fast-generate-001',
+            prompt: imageGenerationPrompt,
+        });
+
+        if (!media || !media.url) throw new Error("AI image generation failed to return a valid image.");
+        coverUrl = media.url;
+    }
+
+    return {
+      cover: { type: coverJobType, url: coverUrl },
+      coverState: 'ready',
+      coverRetryCount: 0,
+    };
+  } catch (error) {
+    console.error(`Cover image processing failed for book ${bookId}:`, error);
+    throw new ApiServiceError("Cover image generation failed.", "UNKNOWN");
+  }
+}
+
+export async function editBookCover(userId: string, bookId: string, newCoverOption: 'ai' | 'upload', data: File | string): Promise<void> {
+    await updateLibraryItem(userId, bookId, {
+        coverState: 'processing',
+        status: 'processing',
+        coverRetryCount: 0
+    });
+
+    try {
+        const bookDoc = await getAdminDb().collection(getLibraryCollectionPath(userId)).doc(bookId).get();
+        const bookData = bookDoc.data() as Book;
+
+        const coverUpdate = await processCoverImageForBook(userId, bookId, newCoverOption, data, bookData.prompt);
+        await updateLibraryItem(userId, bookId, { ...coverUpdate, status: 'draft' });
+    } catch (error) {
+        await updateLibraryItem(userId, bookId, {
+            status: 'draft',
+            coverState: 'error',
+            coverError: (error as Error).message,
+        });
+        throw error;
     }
 }
 
