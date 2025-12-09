@@ -6,7 +6,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 import { storage } from '@/lib/firebase';
 import type { Book, CreationFormValues, Cover, CoverJobType, GenerateBookContentInput, Chapter, ChapterTitle, PresentationMode } from "@/lib/types";
-import { removeUndefinedProps } from "@/lib/utils";
+import { removeUndefinedProps } from '@/lib/utils';
 import { getUserProfile } from './user-service';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { generateCoverImage } from "@/ai/flows/generate-cover-image-flow";
@@ -132,12 +132,13 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   const primaryLanguage = bookFormData.primaryLanguage;
 
+  // --- GIAI ĐOẠN "PROCESS" BẮT ĐẦU TỪ ĐÂY ---
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
     if (!userDoc.exists) throw new ApiServiceError("User not found.", "AUTH");
     
-    // Securely check credits on the server
+    // Server-side validation
     if ((userDoc.data()?.credits || 0) < creditCost) {
       throw new ApiServiceError("Insufficient credits.", "VALIDATION");
     }
@@ -148,7 +149,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         'stats.booksCreated': FieldValue.increment(1)
     });
 
-    // Create the initial book document
+    // 1. TẠO NGAY LẬP TỨC MỘT "BẢN NHÁP" (DOCUMENT TẠM)
+    // Document này có trạng thái 'processing' để client có thể bắt đầu lắng nghe.
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
     const initialBookData: Omit<Book, 'id'> = {
         userId,
@@ -178,7 +180,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     throw new ApiServiceError("Transaction failed: Could not create book document.", "UNKNOWN");
   }
 
-  // Convert the form data into the specific input needed by the content generation flow.
+  // 2. CHUẨN BỊ DỮ LIỆU ĐỂ KÍCH HOẠT PIPELINE
   const contentInput: GenerateBookContentInput = {
     prompt: bookFormData.aiPrompt,
     origin: bookFormData.origin,
@@ -189,10 +191,13 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   
   const coverData = bookFormData.coverImageOption === 'ai' ? bookFormData.coverImageAiPrompt : bookFormData.coverImageFile;
 
-  // Fire and forget the pipeline. It will run in the background.
+  // 3. KÍCH HOẠT LUỒNG XỬ LÝ NỀN (FIRE-AND-FORGET)
+  // Hàm này sẽ tự chạy trong nền. Client không cần chờ nó hoàn thành.
   processBookGenerationPipeline(userId, bookId, contentInput, bookFormData.coverImageOption, coverData)
     .catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
+  // 4. TRẢ VỀ ID CHO CLIENT NGAY LẬP TỨC
+  // Client sẽ dùng ID này để lắng nghe và cập nhật UI.
   return bookId;
 }
 
@@ -203,9 +208,6 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
  */
 async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
     // SERVER VALIDATION 3: Sanitize and truncate user input before sending to AI.
-    // This prevents API errors from oversized prompts and is a basic security measure.
-    // Relying on the AI model's `max_input_tokens` is not reliable as it often results
-    // in a hard failure (e.g., 400 Bad Request) instead of graceful truncation.
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;
     
@@ -522,3 +524,6 @@ export async function regenerateBookCover(userId: string, bookId: string): Promi
         throw error;
     }
 }
+
+
+    
