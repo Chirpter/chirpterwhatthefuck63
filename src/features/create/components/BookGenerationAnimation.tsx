@@ -122,8 +122,11 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
   const contentStatus = bookJobData?.contentState;
   const coverStatus = bookJobData?.coverState;
 
-  // RENDER STATE 1: FINALIZED
-  // This is the highest priority. If a book is finalized, always show its final state.
+  // The rendering logic is a sequence of prioritized states.
+  // The first condition that is met will be rendered, and the component will stop checking further.
+
+  // RENDER STATE 1: FINALIZED (Highest Priority)
+  // If the job is complete (either success or fail), show the final result.
   if (finalizedBookId && bookJobData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full p-4 overflow-hidden">
@@ -140,14 +143,15 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
     );
   }
 
-  // RENDER STATE 2: CONTENT IS PROCESSING
-  // This has the next highest priority. While content is being written, the book is open.
+  // RENDER STATE 2: CONTENT IS PROCESSING (Second Priority)
+  // This state is prioritized over cover generation. While content is being written,
+  // the book is shown as open, regardless of the cover's status.
   if (contentStatus === 'processing') {
     return (
         <div className={cn("flex flex-col items-center justify-center min-h-full p-4 overflow-hidden rounded-lg", isFormBusy && "border-2 border-dashed border-primary")}>
             <div className="perspective-container" style={{ width: '255px', height: '357px' }}>
                 <BookPreview 
-                    isOpen={true} // The book is open.
+                    isOpen={true} // The book is open to show the writing animation.
                     pageContent={"In a realm of floating islands and crystalline rivers, a young dragon named Ignis discovered an ancient, silent library. It wasn't filled with books, but with slumbering memories waiting for a storyteller to awaken them. He took a deep breath, a tiny flame dancing on his snout, and began his tale..."}
                     finalBook={bookJobData || undefined}
                     finalUser={user}
@@ -160,14 +164,15 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
     );
   }
   
-  // RENDER STATE 3: COVER IS PROCESSING
-  // This runs after content is done (book is closed) but before the cover is ready.
+  // RENDER STATE 3: COVER IS PROCESSING (Third Priority)
+  // This animation is only shown if content is FINISHED, but the cover is still being generated.
+  // If the cover finishes before the content, this state will be skipped entirely.
   if (coverStatus === 'processing') {
     return (
         <div className={cn("flex flex-col items-center justify-center min-h-full p-4 overflow-hidden rounded-lg", isFormBusy && "border-2 border-dashed border-primary")}>
             <div className="perspective-container" style={{ width: '255px', height: '357px' }}>
                 <BookPreview 
-                    isOpen={false} // The book is closed.
+                    isOpen={false} // The book is closed because content writing is done.
                     pageContent=""
                     finalBook={bookJobData || undefined}
                     finalUser={user}
@@ -180,8 +185,9 @@ export const BookGenerationAnimation: React.FC<BookGenerationAnimationProps> = (
     );
   }
 
-  // RENDER STATE 4: INITIAL OR WAITING
+  // RENDER STATE 4: INITIAL OR WAITING (Default/Fallback State)
   // This is the default view before anything starts, or in the brief moment between API calls.
+  // The isFormBusy signal provides a basic "something is happening" indicator.
   return (
     <div className={cn("flex flex-col items-center justify-center min-h-full p-4 overflow-hidden rounded-lg", isFormBusy && "border-2 border-dashed border-primary")}>
         <div className="perspective-container" style={{ width: '255px', height: '357px' }}>
