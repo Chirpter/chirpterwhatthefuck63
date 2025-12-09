@@ -20,6 +20,10 @@ const PiecePromptInputSchema = z.object({
     fullInstruction: z.string(),
 });
 
+function getLibraryCollectionPath(userId: string): string {
+    return `users/${userId}/libraryItems`;
+}
+
 /**
  * NEW: This is the server action entrypoint.
  * It delegates the entire creation and generation process to other functions in this service.
@@ -59,7 +63,13 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
     }
     
     await updateLibraryItem(userId, pieceId, finalUpdate);
-    await checkAndUnlockAchievements(userId);
+    
+    // Post-generation achievement check
+    try {
+        await checkAndUnlockAchievements(userId);
+    } catch(e) {
+        console.warn("[PieceCreation] Achievement check failed post-generation:", e);
+    }
 }
 
 
@@ -241,8 +251,4 @@ export async function regeneratePieceContent(userId: string, workId: string, new
             contentError: (err as Error).message || 'Content regeneration failed.',
         });
     });
-}
-
-function getLibraryCollectionPath(userId: string): string {
-    return `users/${userId}/libraryItems`;
 }

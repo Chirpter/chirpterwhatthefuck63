@@ -75,7 +75,12 @@ async function processBookGenerationPipeline(
   }
 
   await updateLibraryItem(userId, bookId, finalUpdate);
-  await checkAndUnlockAchievements(userId);
+  // Post-generation achievement check
+  try {
+    await checkAndUnlockAchievements(userId);
+  } catch(e) {
+    console.warn("[BookCreation] Achievement check failed post-generation:", e);
+  }
 }
 
 
@@ -358,7 +363,7 @@ export async function editBookCover(
 
   const bookData = await adminDb.runTransaction(async (transaction) => {
     const bookSnap = await transaction.get(bookDocRef);
-    if (!bookSnap.exists) throw new ApiServiceError("Book not found for cover edit.", "UNKNOWN");
+    if (!workSnap.exists) throw new ApiServiceError("Book not found for cover edit.", "UNKNOWN");
     
     transaction.update(bookDocRef, {
       coverState: 'processing',
@@ -392,3 +397,4 @@ export async function editBookCover(
     });
   });
 }
+

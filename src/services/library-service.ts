@@ -1,3 +1,4 @@
+
 // src/services/library-service.ts
 'use server';
 
@@ -6,7 +7,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-import { regenerateBookContent, editBookCover } from './book-creation.service';
+// DÒNG IMPORT THỪA ĐÃ BỊ XÓA BỎ
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -151,8 +152,6 @@ export async function getGlobalBooks(
     throw new ApiServiceError('Failed to fetch global books.', 'FIRESTORE');
   }
 }
-
-export { regenerateBookContent, editBookCover };
 
 
 export async function getLibraryItemById(userId: string, itemId: string): Promise<LibraryItem | null> {
