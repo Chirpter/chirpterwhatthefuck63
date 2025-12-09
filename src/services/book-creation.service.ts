@@ -19,9 +19,9 @@ import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS, MAX_IMAGE_SIZE_BYTES
 import sharp from 'sharp';
 
 /**
- * REFACTORED (v5): Final, user-approved prompt structure.
- * This is the simplest and most robust approach. The AI is asked for two simple strings,
- * and the server handles all parsing and structuring.
+ * REFACTORED (v11): The final, simplest, and most robust output format.
+ * The AI is only responsible for returning simple strings. All structuring
+ * and parsing is handled reliably on the server.
  */
 const BookOutputSchema = z.object({
   bookTitle: z.string().describe('A concise, creative title for the entire book (e.g., "The Dragon\'s Journey").'),
@@ -30,12 +30,12 @@ const BookOutputSchema = z.object({
 
 
 /**
- * REFACTORED (v5): Input schema matches the simplified prompt.
+ * REFACTORED (v11): Input schema matches the simplified prompt.
  */
 const BookPromptInputSchema = z.object({
   bookType: z.string().describe("Describes if this is a 'full-book' or a 'partial-book with outline'."),
   prompt: z.string().describe("The user's core creative prompt for the story."),
-  structureInstruction: z.string().describe("Detailed instructions on chapter count, word count, and outlining."),
+  structureInstruction: z.string().describe("Detailed instructions on chapter count and outlining."),
   languageInstruction: z.string().describe("Instructions on what language(s) to write in."),
   titleInstruction: z.string().describe("Instructions for generating the book title."),
 });
@@ -220,24 +220,17 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
         structureInstruction = `Write a complete book with exactly ${contentInput.chaptersToGenerate} chapters.`;
     }
     
-    // Define the Genkit prompt with the simplified and improved structure.
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateBookContentPrompt_v9_markdown',
+        name: 'generateBookContentPrompt_v12_simplified_output',
         input: { schema: BookPromptInputSchema },
         output: { schema: BookOutputSchema },
         prompt: `Write a {{bookType}} based on the prompt: "{{prompt}}"
 
 CRITICAL INSTRUCTIONS:
-{{{structureInstruction}}}
-Write all content and titles {{languageInstruction}}.
-{{{titleInstruction}}}
-
-REQUIRED OUTPUT FORMAT:
-Your entire response MUST be a single, valid JSON object that strictly follows this structure:
-{
-  "bookTitle": "string",
-  "markdownContent": "string"
-}`,
+1.  {{{structureInstruction}}}
+2.  {{{titleInstruction}}}
+3.  Write the full content as plain Markdown in the 'markdownContent' field.
+4.  Each chapter must begin with a Level 2 Markdown heading (e.g., '## Chapter 1: The Beginning').`,
     });
 
     const promptInput = { 
@@ -257,7 +250,6 @@ Your entire response MUST be a single, valid JSON object that strictly follows t
         }
         
         // STEP 2: Process and structure the AI's simple string output.
-        // This logic now happens on the server, which is more reliable.
         const segments = parseMarkdownToSegments(aiOutput.markdownContent, origin);
         const finalChapters = segmentsToChapterStructure(segments, origin);
         
@@ -473,12 +465,3 @@ export async function regenerateBookCover(userId: string, bookId: string): Promi
         throw error;
     }
 }
-
-
-    
-
-    
-
-
-
-
