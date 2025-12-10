@@ -1,4 +1,4 @@
-// src/app/api/auth/session/route.ts - PRODUCTION READY (FIXED)
+// src/app/api/auth/session/route.ts - PRODUCTION READY (WITH GET ENDPOINT)
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
@@ -6,6 +6,27 @@ export const runtime = 'nodejs';
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 const FIVE_MINUTES_S = 5 * 60;
+
+/**
+ * ✅ NEW: GET endpoint to verify session cookie
+ * Used by client to check if cookie is properly set
+ */
+export async function GET(request: NextRequest) {
+  const sessionCookie = request.cookies.get('__session')?.value;
+  
+  if (!sessionCookie) {
+    return NextResponse.json({ error: 'No session' }, { status: 401 });
+  }
+  
+  try {
+    const authAdmin = getAuthAdmin();
+    await authAdmin.verifySessionCookie(sessionCookie, true);
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error: any) {
+    console.error('[API Session GET] Invalid session:', error.code);
+    return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // ✅ FIX: Safe access to auth_time with fallback
+    // Safe access to auth_time with fallback
     const authTime = decodedToken.auth_time || Math.floor(Date.now() / 1000);
     const nowInSeconds = Math.floor(Date.now() / 1000);
     
@@ -84,11 +105,11 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const sessionCookie = request.cookies.get('__session')?.value;
   
-  // ✅ FIX: Always return success response first
+  // Always return success response first
   const response = NextResponse.json({ success: true }, { status: 200 });
   response.cookies.delete('__session');
   
-  // ✅ FIX: Revoke tokens in background, don't block response
+  // Revoke tokens in background, don't block response
   if (sessionCookie) {
     // Fire and forget - don't await
     (async () => {

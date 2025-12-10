@@ -1,4 +1,4 @@
-// src/contexts/auth-context.tsx - PRODUCTION READY (OPTIMIZED)
+// src/contexts/auth-context.tsx - PRODUCTION READY (FIXED COOKIE ISSUE)
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -32,33 +32,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // --- Helper Functions ---
 
 /**
- * ✅ OPTIMIZED: Faster cookie polling with exponential backoff
+ * ✅ FIXED: Verify cookie is set by making a validation request
+ * The __session cookie is HttpOnly, so we can't read it from document.cookie
  */
-async function waitForCookie(cookieName: string, maxWait = 2000): Promise<boolean> {
-  const startTime = Date.now();
-  let checkInterval = 50; // Start with 50ms
-  
-  while (Date.now() - startTime < maxWait) {
-    const cookies = document.cookie.split(';');
-    const found = cookies.find(c => c.trim().startsWith(`${cookieName}=`));
-    
-    if (found && found.split('=')[1]?.length > 10) {
-      console.log(`✅ [Auth] Cookie found after ${Date.now() - startTime}ms`);
-      return true;
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, checkInterval));
-    checkInterval = Math.min(checkInterval * 1.5, 200); // Exponential backoff, max 200ms
+async function verifyCookieSet(): Promise<boolean> {
+  try {
+    const response = await fetch('/api/auth/session', {
+      method: 'GET',
+      credentials: 'include',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('❌ [Auth] Failed to verify cookie:', error);
+    return false;
   }
-  
-  console.warn(`⚠️ [Auth] Cookie not found after ${maxWait}ms timeout`);
-  return false;
 }
 
 /**
- * ✅ OPTIMIZED: Better retry logic with proper error handling
+ * ✅ FIXED: Simpler session creation - don't wait for document.cookie
  */
-async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolean> {
+async function setSessionCookie(idToken: string, maxRetries = 2): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔄 [Auth] Session cookie attempt ${attempt}/${maxRetries}`);
@@ -66,45 +59,44 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
       const response = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ idToken }),
       });
       
       if (response.ok) {
-        // ✅ FIX: Wait for cookie with optimized polling
-        const cookieSet = await waitForCookie('__session', 2000);
+        console.log('✅ [Auth] Session API returned success');
         
-        if (cookieSet) {
-          console.log('✅ [Auth] Session cookie verified successfully');
+        // Small delay to ensure cookie is set in browser
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Verify cookie works by making a test request
+        const verified = await verifyCookieSet();
+        if (verified) {
+          console.log('✅ [Auth] Session cookie verified');
           return true;
         }
         
+        console.warn(`⚠️ [Auth] Cookie not verified on attempt ${attempt}`);
         if (attempt < maxRetries) {
-          console.warn(`⚠️ [Auth] Cookie not found after attempt ${attempt}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error(`❌ [Auth] Session API error (attempt ${attempt}):`, errorData);
         
-        // ✅ FIX: Don't retry on 4xx errors (client errors)
+        // Don't retry on 4xx errors (client errors)
         if (response.status >= 400 && response.status < 500) {
           console.error('❌ [Auth] Client error, not retrying');
           return false;
         }
-      }
-      
-      // Exponential backoff
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        }
       }
       
     } catch (error) {
       console.error(`❌ [Auth] Session cookie attempt ${attempt} failed:`, error);
-      
-      // ✅ FIX: For network errors, fail fast on last attempt
-      if (error instanceof Error && error.message.includes('Network')) {
-        console.error('❌ [Auth] Network error detected');
-        if (attempt === maxRetries) return false;
-      }
       
       if (attempt === maxRetries) return false;
       await new Promise(resolve => setTimeout(resolve, 300 * attempt));
@@ -120,9 +112,10 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
  */
 async function clearSessionCookie(): Promise<boolean> {
   try {
-    const response = await fetch('/api/auth/session', { method: 'DELETE' });
-    
-    // ✅ FIX: Don't wait unnecessarily, cookie deletion is immediate
+    const response = await fetch('/api/auth/session', { 
+      method: 'DELETE',
+      credentials: 'include',
+    });
     return response.ok;
   } catch (error) {
     console.error('❌ [Auth] Failed to clear session cookie:', error);
@@ -152,7 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleAuthError = useCallback((err: any) => {
     let message = 'An unexpected error occurred. Please try again.';
     
-    // ✅ FIX: Check for specific error strings from our flow
     if (err.message?.includes('Could not create a server session')) {
       message = err.message;
     } else {
@@ -210,8 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("Could not create a server session. Please try again.");
         }
         
-        // ✅ FIX: Use window.location for cleaner navigation after login
-        // In tests, window.location.href throws in jsdom, so we check if assign exists
+        // Use window.location for cleaner navigation after login
         if (typeof window !== 'undefined' && window.location.assign) {
           window.location.assign('/library/book');
         } else if (typeof window !== 'undefined') {
@@ -262,8 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut(auth);
       await clearSessionCookie();
       
-      // ✅ FIX: Use window.location for cleaner navigation after logout
-      // In tests, window.location.href throws in jsdom, so we check if assign exists
+      // Use window.location for cleaner navigation after logout
       if (typeof window !== 'undefined' && window.location.assign) {
         window.location.assign('/login?reason=logged_out');
       } else if (typeof window !== 'undefined') {
