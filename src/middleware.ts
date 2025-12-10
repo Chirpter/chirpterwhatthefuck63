@@ -1,4 +1,4 @@
-// src/middleware.ts - FIXED VERSION
+// src/middleware.ts - PRODUCTION READY
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
@@ -19,7 +19,6 @@ function getLogoutReason(errorCode: string): string {
   }
 }
 
-// ✅ FIXED: Temporary errors should NOT allow access
 function isTemporaryError(errorCode: string): boolean {
   const temporaryErrors = [
     'auth/network-request-failed',
@@ -29,11 +28,24 @@ function isTemporaryError(errorCode: string): boolean {
   return temporaryErrors.some(code => errorCode?.includes(code));
 }
 
-// ✅ FIXED: Retry logic for temporary errors
+function isPermanentError(errorCode: string): boolean {
+  const permanentErrors = [
+    'auth/id-token-expired',
+    'auth/session-cookie-expired',
+    'auth/id-token-revoked',
+    'auth/session-cookie-revoked',
+    'auth/argument-error',
+  ];
+  return permanentErrors.some(code => errorCode?.includes(code));
+}
+
+/**
+ * Verifies session cookie with retry logic for temporary errors
+ */
 async function verifySessionWithRetry(
   sessionCookie: string, 
   maxRetries = 2
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: any; isTemporary?: boolean }> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const authAdmin = getAuthAdmin();
@@ -48,41 +60,54 @@ async function verifySessionWithRetry(
         continue;
       }
       
-      // Return error on last attempt or permanent error
-      return { success: false, error };
+      // Return error with type info
+      return { 
+        success: false, 
+        error,
+        isTemporary: isTemporaryError(error.code)
+      };
     }
   }
   
-  return { success: false, error: { code: 'max-retries-exceeded' } };
+  // Max retries exceeded for temporary error
+  return { 
+    success: false, 
+    error: { code: 'max-retries-exceeded' },
+    isTemporary: true 
+  };
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const response = NextResponse.next();
   let isAuthenticated = false;
-  let logoutReason: string | null = null;
   let shouldDeleteCookie = false;
+  let logoutReason: string | null = null;
   
   const sessionCookie = request.cookies.get('__session')?.value;
 
+  // Verify session if cookie exists
   if (sessionCookie) {
-    const { success, error } = await verifySessionWithRetry(sessionCookie);
+    const { success, error, isTemporary } = await verifySessionWithRetry(sessionCookie);
     
     if (success) {
       isAuthenticated = true;
     } else {
-      isAuthenticated = false;
-      
-      // ✅ FIXED: Temporary errors also redirect, but don't delete cookie
-      if (isTemporaryError(error.code)) {
-        logoutReason = 'network_error';
-        shouldDeleteCookie = false;
-        console.warn('[Middleware] Temporary auth error, will redirect but preserve cookie');
-      } else {
-        // Permanent error - delete cookie
-        logoutReason = getLogoutReason(error.code || 'unknown_error');
+      // Permanent errors: delete cookie and redirect
+      if (isPermanentError(error.code)) {
         shouldDeleteCookie = true;
+        logoutReason = getLogoutReason(error.code);
         console.error('[Middleware] Permanent auth error, will delete cookie:', error.code);
+      }
+      // Temporary errors: allow access but don't delete cookie
+      else if (isTemporary) {
+        isAuthenticated = true; // Gracefully allow access
+        console.warn('[Middleware] Temporary auth error, allowing access:', error.code);
+      }
+      // Unknown errors: treat as permanent
+      else {
+        shouldDeleteCookie = true;
+        logoutReason = 'auth_error';
+        console.error('[Middleware] Unknown auth error, will delete cookie:', error.code);
       }
     }
   }
@@ -90,12 +115,12 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/signup');
   const isApiRoute = pathname.startsWith('/api/');
 
-  // ✅ Don't interfere with API routes
+  // Don't interfere with API routes
   if (isApiRoute) {
-    return response;
+    return NextResponse.next();
   }
 
-  // ✅ FIXED: Always redirect if not authenticated (even for temporary errors)
+  // Redirect unauthenticated users from protected routes
   if (!isPublicRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);
@@ -105,7 +130,7 @@ export async function middleware(request: NextRequest) {
     
     const redirectResponse = NextResponse.redirect(loginUrl);
     
-    // Only delete cookie for permanent errors
+    // Delete cookie only for permanent errors
     if (shouldDeleteCookie) {
       redirectResponse.cookies.delete('__session');
     }
@@ -113,12 +138,13 @@ export async function middleware(request: NextRequest) {
     return redirectResponse;
   }
 
-  // ✅ Redirect authenticated users away from public routes
+  // Redirect authenticated users away from public routes
   if (isAuthenticated && isPublicRoute) {
     return NextResponse.redirect(new URL('/library/book', request.url));
   }
 
-  // ✅ Delete cookie for permanent errors even on public routes
+  // For successful cases, create response and delete cookie if needed
+  const response = NextResponse.next();
   if (shouldDeleteCookie) {
     response.cookies.delete('__session');
   }

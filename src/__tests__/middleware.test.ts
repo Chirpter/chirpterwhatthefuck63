@@ -1,4 +1,4 @@
-// src/__tests__/middleware.test.ts
+// src/__tests__/middleware.test.ts - PRODUCTION READY
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
 import { middleware } from '../middleware';
@@ -121,10 +121,13 @@ describe('Middleware Tests', () => {
       
       expect(response.status).toBe(307);
       
-      // Check if cookie is deleted (set to empty with Max-Age=0)
+      // Check if cookie is deleted
       const setCookie = response.headers.get('set-cookie');
       expect(setCookie).toContain('__session=');
-      expect(setCookie).toContain('Max-Age=0');
+      // Check for either Max-Age=0 or Expires in past
+      const hasCookieDeletion = setCookie?.includes('Max-Age=0') || 
+                                setCookie?.includes('Expires=Thu, 01 Jan 1970');
+      expect(hasCookieDeletion).toBe(true);
     });
   });
 
@@ -158,7 +161,7 @@ describe('Middleware Tests', () => {
       expect(setCookie).toBeFalsy();
     });
 
-    it('should fail after max retries on persistent temporary errors', async () => {
+    it('should allow through after max retries on persistent temporary errors', async () => {
       mockVerifySessionCookie.mockRejectedValue({ code: 'unavailable' });
       
       const request = createRequest('/library/book', { __session: 'valid-cookie' });
@@ -169,6 +172,10 @@ describe('Middleware Tests', () => {
       
       // Should allow through without redirect (temporary error handling)
       expect(response.status).not.toBe(307);
+      
+      // Should not delete cookie
+      const setCookie = response.headers.get('set-cookie');
+      expect(setCookie).toBeFalsy();
     });
   });
 
@@ -239,7 +246,6 @@ describe('Middleware Tests', () => {
       const response = await middleware(request);
       
       // Should be filtered out by matcher config
-      // This test verifies the config works as expected
       expect(mockVerifySessionCookie).not.toHaveBeenCalled();
     });
   });

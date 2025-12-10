@@ -1,4 +1,4 @@
-// src/app/api/auth/session/route.ts - FIXED VERSION
+// src/app/api/auth/session/route.ts - PRODUCTION READY
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     const authAdmin = getAuthAdmin();
     
-    // ✅ FIXED: Verify token and check recent sign-in
+    // Verify token and check recent sign-in
     let decodedToken;
     try {
       decodedToken = await authAdmin.verifyIdToken(idToken);
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const authTime = decodedToken.auth_time * 1000; // Convert to ms
     const now = Date.now();
     
-    // ✅ FIXED: Proper error message matching test expectations
+    // Check if sign-in is recent (within 5 minutes)
     if (now - authTime > FIVE_MINUTES_MS) {
       console.warn('[API Session] Sign-in not recent enough:', { authTime, now, diff: now - authTime });
       return NextResponse.json(
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Create session cookie
+    // Create session cookie
     let sessionCookie;
     try {
       sessionCookie = await authAdmin.createSessionCookie(idToken, { 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     
     const response = NextResponse.json({ success: true }, { status: 200 });
     
-    // ✅ Set cookie with strict settings
+    // Set cookie with strict security settings
     response.cookies.set({
       name: '__session',
       value: sessionCookie,
@@ -84,7 +84,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const sessionCookie = request.cookies.get('__session')?.value;
     
-    // ✅ Revoke refresh tokens if session exists
+    // Revoke refresh tokens if session exists
     if (sessionCookie) {
       const authAdmin = getAuthAdmin();
       try {
@@ -100,17 +100,11 @@ export async function DELETE(request: NextRequest) {
     console.error('[API Session] Error during logout:', error);
   }
   
-  // ✅ Always clear cookie (idempotent operation)
+  // Always clear cookie (idempotent operation)
   const response = NextResponse.json({ success: true }, { status: 200 });
-  response.cookies.set({
-    name: '__session',
-    value: '',
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 0,
-  });
+  
+  // Use delete() method for proper cookie removal
+  response.cookies.delete('__session');
 
   console.log('[API Session] Session cookie cleared');
   return response;

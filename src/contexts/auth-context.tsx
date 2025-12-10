@@ -1,4 +1,4 @@
-// src/contexts/auth-context.tsx - FIXED VERSION
+// src/contexts/auth-context.tsx - PRODUCTION READY
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -32,7 +32,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // --- Helper Functions ---
 
 /**
- * ✅ FIXED: Proper cookie verification with retry logic
+ * Waits for cookie to appear in document.cookie with polling
+ */
+async function waitForCookie(cookieName: string, maxWait = 2000): Promise<boolean> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < maxWait) {
+    const cookies = document.cookie.split(';');
+    const found = cookies.find(c => c.trim().startsWith(`${cookieName}=`));
+    if (found && found.split('=')[1]?.length > 10) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return false;
+}
+
+/**
+ * Sets session cookie with proper retry and verification logic
  */
 async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -44,33 +60,29 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
       });
       
       if (response.ok) {
-        // Wait for cookie to be actually set in browser
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait for cookie with polling mechanism
+        const cookieSet = await waitForCookie('__session', 2000);
         
-        // Verify cookie exists and is valid
-        const cookies = document.cookie.split(';');
-        const sessionCookie = cookies.find(c => c.trim().startsWith('__session='));
-        
-        if (sessionCookie && sessionCookie.split('=')[1]?.length > 10) {
+        if (cookieSet) {
           console.log('[Auth] Session cookie verified successfully');
           return true;
         }
         
-        console.warn('[Auth] Cookie set but not found in document.cookie, retrying...');
+        console.warn(`[Auth] Cookie not found after attempt ${attempt}, retrying...`);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('[Auth] Session API returned error:', errorData);
+        console.error(`[Auth] Session API error (attempt ${attempt}):`, errorData);
       }
       
       // Exponential backoff
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+        await new Promise(resolve => setTimeout(resolve, 300 * attempt));
       }
       
     } catch (error) {
       console.error(`[Auth] Session cookie attempt ${attempt} failed:`, error);
       if (attempt === maxRetries) return false;
-      await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+      await new Promise(resolve => setTimeout(resolve, 300 * attempt));
     }
   }
   
@@ -100,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   
-  // ✅ FIXED: Use Promise-based lock to prevent concurrent operations
+  // Promise-based lock to prevent concurrent operations
   const authOperationLock = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
@@ -138,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   /**
-   * ✅ FIXED: Proper locking mechanism with Promise chain
+   * Performs auth operation with proper locking mechanism
    */
   const performAuthOperation = useCallback(async (
     operation: () => Promise<FirebaseUser | null>
@@ -165,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("Could not create a server session. Please try again.");
         }
         
-        // ✅ Use router with proper cache invalidation
+        // Navigate with cache invalidation
         router.push('/library/book');
         router.refresh();
         
@@ -176,7 +188,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       } finally {
         setIsSigningIn(false);
-        // ✅ Clear lock AFTER operation completes
         authOperationLock.current = null;
       }
     })();
@@ -201,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   /**
-   * ✅ FIXED: Proper logout with lock
+   * Logout with proper cleanup
    */
   const logout = useCallback(async (): Promise<void> => {
     // Wait for any ongoing auth operation
