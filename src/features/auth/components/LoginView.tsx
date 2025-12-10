@@ -1,4 +1,4 @@
-// src/features/auth/components/LoginView.tsx
+// src/features/auth/components/LoginView.tsx - FIXED VERSION
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -22,6 +22,7 @@ const GoogleIcon = () => (
 
 export default function LoginView() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { 
     authUser, 
     loading: isAuthLoading, 
@@ -35,27 +36,38 @@ export default function LoginView() {
   const { toast } = useToast();
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [hasShownToast, setHasShownToast] = useState(false);
 
+  // FIXED: Clean URL parameters after showing toast
   useEffect(() => {
+    // Only show toast once per reason
+    if (hasShownToast) return;
+    
     const reason = searchParams.get('reason');
     if (reason === 'logged_out') {
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      setHasShownToast(true);
+      
+      // Clean URL after showing toast (no history entry)
+      router.replace('/login', { scroll: false });
     } else if (reason === 'session_expired' || reason === 'session_revoked') {
       toast({ title: "Session Expired", description: "Please log in again.", variant: "destructive" });
+      setHasShownToast(true);
+      
+      // Clean URL after showing toast (no history entry)
+      router.replace('/login', { scroll: false });
     }
-  }, [searchParams, toast]);
+  }, [searchParams, toast, router, hasShownToast]);
   
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
     e.preventDefault();
     const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
-    // The auth context now handles the redirection via window.location.href,
-    // so we don't need to do anything here on success.
+    // Auth context now handles navigation via window.location.href
     await authOperation(email, pass);
   };
 
   const handleGoogleSignIn = async () => {
-    // The auth context now handles the redirection via window.location.href,
-    // so we don't need to do anything here on success.
+    // Auth context now handles navigation via window.location.href
     await signInWithGoogle();
   };
 
@@ -64,8 +76,7 @@ export default function LoginView() {
     setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
   };
 
-  // If Firebase is still checking the initial auth state OR if the user is already authenticated, show a loader.
-  // The middleware will handle the redirection, so the loader just prevents a flash of the login page.
+  // Show loader while checking auth or if already authenticated
   if (isAuthLoading || authUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -74,7 +85,7 @@ export default function LoginView() {
     );
   }
 
-  // The main login UI
+  // Main login UI
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-blue-50 to-blue-100 dark:from-background dark:via-blue-900/20 dark:to-blue-900/30 p-4">
       <Card className="w-full max-w-sm shadow-2xl">

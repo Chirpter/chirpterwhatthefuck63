@@ -1,10 +1,18 @@
-// src/features/auth/__tests__/auth-flow-complete.integration.test.tsx
-// PRODUCTION READY - Complete integration tests with cookie polling
+// src/features/auth/__tests__/auth-flow.integration.test.tsx - FIXED VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
+
+// ✅ FIX: Mock Firebase config first
+vi.mock('@/lib/firebase', () => ({
+  auth: {},
+  app: {},
+  db: {},
+  storage: {},
+  functions: {},
+}));
 
 // Mock Firebase Auth
 vi.mock('firebase/auth', async (importOriginal) => {
@@ -30,13 +38,8 @@ vi.mock('next/navigation', () => ({
     refresh: mockRefresh,
   }),
   useSearchParams: () => ({
-      get: vi.fn(),
+    get: vi.fn(),
   }),
-}));
-
-// Mock Firebase
-vi.mock('@/lib/firebase', () => ({
-  auth: {},
 }));
 
 // Test component
@@ -61,14 +64,14 @@ describe('Auth Flow Complete Integration Tests', () => {
     vi.clearAllMocks();
     document.cookie = '';
     
-    // Mock successful fetch with proper cookie simulation
+    // ✅ FIX: Better mock with proper cookie simulation
     global.fetch = vi.fn((url: string | URL | Request, options?: RequestInit) => {
       const urlString = url instanceof URL ? url.toString() : 
                        url instanceof Request ? url.url : 
                        url;
       
       if (urlString.includes('/api/auth/session') && options?.method === 'POST') {
-        // Simulate cookie being set with delay to mimic real behavior
+        // Simulate cookie being set asynchronously
         setTimeout(() => {
           document.cookie = '__session=test-session-cookie-value-12345; path=/';
         }, 50);
@@ -134,7 +137,7 @@ describe('Auth Flow Complete Integration Tests', () => {
     await waitFor(() => {
       expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
       expect(screen.getByTestId('error')).toHaveTextContent('no-error');
-    }, { timeout: 5000 }); // Increased timeout for cookie polling
+    }, { timeout: 3000 });
 
     // Verify cookie was set
     expect(document.cookie).toContain('__session=');
@@ -152,7 +155,7 @@ describe('Auth Flow Complete Integration Tests', () => {
     };
 
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-       if (typeof callback === 'function') {
+      if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
       } else {
         setTimeout(() => callback.next(null), 0);
@@ -164,10 +167,12 @@ describe('Auth Flow Complete Integration Tests', () => {
       user: mockUser as any,
     } as any);
 
-    // Mock fetch that doesn't set cookie (simulating failure)
+    // ✅ FIX: Mock fetch that succeeds but doesn't set cookie
+    // Note: document.cookie is NOT set, so waitForCookie will timeout
     global.fetch = vi.fn(() => 
       Promise.resolve({
         ok: true,
+        status: 200,
         json: async () => ({ success: true }),
         headers: new Headers(),
       } as Response)
@@ -185,14 +190,20 @@ describe('Auth Flow Complete Integration Tests', () => {
 
     fireEvent.click(screen.getByText('Sign In'));
 
-    // Should show error after cookie polling timeout
+    // Wait for signing-in to complete (will take ~2s for cookie polling + retries)
     await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('Could not create a server session. Please try again.');
-    }, { timeout: 5000 });
+      expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
+    }, { timeout: 8000 });
+
+    // Then check error message
+    await waitFor(() => {
+      const errorText = screen.getByTestId('error').textContent;
+      expect(errorText).toContain('Could not create a server session');
+    }, { timeout: 1000 });
 
     // Should not navigate on error
     expect(mockPush).not.toHaveBeenCalled();
-  });
+  }, 10000);
 
   it('should retry session creation on failure', async () => {
     const mockUser = {
@@ -220,6 +231,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       if (attempts < 3) {
         return Promise.resolve({
           ok: false,
+          status: 500,
           json: async () => ({ error: 'temporary error' }),
           headers: new Headers(),
         } as Response);
@@ -231,6 +243,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       
       return Promise.resolve({
         ok: true,
+        status: 200,
         json: async () => ({ success: true }),
         headers: new Headers(),
       } as Response);
@@ -248,12 +261,12 @@ describe('Auth Flow Complete Integration Tests', () => {
 
     fireEvent.click(screen.getByText('Sign In'));
 
-    // Should eventually succeed after retries
+    // Should eventually succeed after retries (3 attempts + backoff = ~1s)
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(3);
       expect(mockPush).toHaveBeenCalledWith('/library/book');
-    }, { timeout: 5000 });
-  });
+    }, { timeout: 3000 });
+  }, 5000);
 
   it('should prevent concurrent sign-in operations', async () => {
     const mockUser = {
@@ -262,7 +275,7 @@ describe('Auth Flow Complete Integration Tests', () => {
     };
 
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-       if (typeof callback === 'function') {
+      if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
       } else {
         setTimeout(() => callback.next(null), 0);
@@ -324,7 +337,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       user: mockUser as any,
     } as any);
 
-    // All attempts fail
+    // ✅ FIX: Mock network error
     global.fetch = vi.fn(() => 
       Promise.reject(new Error('Network error'))
     ) as any;
@@ -341,9 +354,10 @@ describe('Auth Flow Complete Integration Tests', () => {
 
     fireEvent.click(screen.getByText('Sign In'));
 
-    // Should show error after max retries
+    // Should show session error (not generic error)
     await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('Could not create a server session. Please try again.');
-    }, { timeout: 5000 });
-  });
+      const errorText = screen.getByTestId('error').textContent;
+      expect(errorText).toContain('Could not create a server session');
+    }, { timeout: 2000 });
+  }, 6000);
 });

@@ -1,16 +1,48 @@
-// vitest-setup.ts - FIXED VERSION
+// vitest-setup.ts - IMPROVED VERSION
 import { vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
-// ✅ FIXED: Global test isolation
+// ✅ FIX: Mock Firebase environment variables BEFORE any imports
+process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
+process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test-project.firebaseapp.com';
+process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project';
+process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = 'test-project.appspot.com';
+process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = '123456789';
+process.env.NEXT_PUBLIC_FIREBASE_APP_ID = '1:123456789:web:abcdef';
+process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID = 'G-ABCDEFGH';
+
+// ✅ FIX: Global test isolation with better cleanup
 beforeEach(() => {
   // Reset all mocks before each test
   vi.clearAllMocks();
   
-  // Reset document.cookie
+  // ✅ FIX: Better cookie mock with proper get/set
+  let cookieStore = '';
+  
   Object.defineProperty(document, 'cookie', {
-    writable: true,
-    value: '',
+    get: () => cookieStore,
+    set: (value: string) => {
+      // Parse cookie string
+      const parts = value.split(';')[0].split('=');
+      const name = parts[0].trim();
+      const val = parts[1] || '';
+      
+      // Check if it's a deletion
+      if (value.includes('Max-Age=0') || value.includes('expires=Thu, 01 Jan 1970')) {
+        // Delete cookie
+        cookieStore = cookieStore
+          .split(';')
+          .filter(c => c.trim() && !c.trim().startsWith(name))
+          .join(';');
+      } else {
+        // Add/Update cookie
+        const existingCookies = cookieStore
+          .split(';')
+          .filter(c => c.trim() && !c.trim().startsWith(name));
+        existingCookies.push(`${name}=${val}`);
+        cookieStore = existingCookies.join(';');
+      }
+    },
     configurable: true,
   });
 });
@@ -65,14 +97,14 @@ vi.stubGlobal('IntersectionObserver', mockIntersectionObserver);
 
 // Mock for ResizeObserver
 const mockResizeObserver = vi.fn((callback) => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
 }));
 
 vi.stubGlobal('ResizeObserver', mockResizeObserver);
 
-// ✅ FIXED: Better localStorage mock with cleanup
+// ✅ FIX: Better localStorage mock with proper isolation
 const createLocalStorageMock = () => {
   let store: { [key: string]: string } = {};
   
@@ -103,7 +135,7 @@ Object.defineProperty(window, 'localStorage', {
   configurable: true,
 });
 
-// ✅ FIXED: Mock fetch with better default behavior
+// ✅ FIX: Default mock fetch (can be overridden in tests)
 global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
   const urlString = input instanceof URL ? input.toString() : 
                    input instanceof Request ? input.url : 
@@ -113,17 +145,12 @@ global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
   let responseData = { success: true };
   let status = 200;
   
-  // Handle specific routes
+  // Handle specific routes with defaults
   if (urlString.includes('/api/auth/session')) {
     if (options?.method === 'DELETE') {
       responseData = { success: true };
     } else if (options?.method === 'POST') {
       responseData = { success: true };
-      
-      // Simulate setting cookie
-      setTimeout(() => {
-        document.cookie = '__session=test-session-cookie; path=/';
-      }, 0);
     }
   }
   
@@ -149,24 +176,26 @@ global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
   } as any as Response);
 }) as any;
 
-// ✅ FIXED: Mock console methods to reduce noise in tests
+// ✅ FIX: Suppress unnecessary console noise in tests
 const originalConsole = {
   log: console.log,
   warn: console.warn,
   error: console.error,
 };
 
-// Only show errors in tests, suppress logs and warnings
 console.log = vi.fn();
 console.warn = vi.fn();
 console.error = (...args: any[]) => {
-  // Only show actual errors, not expected test errors
-  if (!args[0]?.includes?.('[Auth]') && !args[0]?.includes?.('[USER_CTX]')) {
+  // Only show actual errors, not expected test logs
+  if (!args[0]?.includes?.('[Auth]') && 
+      !args[0]?.includes?.('[USER_CTX]') &&
+      !args[0]?.includes?.('[API Session]') &&
+      !args[0]?.includes?.('[Middleware]')) {
     originalConsole.error(...args);
   }
 };
 
-// ✅ Export cleanup utilities
+// Export cleanup utilities
 export const cleanupTestEnvironment = () => {
   vi.clearAllMocks();
   localStorage.clear();

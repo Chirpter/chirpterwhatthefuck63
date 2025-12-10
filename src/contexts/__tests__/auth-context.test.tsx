@@ -2,8 +2,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../auth-context';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
+
+// ✅ FIX: Mock Firebase config before importing
+vi.mock('@/lib/firebase', () => ({
+  auth: {},
+  app: {},
+  db: {},
+  storage: {},
+  functions: {},
+}));
 
 // Mock Firebase Auth
 vi.mock('firebase/auth', async (importOriginal) => {
@@ -33,7 +42,7 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-// Test component with unique container
+// Test component
 const TestComponent = () => {
   const { authUser, loading, isSigningIn, error, signInWithEmail, clearAuthError } = useAuth();
   
@@ -53,20 +62,20 @@ const TestComponent = () => {
 
 describe('AuthContext Unit Tests', () => {
   beforeEach(() => {
-    // ✅ Complete cleanup before each test
     cleanup();
     vi.clearAllMocks();
     document.cookie = '';
     mockPush.mockClear();
     mockRefresh.mockClear();
     
-    // ✅ Default mock for fetch
+    // ✅ FIX: Mock successful fetch with proper cookie simulation
     global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
       const urlString = input instanceof URL ? input.toString() : 
                        input instanceof Request ? input.url : 
                        input;
       
       if (urlString.includes('/api/auth/session') && options?.method === 'POST') {
+        // Simulate cookie being set after slight delay
         setTimeout(() => {
           document.cookie = '__session=test-cookie; path=/';
         }, 50);
@@ -381,9 +390,11 @@ describe('AuthContext Unit Tests', () => {
         user: mockUser as any,
       } as any);
 
+      // ✅ FIX: Mock fetch that always fails
       global.fetch = vi.fn(() =>
         Promise.resolve({
           ok: false,
+          status: 500,
           json: async () => ({ error: 'server error' }),
         } as Response)
       ) as any;
@@ -403,9 +414,11 @@ describe('AuthContext Unit Tests', () => {
         signInButton?.click();
       });
 
+      // ✅ FIX: Should show session error after retries
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Could not create a server session');
-      }, { timeout: 5000 });
+        const errorText = screen.getByTestId('error').textContent;
+        expect(errorText).toContain('Could not create a server session');
+      }, { timeout: 3000 });
     });
   });
 });

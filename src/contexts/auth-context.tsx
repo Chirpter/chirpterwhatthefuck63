@@ -1,4 +1,4 @@
-// src/contexts/auth-context.tsx - PRODUCTION READY
+// src/contexts/auth-context.tsx - PRODUCTION READY (FIXED)
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -81,6 +81,13 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
       
     } catch (error) {
       console.error(`[Auth] Session cookie attempt ${attempt} failed:`, error);
+      
+      // ✅ FIX: For network errors, don't retry - fail immediately
+      if (error instanceof Error && error.message.includes('Network')) {
+        console.error('[Auth] Network error detected, failing immediately');
+        return false;
+      }
+      
       if (attempt === maxRetries) return false;
       await new Promise(resolve => setTimeout(resolve, 300 * attempt));
     }
@@ -125,27 +132,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleAuthError = useCallback((err: any) => {
     let message = 'An unexpected error occurred. Please try again.';
-    switch (err.code) {
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-      case 'auth/invalid-credential':
-        message = 'Invalid email or password.';
-        break;
-      case 'auth/email-already-in-use':
-        message = 'This email is already registered. Please sign in.';
-        break;
-      case 'auth/weak-password':
-        message = 'Password must be at least 6 characters long.';
-        break;
-      case 'auth/too-many-requests':
-        message = 'Access temporarily disabled due to many failed attempts. Try again later or reset your password.';
-        break;
-      case 'auth/network-request-failed':
-        message = 'Network error. Please check your connection and try again.';
-        break;
-      default:
-        console.error('[AuthContext] Unhandled auth error:', err);
+    
+    // ✅ FIX: Check for specific error strings from our flow
+    if (err.message?.includes('Could not create a server session')) {
+      message = err.message;
+    } else {
+      switch (err.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          message = 'Invalid email or password.';
+          break;
+        case 'auth/email-already-in-use':
+          message = 'This email is already registered. Please sign in.';
+          break;
+        case 'auth/weak-password':
+          message = 'Password must be at least 6 characters long.';
+          break;
+        case 'auth/too-many-requests':
+          message = 'Access temporarily disabled due to many failed attempts. Try again later or reset your password.';
+          break;
+        case 'auth/network-request-failed':
+          message = 'Network error. Please check your connection and try again.';
+          break;
+        default:
+          console.error('[AuthContext] Unhandled auth error:', err);
+      }
     }
+    
     setError(message);
   }, []);
 

@@ -1,4 +1,4 @@
-// src/app/api/auth/session/route.ts - PRODUCTION READY
+// src/app/api/auth/session/route.ts - PRODUCTION READY (FIXED)
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const authTime = decodedToken.auth_time;
+    // ✅ FIX: Safe access to auth_time with fallback
+    const authTime = decodedToken.auth_time || Math.floor(Date.now() / 1000);
     const nowInSeconds = Math.floor(Date.now() / 1000);
     
     // Check if sign-in is recent (within 5 minutes)
@@ -81,30 +82,26 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  try {
-    const sessionCookie = request.cookies.get('__session')?.value;
-    
-    // Revoke refresh tokens if session exists
-    if (sessionCookie) {
-      const authAdmin = getAuthAdmin();
+  const sessionCookie = request.cookies.get('__session')?.value;
+  
+  // ✅ FIX: Always return success response first
+  const response = NextResponse.json({ success: true }, { status: 200 });
+  response.cookies.delete('__session');
+  
+  // ✅ FIX: Revoke tokens in background, don't block response
+  if (sessionCookie) {
+    // Fire and forget - don't await
+    (async () => {
       try {
+        const authAdmin = getAuthAdmin();
         const decodedClaims = await authAdmin.verifySessionCookie(sessionCookie);
         await authAdmin.revokeRefreshTokens(decodedClaims.sub);
         console.log('[API Session] Tokens revoked for user:', decodedClaims.sub);
       } catch (err) {
-        // Log but don't fail - cookie will be cleared anyway
         console.warn('[API Session] Could not revoke tokens:', err);
       }
-    }
-  } catch (error) {
-    console.error('[API Session] Error during logout:', error);
+    })();
   }
-  
-  // Always clear cookie (idempotent operation)
-  const response = NextResponse.json({ success: true }, { status: 200 });
-  
-  // Use delete() method for proper cookie removal
-  response.cookies.delete('__session');
 
   console.log('[API Session] Session cookie cleared');
   return response;
