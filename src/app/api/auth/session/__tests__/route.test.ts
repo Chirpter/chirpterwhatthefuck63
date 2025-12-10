@@ -34,7 +34,7 @@ describe('POST /api/auth/session', () => {
   });
 
   it('should return 401 if sign-in is not recent', async () => {
-    const mockAuthAdmin = vi.mocked(getAuthAdmin)();
+    const mockAuthAdmin = getAuthAdmin();
     
     // Mock token that was signed in > 5 minutes ago
     const oldAuthTime = Math.floor(Date.now() / 1000) - (10 * 60); // 10 minutes ago
@@ -56,7 +56,7 @@ describe('POST /api/auth/session', () => {
   });
 
   it('should create session cookie for recent sign-in', async () => {
-    const mockAuthAdmin = vi.mocked(getAuthAdmin)();
+    const mockAuthAdmin = getAuthAdmin();
     
     // Mock recent sign-in (within last minute)
     const recentAuthTime = Math.floor(Date.now() / 1000) - 30; // 30 seconds ago
@@ -87,7 +87,7 @@ describe('POST /api/auth/session', () => {
   });
 
   it('should handle Firebase verification errors', async () => {
-    const mockAuthAdmin = vi.mocked(getAuthAdmin)();
+    const mockAuthAdmin = getAuthAdmin();
     
     vi.mocked(mockAuthAdmin.verifyIdToken).mockRejectedValue(
       new Error('Invalid token')
@@ -135,7 +135,7 @@ describe('DELETE /api/auth/session', () => {
   });
 
   it('should revoke tokens if session exists', async () => {
-    const mockAuthAdmin = vi.mocked(getAuthAdmin)();
+    const mockAuthAdmin = getAuthAdmin();
     
     vi.mocked(mockAuthAdmin.verifySessionCookie).mockResolvedValue({
       sub: 'user-uid-123',
@@ -156,7 +156,7 @@ describe('DELETE /api/auth/session', () => {
   });
 
   it('should still succeed even if token revocation fails', async () => {
-    const mockAuthAdmin = vi.mocked(getAuthAdmin)();
+    const mockAuthAdmin = getAuthAdmin();
     
     vi.mocked(mockAuthAdmin.verifySessionCookie).mockRejectedValue(
       new Error('Session verification failed')

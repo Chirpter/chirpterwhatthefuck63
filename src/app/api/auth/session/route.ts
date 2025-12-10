@@ -5,7 +5,7 @@ import { getAuthAdmin } from '@/lib/firebase-admin';
 export const runtime = 'nodejs';
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-const FIVE_MINUTES_MS = 5 * 60 * 1000;
+const FIVE_MINUTES_S = 5 * 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,12 +29,12 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const authTime = decodedToken.auth_time * 1000; // Convert to ms
-    const now = Date.now();
+    const authTime = decodedToken.auth_time;
+    const nowInSeconds = Math.floor(Date.now() / 1000);
     
     // Check if sign-in is recent (within 5 minutes)
-    if (now - authTime > FIVE_MINUTES_MS) {
-      console.warn('[API Session] Sign-in not recent enough:', { authTime, now, diff: now - authTime });
+    if (nowInSeconds - authTime > FIVE_MINUTES_S) {
+      console.warn('[API Session] Sign-in not recent enough:', { authTime, now: nowInSeconds, diff: nowInSeconds - authTime });
       return NextResponse.json(
         { error: 'Recent sign in required' }, 
         { status: 401 }
