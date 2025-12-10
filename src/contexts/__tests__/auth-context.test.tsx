@@ -251,7 +251,7 @@ describe('Auth Flow Integration Tests', () => {
       fireEvent.click(screen.getByText('Sign In'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Invalid email or password');
+        expect(screen.getByTestId('error')).toHaveTextContent('Invalid email or password.');
       });
 
       // Should not navigate on error
@@ -496,7 +496,7 @@ describe('Auth Flow Integration Tests', () => {
       fireEvent.click(screen.getByText('Sign In'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Could not create a server session');
+        expect(screen.getByTestId('error')).toHaveTextContent('Could not create a server session. Please try again.');
       }, { timeout: 3000 });
 
       // Should not navigate on error
