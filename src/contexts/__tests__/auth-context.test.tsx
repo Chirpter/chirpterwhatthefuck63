@@ -1,5 +1,5 @@
 // src/contexts/__tests__/auth-context.test.tsx - UPDATED VERSION
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../auth-context';
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
@@ -57,7 +57,7 @@ const TestComponent = () => {
 };
 
 describe('AuthContext Unit Tests', () => {
-  let mockNavigate: vi.Mock;
+  let mockNavigate: Mock;
 
   beforeEach(() => {
     cleanup();
