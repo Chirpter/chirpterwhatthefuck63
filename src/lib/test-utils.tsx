@@ -8,6 +8,7 @@ import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { SettingsProvider } from '@/contexts/settings-context';
 import { BookmarkProvider } from '@/contexts/bookmark-context';
 import { vi, beforeEach, afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { User as AppUser, CombinedBookmark } from './types';
 
@@ -62,43 +63,62 @@ export const mockUser: AppUser = {
 // Mock Bookmarks
 export const mockBookmarks: CombinedBookmark[] = [];
 
-// ✅ FIXED: Proper cleanup between tests
-let mockCleanupFunctions: Array<() => void> = [];
-
-export function registerMockCleanup(cleanup: () => void) {
-  mockCleanupFunctions.push(cleanup);
-}
-
-export function cleanupAllMocks() {
-  mockCleanupFunctions.forEach(cleanup => cleanup());
-  mockCleanupFunctions = [];
-  vi.clearAllMocks();
-}
-
 // Auto-cleanup after each test
 afterEach(() => {
-  cleanupAllMocks();
+  cleanup();
 });
 
-// ✅ FIXED: Better mock provider with proper isolation
-interface MockProviderProps {
-  children: React.ReactNode;
-  initialAuthUser?: FirebaseUser | null;
-  initialUser?: AppUser | null;
-  initialAuthLoading?: boolean;
-  initialUserLoading?: boolean;
+
+// ✅ NEW: Mock window.location for tests
+export function setupLocationMock() {
+  const mockNavigate = vi.fn();
+  const mockReplace = vi.fn();
+  
+  // Store original location to restore it
+  const originalLocation = window.location;
+
+  // Delete the property to make it reconfigurable
+  delete (window as any).location;
+
+  Object.defineProperty(window, 'location', {
+    value: {
+      assign: mockNavigate,
+      replace: mockReplace,
+      href: '',
+      origin: 'http://localhost:3000',
+      pathname: '/',
+      search: '',
+      hash: '',
+    },
+    writable: true,
+    configurable: true,
+  });
+
+  const cleanup = () => {
+    // Restore the original location object
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
+    mockNavigate.mockClear();
+    mockReplace.mockClear();
+  };
+
+  return {
+    mockNavigate,
+    mockReplace,
+    getNavigatedUrl: () => mockNavigate.mock.calls[0]?.[0],
+    getReplacedUrl: () => mockReplace.mock.calls[0]?.[0],
+    cleanup, // Return cleanup function
+  };
 }
+
 
 /**
  * ✅ FIXED: Isolated test wrapper with proper mocking
  */
-export const CombinedProviders: React.FC<MockProviderProps> = ({ 
-  children,
-  initialAuthUser = null,
-  initialUser = null,
-  initialAuthLoading = false,
-  initialUserLoading = false,
-}) => {
+export const CombinedProviders: React.FC = ({ children }) => {
   return (
     <I18nextProvider i18n={i18n}>
       <AuthProvider>
@@ -114,104 +134,4 @@ export const CombinedProviders: React.FC<MockProviderProps> = ({
       </AuthProvider>
     </I18nextProvider>
   );
-};
-
-// ✅ NEW: Helper to create authenticated context
-export const createAuthenticatedMocks = () => {
-  return {
-    authUser: mockFirebaseUser,
-    loading: false,
-    isSigningIn: false,
-    error: null,
-    signUpWithEmail: vi.fn().mockResolvedValue(true),
-    signInWithEmail: vi.fn().mockResolvedValue(true),
-    signInWithGoogle: vi.fn().mockResolvedValue(true),
-    logout: vi.fn().mockResolvedValue(undefined),
-    clearAuthError: vi.fn(),
-  };
-};
-
-// ✅ NEW: Helper to create user context mocks
-export const createUserContextMocks = (user = mockUser) => {
-  return {
-    user,
-    loading: false,
-    error: null,
-    levelUpInfo: null,
-    clearLevelUpInfo: vi.fn(),
-    reloadUser: vi.fn().mockResolvedValue(undefined),
-    retryUserFetch: vi.fn(),
-  };
-};
-
-// ✅ NEW: Helper to setup mock fetch for tests
-export const setupMockFetch = (responses: Record<string, any> = {}) => {
-  const defaultResponses = {
-    '/api/auth/session': { success: true },
-    ...responses,
-  };
-
-  global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
-    const urlString = input instanceof URL ? input.toString() : 
-                     input instanceof Request ? input.url : 
-                     input;
-    
-    // ✅ FIX: Use hasOwnProperty to safely access the property
-    const response = Object.prototype.hasOwnProperty.call(defaultResponses, urlString) 
-      ? defaultResponses[urlString as keyof typeof defaultResponses] 
-      : { success: true };
-    
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(response),
-      headers: new Headers(),
-      status: 200,
-      statusText: 'OK',
-    } as Response);
-  }) as any;
-
-  registerMockCleanup(() => {
-    vi.restoreAllMocks();
-  });
-};
-
-// ✅ NEW: Helper to setup document.cookie mock
-export const setupMockCookie = (initialCookie = '') => {
-  let cookieStore = initialCookie;
-  
-  Object.defineProperty(document, 'cookie', {
-    get: () => cookieStore,
-    set: (value: string) => {
-      // Simple cookie parser for tests
-      const parts = value.split(';')[0].split('=');
-      const name = parts[0].trim();
-      const val = parts[1] || '';
-      
-      if (value.includes('Max-Age=0') || value.includes('expires=Thu, 01 Jan 1970')) {
-        // Delete cookie
-        cookieStore = cookieStore
-          .split(';')
-          .filter(c => !c.trim().startsWith(name))
-          .join(';');
-      } else {
-        // Add/Update cookie
-        const existingCookies = cookieStore
-          .split(';')
-          .filter(c => c.trim() && !c.trim().startsWith(name));
-        existingCookies.push(`${name}=${val}`);
-        cookieStore = existingCookies.join(';');
-      }
-    },
-    configurable: true,
-  });
-
-  registerMockCleanup(() => {
-    cookieStore = '';
-  });
-
-  return {
-    getCookie: () => cookieStore,
-    setCookie: (value: string) => { document.cookie = value; },
-    clearCookies: () => { cookieStore = ''; },
-  };
 };

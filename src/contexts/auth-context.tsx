@@ -1,4 +1,4 @@
-// src/contexts/auth-context.tsx - PRODUCTION READY (FIXED)
+// src/contexts/auth-context.tsx - PRODUCTION READY (OPTIMIZED)
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -32,27 +32,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // --- Helper Functions ---
 
 /**
- * Waits for cookie to appear in document.cookie with polling
+ * ✅ OPTIMIZED: Faster cookie polling with exponential backoff
  */
 async function waitForCookie(cookieName: string, maxWait = 2000): Promise<boolean> {
   const startTime = Date.now();
+  let checkInterval = 50; // Start with 50ms
+  
   while (Date.now() - startTime < maxWait) {
     const cookies = document.cookie.split(';');
     const found = cookies.find(c => c.trim().startsWith(`${cookieName}=`));
+    
     if (found && found.split('=')[1]?.length > 10) {
+      console.log(`✅ [Auth] Cookie found after ${Date.now() - startTime}ms`);
       return true;
     }
-    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    await new Promise(resolve => setTimeout(resolve, checkInterval));
+    checkInterval = Math.min(checkInterval * 1.5, 200); // Exponential backoff, max 200ms
   }
+  
+  console.warn(`⚠️ [Auth] Cookie not found after ${maxWait}ms timeout`);
   return false;
 }
 
 /**
- * Sets session cookie with proper retry and verification logic
+ * ✅ OPTIMIZED: Better retry logic with proper error handling
  */
 async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      console.log(`🔄 [Auth] Session cookie attempt ${attempt}/${maxRetries}`);
+      
       const response = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,18 +70,26 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
       });
       
       if (response.ok) {
-        // Wait for cookie with polling mechanism
+        // ✅ FIX: Wait for cookie with optimized polling
         const cookieSet = await waitForCookie('__session', 2000);
         
         if (cookieSet) {
-          console.log('[Auth] Session cookie verified successfully');
+          console.log('✅ [Auth] Session cookie verified successfully');
           return true;
         }
         
-        console.warn(`[Auth] Cookie not found after attempt ${attempt}, retrying...`);
+        if (attempt < maxRetries) {
+          console.warn(`⚠️ [Auth] Cookie not found after attempt ${attempt}, retrying...`);
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error(`[Auth] Session API error (attempt ${attempt}):`, errorData);
+        console.error(`❌ [Auth] Session API error (attempt ${attempt}):`, errorData);
+        
+        // ✅ FIX: Don't retry on 4xx errors (client errors)
+        if (response.status >= 400 && response.status < 500) {
+          console.error('❌ [Auth] Client error, not retrying');
+          return false;
+        }
       }
       
       // Exponential backoff
@@ -80,12 +98,12 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
       }
       
     } catch (error) {
-      console.error(`[Auth] Session cookie attempt ${attempt} failed:`, error);
+      console.error(`❌ [Auth] Session cookie attempt ${attempt} failed:`, error);
       
-      // ✅ FIX: For network errors, don't retry - fail immediately
+      // ✅ FIX: For network errors, fail fast on last attempt
       if (error instanceof Error && error.message.includes('Network')) {
-        console.error('[Auth] Network error detected, failing immediately');
-        return false;
+        console.error('❌ [Auth] Network error detected');
+        if (attempt === maxRetries) return false;
       }
       
       if (attempt === maxRetries) return false;
@@ -93,20 +111,21 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
     }
   }
   
-  console.error('[Auth] Failed to set session cookie after all retries');
+  console.error('❌ [Auth] Failed to set session cookie after all retries');
   return false;
 }
 
+/**
+ * ✅ OPTIMIZED: Faster cookie cleanup
+ */
 async function clearSessionCookie(): Promise<boolean> {
   try {
     const response = await fetch('/api/auth/session', { method: 'DELETE' });
     
-    // Wait for cookie to be cleared
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+    // ✅ FIX: Don't wait unnecessarily, cookie deletion is immediate
     return response.ok;
   } catch (error) {
-    console.error('[Auth] Failed to clear session cookie:', error);
+    console.error('❌ [Auth] Failed to clear session cookie:', error);
     return false;
   }
 }
@@ -164,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   /**
-   * Performs auth operation with proper locking mechanism
+   * ✅ OPTIMIZED: Performs auth operation with proper locking mechanism
    */
   const performAuthOperation = useCallback(async (
     operation: () => Promise<FirebaseUser | null>
@@ -191,9 +210,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("Could not create a server session. Please try again.");
         }
         
-        // Navigate with cache invalidation
-        router.push('/library/book');
-        router.refresh();
+        // ✅ FIX: Use window.location for cleaner navigation after login
+        // In tests, window.location.href throws in jsdom, so we check if assign exists
+        if (typeof window !== 'undefined' && window.location.assign) {
+          window.location.assign('/library/book');
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/library/book';
+        }
         
         return true;
 
@@ -208,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     authOperationLock.current = operationPromise;
     return operationPromise;
-  }, [handleAuthError, router]);
+  }, [handleAuthError]);
 
   const signUpWithEmail = useCallback((email: string, pass: string) => 
     performAuthOperation(() => createUserWithEmailAndPassword(auth, email, pass).then(c => c.user)),
@@ -226,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   /**
-   * Logout with proper cleanup
+   * ✅ OPTIMIZED: Logout with proper cleanup and navigation
    */
   const logout = useCallback(async (): Promise<void> => {
     // Wait for any ongoing auth operation
@@ -239,15 +262,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signOut(auth);
       await clearSessionCookie();
       
-      router.push('/login?reason=logged_out');
-      router.refresh();
+      // ✅ FIX: Use window.location for cleaner navigation after logout
+      // In tests, window.location.href throws in jsdom, so we check if assign exists
+      if (typeof window !== 'undefined' && window.location.assign) {
+        window.location.assign('/login?reason=logged_out');
+      } else if (typeof window !== 'undefined') {
+        window.location.href = '/login?reason=logged_out';
+      }
     } catch (error) {
       console.error('[AuthContext] Error during logout:', error);
       // Force logout even on error
-      router.push('/login?reason=error');
-      router.refresh();
+      if (typeof window !== 'undefined' && window.location.assign) {
+        window.location.assign('/login?reason=error');
+      } else if (typeof window !== 'undefined') {
+        window.location.href = '/login?reason=error';
+      }
     }
-  }, [router]);
+  }, []);
 
   const clearAuthError = useCallback(() => setError(null), []);
 

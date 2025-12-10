@@ -1,11 +1,10 @@
-// src/contexts/__tests__/auth-context.test.tsx - FIXED VERSION
+// src/contexts/__tests__/auth-context.test.tsx - UPDATED VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../auth-context';
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 
-// ✅ FIX: Mock Firebase config before importing
 vi.mock('@/lib/firebase', () => ({
   auth: {},
   app: {},
@@ -14,7 +13,6 @@ vi.mock('@/lib/firebase', () => ({
   functions: {},
 }));
 
-// Mock Firebase Auth
 vi.mock('firebase/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/auth')>();
   return {
@@ -29,7 +27,6 @@ vi.mock('firebase/auth', async (importOriginal) => {
   };
 });
 
-// Mock Next.js router
 const mockPush = vi.fn();
 const mockRefresh = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -42,7 +39,6 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-// Test component
 const TestComponent = () => {
   const { authUser, loading, isSigningIn, error, signInWithEmail, clearAuthError } = useAuth();
   
@@ -61,6 +57,8 @@ const TestComponent = () => {
 };
 
 describe('AuthContext Unit Tests', () => {
+  let mockNavigate: vi.Mock;
+
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -68,14 +66,23 @@ describe('AuthContext Unit Tests', () => {
     mockPush.mockClear();
     mockRefresh.mockClear();
     
-    // ✅ FIX: Mock successful fetch with proper cookie simulation
+    // ✅ FIX: Mock window.location.assign
+    mockNavigate = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: {
+        assign: mockNavigate,
+        href: '',
+      },
+      writable: true,
+      configurable: true,
+    });
+    
     global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
       const urlString = input instanceof URL ? input.toString() : 
                        input instanceof Request ? input.url : 
                        input;
       
       if (urlString.includes('/api/auth/session') && options?.method === 'POST') {
-        // Simulate cookie being set after slight delay
         setTimeout(() => {
           document.cookie = '__session=test-cookie; path=/';
         }, 50);
@@ -288,17 +295,14 @@ describe('AuthContext Unit Tests', () => {
 
       const signInButton = container.querySelector('button');
 
-      // Click multiple times
       await act(async () => {
         signInButton?.click();
         signInButton?.click();
         signInButton?.click();
       });
 
-      // Should only call Firebase once
       expect(vi.mocked(signInWithEmailAndPassword)).toHaveBeenCalledTimes(1);
 
-      // Complete the operation
       resolveSignIn();
 
       await waitFor(() => {
@@ -371,7 +375,7 @@ describe('AuthContext Unit Tests', () => {
 
       await waitFor(() => {
         expect(attempts).toBeGreaterThanOrEqual(3);
-        expect(mockPush).toHaveBeenCalledWith('/library/book');
+        expect(mockNavigate).toHaveBeenCalledWith('/library/book');
       }, { timeout: 5000 });
     });
 
@@ -390,7 +394,6 @@ describe('AuthContext Unit Tests', () => {
         user: mockUser as any,
       } as any);
 
-      // ✅ FIX: Mock fetch that always fails
       global.fetch = vi.fn(() =>
         Promise.resolve({
           ok: false,
@@ -414,7 +417,6 @@ describe('AuthContext Unit Tests', () => {
         signInButton?.click();
       });
 
-      // ✅ FIX: Should show session error after retries
       await waitFor(() => {
         const errorText = screen.getByTestId('error').textContent;
         expect(errorText).toContain('Could not create a server session');

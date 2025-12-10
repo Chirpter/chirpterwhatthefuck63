@@ -4,6 +4,8 @@ import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/re
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { setupLocationMock } from '@/lib/test-utils';
+
 
 // ✅ FIX: Mock Firebase config first
 vi.mock('@/lib/firebase', () => ({
@@ -30,12 +32,10 @@ vi.mock('firebase/auth', async (importOriginal) => {
 });
 
 // Mock Next.js router
-const mockPush = vi.fn();
-const mockRefresh = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: mockPush,
-    refresh: mockRefresh,
+    push: vi.fn(),
+    refresh: vi.fn(),
   }),
   useSearchParams: () => ({
     get: vi.fn(),
@@ -60,9 +60,12 @@ const TestAuthComponent = () => {
 };
 
 describe('Auth Flow Complete Integration Tests', () => {
+  let locationMock: ReturnType<typeof setupLocationMock>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     document.cookie = '';
+    locationMock = setupLocationMock();
     
     // ✅ FIX: Better mock with proper cookie simulation
     global.fetch = vi.fn((url: string | URL | Request, options?: RequestInit) => {
@@ -94,6 +97,7 @@ describe('Auth Flow Complete Integration Tests', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    locationMock.cleanup();
   });
 
   it('should complete full sign-in flow with cookie polling', async () => {
@@ -107,7 +111,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
       } else {
-        setTimeout(() => callback.next(null), 0);
+        setTimeout(() => (callback as any).next(null), 0);
       }
       return () => {};
     });
@@ -144,8 +148,7 @@ describe('Auth Flow Complete Integration Tests', () => {
     expect(document.cookie).toContain('test-session-cookie-value-12345');
     
     // Verify navigation
-    expect(mockPush).toHaveBeenCalledWith('/library/book');
-    expect(mockRefresh).toHaveBeenCalled();
+    expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
   });
 
   it('should handle cookie polling timeout gracefully', async () => {
@@ -158,7 +161,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
       } else {
-        setTimeout(() => callback.next(null), 0);
+        setTimeout(() => (callback as any).next(null), 0);
       }
       return () => {};
     });
@@ -202,7 +205,7 @@ describe('Auth Flow Complete Integration Tests', () => {
     }, { timeout: 1000 });
 
     // Should not navigate on error
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(locationMock.mockNavigate).not.toHaveBeenCalled();
   }, 10000);
 
   it('should retry session creation on failure', async () => {
@@ -215,7 +218,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
       } else {
-        setTimeout(() => callback.next(null), 0);
+        setTimeout(() => (callback as any).next(null), 0);
       }
       return () => {};
     });
@@ -264,7 +267,7 @@ describe('Auth Flow Complete Integration Tests', () => {
     // Should eventually succeed after retries (3 attempts + backoff = ~1s)
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(3);
-      expect(mockPush).toHaveBeenCalledWith('/library/book');
+      expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
     }, { timeout: 3000 });
   }, 5000);
 
@@ -278,7 +281,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
       } else {
-        setTimeout(() => callback.next(null), 0);
+        setTimeout(() => (callback as any).next(null), 0);
       }
       return () => {};
     });
@@ -328,7 +331,7 @@ describe('Auth Flow Complete Integration Tests', () => {
       if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
       } else {
-        setTimeout(() => callback.next(null), 0);
+        setTimeout(() => (callback as any).next(null), 0);
       }
       return () => {};
     });

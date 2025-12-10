@@ -1,6 +1,7 @@
 // vitest-setup.ts - IMPROVED VERSION
 import { vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
 
 // ✅ FIX: Mock Firebase environment variables BEFORE any imports
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
@@ -15,40 +16,11 @@ process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID = 'G-ABCDEFGH';
 beforeEach(() => {
   // Reset all mocks before each test
   vi.clearAllMocks();
-  
-  // ✅ FIX: Better cookie mock with proper get/set
-  let cookieStore = '';
-  
-  Object.defineProperty(document, 'cookie', {
-    get: () => cookieStore,
-    set: (value: string) => {
-      // Parse cookie string
-      const parts = value.split(';')[0].split('=');
-      const name = parts[0].trim();
-      const val = parts[1] || '';
-      
-      // Check if it's a deletion
-      if (value.includes('Max-Age=0') || value.includes('expires=Thu, 01 Jan 1970')) {
-        // Delete cookie
-        cookieStore = cookieStore
-          .split(';')
-          .filter(c => c.trim() && !c.trim().startsWith(name))
-          .join(';');
-      } else {
-        // Add/Update cookie
-        const existingCookies = cookieStore
-          .split(';')
-          .filter(c => c.trim() && !c.trim().startsWith(name));
-        existingCookies.push(`${name}=${val}`);
-        cookieStore = existingCookies.join(';');
-      }
-    },
-    configurable: true,
-  });
 });
 
 afterEach(() => {
   // Cleanup after each test
+  cleanup();
   vi.restoreAllMocks();
 });
 
@@ -183,17 +155,17 @@ const originalConsole = {
   error: console.error,
 };
 
-console.log = vi.fn();
-console.warn = vi.fn();
-console.error = (...args: any[]) => {
-  // Only show actual errors, not expected test logs
-  if (!args[0]?.includes?.('[Auth]') && 
-      !args[0]?.includes?.('[USER_CTX]') &&
-      !args[0]?.includes?.('[API Session]') &&
-      !args[0]?.includes?.('[Middleware]')) {
-    originalConsole.error(...args);
-  }
-};
+// console.log = vi.fn();
+// console.warn = vi.fn();
+// console.error = (...args: any[]) => {
+//   // Only show actual errors, not expected test logs
+//   if (!args[0]?.includes?.('[Auth]') && 
+//       !args[0]?.includes?.('[USER_CTX]') &&
+//       !args[0]?.includes?.('[API Session]') &&
+//       !args[0]?.includes?.('[Middleware]')) {
+//     originalConsole.error(...args);
+//   }
+// };
 
 // Export cleanup utilities
 export const cleanupTestEnvironment = () => {
