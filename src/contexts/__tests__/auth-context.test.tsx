@@ -1,6 +1,6 @@
-// src/contexts/__tests__/auth-context.test.tsx - UPDATED VERSION
+// src/contexts/__tests__/auth-context.test.tsx - FIXED VERSION
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
-import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, act, cleanup, fireEvent } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../auth-context';
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
@@ -66,7 +66,6 @@ describe('AuthContext Unit Tests', () => {
     mockPush.mockClear();
     mockRefresh.mockClear();
     
-    // ✅ FIX: Mock window.location.assign
     mockNavigate = vi.fn();
     Object.defineProperty(window, 'location', {
       value: {
@@ -219,6 +218,40 @@ describe('AuthContext Unit Tests', () => {
         expect(screen.getByTestId('error')).toHaveTextContent('Network error');
       });
     });
+    
+    // ✅ NEW: Email validation test
+    it('should validate email before sign-in', async () => {
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
+        setTimeout(() => callback(null), 0);
+        return () => {};
+      });
+
+      const TestInvalidEmail = () => {
+        const { error, signInWithEmail } = useAuth();
+        return (
+          <div>
+            <div data-testid="error">{error || 'no-error'}</div>
+            <button onClick={() => signInWithEmail('invalid-email', 'password123')}>
+              Sign In
+            </button>
+          </div>
+        );
+      };
+
+      render(
+        <AuthProvider>
+          <TestInvalidEmail />
+        </AuthProvider>
+      );
+
+      await waitFor(() => screen.getByText('Sign In'));
+
+      fireEvent.click(screen.getByText('Sign In'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent('Please enter a valid email address');
+      });
+    });
   });
 
   describe('State Management', () => {
@@ -312,6 +345,7 @@ describe('AuthContext Unit Tests', () => {
   });
 
   describe('Session Cookie Integration', () => {
+    // ✅ FIXED: Test should succeed on attempt 2 (within maxRetries=2)
     it('should retry session cookie creation on failure', async () => {
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
         setTimeout(() => callback(null), 0);
@@ -335,9 +369,11 @@ describe('AuthContext Unit Tests', () => {
                          input;
 
         if (urlString.includes('/api/auth/session') && options?.method === 'POST') {
-          if (attempts < 3) {
+          // ✅ FIXED: Fail on attempt 1, succeed on attempt 2
+          if (attempts < 2) {
             return Promise.resolve({
               ok: false,
+              status: 500,
               json: async () => ({ error: 'temporary' }),
             } as Response);
           }
@@ -373,11 +409,12 @@ describe('AuthContext Unit Tests', () => {
         signInButton?.click();
       });
 
+      // ✅ Should succeed after exactly 2 attempts
       await waitFor(() => {
-        expect(attempts).toBeGreaterThanOrEqual(3);
+        expect(attempts).toBe(2);
         expect(mockNavigate).toHaveBeenCalledWith('/library/book');
-      }, { timeout: 5000 });
-    });
+      }, { timeout: 3000 });
+    }, 5000);
 
     it('should show error after max retries exceeded', async () => {
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {

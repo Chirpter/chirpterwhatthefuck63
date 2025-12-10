@@ -1,4 +1,4 @@
-// src/contexts/auth-context.tsx - PRODUCTION READY (FIXED TESTS)
+// src/contexts/auth-context.tsx - PRODUCTION READY (PERFORMANCE OPTIMIZED)
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -32,8 +32,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // --- Helper Functions ---
 
 /**
- * ✅ FIXED: Simplified session creation - trust server response
- * Removed cookie verification to fix timeout issues in tests
+ * ✅ OPTIMIZED: Reduced retry delay for faster auth
+ * Only retry on 5xx errors, fail fast on 4xx
  */
 async function setSessionCookie(idToken: string, maxRetries = 2): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -50,26 +50,28 @@ async function setSessionCookie(idToken: string, maxRetries = 2): Promise<boolea
       if (response.ok) {
         console.log('✅ [Auth] Session API returned success');
         return true;
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error(`❌ [Auth] Session API error (attempt ${attempt}):`, errorData);
-        
-        // Don't retry on 4xx errors (client errors)
-        if (response.status >= 400 && response.status < 500) {
-          console.error('❌ [Auth] Client error, not retrying');
-          return false;
-        }
-        
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
-        }
+      }
+      
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ [Auth] Session API error (attempt ${attempt}):`, errorData);
+      
+      // ✅ FAST FAIL: Don't retry on 4xx errors (client errors)
+      if (response.status >= 400 && response.status < 500) {
+        console.error('❌ [Auth] Client error, not retrying');
+        return false;
+      }
+      
+      // ✅ OPTIMIZED: Reduced delay (100ms, 200ms instead of 300ms, 600ms)
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
       }
       
     } catch (error) {
       console.error(`❌ [Auth] Session cookie attempt ${attempt} failed:`, error);
       
       if (attempt === maxRetries) return false;
-      await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+      // ✅ OPTIMIZED: Reduced delay on network errors
+      await new Promise(resolve => setTimeout(resolve, 100 * attempt));
     }
   }
   
@@ -78,7 +80,7 @@ async function setSessionCookie(idToken: string, maxRetries = 2): Promise<boolea
 }
 
 /**
- * ✅ OPTIMIZED: Faster cookie cleanup
+ * ✅ OPTIMIZED: Faster cookie cleanup, no retry needed
  */
 async function clearSessionCookie(): Promise<boolean> {
   try {
@@ -91,6 +93,21 @@ async function clearSessionCookie(): Promise<boolean> {
     console.error('❌ [Auth] Failed to clear session cookie:', error);
     return false;
   }
+}
+
+/**
+ * ✅ NEW: Email validation helper
+ */
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email.trim());
+}
+
+/**
+ * ✅ NEW: Password validation helper
+ */
+function isValidPassword(password: string): boolean {
+  return password.length >= 6;
 }
 
 // --- Auth Provider Component ---
@@ -130,11 +147,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case 'auth/weak-password':
           message = 'Password must be at least 6 characters long.';
           break;
+        case 'auth/invalid-email':
+          message = 'Invalid email address.';
+          break;
         case 'auth/too-many-requests':
           message = 'Access temporarily disabled due to many failed attempts. Try again later or reset your password.';
           break;
         case 'auth/network-request-failed':
           message = 'Network error. Please check your connection and try again.';
+          break;
+        case 'auth/popup-closed-by-user':
+          message = 'Sign-in popup was closed. Please try again.';
           break;
         default:
           console.error('[AuthContext] Unhandled auth error:', err);
@@ -145,11 +168,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   /**
-   * ✅ OPTIMIZED: Performs auth operation with proper locking mechanism
+   * ✅ OPTIMIZED: Performs auth operation with proper locking and validation
    */
   const performAuthOperation = useCallback(async (
-    operation: () => Promise<FirebaseUser | null>
+    operation: () => Promise<FirebaseUser | null>,
+    validateInputs?: () => string | null // ✅ NEW: Pre-validation
   ): Promise<boolean> => {
+    // ✅ NEW: Validate inputs before starting
+    if (validateInputs) {
+      const validationError = validateInputs();
+      if (validationError) {
+        setError(validationError);
+        return false;
+      }
+    }
+    
     // If there's an ongoing operation, wait for it
     if (authOperationLock.current) {
       console.warn('[Auth] Operation already in progress, waiting...');
@@ -172,10 +205,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("Could not create a server session. Please try again.");
         }
         
-        // Use window.location for cleaner navigation after login
-        if (typeof window !== 'undefined' && window.location.assign) {
-          window.location.assign('/library/book');
-        } else if (typeof window !== 'undefined') {
+        // ✅ OPTIMIZED: Use window.location.href for instant navigation
+        if (typeof window !== 'undefined') {
           window.location.href = '/library/book';
         }
         
@@ -195,12 +226,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [handleAuthError]);
 
   const signUpWithEmail = useCallback((email: string, pass: string) => 
-    performAuthOperation(() => createUserWithEmailAndPassword(auth, email, pass).then(c => c.user)),
+    performAuthOperation(
+      () => createUserWithEmailAndPassword(auth, email, pass).then(c => c.user),
+      () => {
+        if (!isValidEmail(email)) return 'Please enter a valid email address.';
+        if (!isValidPassword(pass)) return 'Password must be at least 6 characters long.';
+        return null;
+      }
+    ),
     [performAuthOperation]
   );
 
   const signInWithEmail = useCallback((email: string, pass: string) => 
-    performAuthOperation(() => signInWithEmailAndPassword(auth, email, pass).then(c => c.user)),
+    performAuthOperation(
+      () => signInWithEmailAndPassword(auth, email, pass).then(c => c.user),
+      () => {
+        if (!isValidEmail(email)) return 'Please enter a valid email address.';
+        if (!isValidPassword(pass)) return 'Password must be at least 6 characters long.';
+        return null;
+      }
+    ),
     [performAuthOperation]
   );
   
@@ -210,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   /**
-   * ✅ OPTIMIZED: Logout with proper cleanup and navigation
+   * ✅ OPTIMIZED: Parallel logout operations for faster response
    */
   const logout = useCallback(async (): Promise<void> => {
     // Wait for any ongoing auth operation
@@ -220,21 +265,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     try {
-      await signOut(auth);
-      await clearSessionCookie();
+      // ✅ OPTIMIZED: Run logout operations in parallel
+      await Promise.all([
+        signOut(auth),
+        clearSessionCookie()
+      ]);
       
-      // Use window.location for cleaner navigation after logout
-      if (typeof window !== 'undefined' && window.location.assign) {
-        window.location.assign('/login?reason=logged_out');
-      } else if (typeof window !== 'undefined') {
+      // ✅ OPTIMIZED: Instant navigation
+      if (typeof window !== 'undefined') {
         window.location.href = '/login?reason=logged_out';
       }
     } catch (error) {
       console.error('[AuthContext] Error during logout:', error);
       // Force logout even on error
-      if (typeof window !== 'undefined' && window.location.assign) {
-        window.location.assign('/login?reason=error');
-      } else if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined') {
         window.location.href = '/login?reason=error';
       }
     }
