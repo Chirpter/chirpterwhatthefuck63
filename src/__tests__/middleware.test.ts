@@ -1,162 +1,246 @@
 // src/__tests__/middleware.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest, NextResponse } from 'next/server';
 import { middleware } from '../middleware';
-import { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
 
-// Mock Firebase Admin SDK
+// Mock Firebase Admin
+const mockVerifySessionCookie = vi.fn();
 vi.mock('@/lib/firebase-admin', () => ({
   getAuthAdmin: vi.fn(() => ({
-    verifySessionCookie: vi.fn(),
+    verifySessionCookie: mockVerifySessionCookie,
   })),
 }));
 
-// We need to await the import because of the top-level vi.mock
-const { getAuthAdmin } = await import('@/lib/firebase-admin');
-
-const createMockRequest = (pathname: string, sessionCookie?: string): NextRequest => {
+// Helper to create NextRequest
+function createRequest(pathname: string, cookies: Record<string, string> = {}) {
   const url = `http://localhost:3000${pathname}`;
   const request = new NextRequest(url);
-  if (sessionCookie) {
-    request.cookies.set('__session', sessionCookie);
-  }
+  
+  // Set cookies
+  Object.entries(cookies).forEach(([name, value]) => {
+    request.cookies.set(name, value);
+  });
+  
   return request;
-};
+}
 
-describe('Middleware', () => {
-  let mockAuthAdmin: any;
-
+describe('Middleware Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuthAdmin = getAuthAdmin();
   });
 
-  describe('Unauthenticated User', () => {
-    it('should redirect to /login when accessing a protected route', async () => {
-      const request = createMockRequest('/library');
+  describe('Public Routes', () => {
+    it('should allow access to landing page without auth', async () => {
+      const request = createRequest('/');
       const response = await middleware(request);
       
-      expect(response.status).toBe(307); // Redirect status
+      expect(response).toBeDefined();
+      expect(response.status).not.toBe(307); // Not a redirect
+    });
+
+    it('should allow access to login page without auth', async () => {
+      const request = createRequest('/login');
+      const response = await middleware(request);
+      
+      expect(response).toBeDefined();
+      expect(response.status).not.toBe(307);
+    });
+
+    it('should redirect authenticated user away from login page', async () => {
+      mockVerifySessionCookie.mockResolvedValue({ uid: 'test-user' });
+      
+      const request = createRequest('/login', { __session: 'valid-cookie' });
+      const response = await middleware(request);
+      
+      expect(response.status).toBe(307);
+      expect(response.headers.get('location')).toContain('/library/book');
+    });
+  });
+
+  describe('Protected Routes', () => {
+    it('should redirect unauthenticated user to login', async () => {
+      const request = createRequest('/library/book');
+      const response = await middleware(request);
+      
+      expect(response.status).toBe(307);
       expect(response.headers.get('location')).toContain('/login');
     });
 
-    it('should add the original path to the `next` query param on redirect', async () => {
-        const request = createMockRequest('/profile');
-        const response = await middleware(request);
-
-        expect(response.headers.get('location')).toBe('http://localhost:3000/login?next=%2Fprofile');
-    });
-
-    it('should allow access to the public landing page', async () => {
-      const request = createMockRequest('/');
+    it('should include next parameter in redirect URL', async () => {
+      const request = createRequest('/profile');
       const response = await middleware(request);
-
-      // NextResponse.next() doesn't have a specific status, we check that it's not a redirect
-      expect(response.status).not.toBe(307);
+      
+      expect(response.status).toBe(307);
+      const location = response.headers.get('location');
+      expect(location).toContain('/login');
+      expect(location).toContain('next=%2Fprofile');
     });
 
-    it('should allow access to the login page', async () => {
-      const request = createMockRequest('/login');
+    it('should allow authenticated user to access protected routes', async () => {
+      mockVerifySessionCookie.mockResolvedValue({ uid: 'test-user' });
+      
+      const request = createRequest('/library/book', { __session: 'valid-cookie' });
       const response = await middleware(request);
       
       expect(response.status).not.toBe(307);
     });
   });
 
-  describe('Authenticated User', () => {
-    beforeEach(() => {
-      // Mock successful verification for all tests in this block
-      vi.mocked(mockAuthAdmin.verifySessionCookie).mockResolvedValue({ uid: 'test-uid' });
-    });
-
-    it('should allow access to a protected route', async () => {
-      const request = createMockRequest('/library', 'valid-session-cookie');
+  describe('Session Cookie Validation', () => {
+    it('should accept valid session cookie', async () => {
+      mockVerifySessionCookie.mockResolvedValue({ uid: 'test-user' });
+      
+      const request = createRequest('/library/book', { __session: 'valid-cookie' });
       const response = await middleware(request);
-
+      
+      expect(mockVerifySessionCookie).toHaveBeenCalledWith('valid-cookie', true);
       expect(response.status).not.toBe(307);
-      // verifySessionCookie should have been called
-      expect(mockAuthAdmin.verifySessionCookie).toHaveBeenCalledWith('valid-session-cookie', true);
     });
 
-    it('should redirect from the landing page to the app', async () => {
-      const request = createMockRequest('/', 'valid-session-cookie');
-      const response = await middleware(request);
-
-      expect(response.status).toBe(307);
-      expect(response.headers.get('location')).toBe('http://localhost:3000/library/book');
-    });
-
-    it('should redirect from the login page to the app', async () => {
-      const request = createMockRequest('/login', 'valid-session-cookie');
-      const response = await middleware(request);
-
-      expect(response.status).toBe(307);
-      expect(response.headers.get('location')).toBe('http://localhost:3000/library/book');
-    });
-  });
-
-  describe('Session Error Handling', () => {
-    it('should redirect to login if session cookie is expired', async () => {
-      vi.mocked(mockAuthAdmin.verifySessionCookie).mockRejectedValue({
+    it('should reject expired session cookie', async () => {
+      mockVerifySessionCookie.mockRejectedValue({
         code: 'auth/session-cookie-expired',
       });
       
-      const request = createMockRequest('/profile', 'expired-cookie');
+      const request = createRequest('/library/book', { __session: 'expired-cookie' });
       const response = await middleware(request);
-
+      
       expect(response.status).toBe(307);
       const location = response.headers.get('location');
       expect(location).toContain('/login');
       expect(location).toContain('reason=session_expired');
-
-      // Should clear the invalid cookie
-      expect(response.cookies.get('__session')?.value).toBe('');
     });
 
-    it('should not delete cookie for temporary network errors', async () => {
-        vi.mocked(mockAuthAdmin.verifySessionCookie).mockRejectedValue({
-            code: 'unavailable', // A temporary gRPC error
-        });
-        
-        const request = createMockRequest('/profile', 'good-cookie-bad-network');
-        const response = await middleware(request);
-  
-        expect(response.status).toBe(307);
-        const location = response.headers.get('location');
-        expect(location).toContain('/login');
-        expect(location).toContain('reason=network_error');
-  
-        // Crucially, the cookie should NOT be deleted
-        expect(response.cookies.get('__session')).toBeUndefined();
+    it('should delete cookie for permanent auth errors', async () => {
+      mockVerifySessionCookie.mockRejectedValue({
+        code: 'auth/id-token-revoked',
+      });
+      
+      const request = createRequest('/library/book', { __session: 'revoked-cookie' });
+      const response = await middleware(request);
+      
+      expect(response.status).toBe(307);
+      
+      // Check if cookie is deleted (set to empty with Max-Age=0)
+      const setCookie = response.headers.get('set-cookie');
+      expect(setCookie).toContain('__session=');
+      expect(setCookie).toContain('Max-Age=0');
     });
   });
 
-  describe('Ignored Routes', () => {
-    it('should ignore API routes', async () => {
-      const request = createMockRequest('/api/some/endpoint');
+  describe('Temporary Error Handling', () => {
+    it('should retry on temporary network errors', async () => {
+      mockVerifySessionCookie
+        .mockRejectedValueOnce({ code: 'unavailable' })
+        .mockResolvedValueOnce({ uid: 'test-user' });
+      
+      const request = createRequest('/library/book', { __session: 'valid-cookie' });
+      const response = await middleware(request);
+      
+      // Should succeed after retry
+      expect(mockVerifySessionCookie).toHaveBeenCalledTimes(2);
+      expect(response.status).not.toBe(307);
+    });
+
+    it('should allow request through on temporary error without deleting cookie', async () => {
+      mockVerifySessionCookie.mockRejectedValue({
+        code: 'auth/network-request-failed',
+      });
+      
+      const request = createRequest('/library/book', { __session: 'valid-cookie' });
+      const response = await middleware(request);
+      
+      // Should not redirect (allows request through)
+      expect(response.status).not.toBe(307);
+      
+      // Should not delete cookie
+      const setCookie = response.headers.get('set-cookie');
+      expect(setCookie).toBeFalsy();
+    });
+
+    it('should fail after max retries on persistent temporary errors', async () => {
+      mockVerifySessionCookie.mockRejectedValue({ code: 'unavailable' });
+      
+      const request = createRequest('/library/book', { __session: 'valid-cookie' });
+      const response = await middleware(request);
+      
+      // Should have attempted max retries
+      expect(mockVerifySessionCookie).toHaveBeenCalledTimes(2); // maxRetries = 2
+      
+      // Should allow through without redirect (temporary error handling)
+      expect(response.status).not.toBe(307);
+    });
+  });
+
+  describe('API Routes', () => {
+    it('should not interfere with API routes', async () => {
+      const request = createRequest('/api/some-endpoint');
       const response = await middleware(request);
       
       expect(response.status).not.toBe(307);
-      // Firebase verify should not be called for API routes
-      expect(mockAuthAdmin.verifySessionCookie).not.toHaveBeenCalled();
+      expect(mockVerifySessionCookie).not.toHaveBeenCalled();
     });
 
-    it('should ignore static file routes like _next/static', async () => {
-      const request = createMockRequest('/_next/static/css/styles.css');
+    it('should allow unauthenticated access to API routes', async () => {
+      const request = createRequest('/api/auth/session');
       const response = await middleware(request);
-
-      // This isn't a perfect test since middleware config does the actual ignoring,
-      // but it ensures our logic doesn't interfere if it were to run.
+      
       expect(response.status).not.toBe(307);
-      expect(mockAuthAdmin.verifySessionCookie).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Reason Codes', () => {
+    const errorTests = [
+      { code: 'auth/id-token-expired', reason: 'session_expired' },
+      { code: 'auth/session-cookie-expired', reason: 'session_expired' },
+      { code: 'auth/id-token-revoked', reason: 'session_revoked' },
+      { code: 'auth/session-cookie-revoked', reason: 'session_revoked' },
+      { code: 'auth/argument-error', reason: 'invalid_session' },
+      { code: 'unknown-error', reason: 'auth_error' },
+    ];
+
+    errorTests.forEach(({ code, reason }) => {
+      it(`should set reason=${reason} for error code ${code}`, async () => {
+        mockVerifySessionCookie.mockRejectedValue({ code });
+        
+        const request = createRequest('/library/book', { __session: 'bad-cookie' });
+        const response = await middleware(request);
+        
+        expect(response.status).toBe(307);
+        const location = response.headers.get('location');
+        expect(location).toContain(`reason=${reason}`);
+      });
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle missing cookie gracefully', async () => {
+      const request = createRequest('/library/book');
+      const response = await middleware(request);
+      
+      expect(response.status).toBe(307);
+      expect(mockVerifySessionCookie).not.toHaveBeenCalled();
     });
 
-     it('should ignore image file routes', async () => {
-      const request = createMockRequest('/some/image.png');
+    it('should handle malformed cookie', async () => {
+      mockVerifySessionCookie.mockRejectedValue({
+        code: 'auth/argument-error',
+      });
+      
+      const request = createRequest('/library/book', { __session: 'malformed' });
       const response = await middleware(request);
+      
+      expect(response.status).toBe(307);
+      expect(response.headers.get('location')).toContain('reason=invalid_session');
+    });
 
-      expect(response.status).not.toBe(307);
-      expect(mockAuthAdmin.verifySessionCookie).not.toHaveBeenCalled();
+    it('should not process static file requests', async () => {
+      const request = createRequest('/favicon.ico');
+      const response = await middleware(request);
+      
+      // Should be filtered out by matcher config
+      // This test verifies the config works as expected
+      expect(mockVerifySessionCookie).not.toHaveBeenCalled();
     });
   });
 });

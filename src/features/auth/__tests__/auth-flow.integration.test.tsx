@@ -4,18 +4,22 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { UserProvider } from '@/contexts/user-context';
 import LoginView from '@/features/auth/components/LoginView';
-import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, type NextOrObserver, type User } from 'firebase/auth';
 
 // Mock Firebase Auth
-vi.mock('firebase/auth', () => ({
-  getAuth: vi.fn(() => ({})),
-  onAuthStateChanged: vi.fn(),
-  signOut: vi.fn(),
-  signInWithEmailAndPassword: vi.fn(),
-  createUserWithEmailAndPassword: vi.fn(),
-  signInWithPopup: vi.fn(),
-  GoogleAuthProvider: vi.fn(),
-}));
+vi.mock('firebase/auth', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('firebase/auth')>();
+    return {
+        ...actual,
+        getAuth: vi.fn(() => ({})),
+        onAuthStateChanged: vi.fn(),
+        signOut: vi.fn(),
+        signInWithEmailAndPassword: vi.fn(),
+        createUserWithEmailAndPassword: vi.fn(),
+        signInWithPopup: vi.fn(),
+        GoogleAuthProvider: vi.fn(),
+    };
+});
 
 // Mock Next.js router
 const mockPush = vi.fn();
@@ -66,6 +70,15 @@ describe('Auth Flow Integration Tests', () => {
     vi.restoreAllMocks();
   });
 
+  // Helper to correctly invoke the onAuthStateChanged callback
+  const callObserver = (observer: NextOrObserver<User>, user: User | null) => {
+    if (typeof observer === 'function') {
+        observer(user);
+    } else if (observer.next) {
+        observer.next(user);
+    }
+  };
+
   describe('Initial Auth State', () => {
     it('should start in loading state', () => {
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
@@ -87,11 +100,11 @@ describe('Auth Flow Integration Tests', () => {
       const mockUser = {
         uid: 'test-123',
         email: 'test@example.com',
-        getIdToken: vi.fn().mockResolvedValue('fake-id-token'),
+        getIdToken: vi.fn().mockResolvedValue('fake-token'),
       };
 
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        setTimeout(() => callback(mockUser as any), 0);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        setTimeout(() => callObserver(observer, mockUser as any), 0);
         return () => {};
       });
 
@@ -108,8 +121,8 @@ describe('Auth Flow Integration Tests', () => {
     });
 
     it('should resolve to unauthenticated state when no user', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        setTimeout(() => callback(null), 0);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        setTimeout(() => callObserver(observer, null), 0);
         return () => {};
       });
 
@@ -135,10 +148,10 @@ describe('Auth Flow Integration Tests', () => {
       };
 
       // Setup: Initially no user
-      let authCallback: any;
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        authCallback = callback;
-        setTimeout(() => callback(null), 0);
+      let authCallback: NextOrObserver<User>;
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        authCallback = observer;
+        setTimeout(() => callObserver(observer, null), 0);
         return () => {};
       });
 
@@ -193,7 +206,7 @@ describe('Auth Flow Integration Tests', () => {
 
       // Simulate Firebase auth state change after successful login
       await waitFor(() => {
-        if (authCallback) authCallback(mockUser);
+        if (authCallback) callObserver(authCallback, mockUser as any);
       });
 
       // Should complete sign in
@@ -217,8 +230,8 @@ describe('Auth Flow Integration Tests', () => {
     });
 
     it('should handle login failure with proper error message', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        setTimeout(() => callback(null), 0);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        setTimeout(() => callObserver(observer, null), 0);
         return () => {};
       });
 
@@ -259,8 +272,8 @@ describe('Auth Flow Integration Tests', () => {
     });
 
     it('should prevent concurrent login attempts', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        setTimeout(() => callback(null), 0);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        setTimeout(() => callObserver(observer, null), 0);
         return () => {};
       });
 
@@ -339,10 +352,10 @@ describe('Auth Flow Integration Tests', () => {
         email: 'test@example.com',
       };
 
-      let authCallback: any;
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        authCallback = callback;
-        setTimeout(() => callback(mockUser as any), 0);
+      let authCallback: NextOrObserver<User>;
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        authCallback = observer;
+        setTimeout(() => callObserver(observer, mockUser as any), 0);
         return () => {};
       });
 
@@ -377,7 +390,7 @@ describe('Auth Flow Integration Tests', () => {
 
       // Simulate auth state change
       await waitFor(() => {
-        if (authCallback) authCallback(null);
+        if (authCallback) callObserver(authCallback, null);
       });
 
       // Verify session API was called
@@ -402,8 +415,8 @@ describe('Auth Flow Integration Tests', () => {
         getIdToken: vi.fn().mockResolvedValue('fake-token'),
       };
 
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        setTimeout(() => callback(null), 0);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        setTimeout(() => callObserver(observer, null), 0);
         return () => {};
       });
 
@@ -459,8 +472,8 @@ describe('Auth Flow Integration Tests', () => {
         getIdToken: vi.fn().mockResolvedValue('fake-token'),
       };
 
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        setTimeout(() => callback(null), 0);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observer) => {
+        setTimeout(() => callObserver(observer, null), 0);
         return () => {};
       });
 

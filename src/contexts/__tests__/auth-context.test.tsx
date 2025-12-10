@@ -6,10 +6,13 @@ import { AuthProvider, useAuth } from '../auth-context';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 
-// Mock Firebase Auth
+// Mock Firebase Auth with proper types
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => ({})),
-  onAuthStateChanged: vi.fn(),
+  onAuthStateChanged: vi.fn((auth, observerOrNext) => {
+    // Return unsubscribe function
+    return () => {};
+  }),
   signOut: vi.fn(),
   createUserWithEmailAndPassword: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
@@ -71,7 +74,7 @@ describe('AuthContext Unit Tests', () => {
   describe('Initialization', () => {
     it('should initialize with loading state', () => {
       // Mock onAuthStateChanged to never call callback (simulating loading)
-      vi.mocked(onAuthStateChanged).mockImplementation(() => {
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
         return () => {}; // Return unsubscribe function
       });
 
@@ -93,8 +96,10 @@ describe('AuthContext Unit Tests', () => {
       };
 
       // Mock onAuthStateChanged to immediately call callback with user
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(mockUser as FirebaseUser);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(mockUser as FirebaseUser);
+        }
         return () => {};
       });
 
@@ -112,8 +117,10 @@ describe('AuthContext Unit Tests', () => {
 
     it('should handle null user (logged out)', async () => {
       // Mock onAuthStateChanged to call callback with null
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(null);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(null);
+        }
         return () => {};
       });
 
@@ -132,8 +139,10 @@ describe('AuthContext Unit Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle auth/invalid-credential error correctly', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(null);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(null);
+        }
         return () => {};
       });
 
@@ -175,8 +184,10 @@ describe('AuthContext Unit Tests', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(null);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(null);
+        }
         return () => {};
       });
 
@@ -220,8 +231,10 @@ describe('AuthContext Unit Tests', () => {
 
   describe('State Management', () => {
     it('should clear error when clearAuthError is called', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(null);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(null);
+        }
         return () => {};
       });
 
@@ -288,8 +301,10 @@ describe('AuthContext Unit Tests', () => {
 
   describe('Concurrent Operation Protection', () => {
     it('should prevent multiple concurrent sign-in operations', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(null);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(null);
+        }
         return () => {};
       });
 
@@ -357,8 +372,10 @@ describe('AuthContext Unit Tests', () => {
 
   describe('Session Cookie Integration', () => {
     it('should retry session cookie creation on failure', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(null);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(null);
+        }
         return () => {};
       });
 
@@ -413,8 +430,10 @@ describe('AuthContext Unit Tests', () => {
     });
 
     it('should show error after max retries exceeded', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-        callback(null);
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, observerOrNext) => {
+        if (typeof observerOrNext === 'function') {
+          observerOrNext(null);
+        }
         return () => {};
       });
 
