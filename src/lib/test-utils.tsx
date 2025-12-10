@@ -68,39 +68,58 @@ afterEach(() => {
   cleanup();
 });
 
-
-// ✅ NEW: Mock window.location for tests
+/**
+ * ✅ FIXED: Enhanced mock with better tracking
+ */
 export function setupLocationMock() {
-  const mockNavigate = vi.fn();
+  const mockNavigate = vi.fn((path: string) => {
+    // Simulate immediate navigation for tests
+    console.log('[TEST] Navigate called:', path);
+  });
+  
   const mockReplace = vi.fn();
   
   // Store original location to restore it
   const originalLocation = window.location;
+  const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'location');
 
   // Delete the property to make it reconfigurable
   delete (window as any).location;
 
+  // ✅ FIXED: Create a proper mock that matches window.location interface
+  const mockLocation = {
+    assign: mockNavigate,
+    replace: mockReplace,
+    href: 'http://localhost:3000/',
+    origin: 'http://localhost:3000',
+    protocol: 'http:',
+    host: 'localhost:3000',
+    hostname: 'localhost',
+    port: '3000',
+    pathname: '/',
+    search: '',
+    hash: '',
+    reload: vi.fn(),
+    toString: () => 'http://localhost:3000/',
+  };
+
   Object.defineProperty(window, 'location', {
-    value: {
-      assign: mockNavigate,
-      replace: mockReplace,
-      href: '',
-      origin: 'http://localhost:3000',
-      pathname: '/',
-      search: '',
-      hash: '',
-    },
+    value: mockLocation,
     writable: true,
     configurable: true,
   });
 
   const cleanup = () => {
     // Restore the original location object
-    Object.defineProperty(window, 'location', {
-      value: originalLocation,
-      writable: true,
-      configurable: true,
-    });
+    if (originalDescriptor) {
+      Object.defineProperty(window, 'location', originalDescriptor);
+    } else {
+      Object.defineProperty(window, 'location', {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    }
     mockNavigate.mockClear();
     mockReplace.mockClear();
   };
@@ -110,10 +129,11 @@ export function setupLocationMock() {
     mockReplace,
     getNavigatedUrl: () => mockNavigate.mock.calls[0]?.[0],
     getReplacedUrl: () => mockReplace.mock.calls[0]?.[0],
-    cleanup, // Return cleanup function
+    getAllNavigations: () => mockNavigate.mock.calls.map(call => call[0]),
+    wasNavigatedTo: (path: string) => mockNavigate.mock.calls.some(call => call[0] === path),
+    cleanup,
   };
 }
-
 
 /**
  * ✅ FIXED: Isolated test wrapper with proper mocking

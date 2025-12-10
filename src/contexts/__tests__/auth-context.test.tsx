@@ -4,6 +4,7 @@ import { render, screen, waitFor, act, cleanup, fireEvent } from '@testing-libra
 import { AuthProvider, useAuth } from '../auth-context';
 import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { setupLocationMock } from '@/lib/test-utils';
 
 vi.mock('@/lib/firebase', () => ({
   auth: {},
@@ -57,7 +58,7 @@ const TestComponent = () => {
 };
 
 describe('AuthContext Unit Tests', () => {
-  let mockNavigate: Mock;
+  let locationMock: ReturnType<typeof setupLocationMock>;
 
   beforeEach(() => {
     cleanup();
@@ -66,15 +67,7 @@ describe('AuthContext Unit Tests', () => {
     mockPush.mockClear();
     mockRefresh.mockClear();
     
-    mockNavigate = vi.fn();
-    Object.defineProperty(window, 'location', {
-      value: {
-        assign: mockNavigate,
-        href: '',
-      },
-      writable: true,
-      configurable: true,
-    });
+    locationMock = setupLocationMock();
     
     global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
       const urlString = input instanceof URL ? input.toString() : 
@@ -82,10 +75,6 @@ describe('AuthContext Unit Tests', () => {
                        input;
       
       if (urlString.includes('/api/auth/session') && options?.method === 'POST') {
-        setTimeout(() => {
-          document.cookie = '__session=test-cookie; path=/';
-        }, 50);
-        
         return Promise.resolve({
           ok: true,
           json: async () => ({ success: true }),
@@ -101,6 +90,7 @@ describe('AuthContext Unit Tests', () => {
 
   afterEach(() => {
     cleanup();
+    locationMock.cleanup();
   });
 
   describe('Initial State', () => {
@@ -219,7 +209,6 @@ describe('AuthContext Unit Tests', () => {
       });
     });
     
-    // ✅ NEW: Email validation test
     it('should validate email before sign-in', async () => {
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
         setTimeout(() => callback(null), 0);
@@ -345,7 +334,6 @@ describe('AuthContext Unit Tests', () => {
   });
 
   describe('Session Cookie Integration', () => {
-    // ✅ FIXED: Test should succeed on attempt 2 (within maxRetries=2)
     it('should retry session cookie creation on failure', async () => {
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
         setTimeout(() => callback(null), 0);
@@ -369,7 +357,6 @@ describe('AuthContext Unit Tests', () => {
                          input;
 
         if (urlString.includes('/api/auth/session') && options?.method === 'POST') {
-          // ✅ FIXED: Fail on attempt 1, succeed on attempt 2
           if (attempts < 2) {
             return Promise.resolve({
               ok: false,
@@ -377,10 +364,6 @@ describe('AuthContext Unit Tests', () => {
               json: async () => ({ error: 'temporary' }),
             } as Response);
           }
-
-          setTimeout(() => {
-            document.cookie = '__session=test-cookie; path=/';
-          }, 50);
 
           return Promise.resolve({
             ok: true,
@@ -409,10 +392,9 @@ describe('AuthContext Unit Tests', () => {
         signInButton?.click();
       });
 
-      // ✅ Should succeed after exactly 2 attempts
       await waitFor(() => {
         expect(attempts).toBe(2);
-        expect(mockNavigate).toHaveBeenCalledWith('/library/book');
+        expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
       }, { timeout: 3000 });
     }, 5000);
 

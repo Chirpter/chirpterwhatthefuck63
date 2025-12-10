@@ -100,7 +100,6 @@ describe('Logout Flow Tests', () => {
 
       await waitFor(() => {
         expect(vi.mocked(signOut)).toHaveBeenCalledTimes(1);
-        // ✅ FIX: Check for credentials: 'include' in fetch call
         expect(global.fetch).toHaveBeenCalledWith('/api/auth/session', { 
           method: 'DELETE',
           credentials: 'include'
@@ -137,7 +136,6 @@ describe('Logout Flow Tests', () => {
       fireEvent.click(screen.getByText('Logout'));
 
       await waitFor(() => {
-        // ✅ FIX: Check for credentials: 'include'
         expect(global.fetch).toHaveBeenCalledWith('/api/auth/session', { 
           method: 'DELETE',
           credentials: 'include'

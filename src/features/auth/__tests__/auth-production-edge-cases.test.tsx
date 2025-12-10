@@ -95,8 +95,6 @@ describe('Auth Production Edge Cases', () => {
         } as Response)
       ) as any;
 
-      const startTime = Date.now();
-      
       render(
         <AuthProvider>
           <TestComponent />
@@ -107,12 +105,14 @@ describe('Auth Production Edge Cases', () => {
         expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
       });
 
+      const startTime = Date.now();
+      
       fireEvent.click(screen.getByText('Sign In'));
 
       await waitFor(() => {
+        expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
         const elapsed = Date.now() - startTime;
         expect(elapsed).toBeLessThan(2000);
-        expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
       }, { timeout: 3000 });
     });
 
@@ -203,7 +203,6 @@ describe('Auth Production Edge Cases', () => {
       }, { timeout: 2000 });
     });
 
-    // ✅ FIXED: Test should succeed after exactly 2 attempts
     it('should retry on 500 Server Error', async () => {
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
         setTimeout(() => (callback as any).next ? (callback as any).next(null) : callback(null), 0);
@@ -222,7 +221,6 @@ describe('Auth Production Edge Cases', () => {
       let attempts = 0;
       global.fetch = vi.fn(() => {
         attempts++;
-        // ✅ FIXED: Fail on attempt 1, succeed on attempt 2
         if (attempts < 2) {
           return Promise.resolve({
             ok: false,

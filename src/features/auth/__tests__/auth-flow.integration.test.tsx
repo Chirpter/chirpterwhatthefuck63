@@ -184,7 +184,6 @@ describe('Auth Flow Complete Integration Tests', () => {
     expect(locationMock.mockNavigate).not.toHaveBeenCalled();
   }, 5000);
 
-  // ✅ FIXED: Test should succeed after exactly 2 attempts (within maxRetries=2)
   it('should retry session creation on failure', async () => {
     const mockUser = {
       uid: 'test-123',
@@ -207,7 +206,6 @@ describe('Auth Flow Complete Integration Tests', () => {
     let attempts = 0;
     global.fetch = vi.fn(() => {
       attempts++;
-      // ✅ FIXED: Fail on attempt 1, succeed on attempt 2
       if (attempts < 2) {
         return Promise.resolve({
           ok: false,
