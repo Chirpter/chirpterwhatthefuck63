@@ -96,6 +96,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error("Could not create a server session. Please try again.");
       }
       
+      // ✅ FIX: Wait for cookie to be set before redirect
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
       // Use hard navigation to ensure full page reload and state reset
       window.location.href = '/library/book';
       return true;

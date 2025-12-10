@@ -12,9 +12,21 @@ function getLogoutReason(errorCode: string): string {
     case 'auth/id-token-revoked':
     case 'auth/session-cookie-revoked':
       return 'session_revoked';
+    case 'auth/argument-error':
+      return 'invalid_session';
     default:
       return 'auth_error';
   }
+}
+
+//  IMPROVEMENT: Differentiate temporary vs permanent errors
+function isTemporaryError(errorCode: string): boolean {
+  const temporaryErrors = [
+    'auth/network-request-failed',
+    'unavailable',
+    'deadline-exceeded',
+  ];
+  return temporaryErrors.some(code => errorCode?.includes(code));
 }
 
 export async function middleware(request: NextRequest) {
@@ -32,8 +44,17 @@ export async function middleware(request: NextRequest) {
       isAuthenticated = true;
     } catch (error: any) {
       isAuthenticated = false;
-      logoutReason = getLogoutReason(error.code || 'unknown_error');
-      response.cookies.delete('__session');
+      
+      // ✅ FIX: Don't delete cookie for temporary errors
+      if (isTemporaryError(error.code)) {
+        logoutReason = 'network_error';
+        console.warn('[Middleware] Temporary auth error:', error.code);
+      } else {
+        // Permanent error - delete cookie
+        logoutReason = getLogoutReason(error.code || 'unknown_error');
+        response.cookies.delete('__session');
+        console.error('[Middleware] Auth verification failed:', error.code);
+      }
     }
   }
 
