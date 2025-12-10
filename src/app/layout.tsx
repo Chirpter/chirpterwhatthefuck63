@@ -72,10 +72,10 @@ export default async function RootLayout({
         <Suspense fallback={<Loader />}>
           <ClientProviders initialBookmarks={combinedBookmarks}>
             {children}
+            {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
           </ClientProviders>
         </Suspense>
         <Toaster />
-        {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
       </body>
     </html>
   );

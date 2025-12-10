@@ -1,83 +1,132 @@
-'use client';
+// src/components/dev/PerformanceMonitor.tsx
+// Component để monitor auth performance trong development
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icons';
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 
-const PerformanceMonitor = () => {
-  const [fps, setFps] = useState(0);
-  const [mem, setMem] = useState({ used: 0, total: 0 });
-  const [isOpen, setIsOpen] = useState(false);
-  const { i18n } = useTranslation();
+interface PerformanceMetrics {
+  authStateChanges: number;
+  userStateChanges: number;
+  totalRenders: number;
+  lastAuthChange: number;
+  lastUserChange: number;
+  sessionCookieChecks: number;
+}
 
-  const frames = React.useRef(0);
-  const lastTime = React.useRef(performance.now());
+export const PerformanceMonitor = () => {
+  const { authUser, loading: authLoading } = useAuth();
+  const { user, loading: userLoading } = useUser();
+  
+  const [metrics, setMetrics] = useState<PerformanceMetrics>({
+    authStateChanges: 0,
+    userStateChanges: 0,
+    totalRenders: 0,
+    lastAuthChange: 0,
+    lastUserChange: 0,
+    sessionCookieChecks: 0,
+  });
 
-  const updatePerformance = useCallback(() => {
-    const now = performance.now();
-    frames.current++;
-    if (now > lastTime.current + 1000) {
-      const currentFps = Math.round((frames.current * 1000) / (now - lastTime.current));
-      setFps(currentFps);
-      frames.current = 0;
-      lastTime.current = now;
-
-      if ('memory' in performance) {
-        const memory = (performance as any).memory;
-        setMem({
-          used: Math.round(memory.usedJSHeapSize / 1024 / 1024),
-          total: Math.round(memory.totalJSHeapSize / 1024 / 1024),
-        });
-      }
-    }
-    requestAnimationFrame(updatePerformance);
-  }, []);
+  const prevAuthUserRef = useRef(authUser);
+  const prevUserRef = useRef(user);
+  const renderCount = useRef(0);
+  const startTime = useRef(Date.now());
 
   useEffect(() => {
-    const animationFrameId = requestAnimationFrame(updatePerformance);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [updatePerformance]);
+    renderCount.current++;
+    
+    const authChanged = prevAuthUserRef.current !== authUser;
+    const userChanged = prevUserRef.current !== user;
+    
+    setMetrics(prev => ({
+      authStateChanges: prev.authStateChanges + (authChanged ? 1 : 0),
+      userStateChanges: prev.userStateChanges + (userChanged ? 1 : 0),
+      totalRenders: renderCount.current,
+      lastAuthChange: authChanged ? Date.now() - startTime.current : prev.lastAuthChange,
+      lastUserChange: userChanged ? Date.now() - startTime.current : prev.lastUserChange,
+      sessionCookieChecks: prev.sessionCookieChecks,
+    }));
 
-  if (!isOpen) {
-    return (
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed bottom-2 left-2 z-[100] h-10 w-10 bg-background/80 backdrop-blur-sm"
-        onClick={() => setIsOpen(true)}
-      >
-        <Icon name="Gauge" className="h-5 w-5" />
-      </Button>
-    );
-  }
+    prevAuthUserRef.current = authUser;
+    prevUserRef.current = user;
+  }, [authUser, user]);
+
+  // Monitor cookie checks
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      if (typeof args[0] === 'string' && args[0].includes('/api/auth/session')) {
+        setMetrics(prev => ({
+          ...prev,
+          sessionCookieChecks: prev.sessionCookieChecks + 1,
+        }));
+      }
+      return originalFetch(...args);
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
+  // Only show in development
+  if (process.env.NODE_ENV !== 'development') return null;
+
+  const hasIssues = 
+    metrics.authStateChanges > 5 || 
+    metrics.userStateChanges > 5 || 
+    metrics.totalRenders > 20;
 
   return (
-    <div className="fixed bottom-2 left-2 z-[100] w-48 rounded-lg border bg-background/80 p-2 text-xs shadow-lg backdrop-blur-sm">
-      <div className="flex justify-between items-center">
-        <p className="font-bold">Dev Monitor</p>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => setIsOpen(false)}
-        >
-          <Icon name="X" className="h-4 w-4" />
-        </Button>
+    <div 
+      style={{
+        position: 'fixed',
+        bottom: 10,
+        right: 10,
+        background: hasIssues ? '#fee' : '#efe',
+        border: `2px solid ${hasIssues ? '#f00' : '#0f0'}`,
+        padding: '10px',
+        borderRadius: '8px',
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        maxWidth: '300px',
+        zIndex: 9999,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+      }}
+    >
+      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+        🔍 Auth Performance {hasIssues && '⚠️'}
       </div>
-      <div className="mt-2 space-y-1">
-        <p>
-          <span className="font-semibold">FPS:</span> {fps}
-        </p>
-        <p>
-          <span className="font-semibold">MEM:</span> {mem.used}MB / {mem.total}MB
-        </p>
-        <p>
-          <span className="font-semibold">LANG:</span> {i18n.language}
-        </p>
+      <div style={{ display: 'grid', gap: '4px' }}>
+        <div>Auth Changes: {metrics.authStateChanges}</div>
+        <div>User Changes: {metrics.userStateChanges}</div>
+        <div>Total Renders: {metrics.totalRenders}</div>
+        <div>Cookie Checks: {metrics.sessionCookieChecks}</div>
+        <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #ccc' }}>
+          Auth: {authUser ? '✓' : '✗'} {authLoading ? '⏳' : ''}
+        </div>
+        <div>
+          User: {user ? '✓' : '✗'} {userLoading ? '⏳' : ''}
+        </div>
+        {metrics.lastAuthChange > 0 && (
+          <div>Last Auth: {metrics.lastAuthChange}ms</div>
+        )}
+        {metrics.lastUserChange > 0 && (
+          <div>Last User: {metrics.lastUserChange}ms</div>
+        )}
       </div>
+      {hasIssues && (
+        <div style={{ 
+          marginTop: '8px', 
+          padding: '6px', 
+          background: '#fff3cd',
+          borderRadius: '4px',
+          color: '#856404',
+        }}>
+          ⚠️ Possible re-render loop detected!
+        </div>
+      )}
     </div>
   );
 };
-
-export { PerformanceMonitor };
