@@ -1,4 +1,4 @@
-// src/features/auth/__tests__/logout-flow.test.tsx - COMPREHENSIVE LOGOUT TESTS
+// src/features/auth/__tests__/logout-flow.test.tsx - FIXED VERSION
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
@@ -100,7 +100,11 @@ describe('Logout Flow Tests', () => {
 
       await waitFor(() => {
         expect(vi.mocked(signOut)).toHaveBeenCalledTimes(1);
-        expect(global.fetch).toHaveBeenCalledWith('/api/auth/session', { method: 'DELETE' });
+        // ✅ FIX: Check for credentials: 'include' in fetch call
+        expect(global.fetch).toHaveBeenCalledWith('/api/auth/session', { 
+          method: 'DELETE',
+          credentials: 'include'
+        });
         expect(locationMock.mockNavigate).toHaveBeenCalledWith('/login?reason=logged_out');
       });
     });
@@ -133,7 +137,11 @@ describe('Logout Flow Tests', () => {
       fireEvent.click(screen.getByText('Logout'));
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/auth/session', { method: 'DELETE' });
+        // ✅ FIX: Check for credentials: 'include'
+        expect(global.fetch).toHaveBeenCalledWith('/api/auth/session', { 
+          method: 'DELETE',
+          credentials: 'include'
+        });
       });
     });
   });
