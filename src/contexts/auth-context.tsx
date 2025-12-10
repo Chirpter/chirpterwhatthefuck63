@@ -1,7 +1,7 @@
-// src/contexts/auth-context.tsx
+// src/contexts/auth-context.tsx - CẢI TIẾN
 "use client";
 
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { 
@@ -30,18 +30,49 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // --- Helper Functions ---
-async function setSessionCookie(idToken: string): Promise<boolean> {
-  const response = await fetch('/api/auth/session', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
-  });
-  return response.ok;
+async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      
+      if (response.ok) {
+        // ✅ FIX: Verify cookie was actually set
+        const cookieSet = document.cookie.includes('__session=');
+        if (cookieSet) return true;
+        
+        // Cookie not found, retry
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+          continue;
+        }
+      }
+      
+      if (attempt === maxRetries) return false;
+      
+      // Exponential backoff for retries
+      await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+      
+    } catch (error) {
+      console.error(`[Auth] Session cookie attempt ${attempt} failed:`, error);
+      if (attempt === maxRetries) return false;
+      await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+    }
+  }
+  return false;
 }
 
 async function clearSessionCookie(): Promise<boolean> {
-  const response = await fetch('/api/auth/session', { method: 'DELETE' });
-  return response.ok;
+  try {
+    const response = await fetch('/api/auth/session', { method: 'DELETE' });
+    return response.ok;
+  } catch (error) {
+    console.error('[Auth] Failed to clear session cookie:', error);
+    return false;
+  }
 }
 
 // --- Auth Provider Component ---
@@ -50,6 +81,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  
+  // ✅ FIX: Use ref to prevent multiple concurrent auth operations
+  const authOperationInProgress = useRef(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -74,7 +109,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         message = 'Password must be at least 6 characters long.';
         break;
       case 'auth/too-many-requests':
-        message = 'Access to this account has been temporarily disabled due to many failed login attempts. You can immediately restore it by resetting your password or you can try again later.';
+        message = 'Access temporarily disabled due to many failed attempts. Try again later or reset your password.';
+        break;
+      case 'auth/network-request-failed':
+        message = 'Network error. Please check your connection and try again.';
         break;
       default:
         console.error('[AuthContext] Unhandled auth error:', err);
@@ -82,9 +120,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(message);
   }, []);
 
-  const performAuthOperation = useCallback(async (operation: () => Promise<FirebaseUser | null>): Promise<boolean> => {
+  const performAuthOperation = useCallback(async (
+    operation: () => Promise<FirebaseUser | null>
+  ): Promise<boolean> => {
+    // ✅ FIX: Prevent concurrent operations
+    if (authOperationInProgress.current) {
+      console.warn('[Auth] Operation already in progress');
+      return false;
+    }
+
+    authOperationInProgress.current = true;
     setIsSigningIn(true);
     setError(null);
+    
     try {
       const user = await operation();
       if (!user) throw new Error("Authentication failed: No user returned.");
@@ -93,22 +141,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const cookieSet = await setSessionCookie(idToken);
       
       if (!cookieSet) {
-          throw new Error("Could not create a server session. Please try again.");
+        throw new Error("Could not create a server session. Please try again.");
       }
       
-      // ✅ FIX: Wait for cookie to be set before redirect
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // ✅ FIX: Use router.push with proper cache invalidation
+      router.push('/library/book');
+      router.refresh(); // Force server components to re-fetch
       
-      // Use hard navigation to ensure full page reload and state reset
-      window.location.href = '/library/book';
       return true;
 
     } catch (err: any) {
       handleAuthError(err);
-      setIsSigningIn(false);
       return false;
+    } finally {
+      setIsSigningIn(false);
+      authOperationInProgress.current = false;
     }
-  }, [handleAuthError]);
+  }, [handleAuthError, router]);
 
   const signUpWithEmail = useCallback((email: string, pass: string) => 
     performAuthOperation(() => createUserWithEmailAndPassword(auth, email, pass).then(c => c.user)),
@@ -126,17 +175,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const logout = useCallback(async () => {
+    // ✅ FIX: Prevent logout during auth operation
+    if (authOperationInProgress.current) {
+      console.warn('[Auth] Cannot logout during active auth operation');
+      return;
+    }
+    
+    authOperationInProgress.current = true;
+    
     try {
       await signOut(auth);
-      // CRITICAL: Await the server's confirmation that the session cookie has been cleared.
       await clearSessionCookie();
+      
+      // ✅ FIX: Use router instead of window.location
+      router.push('/login?reason=logged_out');
+      router.refresh();
     } catch (error) {
-      console.error('[AuthContext] Error during logout process:', error);
+      console.error('[AuthContext] Error during logout:', error);
+      // Force logout even on error
+      router.push('/login?reason=error');
+      router.refresh();
     } finally {
-      // Only after the server has confirmed the cookie is gone, perform a hard navigation.
-      window.location.href = '/login';
+      authOperationInProgress.current = false;
     }
-  }, []);
+  }, [router]);
 
   const clearAuthError = useCallback(() => setError(null), []);
 

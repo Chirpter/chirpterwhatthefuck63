@@ -9,7 +9,7 @@ import { SettingsProvider } from '@/contexts/settings-context';
 import { BookmarkProvider } from '@/contexts/bookmark-context';
 import { vi } from 'vitest';
 import type { User as FirebaseUser } from 'firebase/auth';
-import type { User as AppUser, LibraryItem, Book, CombinedBookmark } from './types';
+import type { User as AppUser, CombinedBookmark } from './types';
 
 // --- MOCK DATA ---
 
@@ -30,9 +30,9 @@ export const mockFirebaseUser: FirebaseUser = {
   getIdTokenResult: vi.fn(),
   reload: vi.fn(),
   toJSON: vi.fn(),
-};
+} as any;
 
-// Mock AppUser (from types.ts)
+// Mock AppUser
 export const mockUser: AppUser = {
   uid: 'test-user-123',
   email: 'test@example.com',
@@ -59,43 +59,6 @@ export const mockUser: AppUser = {
   ownedBookmarkIds: [],
 };
 
-// --- MOCK DATA FOR NEW USER ---
-export const mockNewFirebaseUser: FirebaseUser = { ...mockFirebaseUser, uid: 'new-user-456', email: 'new@example.com', displayName: 'New User' };
-export const mockNewUser: AppUser = { ...mockUser, uid: 'new-user-456', email: 'new@example.com', displayName: 'New User', lastLoginDate: new Date().toISOString().split('T')[0], level: 2 };
-
-
-// Mock Library Items
-export const mockLibraryItems: Book[] = [
-    {
-      id: 'book1',
-      userId: 'test-user-123',
-      type: 'book',
-      title: { primary: 'The First Adventure' },
-      status: 'published',
-      contentStatus: 'ready',
-      coverStatus: 'ready',
-      isBilingual: false,
-      primaryLanguage: 'en',
-      chapters: [],
-      content: [],
-      presentationStyle: 'book',
-    },
-    {
-      id: 'book2',
-      userId: 'test-user-123',
-      type: 'book',
-      title: { primary: 'The Second Quest' },
-      status: 'published',
-      contentStatus: 'ready',
-      coverStatus: 'ready',
-      isBilingual: false,
-      primaryLanguage: 'en',
-      chapters: [],
-      content: [],
-      presentationStyle: 'book',
-    },
-  ];
-
 // Mock Bookmarks
 export const mockBookmarks: CombinedBookmark[] = [];
 
@@ -109,18 +72,14 @@ interface MockProviderProps {
 
 /**
  * A helper component to apply mocks before rendering children.
- * This is necessary because vi.spyOn must be called outside the render path.
  */
 const MockInjector: React.FC<MockProviderProps> = ({ children, authMock, userMock }) => {
-  // Apply spies here, outside the JSX return
   if (authMock) {
     vi.spyOn(require('@/contexts/auth-context'), 'useAuth').mockReturnValue(authMock);
   }
   if (userMock) {
     vi.spyOn(require('@/contexts/user-context'), 'useUser').mockReturnValue(userMock);
   }
-
-  // Now, just render the children. The mocks are already active.
   return <>{children}</>;
 };
 
@@ -129,13 +88,18 @@ const MockInjector: React.FC<MockProviderProps> = ({ children, authMock, userMoc
  * It allows overriding specific context values for targeted testing.
  */
 export const CombinedProviders: React.FC<MockProviderProps> = ({ children, authMock, userMock }) => {
-  // Default mocks that can be overridden by props
+  // ✅ FIX: Default mocks với correct signatures
   const defaultAuthMock: ReturnType<typeof useAuth> = {
     authUser: null,
     loading: false,
+    isSigningIn: false,
+    error: null,
     logout: vi.fn(),
-    signUpWithEmail: vi.fn().mockResolvedValue(mockFirebaseUser),
-    signInWithEmail: vi.fn().mockResolvedValue(mockFirebaseUser),
+    // ✅ FIX: Correct return type (Promise<boolean>)
+    signUpWithEmail: vi.fn().mockResolvedValue(true),
+    signInWithEmail: vi.fn().mockResolvedValue(true),
+    signInWithGoogle: vi.fn().mockResolvedValue(true),
+    clearAuthError: vi.fn(),
     ...authMock,
   };
 
@@ -168,3 +132,19 @@ export const CombinedProviders: React.FC<MockProviderProps> = ({ children, authM
     </I18nextProvider>
   );
 };
+
+// ✅ NEW: Helper to create authenticated test context
+export const createAuthenticatedContext = (user = mockUser): Partial<ReturnType<typeof useAuth>> => ({
+  authUser: mockFirebaseUser,
+  loading: false,
+  isSigningIn: false,
+  error: null,
+});
+
+// ✅ NEW: Helper to create user context
+export const createUserContext = (user = mockUser): Partial<ReturnType<typeof useUser>> => ({
+  user,
+  loading: false,
+  error: null,
+  levelUpInfo: null,
+});

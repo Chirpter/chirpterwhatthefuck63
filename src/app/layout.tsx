@@ -8,6 +8,7 @@ import { Logo } from '@/components/ui/Logo';
 import { getSystemBookmarks, getBookmarkMetadata } from '@/services/bookmark-service';
 import type { CombinedBookmark } from '@/lib/types';
 import { ClientProviders } from '@/providers/client-providers';
+import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
 
 const notoSerif = Noto_Serif({
   subsets: ['latin', 'vietnamese'],
@@ -74,6 +75,7 @@ export default async function RootLayout({
           </ClientProviders>
         </Suspense>
         <Toaster />
+        {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
       </body>
     </html>
   );

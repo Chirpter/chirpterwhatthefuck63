@@ -1,46 +1,64 @@
-// src/contexts/__tests__/auth-context.test.tsx
+// src/features/auth/__tests__/auth-flow.integration.test.tsx
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { AuthProvider, useAuth } from '../auth-context';
-import { onAuthStateChanged } from 'firebase/auth';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { UserProvider } from '@/contexts/user-context';
+import LoginView from '@/features/auth/components/LoginView';
+import { onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 
 // Mock Firebase Auth
-vi.mock('@/lib/firebase', () => ({
-  auth: {},
-}));
-
 vi.mock('firebase/auth', () => ({
+  getAuth: vi.fn(() => ({})),
   onAuthStateChanged: vi.fn(),
   signOut: vi.fn(),
-  createUserWithEmailAndPassword: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
+  createUserWithEmailAndPassword: vi.fn(),
   signInWithPopup: vi.fn(),
   GoogleAuthProvider: vi.fn(),
+}));
+
+// Mock Next.js router
+const mockPush = vi.fn();
+const mockRefresh = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+    refresh: mockRefresh,
+  }),
+  useSearchParams: () => ({
+    get: vi.fn(),
+  }),
 }));
 
 // Mock fetch for session API
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Test component to access context
-const TestComponent = () => {
-  const { authUser, loading, error, isSigningIn } = useAuth();
+// Test component to expose auth state
+const AuthStateDisplay = () => {
+  const { authUser, loading, isSigningIn, error } = useAuth();
   return (
     <div>
+      <div data-testid="auth-user">{authUser?.uid || 'null'}</div>
       <div data-testid="loading">{loading ? 'loading' : 'loaded'}</div>
-      <div data-testid="user">{authUser ? authUser.uid : 'no-user'}</div>
+      <div data-testid="signing-in">{isSigningIn ? 'true' : 'false'}</div>
       <div data-testid="error">{error || 'no-error'}</div>
-      <div data-testid="signing-in">{isSigningIn ? 'signing-in' : 'not-signing-in'}</div>
     </div>
   );
 };
 
-describe('AuthContext', () => {
+describe('Auth Flow Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
+    });
+    
+    // Mock document.cookie
+    Object.defineProperty(document, 'cookie', {
+      writable: true,
+      value: '',
     });
   });
 
@@ -48,84 +66,441 @@ describe('AuthContext', () => {
     vi.restoreAllMocks();
   });
 
-  it('should initialize with loading state', () => {
-    // Mock onAuthStateChanged to never call callback (simulating loading)
-    vi.mocked(onAuthStateChanged).mockImplementation(() => {
-      return () => {}; // Return unsubscribe function
+  describe('Initial Auth State', () => {
+    it('should start in loading state', () => {
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        // Don't call callback immediately - simulate loading
+        return () => {};
+      });
+
+      render(
+        <AuthProvider>
+          <AuthStateDisplay />
+        </AuthProvider>
+      );
+
+      expect(screen.getByTestId('loading')).toHaveTextContent('loading');
+      expect(screen.getByTestId('auth-user')).toHaveTextContent('null');
     });
 
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
+    it('should resolve to authenticated state when user exists', async () => {
+      const mockUser = {
+        uid: 'test-123',
+        email: 'test@example.com',
+        getIdToken: vi.fn().mockResolvedValue('fake-token'),
+      };
 
-    expect(screen.getByTestId('loading')).toHaveTextContent('loading');
-    expect(screen.getByTestId('user')).toHaveTextContent('no-user');
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        setTimeout(() => callback(mockUser as any), 0);
+        return () => {};
+      });
+
+      render(
+        <AuthProvider>
+          <AuthStateDisplay />
+        </AuthProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
+        expect(screen.getByTestId('auth-user')).toHaveTextContent('test-123');
+      });
+    });
+
+    it('should resolve to unauthenticated state when no user', async () => {
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        setTimeout(() => callback(null), 0);
+        return () => {};
+      });
+
+      render(
+        <AuthProvider>
+          <AuthStateDisplay />
+        </AuthProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
+        expect(screen.getByTestId('auth-user')).toHaveTextContent('null');
+      });
+    });
   });
 
-  it('should set authUser when Firebase returns user', async () => {
-    const mockUser = {
-      uid: 'test-uid-123',
-      email: 'test@example.com',
-      getIdToken: vi.fn().mockResolvedValue('fake-token'),
-    };
+  describe('Login Flow', () => {
+    it('should handle successful email login with proper state transitions', async () => {
+      const mockUser = {
+        uid: 'test-123',
+        email: 'test@example.com',
+        getIdToken: vi.fn().mockResolvedValue('fake-token'),
+      };
 
-    // Mock onAuthStateChanged to immediately call callback with user
-    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      callback(mockUser as any);
-      return () => {};
+      // Setup: Initially no user
+      let authCallback: any;
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        authCallback = callback;
+        setTimeout(() => callback(null), 0);
+        return () => {};
+      });
+
+      // Mock successful sign in
+      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
+        user: mockUser as any,
+      } as any);
+
+      // Mock successful session cookie creation
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true }),
+      });
+
+      // Simulate cookie being set
+      Object.defineProperty(document, 'cookie', {
+        writable: true,
+        value: '__session=test-cookie',
+      });
+
+      const TestComponent = () => {
+        const { signInWithEmail, isSigningIn, error } = useAuth();
+        return (
+          <div>
+            <button onClick={() => signInWithEmail('test@example.com', 'password')}>
+              Sign In
+            </button>
+            <div data-testid="signing-in">{isSigningIn ? 'true' : 'false'}</div>
+            <div data-testid="error">{error || 'no-error'}</div>
+          </div>
+        );
+      };
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      // Wait for initial auth state
+      await waitFor(() => {
+        expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
+      });
+
+      // Trigger sign in
+      fireEvent.click(screen.getByText('Sign In'));
+
+      // Should enter signing-in state
+      await waitFor(() => {
+        expect(screen.getByTestId('signing-in')).toHaveTextContent('true');
+      });
+
+      // Simulate Firebase auth state change after successful login
+      await waitFor(() => {
+        if (authCallback) authCallback(mockUser);
+      });
+
+      // Should complete sign in
+      await waitFor(() => {
+        expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
+        expect(screen.getByTestId('error')).toHaveTextContent('no-error');
+      });
+
+      // Verify session API was called
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/auth/session',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ idToken: 'fake-token' }),
+        })
+      );
+
+      // Verify navigation
+      expect(mockPush).toHaveBeenCalledWith('/library/book');
+      expect(mockRefresh).toHaveBeenCalled();
     });
 
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
+    it('should handle login failure with proper error message', async () => {
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        setTimeout(() => callback(null), 0);
+        return () => {};
+      });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      expect(screen.getByTestId('user')).toHaveTextContent('test-uid-123');
+      vi.mocked(signInWithEmailAndPassword).mockRejectedValue({
+        code: 'auth/invalid-credential',
+      });
+
+      const TestComponent = () => {
+        const { signInWithEmail, error } = useAuth();
+        return (
+          <div>
+            <button onClick={() => signInWithEmail('wrong@example.com', 'wrong')}>
+              Sign In
+            </button>
+            <div data-testid="error">{error || 'no-error'}</div>
+          </div>
+        );
+      };
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent('no-error');
+      });
+
+      fireEvent.click(screen.getByText('Sign In'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent('Invalid email or password');
+      });
+
+      // Should not navigate on error
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it('should prevent concurrent login attempts', async () => {
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        setTimeout(() => callback(null), 0);
+        return () => {};
+      });
+
+      const mockUser = {
+        uid: 'test-123',
+        getIdToken: vi.fn().mockResolvedValue('fake-token'),
+      };
+
+      let resolveSignIn: any;
+      vi.mocked(signInWithEmailAndPassword).mockImplementation(() => 
+        new Promise(resolve => {
+          resolveSignIn = () => resolve({ user: mockUser } as any);
+        })
+      );
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      });
+
+      Object.defineProperty(document, 'cookie', {
+        writable: true,
+        value: '__session=test-cookie',
+      });
+
+      const TestComponent = () => {
+        const { signInWithEmail, isSigningIn } = useAuth();
+        return (
+          <div>
+            <button onClick={() => signInWithEmail('test@example.com', 'password')}>
+              Sign In
+            </button>
+            <div data-testid="signing-in">{isSigningIn ? 'true' : 'false'}</div>
+          </div>
+        );
+      };
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
+      });
+
+      const signInButton = screen.getByText('Sign In');
+
+      // First click
+      fireEvent.click(signInButton);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('signing-in')).toHaveTextContent('true');
+      });
+
+      // Second click while first is in progress
+      fireEvent.click(signInButton);
+
+      // Should still only call Firebase once
+      expect(vi.mocked(signInWithEmailAndPassword)).toHaveBeenCalledTimes(1);
+
+      // Resolve first login
+      resolveSignIn();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
+      }, { timeout: 3000 });
     });
   });
 
-  it('should handle null user (logged out)', async () => {
-    // Mock onAuthStateChanged to call callback with null
-    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      callback(null);
-      return () => {};
-    });
+  describe('Logout Flow', () => {
+    it('should handle successful logout', async () => {
+      const mockUser = {
+        uid: 'test-123',
+        email: 'test@example.com',
+      };
 
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
+      let authCallback: any;
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        authCallback = callback;
+        setTimeout(() => callback(mockUser as any), 0);
+        return () => {};
+      });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      expect(screen.getByTestId('user')).toHaveTextContent('no-user');
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      });
+
+      const TestComponent = () => {
+        const { logout, authUser } = useAuth();
+        return (
+          <div>
+            <div data-testid="auth-user">{authUser?.uid || 'null'}</div>
+            <button onClick={logout}>Logout</button>
+          </div>
+        );
+      };
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      // Wait for initial authenticated state
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-user')).toHaveTextContent('test-123');
+      });
+
+      // Trigger logout
+      fireEvent.click(screen.getByText('Logout'));
+
+      // Simulate auth state change
+      await waitFor(() => {
+        if (authCallback) authCallback(null);
+      });
+
+      // Verify session API was called
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith(
+          '/api/auth/session',
+          expect.objectContaining({
+            method: 'DELETE',
+          })
+        );
+      });
+
+      // Verify navigation
+      expect(mockPush).toHaveBeenCalledWith('/login?reason=logged_out');
     });
   });
 
-  it('should handle auth errors correctly', async () => {
-    // Mock onAuthStateChanged
-    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      callback(null);
-      return () => {};
+  describe('Session Cookie Edge Cases', () => {
+    it('should retry session cookie creation on failure', async () => {
+      const mockUser = {
+        uid: 'test-123',
+        getIdToken: vi.fn().mockResolvedValue('fake-token'),
+      };
+
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        setTimeout(() => callback(null), 0);
+        return () => {};
+      });
+
+      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
+        user: mockUser as any,
+      } as any);
+
+      // First two attempts fail, third succeeds
+      mockFetch
+        .mockResolvedValueOnce({ ok: false })
+        .mockResolvedValueOnce({ ok: false })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });
+
+      Object.defineProperty(document, 'cookie', {
+        writable: true,
+        value: '__session=test-cookie',
+      });
+
+      const TestComponent = () => {
+        const { signInWithEmail, error } = useAuth();
+        return (
+          <div>
+            <button onClick={() => signInWithEmail('test@example.com', 'password')}>
+              Sign In
+            </button>
+            <div data-testid="error">{error || 'no-error'}</div>
+          </div>
+        );
+      };
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent('no-error');
+      });
+
+      fireEvent.click(screen.getByText('Sign In'));
+
+      // Should eventually succeed after retries
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+        expect(mockPush).toHaveBeenCalledWith('/library/book');
+      }, { timeout: 3000 });
     });
 
-    const { rerender } = render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
+    it('should show error after max retries exceeded', async () => {
+      const mockUser = {
+        uid: 'test-123',
+        getIdToken: vi.fn().mockResolvedValue('fake-token'),
+      };
 
-    // This test is limited because we can't easily trigger auth operations
-    // without more complex setup. This demonstrates the limitation of unit tests.
-    
-    await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('no-error');
+      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+        setTimeout(() => callback(null), 0);
+        return () => {};
+      });
+
+      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
+        user: mockUser as any,
+      } as any);
+
+      // All attempts fail
+      mockFetch.mockResolvedValue({ ok: false });
+
+      const TestComponent = () => {
+        const { signInWithEmail, error } = useAuth();
+        return (
+          <div>
+            <button onClick={() => signInWithEmail('test@example.com', 'password')}>
+              Sign In
+            </button>
+            <div data-testid="error">{error || 'no-error'}</div>
+          </div>
+        );
+      };
+
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent('no-error');
+      });
+
+      fireEvent.click(screen.getByText('Sign In'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent('Could not create a server session');
+      }, { timeout: 3000 });
+
+      // Should not navigate on error
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 });
