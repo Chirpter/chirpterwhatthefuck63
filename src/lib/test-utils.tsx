@@ -1,13 +1,13 @@
-// src/lib/test-utils.tsx
+// src/lib/test-utils.tsx - FIXED VERSION
 import React from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
-import { UserProvider, useUser } from '@/contexts/user-context';
+import { AuthProvider } from '@/contexts/auth-context';
+import { UserProvider } from '@/contexts/user-context';
 import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { SettingsProvider } from '@/contexts/settings-context';
 import { BookmarkProvider } from '@/contexts/bookmark-context';
-import { vi } from 'vitest';
+import { vi, beforeEach, afterEach } from 'vitest';
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { User as AppUser, CombinedBookmark } from './types';
 
@@ -62,58 +62,43 @@ export const mockUser: AppUser = {
 // Mock Bookmarks
 export const mockBookmarks: CombinedBookmark[] = [];
 
-// --- MOCK PROVIDERS WRAPPER ---
+// ✅ FIXED: Proper cleanup between tests
+let mockCleanupFunctions: Array<() => void> = [];
 
+export function registerMockCleanup(cleanup: () => void) {
+  mockCleanupFunctions.push(cleanup);
+}
+
+export function cleanupAllMocks() {
+  mockCleanupFunctions.forEach(cleanup => cleanup());
+  mockCleanupFunctions = [];
+  vi.clearAllMocks();
+}
+
+// Auto-cleanup after each test
+afterEach(() => {
+  cleanupAllMocks();
+});
+
+// ✅ FIXED: Better mock provider with proper isolation
 interface MockProviderProps {
   children: React.ReactNode;
-  authMock?: Partial<ReturnType<typeof useAuth>>;
-  userMock?: Partial<ReturnType<typeof useUser>>;
+  initialAuthUser?: FirebaseUser | null;
+  initialUser?: AppUser | null;
+  initialAuthLoading?: boolean;
+  initialUserLoading?: boolean;
 }
 
 /**
- * A helper component to apply mocks before rendering children.
+ * ✅ FIXED: Isolated test wrapper with proper mocking
  */
-const MockInjector: React.FC<MockProviderProps> = ({ children, authMock, userMock }) => {
-  if (authMock) {
-    vi.spyOn(require('@/contexts/auth-context'), 'useAuth').mockReturnValue(authMock);
-  }
-  if (userMock) {
-    vi.spyOn(require('@/contexts/user-context'), 'useUser').mockReturnValue(userMock);
-  }
-  return <>{children}</>;
-};
-
-/**
- * A utility component to wrap test components with all necessary providers.
- * It allows overriding specific context values for targeted testing.
- */
-export const CombinedProviders: React.FC<MockProviderProps> = ({ children, authMock, userMock }) => {
-  // ✅ FIX: Default mocks với correct signatures
-  const defaultAuthMock: ReturnType<typeof useAuth> = {
-    authUser: null,
-    loading: false,
-    isSigningIn: false,
-    error: null,
-    logout: vi.fn(),
-    // ✅ FIX: Correct return type (Promise<boolean>)
-    signUpWithEmail: vi.fn().mockResolvedValue(true),
-    signInWithEmail: vi.fn().mockResolvedValue(true),
-    signInWithGoogle: vi.fn().mockResolvedValue(true),
-    clearAuthError: vi.fn(),
-    ...authMock,
-  };
-
-  const defaultUserMock: ReturnType<typeof useUser> = {
-    user: null,
-    loading: false,
-    error: null,
-    levelUpInfo: null,
-    clearLevelUpInfo: vi.fn(),
-    reloadUser: vi.fn(),
-    retryUserFetch: vi.fn(),
-    ...userMock,
-  };
-  
+export const CombinedProviders: React.FC<MockProviderProps> = ({ 
+  children,
+  initialAuthUser = null,
+  initialUser = null,
+  initialAuthLoading = false,
+  initialUserLoading = false,
+}) => {
   return (
     <I18nextProvider i18n={i18n}>
       <AuthProvider>
@@ -121,9 +106,7 @@ export const CombinedProviders: React.FC<MockProviderProps> = ({ children, authM
           <SettingsProvider>
             <BookmarkProvider initialBookmarks={mockBookmarks}>
               <AudioPlayerProvider>
-                <MockInjector authMock={defaultAuthMock} userMock={defaultUserMock}>
-                  {children}
-                </MockInjector>
+                {children}
               </AudioPlayerProvider>
             </BookmarkProvider>
           </SettingsProvider>
@@ -133,18 +116,102 @@ export const CombinedProviders: React.FC<MockProviderProps> = ({ children, authM
   );
 };
 
-// ✅ NEW: Helper to create authenticated test context
-export const createAuthenticatedContext = (user = mockUser): Partial<ReturnType<typeof useAuth>> => ({
-  authUser: mockFirebaseUser,
-  loading: false,
-  isSigningIn: false,
-  error: null,
-});
+// ✅ NEW: Helper to create authenticated context
+export const createAuthenticatedMocks = () => {
+  return {
+    authUser: mockFirebaseUser,
+    loading: false,
+    isSigningIn: false,
+    error: null,
+    signUpWithEmail: vi.fn().mockResolvedValue(true),
+    signInWithEmail: vi.fn().mockResolvedValue(true),
+    signInWithGoogle: vi.fn().mockResolvedValue(true),
+    logout: vi.fn().mockResolvedValue(undefined),
+    clearAuthError: vi.fn(),
+  };
+};
 
-// ✅ NEW: Helper to create user context
-export const createUserContext = (user = mockUser): Partial<ReturnType<typeof useUser>> => ({
-  user,
-  loading: false,
-  error: null,
-  levelUpInfo: null,
-});
+// ✅ NEW: Helper to create user context mocks
+export const createUserContextMocks = (user = mockUser) => {
+  return {
+    user,
+    loading: false,
+    error: null,
+    levelUpInfo: null,
+    clearLevelUpInfo: vi.fn(),
+    reloadUser: vi.fn().mockResolvedValue(undefined),
+    retryUserFetch: vi.fn(),
+  };
+};
+
+// ✅ NEW: Helper to setup mock fetch for tests
+export const setupMockFetch = (responses: Record<string, any> = {}) => {
+  const defaultResponses = {
+    '/api/auth/session': { success: true },
+    ...responses,
+  };
+
+  global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
+    const urlString = input instanceof URL ? input.toString() : 
+                     input instanceof Request ? input.url : 
+                     input;
+    
+    // ✅ FIX: Use hasOwnProperty to safely access the property
+    const response = Object.prototype.hasOwnProperty.call(defaultResponses, urlString) 
+      ? defaultResponses[urlString as keyof typeof defaultResponses] 
+      : { success: true };
+    
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(response),
+      headers: new Headers(),
+      status: 200,
+      statusText: 'OK',
+    } as Response);
+  }) as any;
+
+  registerMockCleanup(() => {
+    vi.restoreAllMocks();
+  });
+};
+
+// ✅ NEW: Helper to setup document.cookie mock
+export const setupMockCookie = (initialCookie = '') => {
+  let cookieStore = initialCookie;
+  
+  Object.defineProperty(document, 'cookie', {
+    get: () => cookieStore,
+    set: (value: string) => {
+      // Simple cookie parser for tests
+      const parts = value.split(';')[0].split('=');
+      const name = parts[0].trim();
+      const val = parts[1] || '';
+      
+      if (value.includes('Max-Age=0') || value.includes('expires=Thu, 01 Jan 1970')) {
+        // Delete cookie
+        cookieStore = cookieStore
+          .split(';')
+          .filter(c => !c.trim().startsWith(name))
+          .join(';');
+      } else {
+        // Add/Update cookie
+        const existingCookies = cookieStore
+          .split(';')
+          .filter(c => c.trim() && !c.trim().startsWith(name));
+        existingCookies.push(`${name}=${val}`);
+        cookieStore = existingCookies.join(';');
+      }
+    },
+    configurable: true,
+  });
+
+  registerMockCleanup(() => {
+    cookieStore = '';
+  });
+
+  return {
+    getCookie: () => cookieStore,
+    setCookie: (value: string) => { document.cookie = value; },
+    clearCookies: () => { cookieStore = ''; },
+  };
+};

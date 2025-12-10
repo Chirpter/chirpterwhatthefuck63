@@ -1,4 +1,4 @@
-// src/app/api/auth/session/route.ts
+// src/app/api/auth/session/route.ts - FIXED VERSION
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
@@ -17,41 +17,62 @@ export async function POST(request: NextRequest) {
 
     const authAdmin = getAuthAdmin();
     
-    // ✅ FIX: Verify and check recent sign-in (Firebase best practice)
-    const decodedToken = await authAdmin.verifyIdToken(idToken);
+    // ✅ FIXED: Verify token and check recent sign-in
+    let decodedToken;
+    try {
+      decodedToken = await authAdmin.verifyIdToken(idToken);
+    } catch (verifyError: any) {
+      console.error('[API Session] Token verification failed:', verifyError.code);
+      return NextResponse.json(
+        { error: 'Failed to create session.', code: verifyError.code }, 
+        { status: 401 }
+      );
+    }
+    
     const authTime = decodedToken.auth_time * 1000; // Convert to ms
     const now = Date.now();
     
-    // Only accept if signed in within last 5 minutes
+    // ✅ FIXED: Proper error message matching test expectations
     if (now - authTime > FIVE_MINUTES_MS) {
+      console.warn('[API Session] Sign-in not recent enough:', { authTime, now, diff: now - authTime });
       return NextResponse.json(
         { error: 'Recent sign in required' }, 
         { status: 401 }
       );
     }
 
-    // Create session cookie
-    const sessionCookie = await authAdmin.createSessionCookie(idToken, { 
-      expiresIn: FIVE_DAYS_MS 
-    });
+    // ✅ Create session cookie
+    let sessionCookie;
+    try {
+      sessionCookie = await authAdmin.createSessionCookie(idToken, { 
+        expiresIn: FIVE_DAYS_MS 
+      });
+    } catch (cookieError: any) {
+      console.error('[API Session] Failed to create session cookie:', cookieError.code);
+      return NextResponse.json(
+        { error: 'Failed to create session.', code: cookieError.code }, 
+        { status: 401 }
+      );
+    }
     
     const response = NextResponse.json({ success: true }, { status: 200 });
     
-    // ✅ FIX: sameSite: 'strict' for better security
+    // ✅ Set cookie with strict settings
     response.cookies.set({
       name: '__session',
       value: sessionCookie,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict', // Changed from 'lax'
+      sameSite: 'strict',
       path: '/',
       maxAge: FIVE_DAYS_MS / 1000,
     });
 
+    console.log('[API Session] Session cookie created successfully for user:', decodedToken.uid);
     return response;
 
   } catch (error: any) {
-    console.error('[API Session] Error creating session:', error);
+    console.error('[API Session] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Failed to create session.', code: error.code }, 
       { status: 401 }
@@ -63,12 +84,13 @@ export async function DELETE(request: NextRequest) {
   try {
     const sessionCookie = request.cookies.get('__session')?.value;
     
-    // ✅ IMPROVEMENT: Revoke refresh tokens if session exists
+    // ✅ Revoke refresh tokens if session exists
     if (sessionCookie) {
       const authAdmin = getAuthAdmin();
       try {
         const decodedClaims = await authAdmin.verifySessionCookie(sessionCookie);
         await authAdmin.revokeRefreshTokens(decodedClaims.sub);
+        console.log('[API Session] Tokens revoked for user:', decodedClaims.sub);
       } catch (err) {
         // Log but don't fail - cookie will be cleared anyway
         console.warn('[API Session] Could not revoke tokens:', err);
@@ -78,7 +100,7 @@ export async function DELETE(request: NextRequest) {
     console.error('[API Session] Error during logout:', error);
   }
   
-  // Always clear cookie (idempotent operation)
+  // ✅ Always clear cookie (idempotent operation)
   const response = NextResponse.json({ success: true }, { status: 200 });
   response.cookies.set({
     name: '__session',
@@ -90,5 +112,6 @@ export async function DELETE(request: NextRequest) {
     maxAge: 0,
   });
 
+  console.log('[API Session] Session cookie cleared');
   return response;
 }

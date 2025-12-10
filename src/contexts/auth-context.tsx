@@ -1,4 +1,4 @@
-// src/contexts/auth-context.tsx - CẢI TIẾN
+// src/contexts/auth-context.tsx - FIXED VERSION
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -30,6 +30,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // --- Helper Functions ---
+
+/**
+ * ✅ FIXED: Proper cookie verification with retry logic
+ */
 async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -40,21 +44,28 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
       });
       
       if (response.ok) {
-        // ✅ FIX: Verify cookie was actually set
-        const cookieSet = document.cookie.includes('__session=');
-        if (cookieSet) return true;
+        // Wait for cookie to be actually set in browser
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Cookie not found, retry
-        if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 200 * attempt));
-          continue;
+        // Verify cookie exists and is valid
+        const cookies = document.cookie.split(';');
+        const sessionCookie = cookies.find(c => c.trim().startsWith('__session='));
+        
+        if (sessionCookie && sessionCookie.split('=')[1]?.length > 10) {
+          console.log('[Auth] Session cookie verified successfully');
+          return true;
         }
+        
+        console.warn('[Auth] Cookie set but not found in document.cookie, retrying...');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[Auth] Session API returned error:', errorData);
       }
       
-      if (attempt === maxRetries) return false;
-      
-      // Exponential backoff for retries
-      await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+      // Exponential backoff
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+      }
       
     } catch (error) {
       console.error(`[Auth] Session cookie attempt ${attempt} failed:`, error);
@@ -62,12 +73,18 @@ async function setSessionCookie(idToken: string, maxRetries = 3): Promise<boolea
       await new Promise(resolve => setTimeout(resolve, 200 * attempt));
     }
   }
+  
+  console.error('[Auth] Failed to set session cookie after all retries');
   return false;
 }
 
 async function clearSessionCookie(): Promise<boolean> {
   try {
     const response = await fetch('/api/auth/session', { method: 'DELETE' });
+    
+    // Wait for cookie to be cleared
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     return response.ok;
   } catch (error) {
     console.error('[Auth] Failed to clear session cookie:', error);
@@ -83,8 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   
-  // ✅ FIX: Use ref to prevent multiple concurrent auth operations
-  const authOperationInProgress = useRef(false);
+  // ✅ FIXED: Use Promise-based lock to prevent concurrent operations
+  const authOperationLock = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -120,43 +137,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(message);
   }, []);
 
+  /**
+   * ✅ FIXED: Proper locking mechanism with Promise chain
+   */
   const performAuthOperation = useCallback(async (
     operation: () => Promise<FirebaseUser | null>
   ): Promise<boolean> => {
-    // ✅ FIX: Prevent concurrent operations
-    if (authOperationInProgress.current) {
-      console.warn('[Auth] Operation already in progress');
-      return false;
+    // If there's an ongoing operation, wait for it
+    if (authOperationLock.current) {
+      console.warn('[Auth] Operation already in progress, waiting...');
+      return authOperationLock.current;
     }
 
-    authOperationInProgress.current = true;
-    setIsSigningIn(true);
-    setError(null);
-    
-    try {
-      const user = await operation();
-      if (!user) throw new Error("Authentication failed: No user returned.");
+    // Create new operation promise
+    const operationPromise = (async () => {
+      setIsSigningIn(true);
+      setError(null);
       
-      const idToken = await user.getIdToken(true);
-      const cookieSet = await setSessionCookie(idToken);
-      
-      if (!cookieSet) {
-        throw new Error("Could not create a server session. Please try again.");
+      try {
+        const user = await operation();
+        if (!user) throw new Error("Authentication failed: No user returned.");
+        
+        const idToken = await user.getIdToken(true);
+        const cookieSet = await setSessionCookie(idToken);
+        
+        if (!cookieSet) {
+          throw new Error("Could not create a server session. Please try again.");
+        }
+        
+        // ✅ Use router with proper cache invalidation
+        router.push('/library/book');
+        router.refresh();
+        
+        return true;
+
+      } catch (err: any) {
+        handleAuthError(err);
+        return false;
+      } finally {
+        setIsSigningIn(false);
+        // ✅ Clear lock AFTER operation completes
+        authOperationLock.current = null;
       }
-      
-      // ✅ FIX: Use router.push with proper cache invalidation
-      router.push('/library/book');
-      router.refresh(); // Force server components to re-fetch
-      
-      return true;
+    })();
 
-    } catch (err: any) {
-      handleAuthError(err);
-      return false;
-    } finally {
-      setIsSigningIn(false);
-      authOperationInProgress.current = false;
-    }
+    authOperationLock.current = operationPromise;
+    return operationPromise;
   }, [handleAuthError, router]);
 
   const signUpWithEmail = useCallback((email: string, pass: string) => 
@@ -174,20 +200,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [performAuthOperation]
   );
 
-  const logout = useCallback(async () => {
-    // ✅ FIX: Prevent logout during auth operation
-    if (authOperationInProgress.current) {
-      console.warn('[Auth] Cannot logout during active auth operation');
-      return;
+  /**
+   * ✅ FIXED: Proper logout with lock
+   */
+  const logout = useCallback(async (): Promise<void> => {
+    // Wait for any ongoing auth operation
+    if (authOperationLock.current) {
+      console.warn('[Auth] Waiting for ongoing operation before logout...');
+      await authOperationLock.current;
     }
-    
-    authOperationInProgress.current = true;
     
     try {
       await signOut(auth);
       await clearSessionCookie();
       
-      // ✅ FIX: Use router instead of window.location
       router.push('/login?reason=logged_out');
       router.refresh();
     } catch (error) {
@@ -195,8 +221,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Force logout even on error
       router.push('/login?reason=error');
       router.refresh();
-    } finally {
-      authOperationInProgress.current = false;
     }
   }, [router]);
 

@@ -1,4 +1,4 @@
-// src/contexts/user-context.tsx - CẢI TIẾN
+// src/contexts/user-context.tsx - FIXED VERSION
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -33,75 +33,137 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const [levelUpInfo, setLevelUpInfo] = useState<LevelUpInfo | null>(null);
   
-  // ✅ FIX: Track fetch to prevent duplicate calls
-  const fetchInProgress = useRef(false);
-  const currentUserId = useRef<string | null>(null);
+  // ✅ FIXED: More robust tracking with stable reference
+  const fetchStateRef = useRef({
+    inProgress: false,
+    currentUserId: null as string | null,
+    retryCount: 0,
+    maxRetries: 3,
+  });
+  
+  // ✅ FIXED: Stable cleanup function
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const fetchUser = useCallback(async (firebaseUser: FirebaseUser) => {
-    // ✅ Prevent duplicate fetches
-    if (fetchInProgress.current || currentUserId.current === firebaseUser.uid) {
+    const state = fetchStateRef.current;
+    
+    // ✅ Prevent duplicate fetches for same user
+    if (state.inProgress && state.currentUserId === firebaseUser.uid) {
+      console.log('[USER_CTX] Fetch already in progress for this user, skipping');
       return;
     }
 
-    fetchInProgress.current = true;
-    currentUserId.current = firebaseUser.uid;
+    state.inProgress = true;
+    state.currentUserId = firebaseUser.uid;
     setLoading(true);
     setError(null);
     
     try {
       const { user: userProfile, leveledUpInfo: levelUpData } = await createOrFetchUserProfile(firebaseUser.uid);
-      setUser(userProfile);
-      if (levelUpData) {
-        setLevelUpInfo(levelUpData);
+      
+      // ✅ Only update if still relevant (user hasn't logged out)
+      if (state.currentUserId === firebaseUser.uid) {
+        setUser(userProfile);
+        if (levelUpData) {
+          setLevelUpInfo(levelUpData);
+        }
+        state.retryCount = 0; // Reset on success
       }
     } catch (err) {
       console.error('[USER_CTX] Error fetching user profile:', err);
-      setError('Failed to load your profile. Please try again.');
-      currentUserId.current = null; // Allow retry
+      
+      // ✅ Implement retry logic
+      if (state.retryCount < state.maxRetries) {
+        state.retryCount++;
+        console.log(`[USER_CTX] Retrying fetch (${state.retryCount}/${state.maxRetries})...`);
+        
+        // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * state.retryCount));
+        
+        // Only retry if user is still the same
+        if (state.currentUserId === firebaseUser.uid) {
+          state.inProgress = false;
+          return fetchUser(firebaseUser);
+        }
+      } else {
+        setError('Failed to load your profile. Please try again.');
+        state.currentUserId = null; // Allow retry
+      }
     } finally {
       setLoading(false);
-      fetchInProgress.current = false;
+      state.inProgress = false;
     }
   }, []);
 
   useEffect(() => {
-    // ✅ Don't do anything while auth is loading
-    if (authLoading) return;
+    const state = fetchStateRef.current;
+    
+    // ✅ Cleanup previous listener
+    if (cleanupRef.current) {
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
+    
+    // Wait for auth to finish loading
+    if (authLoading) {
+      console.log('[USER_CTX] Waiting for auth to load...');
+      return;
+    }
     
     if (authUser) {
-      // ✅ Only fetch if we haven't already for this user
-      if (currentUserId.current !== authUser.uid) {
+      console.log('[USER_CTX] Auth user detected:', authUser.uid);
+      
+      // Fetch user profile if needed
+      if (state.currentUserId !== authUser.uid) {
         fetchUser(authUser);
       }
       
-      // ✅ Set up real-time listener
+      // ✅ Set up real-time listener with proper cleanup
       const unsubscribe = onSnapshot(
         doc(db, 'users', authUser.uid), 
-        (docSnap) => {
-          if (docSnap.exists()) {
-            const userData = docSnap.data() as User;
-            // ✅ FIX: Only update if data actually changed
-            setUser(prevUser => {
-              if (JSON.stringify(prevUser) === JSON.stringify(userData)) {
-                return prevUser; // Prevent unnecessary re-renders
-              }
-              return userData;
-            });
+        {
+          next: (docSnap) => {
+            if (docSnap.exists() && state.currentUserId === authUser.uid) {
+              const userData = docSnap.data() as User;
+              
+              // ✅ Deep comparison to prevent unnecessary updates
+              setUser(prevUser => {
+                if (!prevUser) return userData;
+                
+                const hasChanged = JSON.stringify(prevUser) !== JSON.stringify(userData);
+                if (!hasChanged) {
+                  return prevUser;
+                }
+                
+                console.log('[USER_CTX] User data updated from snapshot');
+                return userData;
+              });
+            }
+          },
+          error: (err) => {
+            console.error("[USER_CTX] Snapshot listener error:", err);
+            // Don't set error state for listener failures - data might still be valid
           }
-        }, 
-        (err) => {
-          console.error("[USER_CTX] Snapshot listener error:", err);
-          setError("Failed to listen for profile updates.");
         }
       );
       
-      return () => unsubscribe();
+      cleanupRef.current = unsubscribe;
+      
+      // Cleanup on unmount
+      return () => {
+        unsubscribe();
+        cleanupRef.current = null;
+      };
+      
     } else {
-      // ✅ User logged out - clear state
+      // ✅ User logged out - clear all state
+      console.log('[USER_CTX] No auth user, clearing state');
       setUser(null);
       setLoading(false);
-      currentUserId.current = null;
-      fetchInProgress.current = false;
+      setError(null);
+      state.currentUserId = null;
+      state.inProgress = false;
+      state.retryCount = 0;
     }
   }, [authUser, authLoading, fetchUser]);
   
@@ -109,8 +171,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const reloadUser = useCallback(async () => {
     if (authUser) {
-      // ✅ Force reload by clearing current user ID
-      currentUserId.current = null;
+      const state = fetchStateRef.current;
+      // Force reload by clearing current user ID
+      state.currentUserId = null;
+      state.retryCount = 0;
       await fetchUser(authUser);
     }
   }, [authUser, fetchUser]);
