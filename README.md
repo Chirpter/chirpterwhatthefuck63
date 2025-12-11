@@ -1,3 +1,4 @@
+.
 # Quy Chuẩn Kiến Trúc & Tổ Chức File Dự Án Chirpter
 
 **Ghi chú quan trọng:** Tài liệu này là kim chỉ nam, là "Hiến pháp" cho việc tổ chức và viết mã nguồn cho dự án. Mọi thay đổi về cấu trúc và file mới phải tuân thủ nghiêm ngặt các quy tắc dưới đây để đảm bảo sự nhất quán, dễ bảo trì và khả năng mở rộng.
