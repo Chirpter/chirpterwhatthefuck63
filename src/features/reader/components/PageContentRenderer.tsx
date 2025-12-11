@@ -1,3 +1,4 @@
+
 // src/features/reader/components/PageContentRenderer.tsx
 
 "use client";
@@ -27,7 +28,8 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2,
 }: PageContentRendererProps) {
-  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = useAudioPlayer();
+  const audioPlayer = useAudioPlayer();
+  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = audioPlayer;
   const segments = page.items;
   
   const currentPlayingSegmentId = useMemo(() => {
@@ -35,8 +37,8 @@ export function PageContentRenderer({
         return null;
     }
     
-    const audioPlayerSegment = audioPlayer.state.position.segmentIndex;
-    const currentChapterIndex = audioPlayer.state.position.chapterIndex ?? 0;
+    const audioPlayerSegment = audioPlayer.position.segmentIndex;
+    const currentChapterIndex = audioPlayer.position.chapterIndex ?? 0;
     
     if (itemData.type === 'book') {
         const chapter = itemData.chapters[currentChapterIndex];
@@ -50,7 +52,7 @@ export function PageContentRenderer({
     }
     
     return null;
-  }, [currentPlayingItem, itemData, audioPlayer.state.position]);
+  }, [currentPlayingItem, itemData, audioPlayer.position]);
 
   const proseThemeClass = useMemo(() => {
     if (presentationStyle === 'book') return 'prose dark:prose-invert';
