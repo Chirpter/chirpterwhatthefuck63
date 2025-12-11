@@ -1,5 +1,4 @@
 
-
 import type { PresetCategory } from './types';
 
 export interface NavLink {
@@ -88,6 +87,10 @@ export const MAX_PROMPT_LENGTH = 500;
 export const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 export const MAX_IMAGE_SIZE_MB = 2;
 
+// --- SRS State Thresholds (in days) ---
+export const LEARNING_THRESHOLD_DAYS = 7;
+export const MASTERED_THRESHOLD_DAYS = 30;
+
 // --- NEW POINT-BASED SRS CONSTANTS ---
 export const POINT_THRESHOLDS = {
   NEW: 0,
@@ -112,7 +115,3 @@ export const STREAK_BONUSES = [
 ];
 
 export const DAILY_DECAY_POINTS = -200;
-
-// --- DEPRECATED SRS State Thresholds (in days) ---
-export const LEARNING_THRESHOLD_DAYS = 7;
-export const MASTERED_THRESHOLD_DAYS = 30;

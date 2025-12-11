@@ -3,7 +3,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { UserPlan, SrsState, VocabularyItem, LibraryItem } from "./types";
-import { LEARNING_THRESHOLD_DAYS, MASTERED_THRESHOLD_DAYS } from "./constants";
+import { LEARNING_THRESHOLD_DAYS, MASTERED_THRESHOLD_DAYS, POINT_THRESHOLDS, DAILY_DECAY_POINTS } from "./constants";
 import { Timestamp } from "firebase/firestore";
 
 export function cn(...inputs: ClassValue[]) {
@@ -53,7 +53,7 @@ export function capitalizeFirstLetter(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-export const getFavoritesKey = (context: 'book' | 'piece'): string => `chirpter_favorites_${'${context}'}`;
+export const getFavoritesKey = (context: 'book' | 'piece'): string => `chirpter_favorites_${context}`;
 
 export type LevelTier = 'silver' | 'green' | 'blue' | 'purple' | 'pink' | 'gold';
 
@@ -98,14 +98,16 @@ export const calculateSrsProgress = (memStrength: number = 0, srsState: SrsState
 
   switch (srsState) {
     case 'new':
-      return 0;
+      lowerBound = POINT_THRESHOLDS.NEW;
+      upperBound = POINT_THRESHOLDS.LEARNING;
+      break;
     case 'learning':
-      lowerBound = 0;
-      upperBound = LEARNING_THRESHOLD_DAYS;
+      lowerBound = POINT_THRESHOLDS.LEARNING;
+      upperBound = POINT_THRESHOLDS.SHORT_TERM;
       break;
     case 'short-term':
-      lowerBound = LEARNING_THRESHOLD_DAYS;
-      upperBound = MASTERED_THRESHOLD_DAYS;
+      lowerBound = POINT_THRESHOLDS.SHORT_TERM;
+      upperBound = POINT_THRESHOLDS.LONG_TERM;
       break;
     case 'long-term':
       return 100;
@@ -135,12 +137,32 @@ export const getSrsColor = (state: SrsState | undefined) => {
   }
 };
 
-/**
- * Returns the current memory strength (now points) for an item.
- * For the new point-based system, there's no decay, so we just return the stored value.
- */
 export const calculateVirtualMS = (item: VocabularyItem, currentDate: Date): number => {
-    return item.memoryStrength || 0;
+    let currentPoints = item.memoryStrength || 100;
+    
+    // No decay for mastered or new words
+    if (item.srsState === 'long-term' || item.srsState === 'new' || !item.lastReviewed) {
+        return currentPoints;
+    }
+
+    const today = new Date(currentDate);
+    today.setUTCHours(0, 0, 0, 0);
+
+    const lastReviewDate = new Date((item.lastReviewed as any).seconds ? 
+        (item.lastReviewed as any).seconds * 1000 : item.lastReviewed);
+    lastReviewDate.setUTCHours(0, 0, 0, 0);
+
+    const elapsedDays = (today.getTime() - lastReviewDate.getTime()) / (1000 * 3600 * 24);
+    
+    // Start decay from the second day
+    if (elapsedDays > 1) {
+        // Calculate the number of full days that have passed since the day after the last review
+        const decayDays = Math.floor(elapsedDays - 1);
+        const totalDecay = decayDays * Math.abs(DAILY_DECAY_POINTS);
+        currentPoints = Math.max(100, currentPoints - totalDecay);
+    }
+    
+    return currentPoints;
 };
 
 /**
@@ -172,37 +194,9 @@ export function convertTimestamps<T>(obj: T): T {
     return newObj as T;
 }
 
-
-// REMOVED: retryOperation is temporarily disabled to make auth errors more direct.
-/*
-export async function retryOperation<T>(
-  operation: () => Promise<T>,
-  maxRetries: number = 3,
-  delay: number = 1000
-): Promise<T> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error: any) {
-      if (attempt === maxRetries) throw error;
-      
-      if (error.code?.includes('unavailable') || 
-          error.code?.includes('deadline-exceeded') ||
-          error.code?.includes('resource-exhausted') ||
-          error.code?.includes('network-request-failed')) {
-        await new Promise(resolve => setTimeout(resolve, delay * attempt));
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw new Error("Retry operation failed after all attempts.");
-}
-*/
-
 export function getFormattedDate(date: Date): string {
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${'${year}'}-${'${month}'}-${'${day}'}`;
 }
