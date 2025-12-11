@@ -45,7 +45,7 @@ export interface TextFormatting {
 /**
  * @typedef {Object.<string, string>} PhraseMap
  * @description A key-value pair for a single phrase in multiple languages.
- * This is used within a `Segment` when it's in `phrase` format.
+ * This is now the fundamental unit for all textual content.
  */
 export type PhraseMap = {
   [languageCode: string]: string;
@@ -65,7 +65,9 @@ export interface SegmentMetadata {
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
- * The `content` field's type is determined by the `metadata.bilingualFormat`.
+ * The `content` field is now ALWAYS an array of PhraseMap.
+ * - For 'sentence' format, it will be an array with a single element.
+ * - For 'phrase' format, it will be an array with multiple elements.
  */
 export interface Segment {
   id: string;
@@ -73,12 +75,9 @@ export interface Segment {
   type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
   
   /**
-   * Holds the textual data.
-   * Its structure depends on `metadata.bilingualFormat`.
-   * If 'sentence', this is a MultilingualContent object.
-   * If 'phrase', this is an array of PhraseMap objects.
+   * Holds the textual data as an array of phrases.
    */
-  content: MultilingualContent | PhraseMap[];
+  content: PhraseMap[];
   
   formatting: TextFormatting;
   metadata: SegmentMetadata;
