@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -64,7 +65,7 @@ export const CoverImage: React.FC<CoverImageProps> = ({
                 <Button variant="destructive" size="sm" onClick={onRegenerate} disabled={isRetrying || retryCount >= 3}>
                     {isRetrying ? <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> : <Icon name="RotateCw" className="mr-2 h-4 w-4" />}
                     {buttonText}
-                    {cover?.type === 'ai' && !isPromptError && retryCount > 0 && ` (${retryCount}/3)`}
+                    {cover?.type === 'ai' && !isPromptError && retryCount > 1 && ` (${retryCount}/3)`}
                 </Button>
             )}
           </div>

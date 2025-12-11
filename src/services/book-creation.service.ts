@@ -125,11 +125,10 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         langs: bookFormData.availableLanguages,
         prompt: bookFormData.aiPrompt,
         tags: bookFormData.tags || [],
-        intendedLength: bookFormData.bookLength,
-        isComplete: false,
+        length: bookFormData.bookLength,
         display: 'book',
-        contentRetryCount: 0,
-        coverRetryCount: 0,
+        contentRetries: 0,
+        coverRetries: 0,
         chapters: [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
@@ -244,7 +243,7 @@ ${criticalInstructions.join('\n')}
           chapters: finalChapters,
           unit: parsedUnit, // Return the unit determined by the parser
           contentState: 'ready',
-          contentRetryCount: 0,
+          contentRetries: 0,
         };
 
     } catch (error) {
@@ -298,7 +297,7 @@ async function processCoverImageForBook(
     return {
       cover: { type: coverJobType, url: coverUrl, inputPrompt: typeof data === 'string' ? data : undefined },
       coverState: 'ready',
-      coverRetryCount: 0,
+      coverRetries: 0,
     };
   } catch (error) {
     console.error(`Cover image processing failed for book ${bookId}:`, error);
@@ -318,7 +317,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     const updatePayload: any = {
       contentState: 'processing',
       status: 'processing',
-      contentRetryCount: newPrompt ? 0 : (currentData.contentRetryCount || 0) + 1,
+      contentRetries: newPrompt ? 0 : (currentData.contentRetries || 0) + 1,
       updatedAt: FieldValue.serverTimestamp(),
     };
     if (newPrompt) updatePayload.prompt = newPrompt;
@@ -330,7 +329,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
   const contentInput: GenerateBookContentInput = {
     prompt: newPrompt || bookData.prompt || '',
     origin: bookData.origin,
-    bookLength: bookData.intendedLength || 'short-story',
+    bookLength: bookData.length || 'short-story',
     generationScope: bookData.chapters.length > 3 ? 'full' : 'firstFew',
     chaptersToGenerate: bookData.chapters.length || 3,
   };
@@ -368,7 +367,7 @@ export async function editBookCover(
     transaction.update(bookDocRef, {
       coverState: 'processing',
       status: 'processing',
-      coverRetryCount: (bookSnap.data()?.coverRetryCount || 0) + 1,
+      coverRetries: (bookSnap.data()?.coverRetries || 0) + 1,
       updatedAt: FieldValue.serverTimestamp(),
     });
     return bookSnap.data() as Book;

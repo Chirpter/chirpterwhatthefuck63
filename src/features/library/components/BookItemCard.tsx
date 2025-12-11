@@ -1,6 +1,5 @@
 
 
-
 'use client';
 
 import type { Book, LibraryItem, BookmarkType, SystemBookmark } from "@/lib/types";
@@ -276,7 +275,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
             onRegenerate={handleCoverRetry}
             isRetrying={isRetryingCover}
             isPromptError={isCoverPromptError}
-            retryCount={book.coverRetryCount || 0}
+            retryCount={book.coverRetries || 0}
           />
         </ReaderLinkWrapper>
         {!onPurchase && (
@@ -345,7 +344,7 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
              {currentBookmark && (
                 <div className="absolute top-0 right-2 w-12 h-16 z-[5]">
                     <div className="w-full h-full">
-                         <DynamicBookmark bookmark={currentBookmark} isComplete={book.isComplete} isInteractive={false} />
+                         <DynamicBookmark bookmark={currentBookmark} isComplete={!!book.completedAt} isInteractive={false} />
                     </div>
                     {renderProgressIndicator()}
                 </div>
@@ -357,10 +356,10 @@ export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
                   ))}
                   {book.contentState === 'error' && (
                     <Badge variant="destructive" asChild>
-                      <button onClick={handleContentRetry} disabled={isRetryingContent || (book.contentRetryCount || 0) >= 3}>
+                      <button onClick={handleContentRetry} disabled={isRetryingContent || (book.contentRetries || 0) >= 3}>
                         {isRetryingContent ? <Icon name="Wand2" className="mr-1 h-3 w-3 animate-pulse" /> : <Icon name="RotateCw" className="mr-1 h-3 w-3" />}
                         {isContentPromptError ? t('fixAndRetryContent') : t('retryContent')}
-                        {(book.contentRetryCount || 0) > 0 && !isContentPromptError && ` (${book.contentRetryCount || 0}/3)`}
+                        {(book.contentRetries || 0) > 1 && !isContentPromptError && ` (${book.contentRetries || 0}/3)`}
                       </button>
                     </Badge>
                   )}

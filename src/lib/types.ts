@@ -34,7 +34,7 @@ export interface SegmentMetadata {
   isNewPara: boolean; // ✅ The flag to indicate the start of a new paragraph
   wordCount?: { [lang: string]: number };
   primaryLanguage?: string;
-  unit?: ContentUnit; // ✅ FIX: Re-added unit at segment level for parser logic.
+  unit?: ContentUnit; 
 }
 
 
@@ -207,16 +207,15 @@ export interface Book extends BaseLibraryItem {
   unit: ContentUnit;
   contentState: JobStatus;
   contentError?: string;
-  contentRetryCount?: number;
+  contentRetries?: number;
   chapters: Chapter[];
   coverState: JobStatus;
   coverError?: string;
   cover?: Cover;
   imageHint?: string;
-  coverRetryCount?: number;
+  coverRetries?: number;
   outline?: ChapterOutlineItem[];
-  intendedLength?: BookLengthOptionValue;
-  isComplete?: boolean;
+  length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
 }
 
