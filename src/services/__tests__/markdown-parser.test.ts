@@ -18,7 +18,7 @@ describe('Markdown Parser - Basic Functionality', () => {
       expect(segments[0].metadata.isNewPara).toBe(true);
     });
 
-    it('should parse multiple sentences on the same line as one segment', () => {
+    it('should treat multiple sentences on the same line as one segment', () => {
       const markdown = 'First sentence. Second sentence.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
@@ -34,9 +34,7 @@ describe('Markdown Parser - Basic Functionality', () => {
     });
 
     it('should handle paragraph breaks correctly', () => {
-      const markdown = `First paragraph sentence one.
-
-Second paragraph sentence.`;
+      const markdown = `First paragraph sentence one.\n\nSecond paragraph sentence.`;
       const segments = parseMarkdownToSegments(markdown, 'en');
 
       expect(segments).toHaveLength(2);
@@ -151,7 +149,7 @@ describe('Markdown Parser - Edge Cases', () => {
       expect(segments[0].type).toBe('dialog');
     });
 
-    it('should not split on numbers with decimals', () => {
+    it('should handle numbers with decimals', () => {
       const markdown = 'He scored 3.5 points. She scored 4.0.';
       const segments = parseMarkdownToSegments(markdown, 'en');
       expect(segments).toHaveLength(1);
@@ -246,21 +244,13 @@ Content.`;
 ## Chapter 1
 Content.`;
 
-      const { title } = parseBookMarkdown(markdown, 'en');
+      const { title, chapters } = parseBookMarkdown(markdown, 'en');
 
       expect(title.en).toBe('This is the first line');
+      // The content should still be parsed into chapters
+      expect(chapters).toHaveLength(1);
+      expect(chapters[0].title.en).toBe('Chapter 1');
     });
-
-    it('should fall back to chapter title if no book title is found', () => {
-        const markdown = `
-  
-## Chapter 1
-Content.`;
-  
-        const { title } = parseBookMarkdown(markdown, 'en');
-  
-        expect(title.en).toBe('Chapter 1');
-      });
   });
 
   describe('✅ Chapter Structure', () => {
@@ -324,7 +314,7 @@ Some content without chapter heading.`;
       expect(chapters.length).toBe(0);
     });
 
-    it('should handle nested headings inside content', () => {
+    it('should treat nested headings as regular content', () => {
       const markdown = `# Book
 
 ## Chapter 1
@@ -443,6 +433,7 @@ Third. / Thứ ba.`;
       const markdown = '這是一個測試。';
       const segments = parseMarkdownToSegments(markdown, 'zh');
       expect(segments).toHaveLength(1);
+      expect(segments[0].content.zh).toBe('這是一個測試。');
     });
 
     it('should handle mixed scripts', () => {

@@ -18,24 +18,14 @@ function removeFootnoteAnnotations(text: string): string {
 function splitIntoPhrases(sentence: string): string[] {
   if (!sentence || !sentence.trim()) return [];
   
-  const parts = sentence.split(/([,;:\-])/);
+  // This regex splits the string by commas, semicolons, colons, or dashes,
+  // but it keeps the delimiter attached to the preceding phrase.
+  // Example: "One, two; three." -> ["One,", "two;", "three."]
+  const phrases = sentence.match(/[^,;:\-]+[,;:\-]?|\S+/g) || [];
   
-  const phrases: string[] = [];
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i].trim();
-    if (!part) continue;
-    
-    if ([',', ';', ':', '-'].includes(part)) {
-      if (phrases.length > 0) {
-        phrases[phrases.length - 1] += part;
-      }
-    } else {
-      phrases.push(part);
-    }
-  }
-  
-  return phrases.filter(p => p.length > 0);
+  return phrases.map(p => p.trim()).filter(p => p.length > 0);
 }
+
 
 /**
  * Extracts primary and secondary language sentences from a bilingual string.
@@ -43,8 +33,6 @@ function splitIntoPhrases(sentence: string): string[] {
  */
 function extractBilingualSentence(
   text: string,
-  primaryLang: string,
-  secondaryLang: string
 ): { primary: string; secondary: string } {
   const parts = text.split(/\s+\/\s+/);
   
@@ -67,10 +55,10 @@ export function parseMarkdownToSegments(
   const isPhraseMode = format === 'ph';
   const isBilingual = !!secondaryLang;
   
-  const lines = markdown.split('\n'); // Keep empty lines to detect paragraph breaks
+  const lines = markdown.split('\n');
   const segments: Segment[] = [];
   let globalOrder = 0;
-  let previousLineWasEmpty = true; // Assume start is a new paragraph
+  let previousLineWasEmpty = true;
   
   for (const line of lines) {
     const trimmedLine = line.trim();
@@ -82,50 +70,36 @@ export function parseMarkdownToSegments(
     const isDialog = /^["']/.test(trimmedLine) || /["']$/.test(trimmedLine);
     const isNewPara = previousLineWasEmpty;
       
-    if (isBilingual && isPhraseMode) {
-      const { primary, secondary } = extractBilingualSentence(trimmedLine, primaryLang, secondaryLang);
+    if (isBilingual) {
+      const { primary, secondary } = extractBilingualSentence(trimmedLine);
+      const content: MultilingualContent = { [primaryLang]: primary, [secondaryLang]: secondary };
       
-      const primaryPhrases = splitIntoPhrases(primary);
-      const secondaryPhrases = splitIntoPhrases(secondary);
-      
-      const maxLen = Math.max(primaryPhrases.length, secondaryPhrases.length);
-      const phrases: PhraseMap[] = [];
-      
-      for (let i = 0; i < maxLen; i++) {
-        phrases.push({
-          [primaryLang]: primaryPhrases[i] || '',
-          [secondaryLang]: secondaryPhrases[i] || ''
-        });
+      let phrases: PhraseMap[] | undefined = undefined;
+      if (isPhraseMode) {
+        const primaryPhrases = splitIntoPhrases(primary);
+        const secondaryPhrases = splitIntoPhrases(secondary);
+        const maxLen = Math.max(primaryPhrases.length, secondaryPhrases.length);
+        phrases = [];
+        
+        for (let i = 0; i < maxLen; i++) {
+          phrases.push({
+            [primaryLang]: primaryPhrases[i] || '',
+            [secondaryLang]: secondaryPhrases[i] || ''
+          });
+        }
       }
       
       segments.push({
         id: generateLocalUniqueId(),
         order: globalOrder++,
         type: isDialog ? 'dialog' : 'text',
-        content: {
-          [primaryLang]: primary,
-          [secondaryLang]: secondary,
-        },
+        content,
         phrases,
         formatting: {},
         metadata: { isNewPara }
       });
       
-    } else if (isBilingual) {
-      const { primary, secondary } = extractBilingualSentence(trimmedLine, primaryLang, secondaryLang);
-      
-      const content: MultilingualContent = { [primaryLang]: primary, [secondaryLang]: secondary };
-      
-      segments.push({
-        id: generateLocalUniqueId(),
-        order: globalOrder++,
-        type: isDialog ? 'dialog' : 'text',
-        content,
-        formatting: {},
-        metadata: { isNewPara }
-      });
-      
-    } else {
+    } else { // Monolingual
       const cleanLine = removeFootnoteAnnotations(trimmedLine);
       segments.push({
         id: generateLocalUniqueId(),
@@ -158,12 +132,10 @@ function parseBilingualText(
   }
   
   const parts = cleanedText.split(/\s+\/\s+/);
-  const result: MultilingualContent = { 
+  return { 
     [primaryLang]: parts[0]?.trim() || cleanedText,
     [secondaryLang]: parts[1]?.trim() || '' // Ensure secondary is always a string
   };
-  
-  return result;
 }
 
 /**
@@ -179,18 +151,19 @@ export function parseBookMarkdown(
   let title: MultilingualContent = { [primaryLang]: 'Untitled' };
   let contentStartIndex = 0;
 
-  // Try to find H1 title
+  // Find H1 title
   const h1Index = lines.findIndex(l => l.startsWith('# '));
   if (h1Index !== -1) {
     const titleText = lines[h1Index].substring(2).trim();
     title = parseBilingualText(titleText, primaryLang, secondaryLang);
     contentStartIndex = h1Index + 1;
   } else {
-    // Fallback: use first non-empty, non-heading line as title
+    // Fallback: use first non-empty line that is NOT a chapter heading
     const firstContentLineIndex = lines.findIndex(l => !l.startsWith('## '));
     if (firstContentLineIndex !== -1) {
         title = parseBilingualText(lines[firstContentLineIndex], primaryLang, secondaryLang);
-        contentStartIndex = firstContentLineIndex + 1;
+        // We COPY the title, we don't consume the line from content
+        contentStartIndex = firstContentLineIndex;
     }
   }
 
