@@ -5,7 +5,7 @@
 ## 1. Triết lý cốt lõi
 
 - **Feature-Sliced Design (Phân lớp theo tính năng):** Logic, UI, và dữ liệu của một tính năng nghiệp vụ (domain) cụ thể sẽ được nhóm lại với nhau. Điều này giúp tăng tính đóng gói, giảm sự phụ thuộc chéo và giúp việc tìm kiếm, sửa đổi code trở nên cực kỳ nhanh chóng.
-- **Tách biệt các mối quanâm (Separation of Concerns):** Mỗi thư mục, mỗi file có một vai trò và trách nhiệm duy nhất, không chồng chéo.
+- **Tách biệt các mối quan tâm (Separation of Concerns):** Mỗi thư mục, mỗi file có một vai trò và trách nhiệm duy nhất, không chồng chéo.
 - **Dễ đoán (Predictability):** Cấu trúc file và quy ước đặt tên phải đủ rõ ràng để bất kỳ ai cũng có thể đoán được vị trí và vai trò của một đoạn code mà không cần tìm kiếm nhiều.
 
 ---
