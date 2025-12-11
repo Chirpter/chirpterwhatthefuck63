@@ -34,7 +34,6 @@ export interface SegmentMetadata {
   isNewPara: boolean; // ✅ The flag to indicate the start of a new paragraph
   wordCount?: { [lang: string]: number };
   primaryLanguage?: string;
-  unit?: ContentUnit; 
 }
 
 
@@ -193,6 +192,7 @@ interface BaseLibraryItem extends BaseDocument {
   display: 'book' | 'card';
   tags?: string[];
   labels?: string[]; // Added for consistency with Firestore data model
+  unit: ContentUnit;
 }
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
@@ -204,7 +204,6 @@ export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
 export interface Book extends BaseLibraryItem {
   type: 'book';
   author?: string;
-  unit: ContentUnit;
   contentState: JobStatus;
   contentError?: string;
   contentRetries?: number;
@@ -231,7 +230,6 @@ export interface EditorSettings {
  */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
-  unit: ContentUnit;
   generatedContent: Segment[];
   contentState: JobStatus;
   contentError?: string;

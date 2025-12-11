@@ -7,7 +7,7 @@ import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, 
 import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { ApiServiceError } from "../lib/errors";
-import { parseBookMarkdown } from './MarkdownParser'; // Changed import
+import { parseBookMarkdown } from './MarkdownParser';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
@@ -34,11 +34,10 @@ async function processBookGenerationPipeline(
   bookId: string,
   contentInput: GenerateBookContentInput,
   coverJobType: CoverJobType,
-  coverData?: File | string | null,
-  unit?: ContentUnit
+  coverData?: File | string | null
 ) {
   const [contentResult, coverResult] = await Promise.allSettled([
-    processContentGenerationForBook(userId, bookId, contentInput, unit),
+    processContentGenerationForBook(userId, bookId, contentInput),
     processCoverImageForBook(userId, bookId, coverJobType, coverData, contentInput.prompt)
   ]);
 
@@ -157,8 +156,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     bookId, 
     contentInput,
     bookFormData.coverImageOption,
-    bookFormData.coverImageOption === 'upload' ? bookFormData.coverImageFile : bookFormData.coverImageAiPrompt,
-    bookFormData.unit
+    bookFormData.coverImageOption === 'upload' ? bookFormData.coverImageFile : bookFormData.coverImageAiPrompt
   ).catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
   return bookId;
@@ -171,8 +169,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 async function processContentGenerationForBook(
     userId: string, 
     bookId: string, 
-    contentInput: GenerateBookContentInput,
-    unit?: ContentUnit
+    contentInput: GenerateBookContentInput
 ): Promise<Partial<Book>> {
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;
@@ -181,7 +178,6 @@ async function processContentGenerationForBook(
     const wordsPerChapter = Math.round(((bookLengthOption?.defaultChapters || 3) * 200) / (contentInput.chaptersToGenerate || 3));
 
     const [primaryLanguage, secondaryLanguage] = origin.split('-');
-    const isPhraseMode = unit === 'phrase';
     
     const bookTypeInstruction = (generationScope === 'full' || !contentInput.totalChapterOutlineCount) ? 'full-book' : 'partial-book';
 
@@ -201,13 +197,9 @@ async function processContentGenerationForBook(
         const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
         
         criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading, with bilingual versions separated by {} (e.g., '# My Title {Tiêu đề của tôi}).`);
-        
-        if (isPhraseMode) {
-            criticalInstructions.push(`- Write content in bilingual ${primaryLabel} and ${secondaryLabel}. For each phrase, format as: Primary Phrase{Secondary Phrase} separated by a '|' character.`);
-            criticalInstructions.push(`- EXAMPLE: A young boy{Một cậu bé} | saw the dragon{nhìn thấy con rồng}.`);
-        } else {
-            criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}`);
-        }
+        // The AI is always asked to generate sentence by sentence. The parser will handle splitting into phrases if needed.
+        criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}`);
+
     } else {
         const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         criticalInstructions.push(`- Write all content and titles in ${langLabel}.`);
@@ -223,7 +215,7 @@ ${criticalInstructions.join('\n')}
 `.trim();
 
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateUnifiedBookMarkdown_v9_hybrid', // Updated version
+        name: 'generateUnifiedBookMarkdown_v10_unified_parser', // New version for unified parsing
         input: { schema: BookPromptInputSchema },
         output: { schema: BookOutputSchema },
         prompt: `{{{fullInstruction}}}`,
@@ -338,9 +330,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     userId, 
     bookId, 
     contentInput, 
-    'none', // Don't touch the cover during content regen
-    null,
-    bookData.unit // Pass the existing unit
+    'none' // Don't touch the cover during content regen
   ).catch(async (err) => {
     console.error(`Background content regeneration failed for book ${bookId}:`, err);
     await updateLibraryItem(userId, bookId, {
@@ -382,8 +372,7 @@ export async function editBookCover(
     bookId, 
     contentInput,
     newCoverOption,
-    data,
-    bookData.unit
+    data
   ).catch(async (err) => {
     console.error(`Background cover edit failed for book ${bookId}:`, err);
     await updateLibraryItem(userId, bookId, {

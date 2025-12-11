@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
-import type { CreationFormValues, LibraryItem } from '@/lib/types';
+import type { CreationFormValues, LibraryItem, ContentUnit } from '@/lib/types';
 import { createLibraryItem } from '@/services/creation-service';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -17,6 +17,43 @@ interface UseCreationJobParams {
   type: 'book' | 'piece';
   editingBookId: string | null;
   mode: string | null;
+}
+
+function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
+  const isPhraseMode = false; // Default to sentence
+  const primaryLang = 'en';
+  const secondaryLang = 'vi'; // Default secondary for bilingual
+  
+  const baseData = {
+    type,
+    primaryLanguage: primaryLang,
+    availableLanguages: [primaryLang],
+    aiPrompt: type === 'book' ? DEFAULT_BOOK_PROMPT : DEFAULT_PIECE_PROMPT,
+    tags: [],
+    title: { en: '' },
+    origin: primaryLang,
+    unit: 'sentence' as ContentUnit,
+    coverImageOption: 'none' as const,
+    coverImageAiPrompt: '',
+    coverImageFile: null,
+    previousContentSummary: '',
+    targetChapterCount: 3,
+    bookLength: 'short-story' as const,
+    generationScope: 'full' as const,
+  };
+  
+  if (type === 'piece') {
+    return {
+      ...baseData,
+      display: 'card' as const,
+      aspectRatio: '3:4' as const,
+    };
+  }
+  
+  return {
+    ...baseData,
+    display: 'book' as const,
+  };
 }
 
 export function useCreationJob({ type, editingBookId, mode }: UseCreationJobParams) {
@@ -43,40 +80,69 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   const timeoutRef = useRef<NodeJS.Timeout>();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Calculate credit cost
-  const creditCost = calculateCreditCost(formData);
+  // Credit cost calculation
+  const creditCost = useMemo(() => {
+    if (formData.type === 'piece') return 1;
+    
+    let cost = 0;
+    const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
+    if (bookLengthOption) {
+      if (formData.bookLength === 'standard-book') {
+        cost = formData.generationScope === 'full' ? 8 : 2;
+      } else {
+        cost = { 'short-story': 1, 'mini-book': 2, 'long-book': 15 }[formData.bookLength] || 1;
+      }
+    }
+    
+    if (formData.coverImageOption === 'ai' || formData.coverImageOption === 'upload') {
+      cost += 1;
+    }
+    return cost;
+  }, [formData.type, formData.bookLength, formData.generationScope, formData.coverImageOption]);
 
-  // Validation
-  const validationMessage = getValidationMessage(formData, promptError, user);
-  const canGenerate = !validationMessage && user && user.credits >= creditCost;
+  // Validation logic
+  const validationMessage = useMemo(() => {
+    if (!user) return ''; // Don't validate if no user
+    if (promptError === 'empty') return 'formErrors.prompt.empty';
+    if (promptError === 'too_long') return 'formErrors.prompt.tooLong';
+    
+    if (formData.type === 'book') {
+      const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
+      const min = bookLengthOption?.minChapters || 1;
+      if (formData.targetChapterCount < min || formData.targetChapterCount > 15) {
+        return 'formErrors.chapterCount.outOfRange';
+      }
+    }
+    
+    if (formData.availableLanguages.length > 1 && formData.availableLanguages[0] === formData.availableLanguages[1]) {
+      return 'formErrors.languages.sameLanguage';
+    }
 
-  // Min/max chapters
+    return '';
+  }, [formData, promptError, user]);
+
+  const canGenerate = useMemo(() => !validationMessage && user && user.credits >= creditCost, [validationMessage, user, creditCost]);
+  
+  // Chapter limits
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
   const minChaptersForCurrentLength = bookLengthOption?.minChapters || 1;
   const maxChapters = 15;
-
-  const availableLanguages = LANGUAGES;
   const isProUser = user?.plan === 'pro';
-
-  // Input handlers
+  const availableLanguages = LANGUAGES;
+  
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     if (name === 'aiPrompt') {
       setIsPromptDefault(false);
-      
-      if (value.length === 0) {
-        setPromptError('empty');
-      } else if (value.length > MAX_PROMPT_LENGTH) {
-        setPromptError('too_long');
-      } else {
-        setPromptError(null);
-      }
+      if (value.length === 0) setPromptError('empty');
+      else if (value.length > MAX_PROMPT_LENGTH) setPromptError('too_long');
+      else setPromptError(null);
     }
     
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'targetChapterCount' ? parseInt(value) || 0 : value
+      [name]: name === 'targetChapterCount' ? parseInt(value, 10) || 0 : value
     }));
   }, []);
 
@@ -84,51 +150,54 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     setFormData(prev => {
       const newData = { ...prev };
       
+      const updateOrigin = (p: string, s: string | undefined, isPhrase: boolean) => {
+        let newOrigin = p;
+        if (s) newOrigin += `-${s}`;
+        if (isPhrase && s) newOrigin += '-ph';
+        return newOrigin;
+      };
+
+      let currentIsPhrase = prev.unit === 'phrase';
+      let primary = prev.primaryLanguage;
+      let secondary = prev.availableLanguages[1];
+
       if (key === 'isBilingual') {
-        if (value) {
-          newData.availableLanguages = [prev.primaryLanguage, 'vi'];
-          newData.origin = `${prev.primaryLanguage}-vi`;
-        } else {
-          newData.availableLanguages = [prev.primaryLanguage];
-          newData.origin = prev.primaryLanguage;
-        }
+        newData.availableLanguages = value ? [primary, 'vi'] : [primary];
+        secondary = value ? 'vi' : undefined;
       } else if (key === 'primaryLanguage') {
+        primary = value;
         newData.primaryLanguage = value;
-        newData.availableLanguages = [value, ...(prev.availableLanguages.slice(1))];
-        newData.origin = prev.availableLanguages.length > 1 
-          ? `${value}-${prev.availableLanguages[1]}${prev.origin.endsWith('-ph') ? '-ph' : ''}`
-          : value;
+        newData.availableLanguages = [value, ...(prev.availableLanguages.length > 1 ? [prev.availableLanguages[1]] : [])];
       } else if (key === 'secondaryLanguage') {
-        newData.availableLanguages = [prev.primaryLanguage, value];
-        newData.origin = `${prev.primaryLanguage}-${value}${prev.origin.endsWith('-ph') ? '-ph' : ''}`;
-      } else if (key === 'origin') {
-        // Toggle phrase mode
-        if (prev.origin.endsWith('-ph')) {
-          newData.origin = prev.origin.slice(0, -3);
-        } else {
-          newData.origin = prev.origin + '-ph';
-        }
+        secondary = value;
+        newData.availableLanguages = [primary, value];
+      } else if (key === 'unit') {
+        currentIsPhrase = value === 'phrase';
+        newData.unit = value;
       } else {
         (newData as any)[key] = value;
       }
-      
+
+      newData.origin = updateOrigin(primary, secondary, currentIsPhrase);
+      if (key === 'bookLength') {
+        const option = BOOK_LENGTH_OPTIONS.find(o => o.value === value);
+        if (option) newData.targetChapterCount = option.defaultChapters;
+      }
+
       return newData;
     });
   }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setFormData(prev => ({ ...prev, coverImageFile: file }));
+    setFormData(prev => ({ ...prev, coverImageFile: e.target.files?.[0] || null }));
   }, []);
 
   const handleChapterCountBlur = useCallback(() => {
-    const count = formData.targetChapterCount;
-    if (count < minChaptersForCurrentLength) {
-      setFormData(prev => ({ ...prev, targetChapterCount: minChaptersForCurrentLength }));
-    } else if (count > maxChapters) {
-      setFormData(prev => ({ ...prev, targetChapterCount: maxChapters }));
-    }
-  }, [formData.targetChapterCount, minChaptersForCurrentLength, maxChapters]);
+    setFormData(prev => ({
+      ...prev,
+      targetChapterCount: Math.max(minChaptersForCurrentLength, Math.min(prev.targetChapterCount, maxChapters))
+    }));
+  }, [minChaptersForCurrentLength, maxChapters]);
 
   const handlePromptFocus = useCallback(() => {
     if (isPromptDefault) {
@@ -138,128 +207,69 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   }, [isPromptDefault]);
 
   const handlePresentationStyleChange = useCallback((value: string) => {
-    if (value === 'book') {
-      setFormData(prev => ({ ...prev, display: 'book', aspectRatio: undefined }));
-    } else {
-      const [, ratio] = value.split('_');
-      const aspectRatio = ratio.replace('_', ':') as '1:1' | '3:4' | '4:3';
-      setFormData(prev => ({ ...prev, display: 'card', aspectRatio }));
-    }
+    const isBook = value === 'book';
+    const aspectRatio = isBook ? undefined : value.split('_')[1].replace('_', ':') as '1:1' | '3:4' | '4:3';
+    setFormData(prev => ({ ...prev, display: isBook ? 'book' : 'card', aspectRatio }));
   }, []);
-
+  
   const handleTagClick = useCallback((tag: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.includes(tag) 
-        ? prev.tags.filter(t => t !== tag)
-        : [...prev.tags, tag]
-    }));
+    setFormData(prev => ({ ...prev, tags: prev.tags.includes(tag) ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag] }));
   }, []);
 
   const handleCustomTagAdd = useCallback((tag: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: [...prev.tags, tag]
-    }));
+    setFormData(prev => ({ ...prev, tags: [...prev.tags, tag] }));
   }, []);
 
-  // Submit handler
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!user || validationMessage) {
-      return;
-    }
-    
+    if (!user || validationMessage) return;
+
     setIsBusy(true);
-    
     try {
       const jobId = await createLibraryItem(formData);
-      
       setActiveId(jobId);
       sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       
-      // Set timeout
       timeoutRef.current = setTimeout(() => {
-        toast({
-          title: t('toast.timeout'),
-          description: t('toast.timeoutDesc'),
-          variant: 'destructive'
-        });
+        toast({ title: t('toast.timeout'), description: t('toast.timeoutDesc'), variant: 'destructive' });
         reset(type);
       }, 180000);
       
-      toast({
-        title: t('toast.generationStarted'),
-        description: t('toast.generationStartedDesc'),
-        variant: 'default'
-      });
-      
+      toast({ title: t('toast.generationStarted'), description: t('toast.generationStartedDesc') });
     } catch (error: any) {
-      console.error('Creation error:', error);
-      toast({
-        title: t('toast.error'),
-        description: error.message,
-        variant: 'destructive'
-      });
+      toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
     }
-  }, [user, validationMessage, formData, type, t, toast]);
+  }, [user, validationMessage, formData, type, t, toast, reset]);
 
-  // Realtime listener
   useEffect(() => {
     if (!activeId || !user) return;
-    
+
     const docRef = doc(db, `users/${user.uid}/libraryItems/${activeId}`);
-    
     unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
       if (!snapshot.exists()) return;
       
       const data = snapshot.data() as LibraryItem;
       setJobData(data);
       
-      // Check if finalized
       const isBook = data.type === 'book';
       const contentDone = data.contentState === 'ready' || data.contentState === 'error';
-      const coverDone = isBook 
-        ? (data.coverState === 'ready' || data.coverState === 'error' || data.coverState === 'ignored')
-        : true;
+      const coverDone = isBook ? (data as Book).coverState !== 'processing' : true;
       
       if (contentDone && coverDone) {
         setFinalizedId(activeId);
         setIsBusy(false);
         setActiveId(null);
-        sessionStorage.removeItem(`activeJobId_${user.uid}`);
-        
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
+        if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
       }
     });
     
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-    };
+    return () => unsubscribeRef.current?.();
   }, [activeId, user]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-    };
-  }, []);
-
   const handleViewResult = useCallback(() => {
-    if (finalizedId) {
-      router.push(`/library/${type === 'book' ? 'book' : 'other'}/${finalizedId}`);
-    }
+    if (finalizedId) router.push(`/library/${type}/${finalizedId}`);
   }, [finalizedId, type, router]);
 
   const reset = useCallback((newType: 'book' | 'piece') => {
@@ -271,124 +281,19 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     setJobData(null);
     setFinalizedId(null);
     if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
-  }, [user]);
+  }, [user?.uid]);
 
-  return {
-    formData,
-    isPromptDefault,
-    promptError,
-    isBusy,
-    isLoadingExistingBook,
-    activeId,
-    jobData,
-    finalizedId,
-    creditCost,
-    validationMessage,
-    canGenerate,
-    minChaptersForCurrentLength,
-    maxChapters,
-    availableLanguages,
-    isProUser,
-    mode,
-    handleInputChange,
-    handleValueChange,
-    handleFileChange,
-    handleChapterCountBlur,
-    handlePromptFocus,
-    handlePresentationStyleChange,
-    handleTagClick,
-    handleCustomTagAdd,
-    handleSubmit,
-    handleViewResult,
-    reset,
-  };
-}
-
-function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
-  const baseData = {
-    type,
-    primaryLanguage: 'en',
-    availableLanguages: ['en'],
-    aiPrompt: type === 'book' ? DEFAULT_BOOK_PROMPT : DEFAULT_PIECE_PROMPT,
-    tags: [],
-    title: { en: '' },
-    origin: 'en',
-    unit: 'sentence' as const,
-    coverImageOption: 'none' as const,
-    coverImageAiPrompt: '',
-    coverImageFile: null,
-    previousContentSummary: '',
-    targetChapterCount: 3,
-    bookLength: 'short-story' as const,
-    generationScope: 'full' as const,
-  };
-  
-  if (type === 'piece') {
-    return {
-      ...baseData,
-      display: 'card' as const,
-      aspectRatio: '3:4' as const,
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      unsubscribeRef.current?.();
     };
-  }
-  
+  }, []);
+
   return {
-    ...baseData,
-    display: 'book' as const,
+    formData, isPromptDefault, promptError, isBusy, isLoadingExistingBook, activeId, jobData, finalizedId, creditCost,
+    validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser, mode,
+    handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
+    handlePresentationStyleChange, handleTagClick, handleCustomTagAdd, handleSubmit, handleViewResult, reset,
   };
-}
-
-function calculateCreditCost(formData: CreationFormValues): number {
-  if (formData.type === 'piece') {
-    return 1;
-  }
-  
-  let cost = 0;
-  const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
-  
-  if (bookLengthOption) {
-    if (formData.bookLength === 'standard-book') {
-      cost = formData.generationScope === 'full' ? 8 : 2;
-    } else {
-      cost = { 'short-story': 1, 'mini-book': 2, 'long-book': 15 }[formData.bookLength] || 1;
-    }
-  }
-  
-  if (formData.coverImageOption === 'ai' || formData.coverImageOption === 'upload') {
-    cost += 1;
-  }
-  
-  return cost;
-}
-
-function getValidationMessage(
-  formData: CreationFormValues,
-  promptError: 'empty' | 'too_long' | null,
-  user: any
-): string {
-  if (!user) return '';
-  
-  if (promptError === 'empty') {
-    return 'formErrors.prompt.empty';
-  }
-  
-  if (promptError === 'too_long') {
-    return 'formErrors.prompt.tooLong';
-  }
-  
-  if (formData.type === 'book') {
-    const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
-    const min = bookLengthOption?.minChapters || 1;
-    
-    if (formData.targetChapterCount < min || formData.targetChapterCount > 15) {
-      return 'formErrors.chapterCount.outOfRange';
-    }
-  }
-  
-  if (formData.availableLanguages.length > 1) {
-    if (formData.availableLanguages[0] === formData.availableLanguages[1]) {
-      return 'formErrors.languages.sameLanguage';
-    }
-  }
-  
-  return '';
 }
