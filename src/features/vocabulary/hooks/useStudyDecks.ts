@@ -4,14 +4,21 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getSrsStateCounts, getFoldersBySrsState } from '@/services/client/vocabulary-service';
+import { getSrsStateCounts, getVocabularyItemsPaginated } from '@/services/client/vocabulary-service';
 import type { VocabularyItem, SrsState } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { FOLDER_CONSTANTS } from '../constants';
 
 
 interface useStudyDecksProps {
     selectedSrsState: SrsState;
+}
+
+interface FolderWithCount {
+    id: string;
+    name: string;
+    count: number;
 }
 
 export const useStudyDecks = ({ selectedSrsState }: useStudyDecksProps) => {
@@ -26,8 +33,24 @@ export const useStudyDecks = ({ selectedSrsState }: useStudyDecksProps) => {
 
             try {
                 const srsCounts = await getSrsStateCounts(user.uid);
-                const folders = await getFoldersBySrsState(user.uid, selectedSrsState);
+                
+                // Fetch all items for the given SRS state to determine which folders are relevant
+                const { items } = await getVocabularyItemsPaginated(user.uid, { srsState: selectedSrsState, limit: 1000 });
+                
+                const folderCountMap = new Map<string, number>();
+                items.forEach(item => {
+                    const folderId = item.folder || FOLDER_CONSTANTS.UNORGANIZED;
+                    folderCountMap.set(folderId, (folderCountMap.get(folderId) || 0) + 1);
+                });
+
+                const folders: FolderWithCount[] = Array.from(folderCountMap.entries()).map(([id, count]) => ({
+                    id,
+                    name: id === FOLDER_CONSTANTS.UNORGANIZED ? 'Unorganized' : id,
+                    count
+                }));
+
                 return { srsCounts, folders };
+
             } catch (error) {
                 console.error("Failed to fetch study deck data:", error);
                 toast({ title: "Error", description: "Could not load study decks.", variant: "destructive" });
@@ -35,7 +58,7 @@ export const useStudyDecks = ({ selectedSrsState }: useStudyDecksProps) => {
             }
         },
         [user?.uid, selectedSrsState], // Dependencies
-        { srsCounts: { new: 0, learning: 0, 'short-term': 0, 'long-term': 0 }, folders: [] } // Initial value
+        undefined // Use undefined for initial loading state
     );
     
     // isLoading is true until the first result from the live query is available.
