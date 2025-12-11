@@ -223,6 +223,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
     }
     
     const pieceFormData: PieceFormValues = {
+        type: 'piece',
         aiPrompt: promptToUse,
         origin: workData.origin,
         primaryLanguage: workData.langs[0],
