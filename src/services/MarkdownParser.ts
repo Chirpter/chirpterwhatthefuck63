@@ -1,4 +1,4 @@
-// src/services/MarkdownParser.ts - ILLUSTRATING OLD LOGIC
+// src/services/MarkdownParser.ts - OPTIMIZED LOGIC
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -53,7 +53,7 @@ function parseLineToMultilingualContent(line: string, unit: ContentUnit, primary
 
 /**
  * Main parser - processes text line-by-line and creates segments.
- * This version demonstrates the OLD LOGIC using a stateful flag.
+ * This version uses the stateless, optimized logic.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
   const [primaryLang, secondaryLang, format] = origin.split('-');
@@ -62,46 +62,41 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
   const lines = markdown.split('\n');
   const segments: Segment[] = [];
   
-  // =======================================================================
-  // LOGIC CŨ: SỬ DỤNG BIẾN CỜ (FLAG)
-  // Biến này được dùng để "nhớ" xem câu tiếp theo có phải là bắt đầu
-  // của một đoạn văn mới hay không.
-  // =======================================================================
-  let isFirstContentfulSegmentInParagraph = true;
-
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmedLine = line.trim();
 
     if (trimmedLine.startsWith('#')) {
-        continue;
+      continue;
     }
     
-    // Khi gặp một dòng trống, chúng ta reset cờ.
-    // Điều này báo hiệu rằng bất kỳ nội dung nào tiếp theo sẽ là một đoạn mới.
     if (!trimmedLine) {
-        isFirstContentfulSegmentInParagraph = true;
         continue;
     }
     
     const sentences = trimmedLine.match(/[^.!?]+[.!?]\s*/g) || [trimmedLine];
-
-    for (const sentence of sentences) {
+    
+    // Check if the PREVIOUS line was empty to determine if this is a new paragraph.
+    const isFirstSegmentInLineNewPara = (i === 0) || (lines[i - 1].trim() === '');
+    
+    for (let j = 0; j < sentences.length; j++) {
+        const sentence = sentences[j];
         const content = parseLineToMultilingualContent(sentence, unit, primaryLang, secondaryLang);
         
         if (Object.keys(content).length > 0) {
+            // The very first sentence of a line that follows a blank line is a new paragraph.
+            // Subsequent sentences on the same line are not.
+            const isNewPara = (j === 0) && isFirstSegmentInLineNewPara;
+
             segments.push({
                 id: generateLocalUniqueId(),
                 order: segments.length,
                 type: 'text',
                 content: content,
                 metadata: {
-                    // Cờ 'isNewPara' được gán dựa trên giá trị hiện tại của biến trạng thái.
-                    isNewPara: isFirstContentfulSegmentInParagraph,
+                    isNewPara,
                 }
             });
-            // Ngay sau khi sử dụng cờ, chúng ta đặt nó lại thành false.
-            // Điều này đảm bảo chỉ câu đầu tiên của đoạn mới được đánh dấu.
-            isFirstContentfulSegmentInParagraph = false;
         }
     }
   }
@@ -218,7 +213,7 @@ export function getItemSegments(
   if (!item) return [];
   
   if (item.type === 'piece') {
-    return item.generatedContent || [];
+    return (item as Piece).generatedContent || [];
   }
   
   if (item.type === 'book') {
