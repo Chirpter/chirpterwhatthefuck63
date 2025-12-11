@@ -1,4 +1,3 @@
-
 // src/features/create/hooks/useCreationJob.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -35,7 +34,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
-    return sessionStorage.getItem(`activeJobId_${'${user.uid}'}`) || null;
+    return sessionStorage.getItem(`activeJobId_${user.uid}`) || null;
   });
   
   const [jobData, setJobData] = useState<LibraryItem | null>(null);
@@ -88,7 +87,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
       if (key === 'isBilingual') {
         if (value) {
           newData.availableLanguages = [prev.primaryLanguage, 'vi'];
-          newData.origin = `${'${prev.primaryLanguage}'}-vi`;
+          newData.origin = `${prev.primaryLanguage}-vi`;
         } else {
           newData.availableLanguages = [prev.primaryLanguage];
           newData.origin = prev.primaryLanguage;
@@ -97,11 +96,11 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
         newData.primaryLanguage = value;
         newData.availableLanguages = [value, ...(prev.availableLanguages.slice(1))];
         newData.origin = prev.availableLanguages.length > 1 
-          ? `${'${value}'}-${'${prev.availableLanguages[1]}'}${'${prev.origin.endsWith('-ph') ? '-ph' : ''}'}`
+          ? `${value}-${prev.availableLanguages[1]}${prev.origin.endsWith('-ph') ? '-ph' : ''}`
           : value;
       } else if (key === 'secondaryLanguage') {
         newData.availableLanguages = [prev.primaryLanguage, value];
-        newData.origin = `${'${prev.primaryLanguage}'}-${'${value}'}${'${prev.origin.endsWith('-ph') ? '-ph' : ''}'}`;
+        newData.origin = `${prev.primaryLanguage}-${value}${prev.origin.endsWith('-ph') ? '-ph' : ''}`;
       } else if (key === 'origin') {
         // Toggle phrase mode
         if (prev.origin.endsWith('-ph')) {
@@ -178,7 +177,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
       const jobId = await createLibraryItem(formData);
       
       setActiveId(jobId);
-      sessionStorage.setItem(`activeJobId_${'${user.uid}'}`, jobId);
+      sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       
       // Set timeout
       timeoutRef.current = setTimeout(() => {
@@ -211,7 +210,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   useEffect(() => {
     if (!activeId || !user) return;
     
-    const docRef = doc(db, `users/${'${user.uid}'}/libraryItems/${'${activeId}'}`);
+    const docRef = doc(db, `users/${user.uid}/libraryItems/${activeId}`);
     
     unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
       if (!snapshot.exists()) return;
@@ -230,7 +229,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
         setFinalizedId(activeId);
         setIsBusy(false);
         setActiveId(null);
-        sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
+        sessionStorage.removeItem(`activeJobId_${user.uid}`);
         
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
@@ -259,7 +258,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
 
   const handleViewResult = useCallback(() => {
     if (finalizedId) {
-      router.push(`/library/${'${type === 'book' ? 'book' : 'other'}'}/${'${finalizedId}'}`);
+      router.push(`/library/${type === 'book' ? 'book' : 'other'}/${finalizedId}`);
     }
   }, [finalizedId, type, router]);
 
@@ -271,7 +270,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    if(user?.uid) sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
+    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
   }, [user]);
 
   return {
