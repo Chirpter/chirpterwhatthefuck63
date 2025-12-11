@@ -27,7 +27,7 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2,
 }: PageContentRendererProps) {
-  const { currentPlayingItem, position, speechBoundary } = useAudioPlayer();
+  const { currentPlayingItem, position, speechBoundary, currentSegmentLanguage } = useAudioPlayer();
   const segments = page.items;
   
   const currentSpokenSegment = useMemo(() => {
@@ -41,7 +41,9 @@ export function PageContentRenderer({
             // Find the original segment that the spoken segment belongs to
             // This is complex because one original segment can be multiple spoken segments (in phrase mode)
             // For now, we'll assume a direct mapping for simplicity
-            return chapter.segments.find(s => s.id === (currentPlayingItem as any).data?.segments?.[position.segmentIndex]?.originalSegmentId) || null;
+            const spokenSegment = (currentPlayingItem as any).data?.segments?.[position.segmentIndex];
+            if (!spokenSegment) return null;
+            return chapter.segments.find(s => s.id === spokenSegment.originalSegmentId) || null;
         }
     }
     
@@ -49,7 +51,7 @@ export function PageContentRenderer({
   }, [currentPlayingItem, itemData, position]);
 
   const currentPlayingSegmentId = currentSpokenSegment?.id || null;
-  const currentSpokenLang = audioPlayer.currentSegmentLanguage;
+  const currentSpokenLang = currentSegmentLanguage;
 
   const proseThemeClass = useMemo(() => {
     if (presentationStyle === 'book') return 'prose dark:prose-invert';
