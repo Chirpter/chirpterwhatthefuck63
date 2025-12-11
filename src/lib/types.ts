@@ -275,6 +275,7 @@ export interface Piece extends BaseLibraryItem {
 }
 
 export interface CreationFormValues {
+  type: 'book' | 'piece'; // Add type property
   primaryLanguage: string;
   availableLanguages: string[];
   aiPrompt: string;

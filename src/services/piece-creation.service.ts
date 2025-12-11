@@ -231,7 +231,6 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         title: workData.title,
         display: workData.display,
         aspectRatio: workData.aspectRatio,
-        type: 'piece'
     };
     
     processPieceGenerationPipeline(userId, workId, pieceFormData)
