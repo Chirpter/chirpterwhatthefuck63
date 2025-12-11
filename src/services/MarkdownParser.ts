@@ -60,7 +60,7 @@ export function parseMarkdownToSegments(
   if (!markdown || !markdown.trim()) return [];
   
   const [primaryLang, secondaryLang, format] = origin.split('-');
-  const isBilingual = !!secondaryLang;
+  const isBilingualIntent = !!secondaryLang;
   const isPhraseMode = format === 'ph';
   
   const lines = markdown.split('\n');
@@ -71,21 +71,25 @@ export function parseMarkdownToSegments(
   for (const line of lines) {
     const trimmedLine = line.trim();
     if (trimmedLine.length === 0) {
-        previousLineWasEmpty = true;
+        if (!previousLineWasEmpty) { // Avoid multiple empty paragraph flags
+            previousLineWasEmpty = true;
+        }
         continue;
     }
 
     const isDialog = /^["']/.test(trimmedLine) || /["']$/.test(trimmedLine);
     const isNewPara = previousLineWasEmpty;
       
-    if (isBilingual) {
+    let content: MultilingualContent = {};
+    let phrases: PhraseMap[] | undefined = undefined;
+
+    if (isBilingualIntent) {
       const { primary, secondary } = extractBilingualSentence(trimmedLine);
-      const content: MultilingualContent = { [primaryLang]: primary };
+      content[primaryLang] = primary;
       if (secondaryLang) {
         content[secondaryLang] = secondary;
       }
       
-      let phrases: PhraseMap[] | undefined = undefined;
       if (isPhraseMode) {
         const primaryPhrases = splitIntoPhrases(primary);
         const secondaryPhrases = splitIntoPhrases(secondary);
@@ -101,27 +105,20 @@ export function parseMarkdownToSegments(
         }
       }
       
-      segments.push({
-        id: generateLocalUniqueId(),
-        order: globalOrder++,
-        type: isDialog ? 'dialog' : 'text',
-        content,
-        phrases,
-        formatting: {},
-        metadata: { isNewPara }
-      });
-      
     } else { // Monolingual
       const cleanLine = removeFootnoteAnnotations(trimmedLine);
-      segments.push({
-        id: generateLocalUniqueId(),
-        order: globalOrder++,
-        type: isDialog ? 'dialog' : 'text',
-        content: { [primaryLang]: cleanLine },
-        formatting: {},
-        metadata: { isNewPara }
-      });
+      content[primaryLang] = cleanLine;
     }
+
+    segments.push({
+      id: generateLocalUniqueId(),
+      order: globalOrder++,
+      type: isDialog ? 'dialog' : 'text',
+      content,
+      phrases,
+      formatting: {},
+      metadata: { isNewPara }
+    });
 
     previousLineWasEmpty = false;
   }
@@ -170,7 +167,7 @@ export function parseBookMarkdown(
     const firstContentLineIndex = lines.findIndex(l => l.trim() && !l.trim().startsWith('## '));
     if (firstContentLineIndex !== -1) {
         title = parseBilingualText(lines[firstContentLineIndex], primaryLang, secondaryLang);
-        // We COPY the title, we don't consume the line from content
+        // The title is a copy, the line is still part of the content.
         contentStartIndex = firstContentLineIndex;
     }
   }
@@ -181,37 +178,58 @@ export function parseBookMarkdown(
   const chapterSections = contentMarkdown.split(/(?=^## )/m).filter(s => s.trim());
   
   const chapters: Chapter[] = [];
-  let chapterOrder = 0;
   
-  for (const section of chapterSections) {
-    const sectionLines = section.split('\n');
-    const firstLine = sectionLines[0];
-    
-    if (!firstLine.trim().startsWith('## ')) continue;
-    
-    const chapterTitleText = firstLine.trim().substring(3).trim();
-    const chapterTitle = parseBilingualText(chapterTitleText, primaryLang, secondaryLang);
-    
-    const chapterContent = sectionLines.slice(1).join('\n');
-    const segments = parseMarkdownToSegments(chapterContent, origin);
-    
-    const totalWords = segments.reduce((sum, seg) => {
-      const text = Object.values(seg.content || {}).join(' ');
-      return sum + text.split(/\s+/).length;
-    }, 0);
-    
-    chapters.push({
-      id: generateLocalUniqueId(),
-      order: chapterOrder++,
-      title: chapterTitle,
-      segments,
-      stats: {
-        totalSegments: segments.length,
-        totalWords,
-        estimatedReadingTime: Math.ceil(totalWords / 200)
-      },
-      metadata: {}
-    });
+  if (chapterSections.length === 0 && contentMarkdown.trim()) {
+      // If there are no chapter headings, treat the entire content as a single chapter.
+      const segments = parseMarkdownToSegments(contentMarkdown, origin);
+      const totalWords = segments.reduce((sum, seg) => {
+        const text = Object.values(seg.content || {}).join(' ');
+        return sum + text.split(/\s+/).length;
+      }, 0);
+      chapters.push({
+          id: generateLocalUniqueId(),
+          order: 0,
+          title: { [primaryLang]: "Chapter 1" },
+          segments,
+          stats: {
+            totalSegments: segments.length,
+            totalWords,
+            estimatedReadingTime: Math.ceil(totalWords / 200)
+          },
+          metadata: {}
+      });
+  } else {
+      let chapterOrder = 0;
+      for (const section of chapterSections) {
+        const sectionLines = section.split('\n');
+        const firstLine = sectionLines[0];
+        
+        if (!firstLine.trim().startsWith('## ')) continue;
+        
+        const chapterTitleText = firstLine.trim().substring(3).trim();
+        const chapterTitle = parseBilingualText(chapterTitleText, primaryLang, secondaryLang);
+        
+        const chapterContent = sectionLines.slice(1).join('\n');
+        const segments = parseMarkdownToSegments(chapterContent, origin);
+        
+        const totalWords = segments.reduce((sum, seg) => {
+          const text = Object.values(seg.content || {}).join(' ');
+          return sum + text.split(/\s+/).length;
+        }, 0);
+        
+        chapters.push({
+          id: generateLocalUniqueId(),
+          order: chapterOrder++,
+          title: chapterTitle,
+          segments,
+          stats: {
+            totalSegments: segments.length,
+            totalWords,
+            estimatedReadingTime: Math.ceil(totalWords / 200)
+          },
+          metadata: {}
+        });
+      }
   }
   
   return { title, chapters };
