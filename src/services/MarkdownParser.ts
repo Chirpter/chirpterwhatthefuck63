@@ -1,3 +1,4 @@
+
 // src/services/MarkdownParser.ts - PRODUCTION READY
 import type { Segment, Chapter, Book, Piece, MultilingualContent, PhraseMap } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -34,11 +35,18 @@ function splitIntoPhrases(sentence: string): string[] {
 function extractBilingualSentence(
   text: string,
 ): { primary: string; secondary: string } {
-  const parts = text.split(/\s+\/\s+/);
-  
+  const separator = ' / ';
+  if (text.includes(separator)) {
+    const parts = text.split(separator, 2);
+    return {
+      primary: removeFootnoteAnnotations(parts[0]),
+      secondary: removeFootnoteAnnotations(parts[1]),
+    };
+  }
+  // If no separator, the whole line is primary content
   return {
-    primary: removeFootnoteAnnotations(parts[0] || ''),
-    secondary: removeFootnoteAnnotations(parts[1] || '') // Ensures it's never undefined
+    primary: removeFootnoteAnnotations(text),
+    secondary: '', // Return empty string for consistency
   };
 }
 
@@ -52,8 +60,8 @@ export function parseMarkdownToSegments(
   if (!markdown || !markdown.trim()) return [];
   
   const [primaryLang, secondaryLang, format] = origin.split('-');
-  const isPhraseMode = format === 'ph';
   const isBilingual = !!secondaryLang;
+  const isPhraseMode = format === 'ph';
   
   const lines = markdown.split('\n');
   const segments: Segment[] = [];
@@ -72,7 +80,10 @@ export function parseMarkdownToSegments(
       
     if (isBilingual) {
       const { primary, secondary } = extractBilingualSentence(trimmedLine);
-      const content: MultilingualContent = { [primaryLang]: primary, [secondaryLang]: secondary };
+      const content: MultilingualContent = { [primaryLang]: primary };
+      if (secondaryLang) {
+        content[secondaryLang] = secondary;
+      }
       
       let phrases: PhraseMap[] | undefined = undefined;
       if (isPhraseMode) {
@@ -82,10 +93,11 @@ export function parseMarkdownToSegments(
         phrases = [];
         
         for (let i = 0; i < maxLen; i++) {
-          phrases.push({
-            [primaryLang]: primaryPhrases[i] || '',
-            [secondaryLang]: secondaryPhrases[i] || ''
-          });
+          const phrasePair: PhraseMap = { [primaryLang]: primaryPhrases[i] || '' };
+          if (secondaryLang) {
+            phrasePair[secondaryLang] = secondaryPhrases[i] || '';
+          }
+          phrases.push(phrasePair);
         }
       }
       
@@ -131,11 +143,17 @@ function parseBilingualText(
     return { [primaryLang]: cleanedText };
   }
   
-  const parts = cleanedText.split(/\s+\/\s+/);
-  return { 
-    [primaryLang]: parts[0]?.trim() || cleanedText,
-    [secondaryLang]: parts[1]?.trim() || '' // Ensure secondary is always a string
-  };
+  const separator = ' / ';
+  if (cleanedText.includes(separator)) {
+      const parts = cleanedText.split(separator, 2);
+      return { 
+          [primaryLang]: parts[0]?.trim() || '',
+          [secondaryLang]: parts[1]?.trim() || '' // Ensure secondary is always a string
+      };
+  }
+
+  // If no separator, assume it's all primary language
+  return { [primaryLang]: cleanedText };
 }
 
 /**
