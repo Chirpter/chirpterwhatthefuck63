@@ -1,4 +1,3 @@
-// src/features/auth/components/LoginView.tsx - FIXED VERSION
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -38,23 +37,35 @@ export default function LoginView() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [hasShownToast, setHasShownToast] = useState(false);
 
-  // FIXED: Clean URL parameters after showing toast
+  // Warm up session API connection on mount
   useEffect(() => {
-    // Only show toast once per reason
+    // This creates a connection to the session API endpoint
+    // so it's ready when user actually signs in
+    const warmConnection = async () => {
+      try {
+        await fetch('/api/auth/session', { 
+          method: 'HEAD',
+          cache: 'no-store'
+        });
+      } catch (error) {
+        // Silently ignore - this is just warming up the connection
+      }
+    };
+    
+    warmConnection();
+  }, []);
+
+  useEffect(() => {
     if (hasShownToast) return;
     
     const reason = searchParams.get('reason');
     if (reason === 'logged_out') {
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
       setHasShownToast(true);
-      
-      // Clean URL after showing toast (no history entry)
       router.replace('/login', { scroll: false });
     } else if (reason === 'session_expired' || reason === 'session_revoked') {
       toast({ title: "Session Expired", description: "Please log in again.", variant: "destructive" });
       setHasShownToast(true);
-      
-      // Clean URL after showing toast (no history entry)
       router.replace('/login', { scroll: false });
     }
   }, [searchParams, toast, router, hasShownToast]);
@@ -62,12 +73,10 @@ export default function LoginView() {
   const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
     e.preventDefault();
     const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
-    // Auth context now handles navigation via window.location.href
     await authOperation(email, pass);
   };
 
   const handleGoogleSignIn = async () => {
-    // Auth context now handles navigation via window.location.href
     await signInWithGoogle();
   };
 
@@ -76,7 +85,6 @@ export default function LoginView() {
     setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
   };
 
-  // Show loader while checking auth or if already authenticated
   if (isAuthLoading || authUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -85,7 +93,6 @@ export default function LoginView() {
     );
   }
 
-  // Main login UI
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-blue-50 to-blue-100 dark:from-background dark:via-blue-900/20 dark:to-blue-900/30 p-4">
       <Card className="w-full max-w-sm shadow-2xl">
@@ -164,6 +171,29 @@ export default function LoginView() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Enhanced loading overlay with progress indicator */}
+      {isSigningIn && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <Card className="w-full max-w-sm mx-4">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <Logo className="h-12 w-12 text-primary animate-pulse" />
+                  <div className="absolute inset-0 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                </div>
+                <div className="text-center space-y-2">
+                  <p className="font-semibold">Signing you in...</p>
+                  <p className="text-sm text-muted-foreground">Creating secure session</p>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                  <div className="h-full bg-primary rounded-full animate-progress" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

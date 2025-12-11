@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useCallback, lazy, Suspense, useState, useEffect, useMemo, useContext } from 'react';
@@ -56,6 +55,8 @@ const VocabularyView = dynamic(() => import('@/features/vocabulary/components/vo
 interface LibraryViewProps {
   contentType: 'book' | 'piece' | 'vocabulary';
 }
+
+const INITIAL_LOAD_THRESHOLD = 20;
 
 function LibraryViewContent({ contentType }: LibraryViewProps) {
   const { t } = useTranslation(['libraryPage', 'common', 'bookCard', 'vocabularyPage', 'toast', 'presets']);
@@ -238,6 +239,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
     }
     
     const gridLayoutClasses = "columns-2 sm:columns-3 md:columns-4 lg:columns-4 xl:columns-5 2xl:columns-6 gap-6 space-y-6";
+    const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && libraryHook.hasMore;
 
     return (
       <BookmarkStyleProvider items={filteredItems} availableBookmarks={availableBookmarks}>
@@ -263,12 +265,21 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
             })}
           </AnimatePresence>
         </div>
-        {libraryHook.hasMore && !libraryHook.isLoadingMore && (
+        {shouldShowLoadMore && !libraryHook.isLoadingMore && (
           <div className="text-center mt-8">
-            <Button onClick={libraryHook.loadMoreItems} disabled={libraryHook.isLoadingMore}>
-              {libraryHook.isLoadingMore && <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" />}
+            <Button 
+              variant="link" 
+              onClick={libraryHook.loadMoreItems} 
+              className="text-muted-foreground hover:text-primary"
+            >
               {t('common:loadMore')}
+              <Icon name="ChevronDown" className="ml-2 h-4 w-4" />
             </Button>
+          </div>
+        )}
+        {libraryHook.isLoadingMore && (
+          <div className="text-center mt-8">
+            <Icon name="Loader2" className="h-6 w-6 animate-spin text-primary mx-auto" />
           </div>
         )}
       </BookmarkStyleProvider>
@@ -370,7 +381,6 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
 }
 
 export default function LibraryView(props: LibraryViewProps) {
-  // REMOVED AudioPlayerProvider from here. It is now global.
   return (
       <LibraryViewContent {...props} />
   );
