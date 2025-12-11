@@ -13,46 +13,48 @@ function cleanText(text: string): string {
 
 /**
  * Parses monolingual content into a PhraseMap array.
- * For sentence mode, this will be an array with a single item.
+ * This always returns an array with a single item for sentence-mode.
  */
-function parseMonolingualContent(markdown: string, lang: string): PhraseMap[] {
-    if (!markdown.trim()) return [];
-    return [{ [lang]: cleanText(markdown) }];
+function parseMonolingualContent(line: string, lang: string): PhraseMap[] {
+    const cleaned = cleanText(line);
+    if (!cleaned) return [];
+    return [{ [lang]: cleaned }];
 }
 
 /**
  * Parses bilingual content using the {translation} syntax.
  * It handles mixed monolingual and bilingual content within the same line.
+ * This now returns an array of PhraseMap objects, with one object per sentence pair.
  */
-function parseBilingualContent(markdown: string, primaryLang: string, secondaryLang: string): PhraseMap[] {
-  const phrases: PhraseMap[] = [];
-  
-  // This regex is non-greedy and captures text blocks and their {translations}.
-  const bilingualPairRegex = /(.*?)\s*\{(.*?)\}/gs;
-  let lastIndex = 0;
-  let match;
+function parseBilingualContent(line: string, primaryLang: string, secondaryLang: string): PhraseMap[] {
+    const bilingualRegex = /([^{}]+)\{([^{}]*)\}/g;
+    let match;
+    const phrases: PhraseMap[] = [];
+    let lastIndex = 0;
 
-  while ((match = bilingualPairRegex.exec(markdown)) !== null) {
-      // 1. Handle the bilingual pair itself
-      const primary = cleanText(match[1]);
-      const secondary = cleanText(match[2]);
+    while ((match = bilingualRegex.exec(line)) !== null) {
+        const precedingText = line.substring(lastIndex, match.index).trim();
+        if (precedingText) {
+            phrases.push({ [primaryLang]: precedingText });
+        }
 
-      if (primary || secondary) {
-        phrases.push({
-            [primaryLang]: primary,
-            [secondaryLang]: secondary,
-        });
-      }
-      lastIndex = match.index + match[0].length;
-  }
-  
-  // 2. Handle any remaining monolingual text at the very end of the line
-  const remainingText = markdown.substring(lastIndex).trim();
-  if (remainingText) {
-      phrases.push({ [primaryLang]: remainingText });
-  }
+        const primary = cleanText(match[1]);
+        const secondary = cleanText(match[2]);
+        if (primary || secondary) {
+            phrases.push({
+                [primaryLang]: primary,
+                [secondaryLang]: secondary,
+            });
+        }
+        lastIndex = match.index + match[0].length;
+    }
 
-  return phrases;
+    const remainingText = line.substring(lastIndex).trim();
+    if (remainingText) {
+        phrases.push({ [primaryLang]: remainingText });
+    }
+
+    return phrases;
 }
 
 
@@ -71,7 +73,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
   for (const line of lines) {
     const trimmedLine = line.trim();
     
-    // Ignore chapter headings (and any other heading levels) within segment content
+    // Skip any line that starts with a markdown heading
     if (trimmedLine.startsWith('#')) {
         continue;
     }
@@ -81,36 +83,41 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
       continue;
     }
 
-    let linePhrases: PhraseMap[] = [];
+    let lineContent: PhraseMap[] = [];
     
     if (isBilingual) {
         if (bilingualFormat === 'phrase') {
-             // Split the line by comma, semicolon, or colon to get phrases
-            const phraseRegex = /([^,;:]+[,;:]?)/g;
-            const primarySentence = trimmedLine.match(/([^{}]+)/)?.[0] || '';
-            const secondarySentence = trimmedLine.match(/\{(.*?)\}/)?.[1] || '';
-            
-            const primaryPhrases = primarySentence.match(phraseRegex) || [primarySentence];
-            const secondaryPhrases = secondarySentence.match(phraseRegex) || [secondarySentence];
-
-            linePhrases = primaryPhrases.map((phrase, i) => ({
-                [primaryLang]: cleanText(phrase),
-                [secondaryLang]: cleanText(secondaryPhrases[i] || ''),
-            }));
-            
+            // For phrase mode, treat the whole line as a single segment to be parsed
+            lineContent = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
         } else { // Sentence mode
-            linePhrases = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
+            // Each sentence pair becomes its own segment
+            const sentencePairs = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
+            sentencePairs.forEach((pair, index) => {
+                segments.push({
+                    id: generateLocalUniqueId(),
+                    order: segments.length,
+                    type: 'text',
+                    content: [pair], // Always an array with one item for sentence mode
+                    formatting: {},
+                    metadata: {
+                        isNewPara: isNewParaNext && index === 0,
+                        bilingualFormat: 'sentence',
+                    }
+                });
+            });
+            isNewParaNext = false;
+            continue; // Skip the generic segment creation below
         }
     } else { // Monolingual
-      linePhrases = parseMonolingualContent(trimmedLine, primaryLang);
+      lineContent = parseMonolingualContent(trimmedLine, primaryLang);
     }
     
-    if (linePhrases.length > 0) {
+    if (lineContent.length > 0) {
       const newSegment: Segment = {
           id: generateLocalUniqueId(),
           order: segments.length,
           type: 'text',
-          content: linePhrases,
+          content: lineContent,
           formatting: {},
           metadata: {
               isNewPara: isNewParaNext,

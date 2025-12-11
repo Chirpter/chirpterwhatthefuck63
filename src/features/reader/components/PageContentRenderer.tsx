@@ -37,7 +37,7 @@ export function PageContentRenderer({
     }
     // This logic needs to be robust. Assuming segment ID is derivable from audio player state.
     // For now, this is a simplified placeholder.
-    return audioPlayer.currentSegment?.id || null;
+    return audioPlayer.currentSegment?.originalSegmentId || null;
   }, [currentPlayingItem, itemData, audioPlayer.currentSegment]);
 
   const proseThemeClass = useMemo(() => {
