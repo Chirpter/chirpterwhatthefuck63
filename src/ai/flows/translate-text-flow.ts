@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A flow to translate a given text to a target language.
+ * @fileOverview A flow to translate a given text to a target language using Google's non-AI translation API.
  * - translateText - Translates text.
  * - TranslateTextInput - Input schema.
  * - TranslateTextOutput - Output schema.
@@ -9,7 +9,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { LANGUAGES } from '@/lib/constants';
 import type { TranslateTextInput } from '@/lib/types';
 import { TranslateTextInputSchema } from '@/lib/types';
 
@@ -24,51 +23,48 @@ export async function translateText(input: TranslateTextInput): Promise<Translat
   return translateTextFlow(input);
 }
 
-const PromptInputSchema = z.object({
-    text: z.string(),
-    targetLanguage: z.string(),
-    sourceInstruction: z.string(),
-});
-
-const translationPrompt = ai.definePrompt({
-    name: 'translateTextPrompt',
-    input: { schema: PromptInputSchema },
-    output: { schema: TranslateTextOutputSchema },
-    prompt: `Translate the following text into {{targetLanguage}}. Also, identify the grammatical part of speech for the text.
-{{sourceInstruction}}
-    
-Text to translate: "{{{text}}}"
-
-Return ONLY a JSON object with the translation and its part of speech. Do not add any extra formatting, explanations, or markdown.
-`,
-});
-
 
 const translateTextFlow = ai.defineFlow(
   {
-    name: 'translateTextFlow',
+    name: 'translateTextFlow_NonAI', // Renamed to reflect new logic
     inputSchema: TranslateTextInputSchema,
     outputSchema: TranslateTextOutputSchema,
   },
   async (input) => {
-    // Convert language codes ('en', 'vi') to full names ('English', 'Vietnamese') for the prompt
-    const targetLangLabel = LANGUAGES.find(l => l.value === input.targetLanguage)?.label || input.targetLanguage;
-    const sourceLangLabel = input.sourceLanguage ? (LANGUAGES.find(l => l.value === input.sourceLanguage)?.label || input.sourceLanguage) : undefined;
+    const { text, sourceLanguage, targetLanguage } = input;
     
-    const sourceInstruction = sourceLangLabel ? `The source text is in ${sourceLangLabel}.` : '';
+    const googleTranslateUrl = new URL("https://translate.googleapis.com/translate_a/single");
+    googleTranslateUrl.searchParams.append("client", "gtx");
+    googleTranslateUrl.searchParams.append("sl", sourceLanguage || 'auto');
+    googleTranslateUrl.searchParams.append("tl", targetLanguage);
+    googleTranslateUrl.searchParams.append("dt", "t"); // Request translation of text
+    googleTranslateUrl.searchParams.append("q", text);
 
-    const promptInput = {
-        text: input.text,
-        targetLanguage: targetLangLabel,
-        sourceInstruction,
-    };
+    try {
+        const response = await fetch(googleTranslateUrl.toString());
+        if (!response.ok) {
+            throw new Error(`Google Translate API failed with status ${response.status}`);
+        }
+        
+        const jsonResponse = await response.json();
+        
+        // The Google Translate API returns a nested array.
+        // The main translation is in the first element of the first array.
+        const translation = jsonResponse?.[0]?.map((s: any[]) => s[0]).join("") || null;
 
-    const { output } = await translationPrompt(promptInput);
+        if (!translation) {
+            throw new Error("Failed to parse translation from Google API response.");
+        }
+        
+        // The non-AI API doesn't provide part of speech, so we return an empty value.
+        return {
+            translation: translation,
+            partOfSpeech: undefined, 
+        };
 
-    if (!output?.translation) {
-      throw new Error('AI failed to provide a translation.');
+    } catch (error) {
+        console.error("[Non-AI Translate Flow] Error:", error);
+        throw new Error('Translation backend failed.');
     }
-    
-    return output;
   }
 );
