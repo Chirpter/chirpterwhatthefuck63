@@ -1,3 +1,4 @@
+
 // src/services/MarkdownParser.ts - FINAL, ROBUST VERSION
 import type { Segment, Chapter, Book, Piece, MultilingualContent } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -33,18 +34,22 @@ function splitSentences(text: string): string[] {
 }
 
 /**
- * Extracts a bilingual sentence pair from a line of text.
- * @param line - The line containing text like "English part / Vietnamese part".
+ * Extracts a bilingual sentence pair from a line of text using {} as separator.
+ * @param line - The line containing text like "English part {Vietnamese part}".
  * @param primaryLang - The language code for the first part.
  * @param secondaryLang - The language code for the second part.
  * @returns A MultilingualContent object.
  */
 function extractBilingualSentence(line: string, primaryLang: string, secondaryLang: string): MultilingualContent {
-  const parts = line.split(' / ');
-  return {
-    [primaryLang]: cleanText(parts[0]),
-    [secondaryLang]: cleanText(parts[1] || ''), // Ensure secondary is always a string
-  };
+  const match = line.match(/^(.*?)\s*\{(.*)\}\s*$/);
+  if (match) {
+    return {
+      [primaryLang]: cleanText(match[1]),
+      [secondaryLang]: cleanText(match[2]),
+    };
+  }
+  // Fallback for non-matching lines (treat as primary language)
+  return { [primaryLang]: cleanText(line) };
 }
 
 
@@ -76,32 +81,23 @@ export function parseMarkdownToSegments(
         continue;
     }
     
-    if (secondaryLang && trimmedLine.includes(' / ')) {
-      // Bilingual line processing
-      const pairs = extractBilingualSentence(trimmedLine, primaryLang, secondaryLang);
-      segments.push({
-        id: generateLocalUniqueId(),
-        order: order++,
-        type: 'text',
-        content: pairs,
-        formatting: {},
-        metadata: { isNewPara }
-      });
+    let content: MultilingualContent;
+    
+    if (secondaryLang) {
+      content = extractBilingualSentence(trimmedLine, primaryLang, secondaryLang);
     } else {
-      // Monolingual line processing
-      const sentences = splitSentences(trimmedLine);
-      sentences.forEach((sentence, index) => {
-        segments.push({
-          id: generateLocalUniqueId(),
-          order: order++,
-          type: 'text',
-          content: { [primaryLang]: cleanText(sentence) },
-          formatting: {},
-          metadata: { isNewPara: isNewPara && index === 0 }
-        });
-      });
+      content = { [primaryLang]: cleanText(trimmedLine) };
     }
-
+    
+    segments.push({
+      id: generateLocalUniqueId(),
+      order: order++,
+      type: 'text',
+      content: content,
+      formatting: {},
+      metadata: { isNewPara }
+    });
+    
     isNewPara = false;
   }
   
@@ -110,7 +106,7 @@ export function parseMarkdownToSegments(
 
 
 /**
- * Parses a simple bilingual text for titles/headings.
+ * Parses a simple bilingual text for titles/headings using {}.
  */
 function parseBilingualText(
   text: string,
@@ -118,15 +114,16 @@ function parseBilingualText(
   secondaryLang?: string
 ): MultilingualContent {
   const cleaned = cleanText(text);
-  if (!secondaryLang || !cleaned.includes(' / ')) {
-    return { [primaryLang]: cleaned };
+  if (secondaryLang) {
+      const match = cleaned.match(/^(.*?)\s*\{(.*)\}\s*$/);
+      if (match) {
+          return {
+              [primaryLang]: match[1].trim(),
+              [secondaryLang]: match[2].trim()
+          };
+      }
   }
-  
-  const parts = cleaned.split(' / ');
-  return {
-    [primaryLang]: parts[0]?.trim() || '',
-    [secondaryLang]: parts[1]?.trim() || ''
-  };
+  return { [primaryLang]: cleaned };
 }
 
 

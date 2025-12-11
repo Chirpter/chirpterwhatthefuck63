@@ -134,8 +134,7 @@ async function generateSinglePieceContent(pieceFormData: PieceFormValues): Promi
     let languageInstruction: string;
     if (secondaryLanguage) {
         const secondaryLangLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
-        const pairingUnit = isPhraseMode ? 'meaningful chunks' : 'sentences';
-        languageInstruction = `Write in bilingual ${primaryLangLabel} and ${secondaryLangLabel}, with ${pairingUnit} paired using ' / ' as a separator.`;
+        languageInstruction = `Write in bilingual ${primaryLangLabel} and ${secondaryLangLabel}, with sentences paired using {} as {translation of that sentence}`;
     } else {
         languageInstruction = `Write in ${primaryLangLabel}.`;
     }
@@ -145,7 +144,7 @@ Instructions: "${userPrompt}"
 
 CRITICAL RULES:
 - Language and Format: ${languageInstruction}
-- The title MUST be a Level 1 Markdown heading (e.g., '# Title' or '# Title / Tiêu đề').
+- The title MUST be a Level 1 Markdown heading (e.g., '# Title' or '# Title {Tiêu đề}').
 - The main content should follow directly after the title.
 `.trim();
 
@@ -172,13 +171,8 @@ CRITICAL RULES:
             titleText = lines[0].substring(2).trim();
             contentMarkdown = lines.slice(1).join('\n');
         }
-
-        const titleParts = titleText.split(/\s+\/\s+/).map(p => p.trim());
-        const finalTitle: { [key: string]: string } = { [primaryLanguage]: titleParts[0] };
-        if (secondaryLanguage && titleParts[1]) {
-            finalTitle[secondaryLanguage] = titleParts[1];
-        }
-
+        
+        const finalTitle = parseBilingualText(titleText, primaryLanguage, secondaryLanguage);
         const segments = parseMarkdownToSegments(contentMarkdown, pieceFormData.origin);
         
         return {
@@ -190,6 +184,23 @@ CRITICAL RULES:
         console.error(`Piece content generation failed:`, (error as Error).message);
         throw new ApiServiceError('AI content generation failed.', "UNKNOWN");
     }
+}
+
+/**
+ * A helper function to parse bilingual text from a single line.
+ * It now uses `{}` as a separator.
+ */
+function parseBilingualText(text: string, primaryLang: string, secondaryLang?: string): { [key: string]: string } {
+    if (secondaryLang) {
+        const match = text.match(/^(.*?)\s*\{(.*)\}\s*$/);
+        if (match) {
+            return {
+                [primaryLang]: match[1].trim(),
+                [secondaryLang]: match[2].trim(),
+            };
+        }
+    }
+    return { [primaryLang]: text };
 }
 
 /**

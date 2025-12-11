@@ -191,10 +191,8 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
         const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
         
-        const pairingUnit = isPhraseMode ? 'meaningful chunks' : 'sentences';
-        
-        criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading, with bilingual versions separated by ' / ' (e.g., '# My Title / Tiêu đề của tôi').`);
-        criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with ${pairingUnit} paired using ' / ' as a separator.`);
+        criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading, with bilingual versions separated by {} (e.g., '# My Title {Tiêu đề của tôi}).`);
+        criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}`);
     } else {
         const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         criticalInstructions.push(`- Write all content and titles in ${langLabel}.`);
