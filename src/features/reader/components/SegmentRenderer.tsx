@@ -1,3 +1,4 @@
+
 // src/features/reader/components/SegmentRenderer.tsx
 
 'use client';
@@ -16,26 +17,56 @@ interface SegmentRendererProps {
   isBilingualMode: boolean;
   displayLang1: string;
   displayLang2: string; // 'none' or language code
-  bookUnit: 'sentence' | 'phrase'; // Add bookUnit prop
 }
+
+/**
+ * Parses a string with simple markdown (bold, italic, strikethrough) and returns an array of React nodes.
+ * @param text The string to parse.
+ * @returns A React fragment containing the parsed elements.
+ */
+const parseSimpleMarkdown = (text: string): React.ReactNode => {
+    // Regex to capture **bold**, *italic*, or ~~strikethrough~~ text
+    const regex = /(\*\*.*?\*\*|\*.*?\*|~~.*?~~)/g;
+    const parts = text.split(regex);
+
+    return (
+        <>
+            {parts.map((part, index) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    return <strong key={index}>{part.slice(2, -2)}</strong>;
+                }
+                if (part.startsWith('*') && part.endsWith('*')) {
+                    return <em key={index}>{part.slice(1, -1)}</em>;
+                }
+                if (part.startsWith('~~') && part.endsWith('~~')) {
+                    return <s key={index}>{part.slice(2, -2)}</s>;
+                }
+                return part;
+            })}
+        </>
+    );
+};
 
 const getWordHighlightContent = (text: string, boundary: { charIndex: number, charLength: number } | null): React.ReactNode => {
     if (boundary) {
       const { charIndex, charLength } = boundary;
       if (charIndex <= text.length) {
+        const pre = text.substring(0, charIndex);
+        const highlighted = text.substring(charIndex, charIndex + charLength);
+        const post = text.substring(charIndex + charLength);
+        
         return (
           <>
-            {text.substring(0, charIndex)}
-            <span className="tts-word-highlight">{text.substring(charIndex, charIndex + charLength)}</span>
-            {text.substring(charIndex + charLength)}
+            {parseSimpleMarkdown(pre)}
+            <span className="tts-word-highlight">{parseSimpleMarkdown(highlighted)}</span>
+            {parseSimpleMarkdown(post)}
           </>
         );
       }
     }
-    return text;
+    return parseSimpleMarkdown(text);
 };
 
-// This function now handles all rendering logic, using the metadata flag.
 const renderSegmentContent = (
   segment: Segment,
   displayLang1: string,
@@ -43,18 +74,18 @@ const renderSegmentContent = (
   isBilingualMode: boolean,
   isSegmentPlaying: boolean,
   spokenLang: string | null,
-  speechBoundary: { charIndex: number, charLength: number } | null,
-  bookUnit: 'sentence' | 'phrase'
+  speechBoundary: { charIndex: number, charLength: number } | null
 ) => {
-  const { content } = segment;
-  
+  const { content, metadata } = segment;
+  const unit = metadata.unit || 'sentence';
+
   const primaryText = content[displayLang1];
   const secondaryText = displayLang2 !== 'none' ? content[displayLang2] : null;
 
   if (!primaryText) return null;
 
   // Handle Phrase Mode
-  if (bookUnit === 'phrase') {
+  if (unit === 'phrase' && isBilingualMode) {
       const primaryPhrases = primaryText.split(' | ');
       const secondaryPhrases = secondaryText?.split(' | ') || [];
 
@@ -62,9 +93,9 @@ const renderSegmentContent = (
           const secondaryPhrase = secondaryPhrases[index];
           return (
               <span key={index} className={cn("inline-block mr-1", isSegmentPlaying && 'tts-highlight')}>
-                  <span lang={displayLang1}>{phrase}</span>
+                  <span lang={displayLang1}>{parseSimpleMarkdown(phrase)}</span>
                   {secondaryPhrase && (
-                      <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryPhrase})</span>
+                      <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({parseSimpleMarkdown(secondaryPhrase)})</span>
                   )}
               </span>
           );
@@ -74,11 +105,11 @@ const renderSegmentContent = (
   // Handle Sentence Mode
   const primaryContent = (isSegmentPlaying && spokenLang === displayLang1)
       ? getWordHighlightContent(primaryText, speechBoundary)
-      : primaryText;
+      : parseSimpleMarkdown(primaryText);
   
   const secondaryContent = (secondaryText && isSegmentPlaying && spokenLang === displayLang2)
       ? getWordHighlightContent(secondaryText, speechBoundary)
-      : secondaryText;
+      : (secondaryText ? parseSimpleMarkdown(secondaryText) : null);
       
   if (isBilingualMode) {
       return (
@@ -107,12 +138,11 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     isBilingualMode,
     displayLang1,
     displayLang2,
-    bookUnit, // Receive bookUnit from parent
 }) => {
   
   const isSegmentPlaying = isPlaying;
 
-  const renderMainContent = () => renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, bookUnit);
+  const renderMainContent = () => renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary);
   
   const primaryText = segment.content[displayLang1] || '';
 
