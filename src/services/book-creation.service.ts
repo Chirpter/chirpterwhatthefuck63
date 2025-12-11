@@ -1,12 +1,13 @@
+// src/services/book-creation.service.ts
 
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, Unit } from "@/lib/types";
+import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, ContentUnit } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { ApiServiceError } from "../lib/errors";
-import { parseBookMarkdown } from './MarkdownParser';
+import { parseBookMarkdown } from './MarkdownParser'; // Changed import
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
@@ -34,10 +35,10 @@ async function processBookGenerationPipeline(
   contentInput: GenerateBookContentInput,
   coverJobType: CoverJobType,
   coverData?: File | string | null,
-  unit?: Unit // Pass unit to the pipeline
+  unit?: ContentUnit
 ) {
   const [contentResult, coverResult] = await Promise.allSettled([
-    processContentGenerationForBook(userId, bookId, contentInput, unit), // Pass unit
+    processContentGenerationForBook(userId, bookId, contentInput, unit),
     processCoverImageForBook(userId, bookId, coverJobType, coverData, contentInput.prompt)
   ]);
 
@@ -173,7 +174,7 @@ async function processContentGenerationForBook(
     userId: string, 
     bookId: string, 
     contentInput: GenerateBookContentInput,
-    unit?: Unit
+    unit?: ContentUnit
 ): Promise<Partial<Book>> {
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;

@@ -1,4 +1,4 @@
-// src/services/MarkdownParser.ts - FINAL VERSION
+// src/services/MarkdownParser.ts
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -58,7 +58,7 @@ function parseLineToMultilingualContent(line: string, unit: ContentUnit, primary
 
 /**
  * Main parser - processes text line-by-line and creates segments.
- * This stateless version determines `isNewPara` by looking at the previous line.
+ * This version determines `isNewPara` by looking at the previous line, making it stateless.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
   const [primaryLang, secondaryLang, format] = origin.split('-');
@@ -67,36 +67,37 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
   const lines = markdown.split('\n');
   const segments: Segment[] = [];
   
+  let segmentOrder = 0;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
 
-    // Skip empty lines and chapter headings, as they only serve as separators.
+    // Determine if this line should start a new paragraph.
+    // This is true if it's the first line with content, OR if the previous line was blank.
+    const isNewPara = (segments.length === 0 && trimmedLine !== '') || (lines[i - 1]?.trim() === '' && trimmedLine !== '');
+
+    // Skip empty lines and chapter headings (they only serve as separators).
     if (!trimmedLine || trimmedLine.startsWith('##')) {
         continue;
     }
     
-    // Split line into sentences. This is a simple regex that might not cover all edge cases,
-    // but works for typical prose from the AI.
+    // A simple regex to split by sentences. Handles ., !, ?
     const sentences = trimmedLine.match(/[^.!?]+[.!?]\s*/g) || [trimmedLine];
     
     for (let j = 0; j < sentences.length; j++) {
         const sentence = sentences[j];
         const content = parseLineToMultilingualContent(sentence, unit, primaryLang, secondaryLang);
         
-        if (Object.keys(content).length > 0) {
-            // A segment starts a new paragraph if it's the first segment OR
-            // if the previous line in the raw markdown was empty.
-            const isNewPara = (segments.length === 0 && j === 0) || (j === 0 && lines[i - 1]?.trim() === '');
-
+        if (Object.keys(content).length > 0 && Object.values(content)[0] !== '') {
             segments.push({
                 id: generateLocalUniqueId(),
-                order: segments.length,
-                type: 'text', // Default type, can be expanded later
+                order: segmentOrder++,
+                type: 'text',
                 content: content,
                 metadata: {
-                    isNewPara: isNewPara,
-                    unit: unit,
+                    // A segment starts a new paragraph if it's the first segment of a new line that itself marks a new paragraph.
+                    isNewPara: j === 0 && isNewPara,
                 }
             });
         }
@@ -154,7 +155,7 @@ export function parseBookMarkdown(
       });
   };
 
-  // If there are no '##' headings, treat the whole content as one chapter
+  // If there are no '##' headings, treat the whole content as a single chapter
   if (chapterParts.length <= 1) {
     if (contentAfterTitle.trim()) {
       processChapterContent(contentAfterTitle, 0, 'Chapter 1');
@@ -192,10 +193,9 @@ export function parseBookMarkdown(
 
 function calculateTotalWords(segments: Segment[], primaryLang: string): number {
     return segments.reduce((sum, seg) => {
-        // If it's a phrase, the separator is '|', otherwise it's whitespace
-        const separator = seg.metadata.unit === 'phrase' ? '|' : /\s+/;
         const text = seg.content[primaryLang] || '';
-        return sum + (text.split(separator).filter(Boolean).length || 0);
+        // This is a simple split by space. It's not perfectly accurate but good enough for an estimate.
+        return sum + (text.split(/\s+/).filter(Boolean).length || 0);
     }, 0);
 }
 

@@ -1,11 +1,10 @@
-
+// src/features/library/hooks/useItemCardProgress.ts
 
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { AudioProgressState, Book, BookProgress, LibraryItem } from '@/lib/types';
+import type { AudioProgressState, Book, LibraryItem } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
-import { getItemSegments } from '@/services/MarkdownParser';
 
 interface ProgressInfo {
     overallProgress: number;
@@ -23,7 +22,7 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
         try {
             const savedProgressStr = localStorage.getItem(progressKey);
             if (savedProgressStr) {
-                const bookProgress = JSON.parse(savedProgressStr) as BookProgress;
+                const bookProgress = JSON.parse(savedProgressStr);
                 return bookProgress.audio || null;
             }
         } catch (e) {

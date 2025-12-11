@@ -31,12 +31,9 @@ export type MultilingualContent = {
 export type ContentUnit = 'sentence' | 'phrase';
 
 export interface SegmentMetadata {
-  isNewPara: boolean;
-  applyDropCap?: boolean;
-  style?: string; 
+  isNewPara: boolean; // ✅ The flag to indicate the start of a new paragraph
   wordCount?: { [lang: string]: number };
   primaryLanguage?: string;
-  unit?: ContentUnit; // ✅ RE-ADDED at segment level for flexibility
 }
 
 
@@ -70,7 +67,7 @@ export interface Chapter {
   id: string;
   order: number;
   title: ChapterTitle;
-  segments: Segment[]; // ✅ REVERTED to flat segment array
+  segments: Segment[]; // ✅ A flat array of segments
   stats: ChapterStats;
   metadata: {
     primaryLanguage?: string;
@@ -207,7 +204,7 @@ export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
 export interface Book extends BaseLibraryItem {
   type: 'book';
   author?: string;
-  unit: ContentUnit; // ✅ RE-ADDED at Book level
+  unit: ContentUnit;
   contentState: JobStatus;
   contentError?: string;
   contentRetryCount?: number;

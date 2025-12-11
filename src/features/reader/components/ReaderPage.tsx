@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import type { Book, Piece, LibraryItem, BookProgress, Page, Segment, PresentationMode, Chapter, BilingualViewMode, BilingualFormat } from '@/lib/types';
+import type { Book, Piece, LibraryItem, BookProgress, Page, Segment, PresentationMode, Chapter, BilingualFormat } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
@@ -103,10 +103,10 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [displayLang1, setDisplayLang1] = useState('en');
   const [displayLang2, setDisplayLang2] = useState('none');
   
-  const bilingualFormat = useMemo((): BilingualFormat => {
-      if (item?.origin?.endsWith('-ph')) return 'phrase';
-      return 'sentence';
-  }, [item?.origin]);
+  const bilingualFormat: BilingualFormat = useMemo(() => {
+    if (!item || !item.origin) return 'sentence';
+    return item.origin.endsWith('-ph') ? 'phrase' : 'sentence';
+  }, [item]);
 
   const availableLanguages = useMemo(() => item?.langs || ['en'], [item]);
   
@@ -373,10 +373,16 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   useEffect(() => {
     if (isCalculatingPages || isPreview) return;
     
-    if (audioPlayer.currentSegment?.id) {
-        const pageIndex = getPageForSegment(audioPlayer.currentSegment.id);
-        if (pageIndex !== -1 && pageIndex !== currentPageIndex) {
-            setCurrentPageIndex(pageIndex);
+    if (audioPlayer.currentPlayingItem?.id === item?.id && audioPlayer.state.position.segmentIndex >= 0) {
+        const chapterIndex = audioPlayer.state.position.chapterIndex ?? 0;
+        const segmentIndex = audioPlayer.state.position.segmentIndex;
+        
+        if (item.type === 'book' && item.chapters[chapterIndex]?.segments[segmentIndex]) {
+            const segmentId = item.chapters[chapterIndex].segments[segmentIndex].id;
+            const pageIndex = getPageForSegment(segmentId);
+            if (pageIndex !== -1 && pageIndex !== currentPageIndex) {
+                setCurrentPageIndex(pageIndex);
+            }
         }
     } 
     else if (!readerPageInitializedRef.current) {
@@ -396,7 +402,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         }
         readerPageInitializedRef.current = true;
     }
-  }, [audioPlayer.currentSegment, currentPageIndex, getPageForSegment, searchParams, isCalculatingPages, isPreview, item, chapterStartPages]);
+  }, [audioPlayer.state, currentPageIndex, getPageForSegment, searchParams, isCalculatingPages, isPreview, item, chapterStartPages]);
 
 
   const renderLoading = () => (

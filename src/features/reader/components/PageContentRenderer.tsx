@@ -27,15 +27,30 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2,
 }: PageContentRendererProps) {
-  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang, currentSegment } = useAudioPlayer();
+  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = useAudioPlayer();
   const segments = page.items;
   
   const currentPlayingSegmentId = useMemo(() => {
     if (currentPlayingItem?.type !== itemData?.type || !itemData || currentPlayingItem.id !== itemData.id) {
         return null;
     }
-    return currentSegment?.originalSegmentId || null;
-  }, [currentPlayingItem, itemData, currentSegment]);
+    
+    const audioPlayerSegment = audioPlayer.state.position.segmentIndex;
+    const currentChapterIndex = audioPlayer.state.position.chapterIndex ?? 0;
+    
+    if (itemData.type === 'book') {
+        const chapter = itemData.chapters[currentChapterIndex];
+        if (chapter && chapter.segments[audioPlayerSegment]) {
+            return chapter.segments[audioPlayerSegment].id;
+        }
+    } else if (itemData.type === 'piece') {
+        if (itemData.generatedContent[audioPlayerSegment]) {
+            return itemData.generatedContent[audioPlayerSegment].id;
+        }
+    }
+    
+    return null;
+  }, [currentPlayingItem, itemData, audioPlayer.state.position]);
 
   const proseThemeClass = useMemo(() => {
     if (presentationStyle === 'book') return 'prose dark:prose-invert';
@@ -76,7 +91,7 @@ export function PageContentRenderer({
     <div className={contentContainerClasses}>
         {segments.map((segment, index) => {
             const isNewPara = segment.metadata.isNewPara;
-            const applyDropCap = isNewPara && index === 0; // Only apply drop cap to the very first segment of a new paragraph on a page
+            const applyDropCap = isNewPara && index === 0;
 
             const content = (
               <SegmentRenderer 
@@ -91,9 +106,9 @@ export function PageContentRenderer({
               />
             );
             
-            if(isNewPara) {
+            if (isNewPara) {
               return (
-                <p key={`p-${segment.id}`} className={cn(applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
+                <p key={`p-${segment.id}`} className={cn("mt-4 first:mt-0", applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
                     {content}
                 </p>
               );
