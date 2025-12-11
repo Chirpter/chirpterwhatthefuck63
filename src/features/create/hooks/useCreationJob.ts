@@ -1,4 +1,3 @@
-
 // src/features/create/hooks/useCreationJob.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -155,7 +154,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
 
       let currentIsPhrase = prev.unit === 'phrase';
       let primary = prev.primaryLanguage;
-      let secondary = prev.availableLanguages[1]; 
+      let secondary: string | undefined = prev.availableLanguages[1];
 
       if (key === 'isBilingual') {
         secondary = value ? 'vi' : undefined; 
@@ -163,7 +162,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
       } else if (key === 'primaryLanguage') {
         primary = value;
         newData.primaryLanguage = value;
-        newData.availableLanguages = [value, ...(prev.availableLanguages.length > 1 ? [prev.availableLanguages[1]] : [])];
+        newData.availableLanguages = [value, ...((prev.availableLanguages.length > 1 && prev.availableLanguages[1]) ? [prev.availableLanguages[1]] : [])];
       } else if (key === 'secondaryLanguage') {
         secondary = value;
         newData.availableLanguages = [primary, value as string];
@@ -226,6 +225,12 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     setFinalizedId(null);
     if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
   }, [user?.uid]);
+
+  useEffect(() => {
+    if (type) {
+      reset(type);
+    }
+  }, [type, reset]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
