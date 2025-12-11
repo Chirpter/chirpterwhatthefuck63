@@ -6,7 +6,7 @@ import {
   parseBookMarkdown,
   getItemSegments 
 } from '../MarkdownParser';
-import type { Book, Piece } from '@/lib/types';
+import type { Book, Piece, MultilingualContent } from '@/lib/types';
 
 describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
   
@@ -413,14 +413,14 @@ describe('getItemSegments Helper', () => {
       langs: ['en', 'vi'],
       display: 'card',
       isBilingual: true,
+      unit: 'sentence',
       generatedContent: [
         {
           id: 's1',
           order: 0,
           type: 'text',
           content: { en: 'Test.', vi: 'Kiểm tra.' },
-          formatting: {},
-          metadata: { isNewPara: true, bilingualFormat: 'sentence' }
+          metadata: { isNewPara: true }
         }
       ],
     };
@@ -443,6 +443,8 @@ describe('getItemSegments Helper', () => {
       origin: 'en',
       langs: ['en'],
       display: 'book',
+      unit: 'sentence',
+      isBilingual: false,
       chapters: [
         {
           id: 'ch1',
@@ -454,8 +456,7 @@ describe('getItemSegments Helper', () => {
               order: 0,
               type: 'text',
               content: { en: 'Content.' },
-              formatting: {},
-              metadata: { isNewPara: true, bilingualFormat: 'sentence' }
+              metadata: { isNewPara: true }
             }
           ],
           stats: { totalSegments: 1, totalWords: 1, estimatedReadingTime: 1 },
@@ -483,6 +484,8 @@ describe('getItemSegments Helper', () => {
       langs: ['en'],
       display: 'book',
       chapters: [],
+      unit: 'sentence',
+      isBilingual: false
     };
     expect(getItemSegments(book, 10)).toHaveLength(0);
   });
