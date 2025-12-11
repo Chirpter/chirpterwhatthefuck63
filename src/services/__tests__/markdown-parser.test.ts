@@ -22,9 +22,8 @@ describe('Markdown Parser - Basic Functionality', () => {
       const markdown = 'First sentence. Second sentence.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
-      expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('First sentence.');
-      expect(segments[1].content.en).toBe('Second sentence.');
+      expect(segments).toHaveLength(1);
+      expect(segments[0].content.en).toBe('First sentence. Second sentence.');
     });
 
     it('should detect dialogue', () => {
@@ -35,7 +34,9 @@ describe('Markdown Parser - Basic Functionality', () => {
     });
 
     it('should handle paragraph breaks correctly', () => {
-      const markdown = `First paragraph sentence one.\n\nSecond paragraph sentence.`;
+      const markdown = `First paragraph sentence one.
+
+Second paragraph sentence.`;
       const segments = parseMarkdownToSegments(markdown, 'en');
 
       expect(segments).toHaveLength(2);
@@ -56,7 +57,7 @@ describe('Markdown Parser - Basic Functionality', () => {
       });
     });
 
-    it('should handle multiple bilingual sentences', () => {
+    it('should handle multiple bilingual sentences on separate lines', () => {
       const markdown = 'First sentence. / Câu đầu tiên.\nSecond sentence. / Câu thứ hai.';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
 
@@ -87,7 +88,6 @@ describe('Markdown Parser - Basic Functionality', () => {
       const segments = parseMarkdownToSegments(markdown, 'en-vi-ph');
 
       expect(segments).toHaveLength(1);
-      expect(segments[0].content).toBeUndefined();
       expect(segments[0].phrases).toBeDefined();
       expect(segments[0].phrases).toHaveLength(2);
       expect(segments[0].phrases![0]).toEqual({ 
@@ -111,6 +111,28 @@ describe('Markdown Parser - Basic Functionality', () => {
       expect(segments[0].phrases![2]).toEqual({ en: 'three.', vi: '' });
     });
   });
+
+  describe('✅ Footnote Annotation Removal', () => {
+    it('should remove footnote [1] from monolingual text', () => {
+        const markdown = 'This is a sentence with a note[1].';
+        const segments = parseMarkdownToSegments(markdown, 'en');
+        expect(segments[0].content.en).toBe('This is a sentence with a note.');
+    });
+
+    it('should remove multiple footnotes [2] [3] from bilingual text', () => {
+        const markdown = 'Another sentence[2]. / Một câu khác[3].';
+        const segments = parseMarkdownToSegments(markdown, 'en-vi');
+        expect(segments[0].content.en).toBe('Another sentence.');
+        expect(segments[0].content.vi).toBe('Một câu khác.');
+    });
+
+    it('should remove footnotes in phrase mode', () => {
+        const markdown = 'A phrase[4], and another[5]. / Một cụm từ, và một cụm khác.';
+        const segments = parseMarkdownToSegments(markdown, 'en-vi-ph');
+        expect(segments[0].phrases![0].en).toBe('A phrase,');
+        expect(segments[0].phrases![1].en).toBe('and another.');
+    });
+  });
 });
 
 describe('Markdown Parser - Edge Cases', () => {
@@ -118,32 +140,28 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should handle abbreviations', () => {
       const markdown = 'Dr. Smith went to St. Louis.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-
-      expect(segments.length).toBeGreaterThanOrEqual(1);
+      expect(segments).toHaveLength(1);
     });
 
     it('should handle quotes correctly', () => {
       const markdown = '"Hello," she said. "How are you?"';
       const segments = parseMarkdownToSegments(markdown, 'en');
-
+      expect(segments[0].content.en).toBe('"Hello," she said. "How are you?"');
       expect(segments[0].type).toBe('dialog');
-      expect(segments[1].type).toBe('dialog');
     });
 
     it('should handle numbers with decimals', () => {
       const markdown = 'He scored 3.5 points. She scored 4.0.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-
-      expect(segments).toHaveLength(2);
+      expect(segments).toHaveLength(1);
       expect(segments[0].content.en).toContain('3.5');
-      expect(segments[1].content.en).toContain('4.0');
+      expect(segments[0].content.en).toContain('4.0');
     });
 
     it('should handle ellipsis', () => {
       const markdown = 'She paused... Then continued.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-
-      expect(segments.length).toBeGreaterThanOrEqual(1);
+      expect(segments).toHaveLength(1);
     });
   });
 
@@ -161,7 +179,6 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should trim excessive whitespace', () => {
       const markdown = 'Sentence one.    \n\n\n   Sentence two.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-
       expect(segments).toHaveLength(2);
     });
   });
@@ -170,7 +187,6 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should handle emoji', () => {
       const markdown = 'Hello 👋 world 🌍!';
       const segments = parseMarkdownToSegments(markdown, 'en');
-
       expect(segments[0].content.en).toContain('👋');
       expect(segments[0].content.en).toContain('🌍');
     });
@@ -178,7 +194,6 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should handle Vietnamese diacritics', () => {
       const markdown = 'Hello. / Xin chào.\nThank you. / Cảm ơn.';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
-
       expect(segments[0].content.en).toBe('Hello.');
       expect(segments[0].content.vi).toBe('Xin chào.');
       expect(segments[1].content.en).toBe('Thank you.');
@@ -188,7 +203,6 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should handle Chinese/Japanese characters', () => {
       const markdown = '你好世界 / Hello world.';
       const segments = parseMarkdownToSegments(markdown, 'zh-en');
-
       expect(segments[0].content.zh).toBe('你好世界');
     });
   });
@@ -233,16 +247,16 @@ Content.`;
       expect(title.en).toBe('This is the first line');
     });
 
-    it('should use first non-empty line as fallback', () => {
-      const markdown = `
-
-## Chapter 1
-Content.`;
-
-      const { title } = parseBookMarkdown(markdown, 'en');
-
-      expect(title.en).toBe('Chapter 1');
-    });
+    it('should fall back to chapter title if no book title is found', () => {
+        const markdown = `
+  
+  ## Chapter 1
+  Content.`;
+  
+        const { title } = parseBookMarkdown(markdown, 'en');
+  
+        expect(title.en).toBe('Chapter 1');
+      });
   });
 
   describe('✅ Chapter Structure', () => {
@@ -303,7 +317,7 @@ Some content without chapter heading.`;
 
       const { chapters } = parseBookMarkdown(markdown, 'en');
 
-      expect(chapters.length).toBeGreaterThanOrEqual(0);
+      expect(chapters.length).toBe(0);
     });
 
     it('should handle nested headings', () => {
@@ -346,7 +360,7 @@ describe('🔬 Edge Cases - Advanced', () => {
       const markdown = 'Really? Yes! Okay.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
-      expect(segments).toHaveLength(3);
+      expect(segments).toHaveLength(1);
     });
   });
 

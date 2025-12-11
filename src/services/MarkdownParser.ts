@@ -3,6 +3,16 @@ import type { Segment, Chapter, Book, Piece, MultilingualContent, PhraseMap } fr
 import { generateLocalUniqueId } from '@/lib/utils';
 
 /**
+ * Removes footnote-style annotations (e.g., [1], [23]) from a string.
+ * @param text The input string.
+ * @returns The cleaned string.
+ */
+function removeFootnoteAnnotations(text: string): string {
+  if (!text) return '';
+  return text.replace(/\[\d+\]/g, '').trim();
+}
+
+/**
  * ✅ FIX: Improved sentence splitting that KEEPS punctuation
  */
 function splitIntoSentences(text: string): string[] {
@@ -56,8 +66,8 @@ function extractBilingualSentence(
   const parts = text.split(/\s+\/\s+/);
   
   return {
-    primary: (parts[0] || '').trim(),
-    secondary: (parts[1] || '').trim()
+    primary: removeFootnoteAnnotations(parts[0] || ''),
+    secondary: removeFootnoteAnnotations(parts[1] || '')
   };
 }
 
@@ -103,7 +113,10 @@ export function parseMarkdownToSegments(
         id: generateLocalUniqueId(),
         order: globalOrder++,
         type: isDialog ? 'dialog' : 'text',
-        content: undefined!, // Phrase mode doesn't use content
+        content: {
+          [primaryLang]: primary,
+          [secondaryLang]: secondary,
+        },
         phrases,
         formatting: {},
         metadata: {
@@ -132,11 +145,12 @@ export function parseMarkdownToSegments(
       
     } else {
       // ✅ Monolingual Mode
+      const cleanLine = removeFootnoteAnnotations(line);
       segments.push({
         id: generateLocalUniqueId(),
         order: globalOrder++,
         type: isDialog ? 'dialog' : 'text',
-        content: { [primaryLang]: line },
+        content: { [primaryLang]: cleanLine },
         formatting: {},
         metadata: {
           isNewPara: lineIndex === 0 || lines[lineIndex - 1].trim() === '',
@@ -176,12 +190,13 @@ function parseBilingualText(
   primaryLang: string,
   secondaryLang?: string
 ): MultilingualContent {
+  const cleanedText = removeFootnoteAnnotations(text);
   if (!secondaryLang) {
-    return { [primaryLang]: text };
+    return { [primaryLang]: cleanedText };
   }
   
-  const parts = text.split(/\s+\/\s+/);
-  const result: MultilingualContent = { [primaryLang]: parts[0]?.trim() || text };
+  const parts = cleanedText.split(/\s+\/\s+/);
+  const result: MultilingualContent = { [primaryLang]: parts[0]?.trim() || cleanedText };
   
   if (parts[1]) {
     result[secondaryLang] = parts[1].trim();
