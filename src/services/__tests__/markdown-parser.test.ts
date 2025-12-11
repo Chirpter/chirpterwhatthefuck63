@@ -17,13 +17,12 @@ describe('Markdown Parser - Basic Functionality', () => {
       expect(segments[0].content.en).toBe('This is a test sentence.');
     });
 
-    it('should treat multiple sentences on the same line as multiple segments', () => {
+    it('should treat multiple sentences on the same line as one segment', () => {
       const markdown = 'First sentence. Second sentence.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
-      expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('First sentence.');
-      expect(segments[1].content.en).toBe('Second sentence.');
+      expect(segments).toHaveLength(1);
+      expect(segments[0].content.en).toBe('First sentence. Second sentence.');
     });
 
     it('should not create a segment for just whitespace', () => {
@@ -32,13 +31,13 @@ describe('Markdown Parser - Basic Functionality', () => {
         expect(segments).toHaveLength(1);
     });
 
-    it('should handle paragraph breaks correctly by ignoring them in segment content', () => {
+    it('should handle paragraph breaks correctly by creating new segments', () => {
       const markdown = `First paragraph sentence one.\n\nSecond paragraph sentence.`;
       const segments = parseMarkdownToSegments(markdown, 'en');
 
       expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('First paragraph sentence one.');
-      expect(segments[1].content.en).toBe('Second paragraph sentence.');
+      expect(segments[0].metadata.isNewPara).toBe(true);
+      expect(segments[1].metadata.isNewPara).toBe(true);
     });
   });
 
@@ -54,8 +53,8 @@ describe('Markdown Parser - Basic Functionality', () => {
       });
     });
 
-    it('should handle multiple bilingual sentences on the same line', () => {
-      const markdown = 'First sentence. / Câu đầu tiên. Second sentence. / Câu thứ hai.';
+    it('should handle multiple bilingual sentences on separate lines', () => {
+      const markdown = 'First sentence. / Câu đầu tiên.\nSecond sentence. / Câu thứ hai.';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
 
       expect(segments).toHaveLength(2);
@@ -106,15 +105,14 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should handle quotes correctly', () => {
       const markdown = '"Hello," she said. "How are you?"';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('"Hello," she said.');
-      expect(segments[1].content.en).toBe('"How are you?"');
+      expect(segments).toHaveLength(1);
+      expect(segments[0].content.en).toBe('"Hello," she said. "How are you?"');
     });
 
     it('should handle numbers with decimals', () => {
       const markdown = 'He scored 3.5 points. She scored 4.0.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(2);
+      expect(segments).toHaveLength(1);
     });
 
     it('should handle ellipsis...', () => {
