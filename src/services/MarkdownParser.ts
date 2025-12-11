@@ -94,7 +94,6 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
                 order: segments.length,
                 type: 'text',
                 content: content,
-                formatting: {},
                 metadata: {
                     isNewPara: isNewParaNext,
                 }
@@ -115,7 +114,6 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
                 order: segments.length,
                 type: 'text',
                 content: content,
-                formatting: {},
                 metadata: {
                     isNewPara: isNewParaNext,
                 }

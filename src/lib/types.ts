@@ -28,17 +28,9 @@ export type MultilingualContent = {
 
 // --- UNIFIED STRUCTURE FOR ALL TEXTUAL CONTENT ---
 
-export interface TextFormatting {
-  bold?: boolean;
-  italic?: boolean;
-  underline?: boolean;
-  headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
-}
-
 /**
  * @typedef {Object.<string, string>} PhraseMap
  * @description A key-value pair for a single phrase in multiple languages.
- * This is now the fundamental unit for all textual content.
  */
 export type PhraseMap = {
   [languageCode: string]: string;
@@ -61,15 +53,7 @@ export interface Segment {
   id: string;
   order: number;
   type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
-  
-  /**
-   * Holds the textual data.
-   * - For `unit: 'sentence'`, it's an object: { "en": "Full sentence.", "vi": "Câu đầy đủ." }
-   * - For `unit: 'phrase'`, it's a string with a separator: "A phrase {Một cụm}| and another {và một cụm nữa}"
-   */
   content: MultilingualContent;
-  
-  formatting: TextFormatting;
   metadata: SegmentMetadata;
 }
 
@@ -202,7 +186,7 @@ interface BaseLibraryItem extends BaseDocument {
   title: MultilingualContent;
   origin: string;
   langs: string[];
-  unit: ContentUnit; // MOVED TO BOOK/PIECE LEVEL
+  unit: ContentUnit;
   status: OverallStatus;
   progress?: number;
   isGlobal?: boolean;
@@ -441,5 +425,3 @@ export type Tier = {
 export type TierTask = 
 | { type: 'ref'; id: string; goal: number }
 | { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
-
-// Renamed for

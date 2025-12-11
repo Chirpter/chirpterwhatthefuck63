@@ -147,7 +147,7 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
     // --- Định dạng & Ngôn ngữ (Quan trọng cho UI/TTS) ---
     "origin": "en-vi",         // 🛑 BẤT BIẾN: "Giấy khai sinh" của sách. Ví dụ: "en", "en-vi", "en-vi-ph".
     "langs": ["en", "vi"],     // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có.
-    "unit": "sentence",       // ✅ BOOK-LEVEL: Đơn vị nội dung của TOÀN BỘ sách ('sentence' hoặc 'phrase').
+    "unit": "sentence",        // ✅ BOOK-LEVEL: Đơn vị nội dung của TOÀN BỘ sách ('sentence' hoặc 'phrase').
 
     // --- Phân loại & Tìm kiếm ---
     "tags": ["fantasy", "adventure"],
@@ -180,7 +180,6 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
                     "order": 0,
                     "type": "text",
                     "metadata": { "isNewPara": true },
-                    "formatting": {},
                     "content": {
                         "en": "The rift shimmered, a tear in reality's fabric.",
                         "vi": "Vết nứt lung linh, một vết rách trên tấm vải của thực tại."
@@ -199,7 +198,6 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
                     "order": 0,
                     "type": "text",
                     "metadata": { "isNewPara": true },
-                    "formatting": {},
                     // Ví dụ cho unit: 'phrase'. Các cụm từ được ngăn cách bằng ký tự '|'
                     "content": {
                         "en": "A young boy| saw the dragon and whispered,| 'You are not from here.'",
