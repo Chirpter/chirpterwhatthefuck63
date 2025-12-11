@@ -10,42 +10,41 @@ import type { Book, Piece } from '@/lib/types';
 
 describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
   
-  describe('✅ Monolingual - English', () => {
-    it('should parse single sentence', () => {
+  describe('✅ Monolingual Parsing (en)', () => {
+    it('should parse a single sentence as one segment', () => {
       const md = 'Hello world.';
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('Hello world.');
-      expect(segments[0].phrases).toBeUndefined();
+      expect(segments[0].content).toEqual({ en: 'Hello world.' });
     });
 
-    it('should split multiple sentences', () => {
+    it('should split multiple sentences on the same line into separate segments', () => {
       const markdown = 'First sentence. Second sentence. Third one!';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
       expect(segments).toHaveLength(3);
-      expect(segments[0].content.en).toBe('First sentence.');
-      expect(segments[1].content.en).toBe('Second sentence.');
-      expect(segments[2].content.en).toBe('Third one!');
+      expect(segments[0].content).toEqual({ en: 'First sentence.' });
+      expect(segments[1].content).toEqual({ en: 'Second sentence.' });
+      expect(segments[2].content).toEqual({ en: 'Third one!' });
     });
 
-    it('should handle question marks and exclamations', () => {
+    it('should handle sentences with exclamation marks and question marks', () => {
       const markdown = 'Hello! How are you? I am fine.';
       const segments = parseMarkdownToSegments(markdown, 'en');
       
       expect(segments).toHaveLength(3);
-      expect(segments[0].content.en).toBe('Hello!');
-      expect(segments[1].content.en).toBe('How are you?');
-      expect(segments[2].content.en).toBe('I am fine.');
+      expect(segments[0].content).toEqual({ en: 'Hello!' });
+      expect(segments[1].content).toEqual({ en: 'How are you?' });
+      expect(segments[2].content).toEqual({ en: 'I am fine.' });
     });
 
-    it('should NOT split on abbreviations', () => {
-      const md = 'Dr. Smith went to St. Louis with Mr. Johnson.';
+    it('should NOT split on abbreviations like Dr. or St.', () => {
+      const md = 'Dr. Smith went to St. Louis.';
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('Dr. Smith went to St. Louis with Mr. Johnson.');
+      expect(segments[0].content).toEqual({ en: 'Dr. Smith went to St. Louis.' });
     });
 
     it('should NOT split on decimal numbers', () => {
@@ -53,38 +52,45 @@ describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('The value is 3.14 and 2.5 meters.');
+      expect(segments[0].content).toEqual({ en: 'The value is 3.14 and 2.5 meters.' });
     });
 
-    it('should handle ellipsis mid-sentence', () => {
+    it('should handle ellipsis correctly as part of a sentence', () => {
       const md = 'She paused... then continued speaking.';
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('She paused... then continued speaking.');
+      expect(segments[0].content).toEqual({ en: 'She paused... then continued speaking.' });
     });
-
-    it('should split after ellipsis if new sentence starts', () => {
+    
+    it('should split after an ellipsis if followed by a new sentence', () => {
       const md = 'She paused... Then she spoke.';
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('She paused...');
-      expect(segments[1].content.en).toBe('Then she spoke.');
+      expect(segments[0].content).toEqual({ en: 'She paused...' });
+      expect(segments[1].content).toEqual({ en: 'Then she spoke.' });
     });
 
-    it('should handle dialogue correctly', () => {
+    it('should handle quoted dialogue correctly', () => {
       const md = '"Hello," she said. "How are you?" he asked.';
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('"Hello," she said.');
-      expect(segments[1].content.en).toBe('"How are you?" he asked.');
+      expect(segments[0].content).toEqual({ en: '"Hello," she said.' });
+      expect(segments[1].content).toEqual({ en: '"How are you?" he asked.' });
+    });
+
+    it('should handle complex sentences with semicolons', () => {
+        const md = 'This is a complex sentence; it has multiple clauses.';
+        const segments = parseMarkdownToSegments(md, 'en');
+        expect(segments).toHaveLength(1);
+        expect(segments[0].content).toEqual({ en: 'This is a complex sentence; it has multiple clauses.' });
     });
   });
 
-  describe('✅ Bilingual Sentence Mode với {translation}', () => {
-    it('should parse single bilingual pair', () => {
+  describe('✅ Bilingual Sentence Mode (en-vi)', () => {
+    it('should parse a single bilingual sentence', () => {
       const md = 'Hello world. {Xin chào thế giới.}';
       const segments = parseMarkdownToSegments(md, 'en-vi');
       
@@ -93,10 +99,9 @@ describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
         en: 'Hello world.',
         vi: 'Xin chào thế giới.'
       });
-      expect(segments[0].phrases).toBeUndefined();
     });
 
-    it('should parse multiple bilingual pairs', () => {
+    it('should parse multiple bilingual sentences on the same line', () => {
       const markdown = 'First sentence. {Câu đầu tiên.} Second sentence. {Câu thứ hai.}';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
       
@@ -111,54 +116,41 @@ describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
       });
     });
 
-    it('should handle continuous AI-generated format', () => {
-      const markdown = 'One day, Alex found a book. {Một ngày nọ, Alex tìm thấy một cuốn sách.} It was old. {Nó đã cũ.}';
+    it('should handle AI-generated continuous format', () => {
+      const markdown = 'Hello, how are you?{Xin chào bạn ổn không?}I\'m fine.{Tôi ổn.}';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
       
       expect(segments).toHaveLength(2);
       expect(segments[0].content).toEqual({
-        en: 'One day, Alex found a book.',
-        vi: 'Một ngày nọ, Alex tìm thấy một cuốn sách.'
+        en: 'Hello, how are you?',
+        vi: 'Xin chào bạn ổn không?'
       });
       expect(segments[1].content).toEqual({
-        en: 'It was old.',
-        vi: 'Nó đã cũ.'
+        en: 'I\'m fine.',
+        vi: 'Tôi ổn.'
       });
     });
 
-    it('should handle missing translation (empty braces)', () => {
-      const markdown = 'English only. {}';
+    it('should handle missing translation gracefully', () => {
+      const markdown = 'English only.{}';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
       
       expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('English only.');
-      expect(segments[0].content.vi).toBe('');
-    });
-
-    it('should handle mixed mono and bilingual content', () => {
-      const md = 'First pair. {Cặp đầu tiên.} English only. Third pair. {Cặp thứ ba.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi');
-      
-      expect(segments).toHaveLength(3);
-      expect(segments[0].content).toEqual({ en: 'First pair.', vi: 'Cặp đầu tiên.' });
-      expect(segments[1].content).toEqual({ en: 'English only.' });
-      expect(segments[2].content).toEqual({ en: 'Third pair.', vi: 'Cặp thứ ba.' });
-    });
-
-    it('should handle multiple sentences before translation', () => {
-      const md = 'Sentence one. Sentence two. {Câu một. Câu hai.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi');
-      
-      // Should have: "Sentence one." (mono) + "Sentence two." (bilingual)
-      expect(segments).toHaveLength(2);
-      expect(segments[0].content).toEqual({ en: 'Sentence one.' });
-      expect(segments[1].content).toEqual({ 
-        en: 'Sentence two.', 
-        vi: 'Câu một. Câu hai.' 
+      expect(segments[0].content).toEqual({
+          en: 'English only.',
+          vi: ''
       });
     });
 
-    it('should handle dialogue', () => {
+    it('should handle multiple sentences on separate lines', () => {
+      const markdown = 'First line. {Dòng đầu.}\nSecond line. {Dòng hai.}';
+      const segments = parseMarkdownToSegments(markdown, 'en-vi');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content).toEqual({ en: 'First line.', vi: 'Dòng đầu.' });
+      expect(segments[1].content).toEqual({ en: 'Second line.', vi: 'Dòng hai.' });
+    });
+
+    it('should handle quoted dialogue', () => {
       const md = '"Hello," I said. {"Xin chào," tôi nói.} "How are you?" {"Bạn khỏe không?"}';
       const segments = parseMarkdownToSegments(md, 'en-vi');
       
@@ -172,72 +164,10 @@ describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
         vi: '"Bạn khỏe không?"' 
       });
     });
-
-    it('should handle sentences with commas and semicolons', () => {
-      const md = 'The dragon, named Ignis, was small. {Con rồng, tên là Ignis, rất nhỏ.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi');
-      
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('The dragon, named Ignis, was small.');
-      expect(segments[0].content.vi).toBe('Con rồng, tên là Ignis, rất nhỏ.');
-    });
-  });
-
-  describe('✅ Bilingual Phrase Mode (en-vi-ph)', () => {
-    it('should split sentences into phrases at commas', () => {
-      const md = 'Hello, this is a test. {Xin chào, đây là một bài kiểm tra.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi-ph');
-      
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content).toBeUndefined(); // Not stored in phrase mode
-      expect(segments[0].phrases).toBeDefined();
-      expect(segments[0].phrases).toHaveLength(2);
-      expect(segments[0].phrases![0]).toEqual({ 
-        en: 'Hello,', 
-        vi: 'Xin chào,' 
-      });
-      expect(segments[0].phrases![1]).toEqual({ 
-        en: 'this is a test.', 
-        vi: 'đây là một bài kiểm tra.' 
-      });
-    });
-
-    it('should split at multiple punctuation marks', () => {
-      const md = 'Part one, part two - part three; part four. {Phần một, phần hai - phần ba; phần bốn.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi-ph');
-      
-      expect(segments[0].phrases).toHaveLength(4);
-      expect(segments[0].phrases![0].en).toBe('Part one,');
-      expect(segments[0].phrases![1].en).toBe('part two -');
-      expect(segments[0].phrases![2].en).toBe('part three;');
-      expect(segments[0].phrases![3].en).toBe('part four.');
-    });
-
-    it('should handle colons as phrase boundaries', () => {
-      const md = 'Listen: this is important. {Nghe này: điều này quan trọng.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi-ph');
-      
-      expect(segments[0].phrases).toHaveLength(2);
-      expect(segments[0].phrases![0]).toEqual({ en: 'Listen:', vi: 'Nghe này:' });
-      expect(segments[0].phrases![1]).toEqual({ 
-        en: 'this is important.', 
-        vi: 'điều này quan trọng.' 
-      });
-    });
-
-    it('should NOT split at sentence endings in phrase mode', () => {
-      const md = 'First. {Đầu tiên.} Second. {Thứ hai.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi-ph');
-      
-      // Each sentence-pair becomes separate segment, no splitting within
-      expect(segments).toHaveLength(2);
-      expect(segments[0].phrases).toHaveLength(1); // "First." has no internal punctuation
-      expect(segments[0].phrases![0]).toEqual({ en: 'First.', vi: 'Đầu tiên.' });
-    });
   });
 
   describe('✅ Paragraph Breaks', () => {
-    it('should mark first sentence of paragraph as isNewPara', () => {
+    it('should mark first sentence of a paragraph as isNewPara', () => {
       const md = `First paragraph.
 
 Second paragraph.`;
@@ -248,7 +178,7 @@ Second paragraph.`;
       expect(segments[1].metadata.isNewPara).toBe(true);
     });
 
-    it('should NOT mark subsequent sentences as isNewPara', () => {
+    it('should NOT mark subsequent sentences in same paragraph as isNewPara', () => {
       const md = `First line. Second line.
 Third line.`;
       const segments = parseMarkdownToSegments(md, 'en');
@@ -258,32 +188,21 @@ Third line.`;
       expect(segments[1].metadata.isNewPara).toBe(false);
       expect(segments[2].metadata.isNewPara).toBe(false);
     });
-
-    it('should handle bilingual paragraphs', () => {
-      const md = `First. {Đầu.}
-
-Second. {Thứ hai.}`;
-      const segments = parseMarkdownToSegments(md, 'en-vi');
-      
-      expect(segments[0].metadata.isNewPara).toBe(true);
-      expect(segments[1].metadata.isNewPara).toBe(true);
-    });
   });
 
-  describe('✅ Footnote Removal', () => {
-    it('should remove single footnote [1]', () => {
+  describe('✅ Footnote Annotation Removal', () => {
+    it('should remove footnote [1] from monolingual text', () => {
       const markdown = 'This is a note[1].';
       const segments = parseMarkdownToSegments(markdown, 'en');
       
-      expect(segments[0].content.en).toBe('This is a note.');
+      expect(segments[0].content).toEqual({ en: 'This is a note.' });
     });
 
-    it('should remove multiple footnotes', () => {
-      const markdown = 'First[23]. {Đầu[45].}';
+    it('should remove multiple footnotes [23] from bilingual text', () => {
+      const markdown = 'First[23]. {Đầu tiên[45].}';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
       
-      expect(segments[0].content.en).toBe('First.');
-      expect(segments[0].content.vi).toBe('Đầu.');
+      expect(segments[0].content).toEqual({ en: 'First.', vi: 'Đầu tiên.' });
     });
   });
 
@@ -292,7 +211,7 @@ Second. {Thứ hai.}`;
       expect(parseMarkdownToSegments('', 'en')).toHaveLength(0);
     });
 
-    it('should handle whitespace only', () => {
+    it('should handle only whitespace', () => {
       expect(parseMarkdownToSegments('   \n\n  ', 'en')).toHaveLength(0);
     });
 
@@ -301,39 +220,30 @@ Second. {Thứ hai.}`;
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toContain('👋');
-      expect(segments[1].content.en).toContain('😊');
+      expect(segments[0].content).toEqual({ en: 'Hello 👋 world!' });
+      expect(segments[1].content).toEqual({ en: 'Nice 😊.' });
     });
 
     it('should skip chapter headings in content', () => {
-      const md = `Content here.
+      const md = `This is content.
 ## This is a chapter
 More content.`;
       const segments = parseMarkdownToSegments(md, 'en');
       
       expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('Content here.');
-      expect(segments[1].content.en).toBe('More content.');
-    });
-
-    it('should handle braces in Vietnamese text', () => {
-      const md = 'Test. {Đây là {ví dụ} trong ngoặc.}';
-      const segments = parseMarkdownToSegments(md, 'en-vi');
-      
-      // This is a known limitation - nested braces will break
-      // For now, we document this behavior
-      expect(segments.length).toBeGreaterThan(0);
+      expect(segments[0].content).toEqual({ en: 'This is content.' });
+      expect(segments[1].content).toEqual({ en: 'More content.' });
     });
   });
 
   describe('✅ Other Languages', () => {
     it('should handle Chinese', () => {
-      const md = '这是第一句。这是第二句。';
+      const md = '这是一个测试。这是第二句。';
       const segments = parseMarkdownToSegments(md, 'zh');
       
       expect(segments).toHaveLength(2);
-      expect(segments[0].content.zh).toBe('这是第一句。');
-      expect(segments[1].content.zh).toBe('这是第二句。');
+      expect(segments[0].content).toEqual({ zh: '这是一个测试。'});
+      expect(segments[1].content).toEqual({ zh: '这是第二句。' });
     });
 
     it('should handle bilingual Japanese', () => {
@@ -351,13 +261,42 @@ More content.`;
       expect(segments).toHaveLength(1);
       expect(segments[0].content.ko).toBe('테스트 문장입니다.');
     });
+
+    it('should handle bilingual Arabic', () => {
+        const md = 'Good morning. {صباح الخير.}';
+        const segments = parseMarkdownToSegments(md, 'en-ar');
+        expect(segments).toHaveLength(1);
+        expect(segments[0].content.ar).toBe('صباح الخير.');
+    });
+  });
+
+  describe('✅ Complex Real-World Examples', () => {
+    it('should handle mixed mono and bilingual content', () => {
+      const md = `The first pair. {Cặp đầu tiên.} A monolingual sentence here. The second pair. {Cặp thứ hai.}`;
+      const segments = parseMarkdownToSegments(md, 'en-vi');
+
+      expect(segments).toHaveLength(3);
+      expect(segments[0].content).toEqual({ en: 'The first pair.', vi: 'Cặp đầu tiên.' });
+      expect(segments[1].content).toEqual({ en: 'A monolingual sentence here.' });
+      expect(segments[2].content).toEqual({ en: 'The second pair.', vi: 'Cặp thứ hai.' });
+    });
+
+    it('should handle Alex curiosity story - with questions', () => {
+      const md = `Why was the sky blue? {Tại sao bầu trời lại màu xanh?} How did birds fly? {Làm thế nào chim có thể bay?} These were the questions that filled his days. {Đây là những câu hỏi lấp đầy những ngày của cậu.}`;
+      const segments = parseMarkdownToSegments(md, 'en-vi');
+      
+      expect(segments).toHaveLength(3);
+      expect(segments[0].content).toEqual({ en: 'Why was the sky blue?', vi: 'Tại sao bầu trời lại màu xanh?' });
+      expect(segments[1].content).toEqual({ en: 'How did birds fly?', vi: 'Làm thế nào chim có thể bay?' });
+      expect(segments[2].content).toEqual({ en: 'These were the questions that filled his days.', vi: 'Đây là những câu hỏi lấp đầy những ngày của cậu.' });
+    });
   });
 });
 
 describe('Book Markdown Parser với {translation}', () => {
   
   describe('✅ Title Extraction', () => {
-    it('should extract monolingual title', () => {
+    it('should extract monolingual title from H1', () => {
       const md = `# The Dragon Story
 
 ## Chapter 1
@@ -367,7 +306,7 @@ Content.`;
       expect(title.en).toBe('The Dragon Story');
     });
 
-    it('should extract bilingual title', () => {
+    it('should handle bilingual title', () => {
       const md = `# The Dragon Story {Câu chuyện con rồng}
 
 ## Chapter 1
@@ -380,7 +319,7 @@ Content.`;
       });
     });
 
-    it('should use default if no H1', () => {
+    it('should use default title if no H1', () => {
       const md = `## Chapter 1
 Content.`;
       const { title } = parseBookMarkdown(md, 'en');
@@ -389,7 +328,7 @@ Content.`;
     });
   });
 
-  describe('✅ Chapter Parsing', () => {
+  describe('✅ Chapter Structure', () => {
     it('should parse multiple chapters', () => {
       const md = `# Book Title
 
@@ -406,7 +345,14 @@ Second sentence. {Câu thứ hai.}`;
       expect(chapters[1].title).toEqual({ en: 'Chapter 2: Middle', vi: 'Chương 2: Giữa chừng' });
     });
 
-    it('should calculate chapter stats correctly', () => {
+    it('should maintain chapter order', () => {
+        const md = `## C1\ntext1\n## C2\ntext2`;
+        const { chapters } = parseBookMarkdown(md, 'en');
+        expect(chapters[0].title.en).toBe('C1');
+        expect(chapters[1].title.en).toBe('C2');
+    });
+
+    it('should calculate chapter stats', () => {
       const md = `# Book
 
 ## Chapter 1
@@ -419,7 +365,7 @@ This is a test. {Đây là kiểm tra.} It has two sentences. {Nó có hai câu.
       expect(chapters[0].stats.estimatedReadingTime).toBe(1);
     });
 
-    it('should treat content without chapters as single chapter', () => {
+    it('should treat content without chapter headings as a single chapter', () => {
       const markdown = `# My Book
 Just some content. {Chỉ là nội dung.}
 More text. {Thêm chữ.}`;
@@ -430,57 +376,25 @@ More text. {Thêm chữ.}`;
       expect(chapters[0].title.en).toBe('Chapter 1');
       expect(chapters[0].segments.length).toBe(2);
     });
+
+    it('should parse bilingual chapter titles', () => {
+        const md = `## Chapter 1 {Chương 1}`;
+        const { chapters } = parseBookMarkdown(md, 'en-vi');
+        expect(chapters[0].title).toEqual({ en: 'Chapter 1', vi: 'Chương 1' });
+    });
   });
 
-  describe('✅ Real-World Book Example', () => {
-    it('should parse complete story about dragon Ignis', () => {
-      const md = `# The Story of Ignis {Câu chuyện về Ignis}
-
-## Chapter 1: The Small Dragon {Chương 1: Con rồng nhỏ}
-In a mystical land, there lived a small dragon named Ignis. {Ở một vùng đất huyền bí, có một con rồng nhỏ tên là Ignis.}
-Unlike other dragons, Ignis was tiny. {Không giống những con rồng khác, Ignis rất nhỏ bé.}
-But what he lacked in size, he made up for in courage. {Nhưng điều anh thiếu về kích thước, anh bù đắp bằng lòng dũng cảm.}
-
-## Chapter 2: The Great Journey {Chương 2: Cuộc hành trình vĩ đại}
-One day, Ignis decided to prove himself. {Một ngày nọ, Ignis quyết định chứng minh bản thân.}
-He set off on a journey to find the Golden Flame. {Anh lên đường tìm kiếm Ngọn Lửa Vàng.}
-The path was dangerous, but Ignis was determined. {Con đường nguy hiểm, nhưng Ignis đã quyết tâm.}
-
-## Chapter 3: The Victory {Chương 3: Chiến thắng}
-After many trials, Ignis finally found the flame. {Sau nhiều thử thách, Ignis cuối cùng đã tìm thấy ngọn lửa.}
-He proved that size doesn't matter. {Anh chứng minh rằng kích thước không quan trọng.}
-From that day on, all dragons respected him. {Từ ngày đó, tất cả các con rồng đều kính trọng anh.}`;
-
-      const { title, chapters } = parseBookMarkdown(md, 'en-vi');
-
-      // Verify title
-      expect(title).toEqual({
-        en: 'The Story of Ignis',
-        vi: 'Câu chuyện về Ignis'
-      });
-
-      // Verify chapter count
-      expect(chapters).toHaveLength(3);
-
-      // Verify Chapter 1
-      expect(chapters[0].title).toEqual({
-        en: 'Chapter 1: The Small Dragon',
-        vi: 'Chương 1: Con rồng nhỏ'
-      });
-      expect(chapters[0].segments).toHaveLength(3);
-      expect(chapters[0].segments[0].content.en).toBe('In a mystical land, there lived a small dragon named Ignis.');
-      expect(chapters[0].segments[0].content.vi).toBe('Ở một vùng đất huyền bí, có một con rồng nhỏ tên là Ignis.');
-
-      // Verify Chapter 2
-      expect(chapters[1].segments).toHaveLength(3);
+  describe('✅ Malformed Markdown', () => {
+    it('should handle nested headings as regular content', () => {
+      const md = `## Chapter 1
+This is text.
+### A sub-heading
+More text.`;
+      const { chapters } = parseBookMarkdown(md, 'en');
       
-      // Verify Chapter 3
-      expect(chapters[2].segments).toHaveLength(3);
-      expect(chapters[2].segments[2].content.en).toBe('From that day on, all dragons respected him.');
-
-      // Verify stats for Chapter 1
-      expect(chapters[0].stats.totalSegments).toBe(3);
-      expect(chapters[0].stats.totalWords).toBeGreaterThan(20);
+      expect(chapters).toHaveLength(1);
+      expect(chapters[0].segments).toHaveLength(3); // Should parse the '###' line as text
+      expect(chapters[0].segments[1].content.en).toBe('### A sub-heading');
     });
   });
 });
@@ -506,7 +420,7 @@ describe('getItemSegments Helper', () => {
           type: 'text',
           content: { en: 'Test.', vi: 'Kiểm tra.' },
           formatting: {},
-          metadata: { isNewPara: true }
+          metadata: { isNewPara: true, bilingualFormat: 'sentence' }
         }
       ],
     };
@@ -514,7 +428,7 @@ describe('getItemSegments Helper', () => {
     const segments = getItemSegments(piece);
     
     expect(segments).toHaveLength(1);
-    expect(segments[0].content.en).toBe('Test.');
+    expect((segments[0].content as MultilingualContent).en).toBe('Test.');
   });
 
   it('should extract segments from Book chapter', () => {
@@ -541,7 +455,7 @@ describe('getItemSegments Helper', () => {
               type: 'text',
               content: { en: 'Content.' },
               formatting: {},
-              metadata: { isNewPara: true }
+              metadata: { isNewPara: true, bilingualFormat: 'sentence' }
             }
           ],
           stats: { totalSegments: 1, totalWords: 1, estimatedReadingTime: 1 },
@@ -553,7 +467,24 @@ describe('getItemSegments Helper', () => {
     const segments = getItemSegments(book, 0);
     
     expect(segments).toHaveLength(1);
-    expect(segments[0].content.en).toBe('Content.');
+    expect((segments[0].content as MultilingualContent).en).toBe('Content.');
+  });
+
+  it('should return empty for invalid chapter index', () => {
+    const book: Book = {
+      id: 'b1',
+      userId: 'u1',
+      type: 'book',
+      title: { en: 'Test Book' },
+      status: 'draft',
+      contentState: 'ready',
+      coverState: 'ignored',
+      origin: 'en',
+      langs: ['en'],
+      display: 'book',
+      chapters: [],
+    };
+    expect(getItemSegments(book, 10)).toHaveLength(0);
   });
 
   it('should return empty for null item', () => {

@@ -74,14 +74,16 @@ export interface Segment {
   
   /**
    * Holds the textual data.
-   * If `metadata.bilingualFormat` is 'sentence', this is a MultilingualContent object.
-   * If `metadata.bilingualFormat` is 'phrase', this is an array of PhraseMap objects.
+   * Its structure depends on `metadata.bilingualFormat`.
+   * If 'sentence', this is a MultilingualContent object.
+   * If 'phrase', this is an array of PhraseMap objects.
    */
   content: MultilingualContent | PhraseMap[];
   
   formatting: TextFormatting;
   metadata: SegmentMetadata;
 }
+
 
 export interface ChapterStats {
   totalSegments: number;

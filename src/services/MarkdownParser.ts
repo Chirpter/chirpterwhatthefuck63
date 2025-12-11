@@ -13,11 +13,11 @@ function cleanText(text: string): string {
 
 /**
  * Splits text into sentences, trying to respect abbreviations and other edge cases.
+ * This regex looks for sentence-ending punctuation (.?!) that is followed by a space and an uppercase letter,
+ * or is at the end of the string. It avoids splitting on abbreviations like "Mr." or "St.".
  */
+const sentenceRegex = /(?<!\b[A-Z][a-z]{1,2}\.)(?<!\b[A-Z]\.)[.?!](?=\s+[A-Z]|$)/g;
 function splitSentences(text: string): string[] {
-    // This regex looks for sentence-ending punctuation (.?!) that is followed by a space and an uppercase letter,
-    // or is at the end of the string. It avoids splitting on abbreviations like "Mr." or "St.".
-    const sentenceRegex = /(?<!\b[A-Z][a-z]{1,2}\.)[.?!](?=\s+[A-Z]|$)/g;
     return text.split(sentenceRegex).map(s => s.trim()).filter(Boolean);
 }
 
@@ -34,7 +34,7 @@ function parseMonolingualContent(markdown: string, lang: string): Segment[] {
         content: { [lang]: sentence },
         formatting: {},
         metadata: { 
-            isNewPara: false,
+            isNewPara: false, // This will be set by the main line-by-line parser
             bilingualFormat: 'sentence',
         }
     }));
@@ -47,9 +47,10 @@ function parseMonolingualContent(markdown: string, lang: string): Segment[] {
 function parseBilingualContent(markdown: string, primaryLang: string, secondaryLang: string): Segment[] {
   const segments: Segment[] = [];
   
-  // This regex greedily finds a text block and its following {translation}.
-  // It handles cases where monolingual text might be in between.
-  const bilingualPairRegex = /([^{}]+)\{(.*?)\}/g;
+  // This regex finds a text block and its following {translation}.
+  // The 'g' flag is crucial for finding all occurrences.
+  // The 's' flag allows '.' to match newlines, although we process line by line.
+  const bilingualPairRegex = /([^{}]+)\s*\{(.*?)\}/gs;
   let lastIndex = 0;
   let match;
 
@@ -110,6 +111,7 @@ function parseBilingualContent(markdown: string, primaryLang: string, secondaryL
   return segments;
 }
 
+
 /**
  * Main parser - processes text line-by-line and delegates to sub-parsers.
  */
@@ -125,7 +127,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
   for (const line of lines) {
     const trimmedLine = line.trim();
     
-    // Ignore chapter headings within segment content
+    // Ignore chapter headings (or any heading) within segment content
     if (trimmedLine.startsWith('#')) {
         continue;
     }
@@ -137,7 +139,33 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
 
     let lineSegments: Segment[] = [];
     if (isBilingual) {
-        lineSegments = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
+        if (bilingualFormat === 'phrase') {
+            // Phrase mode logic
+            const pairMatch = trimmedLine.match(/([^{}]+)\s*\{(.*?)\}/);
+            if (pairMatch) {
+                const primarySentence = cleanText(pairMatch[1]);
+                const secondarySentence = cleanText(pairMatch[2]);
+                const phraseRegex = /([^,;:]+[,;:]?)/g;
+                const primaryPhrases = primarySentence.match(phraseRegex) || [primarySentence];
+                const secondaryPhrases = secondarySentence.match(phraseRegex) || [secondarySentence];
+                
+                const phraseMaps: PhraseMap[] = primaryPhrases.map((phrase, i) => ({
+                    [primaryLang]: phrase.trim(),
+                    [secondaryLang]: (secondaryPhrases[i] || '').trim(),
+                }));
+                
+                lineSegments.push({
+                    id: generateLocalUniqueId(),
+                    order: 0, // temp order
+                    type: 'text',
+                    content: phraseMaps,
+                    formatting: {},
+                    metadata: { isNewPara: false, bilingualFormat: 'phrase' },
+                });
+            }
+        } else {
+             lineSegments = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
+        }
     } else {
       lineSegments = parseMonolingualContent(trimmedLine, primaryLang);
     }
