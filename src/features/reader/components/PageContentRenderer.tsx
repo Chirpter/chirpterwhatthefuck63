@@ -41,12 +41,12 @@ export function PageContentRenderer({
             // Find the original segment that the spoken segment belongs to
             // This is complex because one original segment can be multiple spoken segments (in phrase mode)
             // For now, we'll assume a direct mapping for simplicity
-            return chapter.segments.find(s => s.id === audioPlayer.currentPlayingItem?.data?.segments?.[position.segmentIndex]?.originalSegmentId) || null;
+            return chapter.segments.find(s => s.id === (currentPlayingItem as any).data?.segments?.[position.segmentIndex]?.originalSegmentId) || null;
         }
     }
     
     return null;
-  }, [currentPlayingItem, itemData, position, audioPlayer.currentPlayingItem?.data?.segments]);
+  }, [currentPlayingItem, itemData, position]);
 
   const currentPlayingSegmentId = currentSpokenSegment?.id || null;
   const currentSpokenLang = audioPlayer.currentSegmentLanguage;
