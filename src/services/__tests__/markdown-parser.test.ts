@@ -6,7 +6,7 @@ import {
   parseBookMarkdown,
   getItemSegments 
 } from '../MarkdownParser';
-import type { Book, Piece, MultilingualContent, SegmentMetadata, Chapter } from '@/lib/types';
+import type { Book, Piece } from '@/lib/types';
 
 describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
   
@@ -361,7 +361,7 @@ This is a test. {Đây là kiểm tra.} It has two sentences. {Nó có hai câu.
       const { chapters } = parseBookMarkdown(md, 'en-vi');
       
       expect(chapters[0].stats.totalSegments).toBe(2);
-      expect(chapters[0].stats.totalWords).toBe(9); // "This is a test" + "It has two sentences"
+      expect(chapters[0].stats.totalWords).toBe(8); // "This is a test" (4) + "It has two sentences" (4)
       expect(chapters[0].stats.estimatedReadingTime).toBe(1);
     });
 
@@ -413,7 +413,6 @@ describe('getItemSegments Helper', () => {
       origin: 'en-vi',
       langs: ['en', 'vi'],
       display: 'card',
-      unit: 'sentence',
       isBilingual: true,
       generatedContent: [
         {
@@ -444,8 +443,6 @@ describe('getItemSegments Helper', () => {
       origin: 'en',
       langs: ['en'],
       display: 'book',
-      unit: 'sentence',
-      isBilingual: false,
       chapters: [
         {
           id: 'ch1',
@@ -484,8 +481,6 @@ describe('getItemSegments Helper', () => {
       origin: 'en',
       langs: ['en'],
       display: 'book',
-      unit: 'sentence',
-      isBilingual: false,
       chapters: [],
     };
     expect(getItemSegments(book, 10)).toHaveLength(0);

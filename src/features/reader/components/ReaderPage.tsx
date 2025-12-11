@@ -129,7 +129,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 
     let newIntent: string;
     if (newDisplayLang2 !== 'none') {
-        newIntent = `${newDisplayLang1}-${newDisplayLang2}`;
+        newIntent = `${'${newDisplayLang1}'}-${'${newDisplayLang2}'}`;
     } else {
         newIntent = newDisplayLang1;
     }
@@ -183,7 +183,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
             }
         }
 
-        const docRef = doc(db, `users/${user.uid}/libraryItems`, idFromUrl);
+        const docRef = doc(db, `users/${'${user.uid}'}/libraryItems`, idFromUrl);
         unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const serverItem = { id: docSnap.id, ...docSnap.data() } as LibraryItem;
@@ -273,7 +273,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
 
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
@@ -373,9 +373,9 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   useEffect(() => {
     if (isCalculatingPages || isPreview) return;
     
-    if (audioPlayer.currentPlayingItem?.id === item?.id && audioPlayer.state.position.segmentIndex >= 0) {
-        const chapterIndex = audioPlayer.state.position.chapterIndex ?? 0;
-        const segmentIndex = audioPlayer.state.position.segmentIndex;
+    if (audioPlayer.currentPlayingItem?.id === item?.id && audioPlayer.position && audioPlayer.position.segmentIndex >= 0) {
+        const chapterIndex = audioPlayer.position.chapterIndex ?? 0;
+        const segmentIndex = audioPlayer.position.segmentIndex;
         
         if (item.type === 'book' && item.chapters[chapterIndex]?.segments[segmentIndex]) {
             const segmentId = item.chapters[chapterIndex].segments[segmentIndex].id;
@@ -402,7 +402,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         }
         readerPageInitializedRef.current = true;
     }
-  }, [audioPlayer.state, currentPageIndex, getPageForSegment, searchParams, isCalculatingPages, isPreview, item, chapterStartPages]);
+  }, [audioPlayer.currentPlayingItem, audioPlayer.position, currentPageIndex, getPageForSegment, searchParams, isCalculatingPages, isPreview, item, chapterStartPages]);
 
 
   const renderLoading = () => (
