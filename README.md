@@ -1,4 +1,3 @@
-.
 # Quy Chuẩn Kiến Trúc & Tổ Chức File Dự Án Chirpter
 
 **Ghi chú quan trọng:** Tài liệu này là kim chỉ nam, là "Hiến pháp" cho việc tổ chức và viết mã nguồn cho dự án. Mọi thay đổi về cấu trúc và file mới phải tuân thủ nghiêm ngặt các quy tắc dưới đây để đảm bảo sự nhất quán, dễ bảo trì và khả năng mở rộng.
@@ -6,7 +5,7 @@
 ## 1. Triết lý cốt lõi
 
 - **Feature-Sliced Design (Phân lớp theo tính năng):** Logic, UI, và dữ liệu của một tính năng nghiệp vụ (domain) cụ thể sẽ được nhóm lại với nhau. Điều này giúp tăng tính đóng gói, giảm sự phụ thuộc chéo và giúp việc tìm kiếm, sửa đổi code trở nên cực kỳ nhanh chóng.
-- **Tách biệt các mối quan tâm (Separation of Concerns):** Mỗi thư mục, mỗi file có một vai trò và trách nhiệm duy nhất, không chồng chéo.
+- **Tách biệt các mối quanâm (Separation of Concerns):** Mỗi thư mục, mỗi file có một vai trò và trách nhiệm duy nhất, không chồng chéo.
 - **Dễ đoán (Predictability):** Cấu trúc file và quy ước đặt tên phải đủ rõ ràng để bất kỳ ai cũng có thể đoán được vị trí và vai trò của một đoạn code mà không cần tìm kiếm nhiều.
 
 ---
@@ -128,3 +127,113 @@ chirpter/
 | 📁 **Function, Service, Util** | `camelCase.ts` | `formatDate.ts`, `userService.ts` | **GHI NHỚ: Logic là một hàm**. Dùng `camelCase` để phân biệt rõ ràng với các file Component `PascalCase`, giúp dễ dàng xác định file nào chứa logic nghiệp vụ. |
 | 📁 **Định nghĩa Types** | `camelCase.types.ts` | `user.types.ts`, `auth.types.ts` | **GHI NHỚ: Types có hậu tố `.types`**. Hậu tố này giúp phân biệt rõ ràng file định nghĩa kiểu với các file logic khác, tránh nhầm lẫn. |
 | 📁 **File CSS/Style** | `kebab-case.css` | `app-shell.module.css`, `globals.css`| **GHI NHỚ: CSS dùng kebab-case**. Giống với quy ước đặt tên class trong CSS, tạo sự đồng bộ và dễ nhận biết. |
+
+---
+
+## 5. Cấu trúc dữ liệu Firestore chi tiết (Ví dụ: Một `Book`)
+
+Dưới đây là cấu trúc đầy đủ và đã được thống nhất của một tài liệu `Book` được lưu trữ trong Firestore. Kiến trúc này được thiết kế để linh hoạt, mạnh mẽ và phục vụ cho tất cả các tính năng của ứng dụng.
+
+```json
+{
+    // --- Metadata Cốt lõi & Nhận dạng ---
+    "id": "book_abc_123",
+    "type": "book",
+    "userId": "user_xyz_789",
+    "title": { "en": "The Two Worlds", "vi": "Hai Thế Giới" },
+    "author": "Chirpter AI",
+
+    // --- Định dạng & Ngôn ngữ ---
+    "origin": "en-vi",         // 🛑 BẤT BIẾN: Định dạng gốc của nội dung khi được tạo. Vd: "en", "en-vi", "en-vi-ph".
+    "langs": ["en", "vi"],     // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có trong dữ liệu. Sẽ được cập nhật nếu người dùng dịch thêm.
+    "isBilingual": true,
+
+    // --- Phân loại & Tìm kiếm ---
+    "tags": ["fantasy", "adventure"],
+    "prompt": "A story about a dragon crossing into the human world.",
+
+    // --- Trạng thái Xử lý (Quan trọng cho UI) ---
+    "status": "draft",          // Trạng thái tổng thể: 'processing', 'draft', 'published'
+    "contentState": "ready",    // 'processing', 'ready', 'error'
+    "coverState": "ready",      // 'processing', 'ready', 'error', 'ignored'
+    "contentError": null,
+    "coverError": null,
+    "contentRetryCount": 0,
+    "coverRetryCount": 0,
+
+    // --- Thông tin Ảnh bìa ---
+    "cover": {
+        "type": "ai",
+        "url": "https://path/to/image.webp",
+        "inputPrompt": "A mythical dragon emerging from a portal into a modern city street"
+    },
+
+    // --- Nội dung Chính (THEO KIẾN TRÚC THỐNG NHẤT) ---
+    "chapters": [
+        {
+            "id": "ch_01",
+            "order": 0,
+            "title": { "en": "The Portal", "vi": "Cánh Cổng" },
+            "metadata": { "primaryLanguage": "en" },
+            "stats": { /* ... */ },
+            "segments": [
+                {
+                    "id": "seg_01_01",
+                    "order": 0,
+                    "type": "text",
+                    "metadata": {
+                        "isNewPara": true,
+                        "unit": "sentence" // ✅ Cờ cho biết content chứa dữ liệu dạng "câu".
+                    },
+                    "formatting": {},
+                    "content": [ // ✅ Luôn là một mảng. Với unit='sentence', nó chỉ có MỘT phần tử.
+                        {
+                            "en": "The rift shimmered, a tear in reality's fabric.",
+                            "vi": "Vết nứt lung linh, một vết rách trên tấm vải của thực tại."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "ch_02",
+            "order": 1,
+            "title": { "en": "First Words", "vi": "Lời Nói Đầu Tiên" },
+            "metadata": { "primaryLanguage": "en" },
+            "stats": { /* ... */ },
+            "segments": [
+                {
+                    "id": "seg_02_01",
+                    "order": 0,
+                    "type": "text",
+                    "metadata": {
+                        "isNewPara": true,
+                        "unit": "phrase" // ✅ Cờ cho biết content chứa dữ liệu dạng "cụm từ".
+                    },
+                    "formatting": {},
+                    "content": [ // ✅ Luôn là một mảng. Với unit='phrase', nó có NHIỀU phần tử.
+                        {
+                            "en": "A young boy",
+                            "vi": "Một cậu bé"
+                        },
+                        {
+                            "en": " saw the dragon and whispered,",
+                            "vi": " nhìn thấy con rồng và thì thầm,"
+                        },
+                        {
+                            "en": " 'You are not from here.'",
+                            "vi": " 'Bạn không phải từ nơi này.'"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+
+    // --- Dữ liệu Hệ thống & Người dùng ---
+    "isComplete": false,             // Người dùng tự đánh dấu đã đọc xong hay chưa.
+    "selectedBookmark": "default", // ID của bookmark được chọn để hiển thị.
+    "createdAt": "...",              // Firestore Timestamp
+    "updatedAt": "..."               // Firestore Timestamp
+}
+```
