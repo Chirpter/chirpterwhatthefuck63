@@ -14,62 +14,51 @@ function cleanText(text: string): string {
 }
 
 /**
+ * A robust sentence splitter for monolingual text.
+ * Handles abbreviations, quotes, and different sentence endings.
+ * @param text The block of text to parse.
+ * @returns An array of sentences.
+ */
+function splitIntoSentences(text: string): string[] {
+    if (!text) return [];
+    // This regex is more advanced. It splits on sentence-ending punctuation
+    // ONLY IF it's followed by a space and an uppercase letter, or a newline.
+    // It specifically avoids splitting on abbreviations like Mr., Mrs., Dr., St. etc.
+    const sentenceRegex = /(?<!\b(?:[A-Z][a-z]{1,2})\.)(?<=[.?!])\s+(?=[A-Z"']|[\r\n]|$)/g;
+    return text.split(sentenceRegex).filter(s => s && s.trim().length > 0);
+}
+
+
+/**
  * Parses monolingual text into sentence-based segments.
- * Uses a regex that splits based on sentence-ending punctuation,
- * while trying to avoid splitting on common abbreviations or numbers.
  * @param text The block of text to parse.
  * @param primaryLang The language code for the content.
  * @returns An array of Segments.
  */
 function parseMonolingualContent(text: string, primaryLang: string): Segment[] {
   if (!text.trim()) return [];
-
-  // Regex to split sentences. It looks for punctuation followed by a space and an uppercase letter, or end of string.
-  // It avoids splitting on "Mr.", "Mrs.", "Dr.", "St." and numbers like "3.14".
-  const sentenceRegex = /(?<!\b(?:Mr|Mrs|Ms|Dr|St)\.)(?<=[.?!])\s+(?=[A-Z"])|(?<=[.?!])(?=[\r\n]|$)/g;
-  const sentences = text.split(sentenceRegex).filter(s => s && s.trim());
-
+  
+  const sentences = splitIntoSentences(text);
   let order = 0;
-  let isNewPara = true;
 
-  const segments = sentences.map(sentence => {
+  return sentences.map(sentence => {
     const cleanedSentence = cleanText(sentence);
     if (!cleanedSentence) return null;
 
-    const segment: Segment = {
+    return {
       id: generateLocalUniqueId(),
       order: order++,
       type: 'text',
       content: { [primaryLang]: cleanedSentence },
       formatting: {},
-      metadata: { isNewPara }
+      metadata: { isNewPara: false } // isNewPara will be determined later
     };
-    isNewPara = false; // Only the first segment after a blank line is a new paragraph
-    return segment;
   }).filter((s): s is Segment => s !== null);
-
-  // Re-evaluate isNewPara based on original line breaks
-  const lines = text.split('\n');
-  let segmentIndex = 0;
-  let linePointer = 0;
-  while(segmentIndex < segments.length && linePointer < lines.length) {
-    const line = lines[linePointer].trim();
-    if (line === '') {
-        if(segments[segmentIndex]) {
-            segments[segmentIndex].metadata.isNewPara = true;
-        }
-    }
-    if(line.includes(segments[segmentIndex].content[primaryLang])) {
-        segmentIndex++;
-    }
-    linePointer++;
-  }
-
-  return segments;
 }
 
 /**
  * Parses bilingual text that follows the `English part {Vietnamese part}` format.
+ * This version can also handle monolingual sentences mixed in.
  * @param text The block of text to parse.
  * @param primaryLang The language code for the main text.
  * @param secondaryLang The language code for the text within braces.
@@ -78,12 +67,11 @@ function parseMonolingualContent(text: string, primaryLang: string): Segment[] {
 function parseBilingualContent(text: string, primaryLang: string, secondaryLang: string): Segment[] {
     if (!text.trim()) return [];
     
-    // Regex to find all pairs of 'English {Vietnamese}'
+    // Regex to find all pairs of 'English {Vietnamese}' OR standalone sentences.
     const bilingualPairRegex = /(.*?)\s*\{(.*?)\}/g;
     const segments: Segment[] = [];
     let lastIndex = 0;
     let order = 0;
-    let isNewPara = true;
 
     // Use matchAll to get all matches with their indices
     const matches = Array.from(text.matchAll(bilingualPairRegex));
@@ -94,18 +82,12 @@ function parseBilingualContent(text: string, primaryLang: string, secondaryLang:
 
         // Handle any text between the last match and this one as monolingual
         if (matchIndex > lastIndex) {
-            const precedingText = cleanText(text.substring(lastIndex, matchIndex));
-            if (precedingText) {
-                segments.push({
-                    id: generateLocalUniqueId(),
-                    order: order++,
-                    type: 'text',
-                    content: { [primaryLang]: precedingText },
-                    formatting: {},
-                    metadata: { isNewPara }
-                });
-                isNewPara = false;
-            }
+            const precedingText = text.substring(lastIndex, matchIndex);
+            // Parse the monolingual part into sentences
+            const monoSegments = parseMonolingualContent(precedingText, primaryLang);
+            monoSegments.forEach(seg => {
+                segments.push({ ...seg, order: order++ });
+            });
         }
 
         // Create the bilingual segment
@@ -118,67 +100,82 @@ function parseBilingualContent(text: string, primaryLang: string, secondaryLang:
                 [secondaryLang]: cleanText(secondaryPart)
             },
             formatting: {},
-            metadata: { isNewPara }
+            metadata: { isNewPara: false }
         });
 
-        isNewPara = false; // Subsequent segments are not new paragraphs unless a blank line is detected
         lastIndex = matchIndex + fullMatch.length;
     });
 
     // Handle any remaining text after the last match
     if (lastIndex < text.length) {
-        const remainingText = cleanText(text.substring(lastIndex));
-        if (remainingText) {
-            segments.push({
-                id: generateLocalUniqueId(),
-                order: order++,
-                type: 'text',
-                content: { [primaryLang]: remainingText },
-                formatting: {},
-                metadata: { isNewPara }
-            });
-        }
+        const remainingText = text.substring(lastIndex);
+        const monoSegments = parseMonolingualContent(remainingText, primaryLang);
+        monoSegments.forEach(seg => {
+            segments.push({ ...seg, order: order++ });
+        });
     }
     
-    // Final check for paragraph breaks from original text
-    const lines = text.split('\n');
-    let segmentIndex = 0;
-    let linePointer = 0;
-    while (segmentIndex < segments.length && linePointer < lines.length) {
-        const line = lines[linePointer].trim();
-        if (line === '') {
-            if(segments[segmentIndex]) {
-                segments[segmentIndex].metadata.isNewPara = true;
-            }
-        }
-        if (line.includes(segments[segmentIndex].content[primaryLang])) {
-            segmentIndex++;
-        }
-        linePointer++;
-    }
-    if (segments.length > 0) {
-        segments[0].metadata.isNewPara = true;
-    }
-
-
     return segments;
 }
 
 
 /**
  * Main parser function that delegates to the appropriate content parser.
+ * It also handles paragraph detection after segments have been created.
  */
 export function parseMarkdownToSegments(
   markdown: string,
   origin: string
 ): Segment[] {
   const [primaryLang, secondaryLang] = origin.split('-');
+  
+  // Clean the input markdown first
+  const contentToParse = markdown
+    .split('\n')
+    .filter(line => !line.trim().startsWith('##')) // Skip chapter headings
+    .join('\n');
 
-  if (secondaryLang) {
-    return parseBilingualContent(markdown, primaryLang, secondaryLang);
+  let segments: Segment[];
+
+  if (secondaryLang && secondaryLang !== 'ph') {
+    segments = parseBilingualContent(contentToParse, primaryLang, secondaryLang);
   } else {
-    return parseMonolingualContent(markdown, primaryLang);
+    segments = parseMonolingualContent(contentToParse, primaryLang);
   }
+
+  // Final pass to set paragraph metadata based on original line breaks
+  const lines = contentToParse.split('\n');
+  let currentSegmentIndex = 0;
+  let isAfterBlankLine = true; // The very first segment is always a new paragraph
+
+  for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine === '') {
+          isAfterBlankLine = true;
+          continue;
+      }
+      
+      if (currentSegmentIndex < segments.length && isAfterBlankLine) {
+          // Find the first segment that starts with content from this line
+          let found = false;
+          for (let i = currentSegmentIndex; i < segments.length; i++) {
+              const segText = segments[i].content[primaryLang] || segments[i].content[secondaryLang || ''] || '';
+              if (trimmedLine.includes(segText.substring(0, 20))) { // Check if the line contains the start of the segment
+                  segments[i].metadata.isNewPara = true;
+                  currentSegmentIndex = i + 1;
+                  found = true;
+                  break;
+              }
+          }
+      }
+      isAfterBlankLine = false;
+  }
+  
+  if (segments.length > 0) {
+      segments[0].metadata.isNewPara = true;
+  }
+
+  return segments;
 }
 
 /**
@@ -190,7 +187,7 @@ function parseBilingualText(
   secondaryLang?: string
 ): MultilingualContent {
   const cleaned = cleanText(text);
-  if (secondaryLang) {
+  if (secondaryLang && secondaryLang !== 'ph') {
     const match = cleaned.match(/^(.*?)\s*\{(.*)\}\s*$/);
     if (match) {
       return {
@@ -229,10 +226,11 @@ export function parseBookMarkdown(
   // Find all chapter start indices
   const chapterStarts: Array<{ index: number; title: string }> = [];
   for (let i = contentStartIndex; i < lines.length; i++) {
-    if (lines[i].trim().startsWith('## ')) {
+    const line = lines[i].trim();
+    if (line.startsWith('## ')) {
       chapterStarts.push({
         index: i,
-        title: lines[i].trim().substring(3)
+        title: line.substring(3)
       });
     }
   }
