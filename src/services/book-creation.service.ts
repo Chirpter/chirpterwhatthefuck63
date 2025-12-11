@@ -133,7 +133,6 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         chapters: [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
-        isBilingual: bookFormData.availableLanguages.length > 1,
         unit: bookFormData.unit,
         labels: [],
     };

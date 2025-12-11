@@ -14,7 +14,6 @@ type FormValues = {
   title: string;
   author?: string;
   price: number;
-  isBilingual: boolean;
   primaryLanguage: string;
   secondaryLanguage?: string;
   tags: string[];
@@ -91,14 +90,17 @@ export const useAdminBooks = () => {
         await uploadString(imageRef, fileDataUrl, 'data_url');
         coverUrl = await getDownloadURL(imageRef);
       }
+      
+      const isBilingual = !!data.secondaryLanguage;
+      const origin = isBilingual ? `${data.primaryLanguage}-${data.secondaryLanguage}` : data.primaryLanguage;
 
       const bookData: Omit<Book, 'id' | 'userId' | 'createdAt' | 'updatedAt'> = {
         title: { [data.primaryLanguage]: data.title },
         author: data.author,
         price: data.price,
-        isBilingual: data.isBilingual,
-        origin: data.isBilingual ? `${data.primaryLanguage}-${data.secondaryLanguage}` : data.primaryLanguage,
-        langs: data.isBilingual ? [data.primaryLanguage, data.secondaryLanguage as string] : [data.primaryLanguage],
+        origin: origin,
+        langs: isBilingual ? [data.primaryLanguage, data.secondaryLanguage as string] : [data.primaryLanguage],
+        unit: 'sentence', // Assuming sentence for now, can be made configurable
         tags: data.tags,
         isGlobal: true,
         type: 'book',

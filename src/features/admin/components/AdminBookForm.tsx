@@ -85,14 +85,15 @@ export const AdminBookForm: React.FC<AdminBookFormProps> = ({ isOpen, onOpenChan
 
   useEffect(() => {
     if (initialData) {
-      const [primaryLang, secondaryLang] = initialData.origin.split('-');
+      const [primaryLang, secondaryLang] = (initialData.origin || 'en').split('-');
+      const initialIsBilingual = initialData.langs?.length > 1;
       reset({
-        title: initialData.title.primary,
+        title: initialData.title[primaryLang] || Object.values(initialData.title)[0] || '',
         author: initialData.author,
         price: initialData.price || 0,
-        isBilingual: initialData.isBilingual,
+        isBilingual: initialIsBilingual,
         primaryLanguage: primaryLang,
-        secondaryLanguage: secondaryLang,
+        secondaryLanguage: initialIsBilingual ? secondaryLang : undefined,
         tags: initialData.tags || [],
         content: JSON.stringify(initialData.chapters || [], null, 2),
         coverImageOption: initialData.cover?.url ? 'upload' : 'none',

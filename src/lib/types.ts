@@ -1,4 +1,3 @@
-
 // src/lib/types.ts
 
 import { VOCABULARY_CONSTANTS, BOOK_LENGTH_OPTIONS } from "./constants";
@@ -35,6 +34,7 @@ export interface SegmentMetadata {
   isNewPara: boolean; // ✅ The flag to indicate the start of a new paragraph
   wordCount?: { [lang: string]: number };
   primaryLanguage?: string;
+  unit?: ContentUnit; // ✅ FIX: Re-added unit at segment level for parser logic.
 }
 
 
@@ -193,7 +193,6 @@ interface BaseLibraryItem extends BaseDocument {
   display: 'book' | 'card';
   tags?: string[];
   labels?: string[]; // Added for consistency with Firestore data model
-  isBilingual: boolean; // Added for consistency with Firestore data model
 }
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
@@ -425,7 +424,5 @@ export type Tier = {
 };
   
 export type TierTask = 
-| { type: 'ref'; id: string; goal: number; }
-| { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string; };
-
-    
+| { type: 'ref'; id: string; goal: number }
+| { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
