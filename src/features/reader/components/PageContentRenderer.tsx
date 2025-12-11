@@ -5,7 +5,7 @@
 import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, LibraryItem, EditorSettings, BilingualFormat, Page, MultilingualContent, PhraseMap } from '@/lib/types';
+import type { Segment, LibraryItem, EditorSettings, Page, PhraseMap } from '@/lib/types';
 import { SegmentRenderer } from './SegmentRenderer';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
@@ -30,13 +30,10 @@ export function PageContentRenderer({
   const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = useAudioPlayer();
   const segments = page.items;
   
-  // The segment ID that is currently being played by the audio player.
   const currentPlayingSegmentId = useMemo(() => {
     if (currentPlayingItem?.type !== 'book' || !itemData || currentPlayingItem.id !== itemData.id) {
         return null;
     }
-    // This logic needs to be robust. Assuming segment ID is derivable from audio player state.
-    // For now, this is a simplified placeholder.
     return audioPlayer.currentSegment?.originalSegmentId || null;
   }, [currentPlayingItem, itemData, audioPlayer.currentSegment]);
 
@@ -101,7 +98,7 @@ export function PageContentRenderer({
              const applyDropCap = paraSegments.some(s => s.metadata.applyDropCap);
              
              // For sentence-by-sentence, each segment is a paragraph
-             if (isBilingualMode && paraSegments.every(s => s.metadata.bilingualFormat === 'sentence')) {
+             if (isBilingualMode && paraSegments.every(s => s.metadata.unit === 'sentence')) {
                 return paraSegments.map((segment) => (
                      <div key={segment.id} className="my-3"> {/* Add vertical spacing */}
                         <SegmentRenderer 

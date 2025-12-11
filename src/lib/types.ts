@@ -51,11 +51,11 @@ export type PhraseMap = {
   [languageCode: string]: string;
 };
 
-export type BilingualFormat = 'sentence' | 'phrase';
+export type ContentUnit = 'sentence' | 'phrase';
 
 export interface SegmentMetadata {
   isNewPara: boolean;
-  bilingualFormat: BilingualFormat;
+  unit: ContentUnit; // RENAMED from bilingualFormat
   applyDropCap?: boolean;
   /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
@@ -66,8 +66,6 @@ export interface SegmentMetadata {
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
  * The `content` field is now ALWAYS an array of PhraseMap.
- * - For 'sentence' format, it will be an array with a single element.
- * - For 'phrase' format, it will be an array with multiple elements.
  */
 export interface Segment {
   id: string;
@@ -76,6 +74,8 @@ export interface Segment {
   
   /**
    * Holds the textual data as an array of phrases.
+   * - For 'sentence' unit, it's an array with one element: [{ en: "Full sentence.", vi: "Câu đầy đủ." }]
+   * - For 'phrase' unit, it's an array with multiple elements: [{ en: "A phrase", vi: "Một cụm" }, { en: " and another.", vi: " và một cụm nữa." }]
    */
   content: PhraseMap[];
   

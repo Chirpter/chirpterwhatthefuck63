@@ -44,11 +44,11 @@ const renderSegmentContent = (
   speechBoundary: { charIndex: number, charLength: number } | null,
 ) => {
   const { content, metadata } = segment;
-  const { bilingualFormat } = metadata;
+  const { unit } = metadata;
 
   // Render as inline phrases: "Primary (Secondary)"
-  if (isBilingualMode && bilingualFormat === 'phrase') {
-    return (content as PhraseMap[]).map((phrase, index) => {
+  if (isBilingualMode && unit === 'phrase') {
+    return content.map((phrase, index) => {
       const primaryText = phrase[displayLang1];
       const secondaryText = displayLang2 !== 'none' ? phrase[displayLang2] : null;
 
@@ -68,7 +68,7 @@ const renderSegmentContent = (
   }
   
   // Render as sentences (either stacked bilingual or monolingual)
-  const sentenceMap = (content as PhraseMap[])[0]; // Sentence mode always has one item in the array
+  const sentenceMap = content[0]; // Sentence mode always has one item in the array
   if (!sentenceMap) return null;
 
   const primaryText = sentenceMap[displayLang1];
