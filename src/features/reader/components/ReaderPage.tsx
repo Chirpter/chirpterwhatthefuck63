@@ -1,3 +1,4 @@
+// src/features/reader/components/ReaderPage.tsx
 
 'use client';
 
@@ -556,7 +557,6 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                                 itemData={item}
                                 displayLang1={displayLang1}
                                 displayLang2={displayLang2}
-                                bilingualFormat={bilingualFormat}
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">

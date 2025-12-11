@@ -1,10 +1,11 @@
+// src/features/reader/components/SegmentRenderer.tsx
 
 'use client';
 
 import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, PhraseMap, BilingualFormat, MultilingualContent } from '@/lib/types';
+import type { Segment, PhraseMap, MultilingualContent } from '@/lib/types';
 
 interface SegmentRendererProps {
   segment: Segment;
@@ -47,19 +48,14 @@ const renderPhrases = (
 
     if (!primaryText) return null;
 
-    const primaryContent = (isSegmentPlaying && spokenLang === displayLang1)
-      ? getWordHighlightContent(primaryText, speechBoundary)
-      : primaryText;
+    // Word highlight is complex for phrases, for now we highlight the whole phrase block
+    const isThisPhraseBlockPlaying = isSegmentPlaying; 
 
-    const secondaryContent = secondaryText ? ((isSegmentPlaying && spokenLang === displayLang2)
-      ? getWordHighlightContent(secondaryText, speechBoundary)
-      : secondaryText) : null;
-      
     return (
-      <span key={index} className={cn("inline-block mr-1", isSegmentPlaying && 'tts-highlight')}>
-        <span lang={displayLang1}>{primaryContent}</span>
-        {secondaryContent && (
-          <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryContent})</span>
+      <span key={index} className={cn("inline-block mr-1", isThisPhraseBlockPlaying && 'tts-highlight')}>
+        <span lang={displayLang1}>{primaryText}</span>
+        {secondaryText && (
+          <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryText})</span>
         )}
       </span>
     );
@@ -134,7 +130,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     return null;
   };
   
-  const primaryText = (Array.isArray(segment.content) ? segment.content[0]?.[displayLang1] : (segment.content as MultilingualContent)[displayLang1]) || '';
+  const primaryText = (Array.isArray(segment.content) ? (segment.content[0] as PhraseMap)?.[displayLang1] : (segment.content as MultilingualContent)[displayLang1]) || '';
 
   switch (segment.type) {
     case 'heading':

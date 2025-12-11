@@ -1,10 +1,11 @@
+// src/features/reader/components/PageContentRenderer.tsx
 
 "use client";
 
 import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, LibraryItem, EditorSettings, BilingualFormat, Page, BilingualViewMode, PhraseMap, MultilingualContent } from '@/lib/types';
+import type { Segment, LibraryItem, EditorSettings, BilingualFormat, Page, MultilingualContent, PhraseMap } from '@/lib/types';
 import { SegmentRenderer } from './SegmentRenderer';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
@@ -16,7 +17,6 @@ interface PageContentRendererProps {
   itemData: LibraryItem | null;
   displayLang1: string;
   displayLang2: string; // 'none' or language code
-  bilingualFormat: BilingualFormat;
 }
 
 export function PageContentRenderer({ 
@@ -26,7 +26,6 @@ export function PageContentRenderer({
     itemData,
     displayLang1,
     displayLang2,
-    bilingualFormat, // This now comes from ReaderPage
 }: PageContentRendererProps) {
   const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = useAudioPlayer();
   const segments = page.items;
@@ -102,7 +101,7 @@ export function PageContentRenderer({
              const applyDropCap = paraSegments.some(s => s.metadata.applyDropCap);
              
              // For sentence-by-sentence, each segment is a paragraph
-             if (isBilingualMode && paraSegments[0].metadata.bilingualFormat === 'sentence') {
+             if (isBilingualMode && paraSegments.every(s => s.metadata.bilingualFormat === 'sentence')) {
                 return paraSegments.map((segment) => (
                      <div key={segment.id} className="my-3"> {/* Add vertical spacing */}
                         <SegmentRenderer 
