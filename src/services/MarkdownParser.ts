@@ -168,13 +168,13 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
       if (unit === 'phrase') {
         // Phrase-based: entire line is one segment
         const content = parsePhraseBased(trimmedLine, primaryLang, secondaryLang);
-        if (Object.keys(content).length > 0) {
+        if (Object.keys(content).length > 0 && content[primaryLang]) {
           segments.push({
             id: generateLocalUniqueId(),
             order: segmentOrder++,
             type: 'text',
             content,
-            metadata: { isNewPara }
+            metadata: { isNewPara, unit }
           });
         }
       } else {
@@ -199,7 +199,8 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
               type: 'text',
               content,
               metadata: {
-                isNewPara: j === 0 && isNewPara
+                isNewPara: j === 0 && isNewPara,
+                unit
               }
             });
           }
@@ -220,7 +221,8 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
             type: 'text',
             content,
             metadata: {
-              isNewPara: j === 0 && isNewPara
+              isNewPara: j === 0 && isNewPara,
+              unit
             }
           });
         }
@@ -233,6 +235,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
 
 /**
  * Parses book-level markdown with title and chapters.
+ * ROBUST VERSION: Handles titles without punctuation correctly.
  */
 export function parseBookMarkdown(
   markdown: string,
@@ -243,40 +246,22 @@ export function parseBookMarkdown(
   const lines = markdown.split('\n');
   
   let title: MultilingualContent = { [primaryLang]: 'Untitled' };
-  let contentStartIndex = 0;
+  let contentAfterTitle = markdown;
   
   // Find the first H1 to use as the book title
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.startsWith('# ')) {
-      const titleText = line.substring(2).trim();
-      title = parseBilingualTitle(titleText, primaryLang, secondaryLang);
-      contentStartIndex = i + 1;
-      break;
-    }
+  const firstH1Index = lines.findIndex(line => line.trim().startsWith('# '));
+  if (firstH1Index !== -1) {
+    const titleLine = lines[firstH1Index].trim().substring(2).trim();
+    title = parseBilingualTitle(titleLine, primaryLang, secondaryLang);
+    contentAfterTitle = lines.slice(firstH1Index + 1).join('\n');
   }
   
-  const contentAfterTitle = lines.slice(contentStartIndex).join('\n');
-  
-  // Split by H2 headings to get chapters
-  const chapterSplitRegex = /^## /gm;
+  const chapterSplitRegex = /^## /m; // m flag for multiline
+  const chapterContents = contentAfterTitle.split(chapterSplitRegex).filter(c => c.trim() !== '');
   const chapters: Chapter[] = [];
-  
-  // Find all H2 positions
-  const h2Matches: Array<{index: number, line: string}> = [];
-  const contentLines = contentAfterTitle.split('\n');
-  
-  for (let i = 0; i < contentLines.length; i++) {
-    if (contentLines[i].trim().startsWith('## ')) {
-      h2Matches.push({
-        index: i,
-        line: contentLines[i].trim().substring(3).trim()
-      });
-    }
-  }
-  
-  // If no H2 headings, treat all content as one chapter
-  if (h2Matches.length === 0) {
+
+  if (chapterContents.length === 0) {
+    // If no H2 headings, treat all content as one chapter
     if (contentAfterTitle.trim()) {
       const segments = parseMarkdownToSegments(contentAfterTitle, origin);
       if (segments.length > 0) {
@@ -297,14 +282,15 @@ export function parseBookMarkdown(
     }
   } else {
     // Process each chapter
-    for (let i = 0; i < h2Matches.length; i++) {
-      const startIdx = h2Matches[i].index;
-      const endIdx = i < h2Matches.length - 1 ? h2Matches[i + 1].index : contentLines.length;
+    for (const chapterText of chapterContents) {
+      const chapterLines = chapterText.trim().split('\n');
+      const chapterTitleLine = chapterLines[0] || `Chapter ${chapters.length + 1}`;
+      const chapterContent = chapterLines.slice(1).join('\n');
       
-      const chapterTitle = parseBilingualTitle(h2Matches[i].line, primaryLang, secondaryLang);
-      const chapterContent = contentLines.slice(startIdx + 1, endIdx).join('\n');
-      
+      const chapterTitle = parseBilingualTitle(chapterTitleLine, primaryLang, secondaryLang);
       const segments = parseMarkdownToSegments(chapterContent, origin);
+      
+      // Only add chapter if it has content
       if (segments.length > 0) {
         const totalWords = calculateTotalWords(segments, primaryLang);
         chapters.push({
