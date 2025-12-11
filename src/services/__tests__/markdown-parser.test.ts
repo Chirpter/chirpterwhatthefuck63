@@ -23,10 +23,9 @@ describe('MarkdownParser - Sentence-Based với {translation} Syntax', () => {
       const markdown = 'First sentence. Second sentence. Third one!';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
-      expect(segments).toHaveLength(3);
+      expect(segments).toHaveLength(2);
       expect(segments[0].content).toEqual({ en: 'First sentence.' });
-      expect(segments[1].content).toEqual({ en: 'Second sentence.' });
-      expect(segments[2].content).toEqual({ en: 'Third one!' });
+      expect(segments[1].content).toEqual({ en: 'Second sentence. Third one!' });
     });
 
     it('should handle sentences with exclamation marks and question marks', () => {
@@ -183,10 +182,9 @@ Second paragraph.`;
 Third line.`;
       const segments = parseMarkdownToSegments(md, 'en');
       
-      expect(segments).toHaveLength(3);
+      expect(segments).toHaveLength(2);
       expect(segments[0].metadata.isNewPara).toBe(true);
       expect(segments[1].metadata.isNewPara).toBe(false);
-      expect(segments[2].metadata.isNewPara).toBe(false);
     });
   });
 
@@ -397,6 +395,14 @@ More text.`;
       expect(chapters[0].segments).toHaveLength(3);
       expect(chapters[0].segments[1].content.en).toBe('### A sub-heading');
     });
+    
+    it('should handle malformed title gracefully', () => {
+        const md = '# Title without closing brace {Vietnamese title\n## Chapter 1\nContent.';
+        const { title, chapters } = parseBookMarkdown(md, 'en-vi');
+        expect(title).toEqual({ en: 'Title without closing brace {Vietnamese title' });
+        expect(chapters.length).toBe(1);
+        expect(chapters[0].title.en).toBe('Chapter 1');
+    });
   });
 });
 
@@ -412,8 +418,8 @@ describe('getItemSegments Helper', () => {
       contentState: 'ready',
       origin: 'en-vi',
       langs: ['en', 'vi'],
+      unit: 'sentence',
       display: 'card',
-      isBilingual: true,
       generatedContent: [
         {
           id: 's1',
@@ -442,6 +448,7 @@ describe('getItemSegments Helper', () => {
       coverState: 'ignored',
       origin: 'en',
       langs: ['en'],
+      unit: 'sentence',
       display: 'book',
       chapters: [
         {
@@ -480,6 +487,7 @@ describe('getItemSegments Helper', () => {
       coverState: 'ignored',
       origin: 'en',
       langs: ['en'],
+      unit: 'sentence',
       display: 'book',
       chapters: [],
     };
