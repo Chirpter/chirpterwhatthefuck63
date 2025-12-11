@@ -27,32 +27,29 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2,
 }: PageContentRendererProps) {
-  const { currentPlayingItem, position, currentSpokenSegmentLang, speechBoundary } = useAudioPlayer();
+  const { currentPlayingItem, position, speechBoundary } = useAudioPlayer();
   const segments = page.items;
   
-  const currentPlayingSegmentId = useMemo(() => {
-    if (currentPlayingItem?.type !== itemData?.type || !itemData || currentPlayingItem.id !== itemData.id) {
-        return null;
+  const currentSpokenSegment = useMemo(() => {
+    if (!itemData || !currentPlayingItem || currentPlayingItem.id !== itemData.id || !position || position.chapterIndex === null) {
+      return null;
     }
-    
-    const audioPlayerSegmentIndex = position.segmentIndex;
-    const currentChapterIndex = position.chapterIndex ?? 0;
-    
-    // Check if the item is a book and has chapters
-    if (itemData.type === 'book' && Array.isArray((itemData as any).chapters)) {
-        const chapter = (itemData as any).chapters[currentChapterIndex];
-        if (chapter && Array.isArray(chapter.segments) && chapter.segments[audioPlayerSegmentIndex]) {
-            return chapter.segments[audioPlayerSegmentIndex].id;
-        }
-    } else if (itemData.type === 'piece' && Array.isArray((itemData as any).generatedContent)) {
-        // Handle 'piece' type
-        if ((itemData as any).generatedContent[audioPlayerSegmentIndex]) {
-            return (itemData as any).generatedContent[audioPlayerSegmentIndex].id;
+
+    if (itemData.type === 'book') {
+        const chapter = itemData.chapters?.[position.chapterIndex];
+        if (chapter && chapter.segments) {
+            // Find the original segment that the spoken segment belongs to
+            // This is complex because one original segment can be multiple spoken segments (in phrase mode)
+            // For now, we'll assume a direct mapping for simplicity
+            return chapter.segments.find(s => s.id === audioPlayer.currentPlayingItem?.data?.segments?.[position.segmentIndex]?.originalSegmentId) || null;
         }
     }
     
     return null;
-  }, [currentPlayingItem, itemData, position]);
+  }, [currentPlayingItem, itemData, position, audioPlayer.currentPlayingItem?.data?.segments]);
+
+  const currentPlayingSegmentId = currentSpokenSegment?.id || null;
+  const currentSpokenLang = audioPlayer.currentSegmentLanguage;
 
   const proseThemeClass = useMemo(() => {
     if (presentationStyle === 'book') return 'prose dark:prose-invert';
@@ -93,7 +90,7 @@ export function PageContentRenderer({
     <div className={contentContainerClasses}>
         {segments.map((segment, index) => {
             const isNewPara = segment.metadata.isNewPara;
-            const applyDropCap = isNewPara && index === 0;
+            const applyDropCap = isNewPara && index === 0 && page.pageIndex === 0;
 
             const content = (
               <SegmentRenderer 
@@ -101,10 +98,11 @@ export function PageContentRenderer({
                   segment={segment} 
                   isPlaying={currentPlayingSegmentId === segment.id}
                   speechBoundary={speechBoundary}
-                  spokenLang={currentSpokenSegmentLang}
+                  spokenLang={currentSpokenLang}
                   isBilingualMode={isBilingualMode}
                   displayLang1={displayLang1}
                   displayLang2={displayLang2}
+                  unit={item?.unit || 'sentence'}
               />
             );
             
