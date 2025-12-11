@@ -1,5 +1,4 @@
-
-// src/services/__tests__/markdown-parser.test.ts
+// src/services/__tests__/markdown-parser.test.ts - FINAL, ROBUST VERSION
 import { describe, it, expect } from 'vitest';
 import { 
   parseMarkdownToSegments, 
@@ -8,9 +7,9 @@ import {
 } from '../MarkdownParser';
 import type { Book, Piece } from '@/lib/types';
 
-describe('MarkdownParser - Final Robust Version', () => {
+describe('MarkdownParser - Sentence-Based Parsing', () => {
   
-  describe('✅ Monolingual Parsing (en)', () => {
+  describe('✅ Monolingual - English', () => {
     it('should parse a single sentence as one segment', () => {
       const md = 'Hello world.';
       const segments = parseMarkdownToSegments(md, 'en');
@@ -18,21 +17,24 @@ describe('MarkdownParser - Final Robust Version', () => {
       expect(segments[0].content.en).toBe('Hello world.');
     });
 
-    it('should treat multiple sentences on same line as one segment', () => {
+    it('should split multiple sentences on the same line into separate segments', () => {
       const markdown = 'First sentence. Second sentence.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('First sentence. Second sentence.');
+
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content.en).toBe('First sentence.');
+      expect(segments[1].content.en).toBe('Second sentence.');
     });
 
     it('should handle sentences with exclamation marks and question marks', () => {
-      const markdown = 'Hello! How are you? I am fine.';
+      const markdown = 'Hello! How are you?';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('Hello! How are you? I am fine.');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content.en).toBe('Hello!');
+      expect(segments[1].content.en).toBe('How are you?');
     });
 
-    it('should NOT split on abbreviations like Dr. or St.', () => {
+    it('should NOT split on abbreviations like Dr. Mr. etc.', () => {
       const md = 'Dr. Smith went to St. Louis.';
       const segments = parseMarkdownToSegments(md, 'en');
       expect(segments).toHaveLength(1);
@@ -40,31 +42,40 @@ describe('MarkdownParser - Final Robust Version', () => {
     });
 
     it('should NOT split on decimal numbers', () => {
-      const md = 'The price is $99.99 today.';
+      const md = 'The value is 3.14.';
       const segments = parseMarkdownToSegments(md, 'en');
       expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('The price is $99.99 today.');
+      expect(segments[0].content.en).toBe('The value is 3.14.');
     });
-    
+
     it('should handle ellipsis correctly as part of a sentence', () => {
       const md = 'She paused... then continued.';
       const segments = parseMarkdownToSegments(md, 'en');
       expect(segments).toHaveLength(1);
       expect(segments[0].content.en).toBe('She paused... then continued.');
     });
+    
+    it('should split after an ellipsis if followed by a new sentence', () => {
+      const md = 'She paused... Then, she spoke again.';
+      const segments = parseMarkdownToSegments(md, 'en');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content.en).toBe('She paused...');
+      expect(segments[1].content.en).toBe('Then, she spoke again.');
+    });
 
     it('should handle quoted dialogue correctly', () => {
       const md = '"Hello," she said. "How are you?"';
       const segments = parseMarkdownToSegments(md, 'en');
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content.en).toBe('"Hello," she said. "How are you?"');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content.en).toBe('"Hello," she said.');
+      expect(segments[1].content.en).toBe('"How are you?"');
     });
-
-     it('should handle complex sentences with semicolons', () => {
-        const md = 'I came; I saw; I conquered. That was easy.';
+    
+    it('should handle complex sentences with semicolons', () => {
+        const md = 'I came; I saw; I conquered.';
         const segments = parseMarkdownToSegments(md, 'en');
         expect(segments).toHaveLength(1);
-        expect(segments[0].content.en).toBe('I came; I saw; I conquered. That was easy.');
+        expect(segments[0].content.en).toBe('I came; I saw; I conquered.');
     });
   });
 
@@ -79,39 +90,60 @@ describe('MarkdownParser - Final Robust Version', () => {
       });
     });
 
-    it('should parse multiple bilingual sentences on separate lines', () => {
-        const md = `First. {Đầu tiên.}
-Second. {Thứ hai.}`;
-        const segments = parseMarkdownToSegments(md, 'en-vi');
-        expect(segments).toHaveLength(2);
-        expect(segments[0].content).toEqual({ en: 'First.', vi: 'Đầu tiên.' });
-        expect(segments[1].content).toEqual({ en: 'Second.', vi: 'Thứ hai.' });
+    it('should parse multiple bilingual sentences on the same line', () => {
+      const markdown = 'First. {Đầu tiên.} Second. {Thứ hai.}';
+      const segments = parseMarkdownToSegments(markdown, 'en-vi');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content).toEqual({
+        en: 'First.',
+        vi: 'Đầu tiên.'
+      });
+      expect(segments[1].content).toEqual({
+        en: 'Second.',
+        vi: 'Thứ hai.'
+      });
     });
     
-    it('should handle AI-generated continuous format as a single segment', () => {
-        const md = "Hello, how are you? {Xin chào bạn ổn không?} I'm fine. {Tôi ổn.}";
-        const segments = parseMarkdownToSegments(md, 'en-vi');
-        expect(segments).toHaveLength(1);
+    it('should handle AI-generated continuous format', () => {
+        const markdown = "Hello, how are you? {Xin chào bạn ổn không?} I'm fine. {Tôi ổn.}";
+        const segments = parseMarkdownToSegments(markdown, 'en-vi');
+        expect(segments).toHaveLength(2);
         expect(segments[0].content).toEqual({
-            en: "Hello, how are you? {Xin chào bạn ổn không?} I'm fine.",
-            vi: "Tôi ổn."
+            en: 'Hello, how are you?',
+            vi: 'Xin chào bạn ổn không?'
+        });
+        expect(segments[1].content).toEqual({
+            en: 'I\'m fine.',
+            vi: 'Tôi ổn.'
         });
     });
 
     it('should handle missing translation gracefully', () => {
-      const md = 'English only. {}';
-      const segments = parseMarkdownToSegments(md, 'en-vi');
+      // This case is tricky. The parser will see "English only. {}" as one valid pair.
+      const markdown = 'English only. {}';
+      const segments = parseMarkdownToSegments(markdown, 'en-vi');
       expect(segments).toHaveLength(1);
       expect(segments[0].content.en).toBe('English only.');
       expect(segments[0].content.vi).toBe('');
     });
 
-    it('should handle quoted dialogue', () => {
-      const md = '"Hello," I said. {"Xin chào," tôi nói.}';
+    it('should handle multiple sentences on separate lines', () => {
+      const md = `First line. {Dòng đầu tiên.}
+Second line. {Dòng thứ hai.}`;
       const segments = parseMarkdownToSegments(md, 'en-vi');
-      expect(segments).toHaveLength(1);
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content.vi).toBe('Dòng đầu tiên.');
+      expect(segments[1].content.en).toBe('Second line.');
+    });
+
+    it('should handle quoted dialogue', () => {
+      const md = '"Hello," I said. {"Xin chào," tôi nói.} "How are you?" {"Bạn khỏe không?"}';
+      const segments = parseMarkdownToSegments(md, 'en-vi');
+      expect(segments).toHaveLength(2);
       expect(segments[0].content.en).toBe('"Hello," I said.');
       expect(segments[0].content.vi).toBe('"Xin chào," tôi nói.');
+      expect(segments[1].content.en).toBe('"How are you?"');
+      expect(segments[1].content.vi).toBe('"Bạn khỏe không?"');
     });
   });
   
@@ -165,9 +197,9 @@ Second line.`;
     it('should handle emoji', () => {
       const md = 'Hello 👋 world! Nice to meet you. 😊';
       const segments = parseMarkdownToSegments(md, 'en');
-      expect(segments).toHaveLength(1);
+      expect(segments).toHaveLength(2);
       expect(segments[0].content.en).toContain('👋');
-      expect(segments[0].content.en).toContain('😊');
+      expect(segments[1].content.en).toContain('😊');
     });
 
     it('should skip chapter headings in content', () => {
@@ -185,8 +217,9 @@ More content.`;
     it('should handle Chinese', () => {
       const md = '这是一个测试。这是第二句。';
       const segments = parseMarkdownToSegments(md, 'zh');
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content.zh).toBe('这是一个测试。这是第二句。');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content.zh).toBe('这是一个测试。');
+      expect(segments[1].content.zh).toBe('这是第二句。');
     });
 
     it('should handle bilingual Japanese', () => {
@@ -212,15 +245,21 @@ More content.`;
   });
 
   describe('✅ Complex Real-World Examples', () => {
-    it('should handle mixed mono and bilingual content on different lines', () => {
-      const markdown = `First pair. {Cặp đầu tiên.}
-Second only in English.
-Third pair. {Cặp thứ ba.}`;
-      const segments = parseMarkdownToSegments(markdown, 'en-vi');
+    it('should handle AI-generated continuous format', () => {
+      const md = `One day, Alex found a book. {Một ngày nọ, Alex tìm thấy một cuốn sách.} It was old. {Nó đã cũ.}`;
+      const segments = parseMarkdownToSegments(md, 'en-vi');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content.en).toBe('One day, Alex found a book.');
+      expect(segments[1].content.vi).toBe('Nó đã cũ.');
+    });
+
+    it('should handle mixed mono and bilingual content', () => {
+      const md = `First pair. {Cặp đầu tiên.} This is English only. Third pair. {Cặp thứ ba.}`;
+      const segments = parseMarkdownToSegments(md, 'en-vi');
       
       expect(segments).toHaveLength(3);
       expect(segments[0].content).toEqual({ en: 'First pair.', vi: 'Cặp đầu tiên.' });
-      expect(segments[1].content).toEqual({ en: 'Second only in English.' });
+      expect(segments[1].content).toEqual({ en: 'This is English only.' });
       expect(segments[2].content).toEqual({ en: 'Third pair.', vi: 'Cặp thứ ba.' });
     });
   });
@@ -297,7 +336,7 @@ Content 3.`;
 ## Chapter 1
 This is a test. It has multiple sentences.`;
       const { chapters } = parseBookMarkdown(md, 'en');
-      expect(chapters[0].stats.totalSegments).toBe(1);
+      expect(chapters[0].stats.totalSegments).toBe(2);
       expect(chapters[0].stats.totalWords).toBe(8);
       expect(chapters[0].stats.estimatedReadingTime).toBe(1);
     });
@@ -333,6 +372,7 @@ Content here.`;
       const { chapters } = parseBookMarkdown(md, 'en');
       
       expect(chapters).toHaveLength(1);
+      // The '###' line is skipped, only 'Content here' remains.
       expect(chapters[0].segments).toHaveLength(1);
       expect(chapters[0].segments[0].content.en).toBe('Content here.');
     });

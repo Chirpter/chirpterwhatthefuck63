@@ -10,10 +10,12 @@ import { SettingsProvider } from '@/contexts/settings-context';
 import { BookmarkProvider } from '@/contexts/bookmark-context';
 import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { VocabVideosProvider } from '@/features/learning/contexts/VocabVideosContext';
-import { initializeVocabularyFeature, cleanupVocabularyFeature } from '@/features/vocabulary';
 import { AudioPlayer } from '@/features/player/components/AudioPlayer';
 import type { CombinedBookmark } from '@/lib/types';
 import { ThemeProvider } from '@/components/theme-provider';
+
+// ✅ FIX: Directly import the client-side listener logic
+import { initializeAchievementListener, cleanupAchievementListener } from '@/features/vocabulary/listeners/achievement-listener';
 
 /**
  * This is the single entry point for all CLIENT-SIDE providers.
@@ -22,9 +24,10 @@ import { ThemeProvider } from '@/components/theme-provider';
 export const ClientProviders = ({ initialBookmarks, children }: { initialBookmarks: CombinedBookmark[], children: React.ReactNode }) => {
     // This effect initializes and cleans up listeners that need the client environment.
     React.useEffect(() => {
-        initializeVocabularyFeature();
+        // ✅ FIX: Call the listener initialization directly here
+        initializeAchievementListener();
         return () => {
-            cleanupVocabularyFeature();
+            cleanupAchievementListener();
         };
     }, []);
 
