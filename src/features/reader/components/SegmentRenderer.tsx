@@ -1,4 +1,3 @@
-
 // src/features/reader/components/SegmentRenderer.tsx
 
 'use client';
@@ -85,24 +84,23 @@ const renderSegmentContent = (
   if (!primaryText) return null;
 
   // Handle Phrase Mode
-  if (unit === 'phrase' && isBilingualMode) {
-      const primaryPhrases = primaryText.split(' | ');
-      const secondaryPhrases = secondaryText?.split(' | ') || [];
+  if (unit === 'phrase' && isBilingualMode && secondaryText) {
+      const primaryPhrases = primaryText.split('|');
+      const secondaryPhrases = secondaryText.split('|');
 
       return primaryPhrases.map((phrase, index) => {
-          const secondaryPhrase = secondaryPhrases[index];
+          const secondaryPhrase = secondaryPhrases[index] || '';
+          // Render each phrase pair with its translation
           return (
               <span key={index} className={cn("inline-block mr-1", isSegmentPlaying && 'tts-highlight')}>
                   <span lang={displayLang1}>{parseSimpleMarkdown(phrase)}</span>
-                  {secondaryPhrase && (
-                      <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({parseSimpleMarkdown(secondaryPhrase)})</span>
-                  )}
+                  <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({parseSimpleMarkdown(secondaryPhrase)})</span>
               </span>
           );
       });
   }
   
-  // Handle Sentence Mode
+  // Handle Sentence Mode (or monolingual phrase mode)
   const primaryContent = (isSegmentPlaying && spokenLang === displayLang1)
       ? getWordHighlightContent(primaryText, speechBoundary)
       : parseSimpleMarkdown(primaryText);
@@ -111,7 +109,7 @@ const renderSegmentContent = (
       ? getWordHighlightContent(secondaryText, speechBoundary)
       : (secondaryText ? parseSimpleMarkdown(secondaryText) : null);
       
-  if (isBilingualMode) {
+  if (isBilingualMode && unit === 'sentence') {
       return (
           <span className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
               <span className="block" lang={displayLang1}>{primaryContent}</span>
@@ -120,7 +118,7 @@ const renderSegmentContent = (
       );
   }
 
-  // Default: Monolingual sentence mode
+  // Default: Monolingual sentence/phrase mode
   return (
       <span className={cn(isSegmentPlaying && 'tts-highlight')}>
           <span lang={displayLang1}>{primaryContent}</span>

@@ -123,20 +123,29 @@ function extractBilingualPairs(line: string): Array<{primary: string, secondary:
 
 /**
  * Parse phrase-based bilingual content.
- * Format: "A boy{Một cậu bé} saw{nhìn thấy} the dragon{con rồng}"
+ * Format: "A boy{Một cậu bé} | saw{nhìn thấy} the dragon{con rồng}"
  */
 function parsePhraseBased(line: string, primaryLang: string, secondaryLang: string): MultilingualContent {
-  const parts = line.split(/([^{}]+\{[^{}]*\})/g).filter(Boolean).map(part => {
-    const match = part.match(/([^{}]+)\{([^{}]*)\}/);
-    return match 
-      ? { primary: cleanText(match[1]), secondary: cleanText(match[2]) } 
-      : { primary: cleanText(part), secondary: '' };
-  });
-  
-  return {
-    [primaryLang]: parts.map(p => p.primary).join('|'),
-    [secondaryLang]: parts.map(p => p.secondary).join('|'),
-  };
+    const primaryPhrases: string[] = [];
+    const secondaryPhrases: string[] = [];
+    
+    const parts = line.split('|');
+
+    parts.forEach(part => {
+        const match = part.match(/([^{}]+)\{([^{}]*)\}/);
+        if (match) {
+            primaryPhrases.push(cleanText(match[1]));
+            secondaryPhrases.push(cleanText(match[2]));
+        } else if (part.trim()) {
+            primaryPhrases.push(cleanText(part));
+            secondaryPhrases.push('');
+        }
+    });
+
+    return {
+        [primaryLang]: primaryPhrases.join('|'),
+        [secondaryLang]: secondaryPhrases.join('|'),
+    };
 }
 
 /**
