@@ -1,12 +1,10 @@
 
-
 'use client';
 
 import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, PhraseMap } from '@/lib/types';
-import { useAudioPlayer } from '@/contexts/audio-player-context';
+import type { Segment, PhraseMap, BilingualFormat } from '@/lib/types';
 
 interface SegmentRendererProps {
   segment: Segment;
@@ -16,6 +14,7 @@ interface SegmentRendererProps {
   isBilingualMode: boolean;
   displayLang1: string;
   displayLang2: string; // 'none' or language code
+  bilingualFormat: BilingualFormat;
 }
 
 const getWordHighlightContent = (text: string, boundary: { charIndex: number, charLength: number } | null): React.ReactNode => {
@@ -34,7 +33,7 @@ const getWordHighlightContent = (text: string, boundary: { charIndex: number, ch
     return text;
 };
 
-// New function to render phrases, which will be the new default for bilingual display
+// Renders inline phrase-by-phrase: "Primary phrase (Secondary phrase)"
 const renderPhrases = (
   phrases: PhraseMap[],
   displayLang1: string,
@@ -58,18 +57,19 @@ const renderPhrases = (
       : secondaryText) : null;
       
     return (
-      <span key={index} className="inline-block mr-1">
+      <span key={index} className={cn("inline-block mr-1", isSegmentPlaying && 'tts-highlight')}>
         <span lang={displayLang1}>{primaryContent}</span>
         {secondaryContent && (
-          <>
-            <span className="text-muted-foreground text-sm font-light italic"> / {secondaryContent}</span>
-          </>
+          <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryContent})</span>
         )}
       </span>
     );
   });
 };
 
+// Renders sentence-by-sentence:
+// Monolingual: "Primary sentence."
+// Bilingual: "Primary sentence." on one line, "Secondary sentence." on the line below.
 const renderSentence = (
   content: { [lang: string]: string },
   displayLang1: string,
@@ -95,11 +95,12 @@ const renderSentence = (
       return (
         <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
           <span className="block" lang={displayLang1}>{primaryContent}</span>
-          {secondaryContent && <span className="block text-muted-foreground italic text-sm" lang={displayLang2}>{secondaryContent}</span>}
+          {secondaryContent && <span className="block text-muted-foreground italic text-[0.9em] mt-1" lang={displayLang2}>{secondaryContent}</span>}
         </span>
       );
     }
 
+    // Monolingual mode
     return (
       <span className={cn(isSegmentPlaying && 'tts-highlight')}>
         <span lang={displayLang1}>{primaryContent}</span>
@@ -117,16 +118,17 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     isBilingualMode,
     displayLang1,
     displayLang2,
+    bilingualFormat,
 }) => {
   
   const isSegmentPlaying = isPlaying;
 
   const renderContent = () => {
-    // If phrases are available and we are in bilingual mode, prioritize rendering them.
-    if (segment.phrases && isBilingualMode) {
+    // If phrases are available and format is phrase, use phrase renderer
+    if (segment.phrases && isBilingualMode && bilingualFormat === 'phrase') {
       return renderPhrases(segment.phrases, displayLang1, displayLang2, isSegmentPlaying, spokenLang, speechBoundary);
     }
-    // Otherwise, fall back to rendering the full sentence content.
+    // Otherwise, fall back to rendering the full sentence content for both 'sentence' and 'mono'
     if (segment.content) {
       return renderSentence(segment.content, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary);
     }

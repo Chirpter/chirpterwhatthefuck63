@@ -44,7 +44,6 @@ interface LookupState {
   sentenceContext: string;
 }
 
-// --- NEW: Local Storage Logic for Presentation Mode ---
 const getStorageKey = (itemId: string) => `chirpter_reader_prefs_${itemId}`;
 
 const getStoredPresentationIntent = (itemId: string): string | null => {
@@ -52,7 +51,6 @@ const getStoredPresentationIntent = (itemId: string): string | null => {
         const stored = localStorage.getItem(getStorageKey(itemId));
         if (stored) {
             const data = JSON.parse(stored);
-            // This is just a string, no complex object parsing needed
             return typeof data === 'string' ? data : null;
         }
     } catch (e) {
@@ -101,13 +99,16 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [isCalculatingPages, setIsCalculatingPages] = useState(true);
   const readerPageInitializedRef = useRef(false);
 
-  // --- REFACTORED: Multi-language State from a single source ---
   const [displayLang1, setDisplayLang1] = useState('en');
-  const [displayLang2, setDisplayLang2] = useState('none'); // 'none' means monolingual
+  const [displayLang2, setDisplayLang2] = useState('none');
   
+  const bilingualFormat = useMemo((): BilingualFormat => {
+      if (item?.origin?.endsWith('-ph')) return 'phrase';
+      return 'sentence';
+  }, [item?.origin]);
+
   const availableLanguages = useMemo(() => item?.langs || ['en'], [item]);
   
-  // This effect now reads from a single `origin` field and localStorage
   useEffect(() => {
     if (item) {
         const userOverride = getStoredPresentationIntent(item.id);
@@ -122,7 +123,6 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     }
   }, [item]);
 
-  // This function now constructs the single intent string for storage
   const updatePresentationIntent = useCallback((newDisplayLang1: string, newDisplayLang2: string) => {
     if (!item) return;
 
@@ -133,17 +133,14 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         newIntent = newDisplayLang1;
     }
     
-    // We get the format from the origin string itself, it's not a user choice in the toolbar
-    const originFormat = item.origin.split('-')[2];
-    if (originFormat === 'ph') {
+    if (bilingualFormat === 'phrase') {
       newIntent += '-ph';
     }
 
     setStoredPresentationIntent(item.id, newIntent);
-    // Also update the state directly
     setDisplayLang1(newDisplayLang1);
     setDisplayLang2(newDisplayLang2);
-  }, [item]);
+  }, [item, bilingualFormat]);
   
   const handleDisplayLang1Change = useCallback((lang: string) => {
     updatePresentationIntent(lang, displayLang2);
@@ -152,7 +149,6 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const handleDisplayLang2Change = useCallback((lang: string) => {
     updatePresentationIntent(displayLang1, lang);
   }, [displayLang1, updatePresentationIntent]);
-  // --- END MULTI-LANGUAGE STATE ---
   
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -364,15 +360,6 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     setCurrentPageIndex(newIndex);
   };
 
-  const currentPlayingSegmentId = useMemo(() => {
-    if (audioPlayer.currentPlayingItem?.id === id) {
-        // This needs to be correctly implemented to get the segment ID
-        // For now, this is a placeholder. The real ID should come from the audio engine's state.
-        return audioPlayer.currentPlayingItem?.id; 
-    }
-    return null;
-  }, [audioPlayer, id]);
-
   const getPageForSegment = useCallback((segmentId: string): number => {
     for (let i = 0; i < pages.length; i++) {
         if (pages[i].items.some(item => item.id === segmentId)) {
@@ -385,8 +372,8 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   useEffect(() => {
     if (isCalculatingPages || isPreview) return;
     
-    if (currentPlayingSegmentId) {
-        const pageIndex = getPageForSegment(currentPlayingSegmentId);
+    if (audioPlayer.currentSegment?.id) {
+        const pageIndex = getPageForSegment(audioPlayer.currentSegment.id);
         if (pageIndex !== -1 && pageIndex !== currentPageIndex) {
             setCurrentPageIndex(pageIndex);
         }
@@ -408,7 +395,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         }
         readerPageInitializedRef.current = true;
     }
-  }, [currentPlayingSegmentId, currentPageIndex, getPageForSegment, searchParams, isCalculatingPages, isPreview, item, chapterStartPages]);
+  }, [audioPlayer.currentSegment, currentPageIndex, getPageForSegment, searchParams, isCalculatingPages, isPreview, item, chapterStartPages]);
 
 
   const renderLoading = () => (
@@ -567,9 +554,9 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                                 presentationStyle='book'
                                 editorSettings={editorSettings}
                                 itemData={item}
-                                currentPlayingItemId={currentPlayingSegmentId}
                                 displayLang1={displayLang1}
                                 displayLang2={displayLang2}
+                                bilingualFormat={bilingualFormat}
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
@@ -585,7 +572,6 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 }
 
 export const ReaderPage = (props: { isPreview?: boolean }) => {
-  // This no longer needs to provide the AudioPlayerProvider.
   return (
       <ReaderView {...props} />
   );

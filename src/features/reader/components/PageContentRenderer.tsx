@@ -11,25 +11,36 @@ import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface PageContentRendererProps {
   page: Page;
-  currentPlayingItemId?: string | null;
   presentationStyle: 'book' | 'card';
   editorSettings: EditorSettings;
   itemData: LibraryItem | null;
   displayLang1: string;
   displayLang2: string; // 'none' or language code
+  // NEW PROP: Determines the bilingual display format
+  bilingualFormat: 'sentence' | 'phrase';
 }
 
 export function PageContentRenderer({ 
     page, 
-    currentPlayingItemId, 
     presentationStyle, 
     editorSettings, 
     itemData,
     displayLang1,
-    displayLang2
+    displayLang2,
+    bilingualFormat,
 }: PageContentRendererProps) {
-  const { currentSpeechBoundary, currentSpokenSegmentLang, currentPlayingItem } = useAudioPlayer();
+  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = useAudioPlayer();
   const segments = page.items;
+  
+  // The segment ID that is currently being played by the audio player.
+  const currentPlayingSegmentId = useMemo(() => {
+    if (currentPlayingItem?.type !== 'book' || !itemData || currentPlayingItem.id !== itemData.id) {
+        return null;
+    }
+    // This logic needs to be robust. Assuming segment ID is derivable from audio player state.
+    // For now, this is a simplified placeholder.
+    return audioPlayer.currentSegment?.id || null;
+  }, [currentPlayingItem, itemData, audioPlayer.currentSegment]);
 
   const proseThemeClass = useMemo(() => {
     if (presentationStyle === 'book') return 'prose dark:prose-invert';
@@ -49,7 +60,7 @@ export function PageContentRenderer({
   const layoutClasses = useMemo(() => {
     if (presentationStyle === 'card') {
         return cn(
-            'flex flex-col h-full p-6 md:p-8', // Added padding for card view
+            'flex flex-col h-full p-6 md:p-8',
             editorSettings.verticalAlign,
             editorSettings.textAlign
         );
@@ -59,11 +70,12 @@ export function PageContentRenderer({
   
   const isBilingualMode = displayLang2 !== 'none';
   
+  // ✅ FIX: Correctly group segments into paragraphs
   const groupSegmentsByParagraph = () => {
       const paragraphs: Segment[][] = [];
       let currentParagraph: Segment[] = [];
 
-      segments.forEach(segment => {
+      segments.forEach((segment) => {
           if (segment.metadata.isNewPara && currentParagraph.length > 0) {
               paragraphs.push(currentParagraph);
               currentParagraph = [];
@@ -90,39 +102,43 @@ export function PageContentRenderer({
     <div className={contentContainerClasses}>
         {paragraphs.map((paraSegments, pIndex) => {
              const applyDropCap = paraSegments.some(s => s.metadata.applyDropCap);
-             const currentPlayingSegment = paraSegments.find(s => s.id === currentPlayingItem?.id);
+             
+             // For sentence-by-sentence, each segment is a paragraph
+             if (isBilingualMode && bilingualFormat === 'sentence') {
+                return paraSegments.map((segment) => (
+                     <div key={segment.id} className="my-3"> {/* Add vertical spacing */}
+                        <SegmentRenderer 
+                            segment={segment} 
+                            isPlaying={currentPlayingSegmentId === segment.id}
+                            speechBoundary={currentSpeechBoundary}
+                            spokenLang={currentSpokenSegmentLang}
+                            isBilingualMode={isBilingualMode}
+                            displayLang1={displayLang1}
+                            displayLang2={displayLang2}
+                            bilingualFormat={bilingualFormat}
+                        />
+                     </div>
+                ));
+             }
+
+             // For mono and phrase mode, group segments into a single <p>
              return (
                 <div key={`p-${pIndex}`}>
-                    {paraSegments[0].type === 'text' || paraSegments[0].type === 'dialog' ? (
-                        <p className={cn(applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
-                            {paraSegments.map((segment) => (
+                    <p className={cn(applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
+                        {paraSegments.map((segment) => (
                             <SegmentRenderer 
                                 key={segment.id} 
                                 segment={segment} 
-                                isPlaying={currentPlayingItem?.id === segment.id}
+                                isPlaying={currentPlayingSegmentId === segment.id}
                                 speechBoundary={currentSpeechBoundary}
                                 spokenLang={currentSpokenSegmentLang}
                                 isBilingualMode={isBilingualMode}
                                 displayLang1={displayLang1}
                                 displayLang2={displayLang2}
+                                bilingualFormat={bilingualFormat}
                             />
-                            ))}
-                        </p>
-                    ) : (
-                        paraSegments.map((segment) => (
-                            <div key={segment.id}>
-                            <SegmentRenderer 
-                                segment={segment} 
-                                isPlaying={currentPlayingItem?.id === segment.id}
-                                speechBoundary={currentSpeechBoundary}
-                                spokenLang={currentSpokenSegmentLang}
-                                isBilingualMode={isBilingualMode}
-                                displayLang1={displayLang1}
-                                displayLang2={displayLang2}
-                            />
-                            </div>
-                        ))
-                    )}
+                        ))}
+                    </p>
                 </div>
             )
         })}
