@@ -24,7 +24,8 @@ function parseLineToMultilingualContent(line: string, unit: ContentUnit, primary
     if (!cleanedLine) return {};
 
     if (!secondaryLang) {
-        // Monolingual: Content is simple. For phrases, they would need to be pre-joined if on multiple lines.
+        // Monolingual: Content is simple.
+        // For phrases, they would need to be pre-joined if on multiple lines.
         return { [primaryLang]: cleanText(cleanedLine) };
     }
 
@@ -39,8 +40,8 @@ function parseLineToMultilingualContent(line: string, unit: ContentUnit, primary
         }).filter(Boolean);
         
         return {
-            [primaryLang]: pairs.map(p => p!.primary).join(' | '),
-            [secondaryLang]: pairs.map(p => p!.secondary).join(' | '),
+            [primaryLang]: pairs.map(p => p!.primary).join('|'),
+            [secondaryLang]: pairs.map(p => p!.secondary).join('|'),
         };
     }
 
@@ -62,35 +63,29 @@ function parseLineToMultilingualContent(line: string, unit: ContentUnit, primary
  * Main parser - processes text line-by-line and creates segments.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
-  const [primaryLang, secondaryLang, formatFlag] = origin.split('-');
-  const unit: ContentUnit = formatFlag === 'ph' ? 'phrase' : 'sentence';
+  const [primaryLang, secondaryLang] = origin.split('-');
+  const unit: ContentUnit = origin.endsWith('-ph') ? 'phrase' : 'sentence';
 
   const lines = markdown.split('\n');
   const segments: Segment[] = [];
   
-  // ========================================================================
-  // BẮT ĐẦU LOGIC isNewPara
-  // Đây chính là biến trạng thái để theo dõi đoạn văn mới.
-  // ========================================================================
-  let isNewParaNext = true;
+  let isFirstContentfulSegment = true;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const trimmedLine = line.trim();
-    
-    if (trimmedLine.startsWith('#')) {
-        continue; // Bỏ qua tất cả các dòng heading
-    }
 
-    // KHI GẶP DÒNG TRỐNG:
-    // Reset cờ, báo hiệu rằng bất kỳ nội dung nào tiếp theo sẽ là một đoạn mới.
-    if (!trimmedLine) {
-      isNewParaNext = true;
-      continue;
+    if (trimmedLine.startsWith('#')) {
+        continue;
     }
     
-    // ========================================================================
-    // KHI GẶP DÒNG CÓ CHỮ:
-    // ========================================================================
+    if (!trimmedLine) {
+        continue;
+    }
+    
+    // Check if the previous line was empty to determine a new paragraph
+    const isNewParagraph = i === 0 || lines[i - 1].trim() === '' || isFirstContentfulSegment;
+
     const sentences = trimmedLine.match(/[^.!?]+[.!?]\s*/g) || [trimmedLine];
 
     for (const sentence of sentences) {
@@ -103,15 +98,10 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
                 type: 'text',
                 content: content,
                 metadata: {
-                    // Gán giá trị hiện tại của cờ vào segment.
-                    isNewPara: isNewParaNext,
+                    isNewPara: isNewParagraph && segments.length > 0 ? (segments[segments.length-1].metadata.isNewPara === false) : isNewParagraph,
                 }
             });
-            
-            // SAU KHI GÁN:
-            // Đặt ngay lại cờ thành false. Chỉ có segment đầu tiên của một khối
-            // văn bản mới được coi là bắt đầu một đoạn mới.
-            isNewParaNext = false;
+            isFirstContentfulSegment = false;
         }
     }
   }
@@ -126,8 +116,9 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
 export function parseBookMarkdown(
   markdown: string,
   origin: string
-): { title: MultilingualContent; chapters: Chapter[] } {
+): { title: MultilingualContent; chapters: Chapter[]; unit: ContentUnit } {
   const [primaryLang, secondaryLang] = origin.split('-');
+  const unit: ContentUnit = origin.endsWith('-ph') ? 'phrase' : 'sentence';
   const lines = markdown.split('\n');
   
   let title: MultilingualContent = { [primaryLang]: 'Untitled' };
@@ -192,7 +183,7 @@ export function parseBookMarkdown(
     });
   }
 
-  return { title, chapters };
+  return { title, chapters, unit };
 }
 
 
