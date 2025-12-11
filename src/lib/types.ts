@@ -56,6 +56,7 @@ export interface SegmentMetadata {
   applyDropCap?: boolean;
   /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
+  wordCount?: { [lang: string]: number };
 }
 
 /**
@@ -101,7 +102,9 @@ export interface Chapter {
   title: MultilingualContent;
   segments: Segment[];
   stats: ChapterStats;
-  metadata: {}; // This field is kept for potential future use but no longer holds primaryLanguage.
+  metadata: {
+    primaryLanguage?: string;
+  };
 }
 
 
@@ -142,7 +145,6 @@ export interface User {
   coverPhotoURL?: string; // For the profile background
   isAnonymous: boolean;
   plan: UserPlan;
-  role: UserRole;
   credits: number;
   level: number;
   lastLoginDate: string;
@@ -305,13 +307,13 @@ export interface VocabularyItem extends BaseDocument {
   term: string;
   meaning: string;
   partOfSpeech?: string;
-  termLang: string;
-  meanLang: string;
+  termLanguage: string;
+  meaningLanguage: string;
   sourceType?: 'book' | 'piece' | 'manual';
   sourceId?: string;
   sourceTitle?: MultilingualContent;
   example?: string;
-  exLang?: string;
+  exampleLanguage?: string;
   chapterId?: string;
   segmentId?: string; // Links back to a SentencePair ID
   sourceDeleted?: boolean;
@@ -319,10 +321,10 @@ export interface VocabularyItem extends BaseDocument {
   context?: VocabContext;
   // --- SRS Fields ---
   srsState: SrsState;
-  memStrength: number; // Represents the number of days the user is predicted to remember the word.
+  memoryStrength: number; // Represents the number of days the user is predicted to remember the word.
   streak: number; // The number of consecutive times the user has remembered the word correctly.
   attempts: number; // The total number of times the word has been reviewed.
-  lastReview: any; // Firestore Timestamp of the last interaction.
+  lastReviewed: any; // Firestore Timestamp of the last interaction.
   dueDate: any; // Firestore Timestamp for the next scheduled review.
   translation?: string;
   searchTerms?: string[];
@@ -377,7 +379,7 @@ export interface VocabularyFilters {
   folder: string;
   searchTerm: string;
   srsState?: SrsState;
-  sortBy: 'createdAt' | 'term' | 'memStrength';
+  sortBy: 'createdAt' | 'term' | 'memoryStrength';
   sortOrder: 'asc' | 'desc';
   scope?: 'global' | 'local'; // New filter for context
   context?: VocabContext;      // New filter for context
