@@ -14,52 +14,40 @@
 'use client';
 import { getLocalDbForUser } from './local-database';
 import type { VocabularyItem, SrsState, User } from '@/lib/types';
-import { LEARNING_THRESHOLD_DAYS, MASTERED_THRESHOLD_DAYS } from '@/lib/constants';
-import { calculateVirtualMS } from '@/lib/utils';
+import { POINT_THRESHOLDS, POINT_VALUES, STREAK_BONUSES } from '@/lib/constants';
 import { removeUndefinedProps } from '../lib/utils';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { checkAndUnlockAchievements } from './achievement-service';
 
-// --- SRS Algorithm Constants ---
-const MIN_MS = 1; // Minimum Memory Strength
-const BASE_GAIN = 2.3; // Increased from 2.5 → 2.3
-const BASE_PENALTY = 1.5; // Decreased from 2.0 → 1.5
-const MASTERED_TEST_PENALTY = 5; // Penalty in days if a mastered word is failed
+// --- NEW SRS Algorithm Constants (Point-based) ---
+const MIN_POINTS = 100;
+const MAX_POINTS = 3100;
 
-// Streak Bonus System: 1.2x, 2.3x, 3.6x, 5.0x
+// Function to map points to an SRS state
+function stateFromPoints(points: number): SrsState {
+  if (points >= POINT_THRESHOLDS.LONG_TERM) return 'long-term';
+  if (points >= POINT_THRESHOLDS.SHORT_TERM) return 'short-term';
+  if (points >= POINT_THRESHOLDS.LEARNING) return 'learning';
+  return 'new';
+}
+
 function getStreakBonus(streak: number): number {
-  if (streak >= 4) return 5.0;    // Super strong
-  if (streak >= 3) return 3.6;    // Very strong
-  if (streak >= 2) return 2.3;    // Quite strong  
-  if (streak >= 1) return 1.2;    // Light bonus
-  return 1.0;
+    if (streak >= 6) return STREAK_BONUSES[5]; // Use the max bonus for streaks of 6 or more
+    if (streak >= 2) return STREAK_BONUSES[streak - 1]; // Streak 2 -> index 1
+    return 0;
 }
 
-// Trust Factor Adjustment
-function getTrustFactor(elapsed: number, predicted: number): number {
-  const trustFactor = elapsed / predicted;
-  
-  if (trustFactor < 0.5) return 0.8;    // Early review → less reward
-  if (trustFactor > 1.5) return 1.2;    // Late review → more reward
-  return 1.0;                           // On time → normal
+// Function to calculate the next due date based on the new point system
+function intervalFromPoints(points: number): number {
+  if (points < POINT_THRESHOLDS.LEARNING) return 1; // Review new words the next day
+  if (points < POINT_THRESHOLDS.SHORT_TERM) return 3; // Learning words every 3 days
+  if (points < POINT_THRESHOLDS.LONG_TERM) return 7; // Short-term words every week
+  // Long-term words are reviewed based on their score beyond the threshold
+  const daysBeyondMastery = (points - POINT_THRESHOLDS.LONG_TERM) / 100;
+  return Math.min(30, 14 + Math.floor(daysBeyondMastery)); 
 }
 
-// Function to map memory strength (in days) to a new interval
-function intervalFromMs(ms: number): number {
-  if (ms <= 1) return 1;
-  // Exponential growth for the interval
-  const interval = Math.floor(0.5 * Math.pow(ms, 1.3));
-  return Math.max(1, interval);
-}
-
-// Function to map memory strength to an SRS state
-function stateFromMs(ms: number): SrsState {
-  if (ms === 0) return 'new';
-  if (ms >= MASTERED_THRESHOLD_DAYS) return 'long-term';
-  if (ms >= LEARNING_THRESHOLD_DAYS) return 'short-term';
-  return 'learning';
-}
 
 /**
  * A placeholder for a secure server-side function (e.g., Genkit Flow).
@@ -70,7 +58,7 @@ function stateFromMs(ms: number): SrsState {
  * @param itemId The ID of the item claimed to be mastered.
  */
 async function validateAndRecordMastery(userId: string, itemId: string): Promise<void> {
-    console.log(`[Server Validation] User ${userId} claims mastery of item ${itemId}. In a real app, this would be validated.`);
+    console.log(`[Server Validation] User ${'${userId}'} claims mastery of item ${'${itemId}'}. In a real app, this would be validated.`);
     // 1. (Server-side) Check for rapid-fire submissions.
     // 2. (Server-side) Update user stats securely.
     const userDocRef = doc(db, 'users', userId);
@@ -93,102 +81,64 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
   try {
     const item = await localDb.vocabulary.get(itemId);
     if (!item) {
-      throw new Error(`Vocabulary item with ID ${itemId} not found for user ${user.uid}.`);
+      throw new Error(`Vocabulary item with ID ${'${itemId}'} not found for user ${'${user.uid}'}.`);
     }
 
     // --- SRS Calculation ---
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
 
-    let currentMs = calculateVirtualMS(item, today);
-    
-    if (!isFinite(currentMs) || currentMs < 0) {
-        console.warn(`Invalid MS detected: ${currentMs}, resetting to 1`);
-        currentMs = 1;
-    }
-    
+    let currentPoints = item.memoryStrength || MIN_POINTS; // Use points now
     let updatedFields: Partial<VocabularyItem> = {};
-    
-    if (item.srsState === 'long-term' && (action === 'tested_correct' || action === 'tested_incorrect')) {
-        if (action === 'tested_incorrect') {
-            currentMs = MASTERED_THRESHOLD_DAYS - MASTERED_TEST_PENALTY;
-        } else {
-            currentMs = Math.max(MASTERED_THRESHOLD_DAYS, currentMs + 15);
-        }
-        const newDueDate = new Date(today.getTime());
-        const newInterval = intervalFromMs(currentMs);
-        newDueDate.setDate(today.getDate() + newInterval);
-        
+
+    // Do not penalize long-term memory words for incorrect test answers
+    if (item.srsState === 'long-term' && (action === 'tested_incorrect')) {
+        // No change in points or state, just update review timestamp
         updatedFields = {
-            memoryStrength: currentMs,
-            srsState: stateFromMs(currentMs),
             lastReviewed: today,
-            dueDate: newDueDate,
+            attempts: (item.attempts || 0) + 1,
         };
-    } else {
+    } else if (action === 'tested_correct') {
+         updatedFields = {
+            lastReviewed: today,
+            attempts: (item.attempts || 0) + 1,
+        };
+    } else { // Handle 'remembered' and 'forgot' for non-long-term items
         let newStreak = item.streak || 0;
-        const totalAttempts = (item.attempts || 0) + 1;
-        
-        if (action === 'remembered' || action === 'tested_correct') {
-            const lastReview = item.lastReviewed ? new Date((item.lastReviewed as any).seconds ? (item.lastReviewed as any).seconds * 1000 : item.lastReviewed) : today;
-            const dueDate = item.dueDate ? new Date((item.dueDate as any).seconds ? (item.dueDate as any).seconds * 1000 : item.dueDate) : today;
-            const elapsed = Math.max(0, (today.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
-            const predicted_span = item.srsState === 'new' ? 1 : Math.max(1, (dueDate.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
-            
-            const trustFactor = getTrustFactor(elapsed, predicted_span);
-            
-            const streakBonus = getStreakBonus(newStreak + 1);
+        let pointChange = 0;
+
+        if (action === 'remembered') {
+            const currentState = stateFromPoints(currentPoints);
+            pointChange += POINT_VALUES[currentState].remembered;
             
             newStreak += 1;
-            
-            const gain = BASE_GAIN * trustFactor * streakBonus;
-            currentMs += gain;
-
-        } else {
-            const lastReview = item.lastReviewed ? new Date((item.lastReviewed as any).seconds ? (item.lastReviewed as any).seconds * 1000 : item.lastReviewed) : today;
-            const dueDate = item.dueDate ? new Date((item.dueDate as any).seconds ? (item.dueDate as any).seconds * 1000 : item.dueDate) : today;
-            const elapsed = Math.max(0, (today.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
-            const predicted_span = item.srsState === 'new' ? 1 : Math.max(1, (dueDate.getTime() - lastReview.getTime()) / (1000 * 3600 * 24));
-            
-            const trustFactor = getTrustFactor(elapsed, predicted_span);
-                
-            let penaltyFactor = 1.0;
-            if (trustFactor < 0.5) penaltyFactor = 1.6; 
-            else if (trustFactor > 1.5) penaltyFactor = 0.7;
-
-            const penalty = BASE_PENALTY * penaltyFactor;
-            currentMs = Math.max(MIN_MS, currentMs - penalty);
-            newStreak = 0;
+            pointChange += getStreakBonus(newStreak);
+        } else { // 'forgot'
+            const currentState = stateFromPoints(currentPoints);
+            pointChange += POINT_VALUES[currentState].forgot;
+            newStreak = 0; // Reset streak on failure
         }
         
-        if (!isFinite(currentMs) || currentMs < 0) {
-            console.warn(`Final MS invalid: ${currentMs}, resetting to ${MIN_MS}`);
-            currentMs = MIN_MS;
-        }
+        const newPoints = Math.max(MIN_POINTS, Math.min(MAX_POINTS, currentPoints + pointChange));
         
         const newDueDate = new Date(today.getTime());
-        const newInterval = intervalFromMs(currentMs);
+        const newInterval = intervalFromPoints(newPoints);
         newDueDate.setDate(today.getDate() + newInterval);
         
         updatedFields = {
-            memoryStrength: currentMs,
-            srsState: stateFromMs(currentMs),
+            memoryStrength: newPoints,
+            srsState: stateFromPoints(newPoints),
             streak: newStreak,
-            attempts: totalAttempts,
+            attempts: (item.attempts || 0) + 1,
             lastReviewed: today,
             dueDate: newDueDate,
         };
-    }
-    
-    if (!isFinite(currentMs) || currentMs < 0) {
-        currentMs = MIN_MS;
-        updatedFields.memoryStrength = currentMs;
-        updatedFields.srsState = stateFromMs(currentMs);
     }
     
     const finalItem = { ...item, ...updatedFields };
     await localDb.vocabulary.update(itemId, removeUndefinedProps(updatedFields));
     
+    // Check for mastery achievement if state transitions to 'long-term'
     if (updatedFields.srsState === 'long-term' && item.srsState !== 'long-term') {
       await validateAndRecordMastery(user.uid, itemId);
     }
@@ -196,7 +146,7 @@ export async function updateSrsItem(user: User, itemId: string, action: 'remembe
     return finalItem;
 
   } catch (error) {
-    console.error(`Error updating SRS for item ${itemId}:`, error);
+    console.error(`Error updating SRS for item ${'${itemId}'}:`, error);
     throw new Error('Failed to update vocabulary progress.');
   }
 }

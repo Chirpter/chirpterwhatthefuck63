@@ -1,4 +1,5 @@
 
+
 import type { PresetCategory } from './types';
 
 export interface NavLink {
@@ -86,14 +87,35 @@ export const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 export const MAX_IMAGE_SIZE_MB = 2;
 
 
-// --- Virtual Canvas Layout Constants ---
-export const VIRTUAL_CANVAS_WIDTH = 1000; // Base width for calculation in pixels
-export const VIRTUAL_ASPECT_RATIO = 3 / 4; // Standard book aspect ratio
-export const VIRTUAL_CANVAS_HEIGHT = VIRTUAL_CANVAS_WIDTH / VIRTUAL_ASPECT_RATIO;
-export const VIRTUAL_PADDING = 40; // Corresponds to p-10 in Tailwind (40px)
-export const VIRTUAL_FONT_SIZE = 20; // A base font size for calculation
-
-
-// --- SRS State Thresholds (in days) ---
+// --- SRS State Thresholds (in days) - DEPRECATED, use POINT_THRESHOLDS ---
 export const LEARNING_THRESHOLD_DAYS = 7;
 export const MASTERED_THRESHOLD_DAYS = 30;
+
+
+// --- NEW: SRS Point-based System Constants ---
+
+// The point values at which an item's state changes.
+export const POINT_THRESHOLDS = {
+  NEW: 100,
+  LEARNING: 200,
+  SHORT_TERM: 700,
+  LONG_TERM: 1400,
+} as const;
+
+// The number of points gained or lost for each action based on the current state.
+export const POINT_VALUES = {
+  new: { remembered: 100, forgot: 0 },
+  learning: { remembered: 150, forgot: -50 },
+  'short-term': { remembered: 200, forgot: -100 },
+  'long-term': { remembered: 50, forgot: 0 }, // Forgetting a long-term item is handled differently
+} as const;
+
+// Bonus points awarded for consecutive correct answers (streaks).
+export const STREAK_BONUSES = [
+  10, // Streak of 2
+  25, // Streak of 3
+  50, // Streak of 4
+  100, // Streak of 5
+  150, // Streak of 6+
+] as const;
+

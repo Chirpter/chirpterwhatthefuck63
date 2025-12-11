@@ -53,7 +53,7 @@ export function capitalizeFirstLetter(string: string): string {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-export const getFavoritesKey = (context: 'book' | 'piece'): string => `chirpter_favorites_${context}`;
+export const getFavoritesKey = (context: 'book' | 'piece'): string => `chirpter_favorites_${'${context}'}`;
 
 export type LevelTier = 'silver' | 'green' | 'blue' | 'purple' | 'pink' | 'gold';
 
@@ -80,15 +80,15 @@ export function getLevelStyles(level: number, plan: UserPlan, overrideTier?: Lev
   if (plan === 'pro') {
     return {
       tier,
-      frameClasses: `${commonFrameClasses} bg-gradient-pro-${tier}`,
-      badgeClasses: `${commonBadgeClasses} bg-gradient-pro-${tier} border-white/50`,
+      frameClasses: `${'${commonFrameClasses}'} bg-gradient-pro-${'${tier}'}`,
+      badgeClasses: `${'${commonBadgeClasses}'} bg-gradient-pro-${'${tier}'} border-white/50`,
     };
   }
 
   return {
     tier,
-    frameClasses: `${commonFrameClasses} bg-level-${tier}`,
-    badgeClasses: `${commonBadgeClasses} bg-level-${tier} border-white/50`,
+    frameClasses: `${'${commonFrameClasses}'} bg-level-${'${tier}'}`,
+    badgeClasses: `${'${commonBadgeClasses}'} bg-level-${'${tier}'} border-white/50`,
   };
 }
 
@@ -135,35 +135,12 @@ export const getSrsColor = (state: SrsState | undefined) => {
   }
 };
 
+/**
+ * Returns the current memory strength (now points) for an item.
+ * For the new point-based system, there's no decay, so we just return the stored value.
+ */
 export const calculateVirtualMS = (item: VocabularyItem, currentDate: Date): number => {
-    const memStrength = item.memStrength || 0;
-    
-    if (item.srsState === 'long-term' || item.srsState === 'new' || !item.lastReview) {
-        return memStrength;
-    }
-
-    const today = new Date(currentDate);
-    today.setUTCHours(0, 0, 0, 0);
-
-    const lastReviewDate = new Date((item.lastReview as any).seconds ? 
-        (item.lastReview as any).seconds * 1000 : item.lastReview);
-    lastReviewDate.setUTCHours(0, 0, 0, 0);
-
-    const elapsedDays = (today.getTime() - lastReviewDate.getTime()) / (1000 * 3600 * 24);
-    
-    if (elapsedDays <= 0 || !isFinite(elapsedDays)) {
-        return memStrength;
-    }
-    
-    const halfLife = memStrength;
-    
-    if (halfLife <= 0 || !isFinite(halfLife)) {
-        return Math.max(1, memStrength);
-    }
-    
-    const virtualStrength = memStrength * Math.pow(0.5, elapsedDays / halfLife);
-
-    return Math.max(1, isFinite(virtualStrength) ? virtualStrength : memStrength);
+    return item.memoryStrength || 0;
 };
 
 /**
@@ -227,5 +204,5 @@ export function getFormattedDate(date: Date): string {
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${'${year}'}-${'${month}'}-${'${day}'}`;
 }
