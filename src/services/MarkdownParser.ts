@@ -1,3 +1,4 @@
+
 // src/services/MarkdownParser.ts - FINAL, ROBUST VERSION
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent } from '@/lib/types';
@@ -21,10 +22,10 @@ function cleanText(text: string): string {
  * @param secondaryLang The language code for the text within braces.
  * @returns A MultilingualContent object.
  */
-function parseBilingualText(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
-    const cleanedText = cleanText(text);
+function parseBilingualContent(line: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
+    const cleanedText = cleanText(line);
     
-    if (secondaryLang && cleanedText.includes('{') && cleanedText.includes('}')) {
+    if (secondaryLang) {
         const match = cleanedText.match(/(.*)\s*\{(.*)\}/);
         if (match) {
             return {
@@ -34,10 +35,9 @@ function parseBilingualText(text: string, primaryLang: string, secondaryLang?: s
         }
     }
     
-    // Fallback for monolingual or malformed bilingual text
+    // Fallback for monolingual text or text without a valid bilingual format
     return { [primaryLang]: cleanedText };
 }
-
 
 /**
  * Main parser function that processes markdown text line by line.
@@ -52,23 +52,22 @@ export function parseMarkdownToSegments(
   const lines = markdown.split('\n');
   const segments: Segment[] = [];
   let order = 0;
-  let isNewParaNext = true; // The very first segment is always a new paragraph.
+  let isNewParaNext = true;
 
   for (const line of lines) {
     const trimmedLine = line.trim();
 
-    // Skip empty lines and chapter headings, but use empty lines to mark paragraphs.
     if (!trimmedLine) {
       isNewParaNext = true;
       continue;
     }
-    if (trimmedLine.startsWith('##')) {
+    // ✅ FINAL FIX: Ignore ALL heading levels within content, as they are handled by parseBookMarkdown.
+    if (trimmedLine.startsWith('#')) {
         continue;
     }
 
-    const content = parseBilingualText(trimmedLine, primaryLang, secondaryLang);
+    const content = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
     
-    // Only create a segment if there's actual content.
     if (Object.values(content).some(text => text.length > 0)) {
         segments.push({
             id: generateLocalUniqueId(),
@@ -78,13 +77,12 @@ export function parseMarkdownToSegments(
             formatting: {},
             metadata: { isNewPara: isNewParaNext }
         });
-        isNewParaNext = false; // Reset after creating a segment.
+        isNewParaNext = false;
     }
   }
 
   return segments;
 }
-
 
 /**
  * Parses book markdown with title (# H1) and chapters (## H2).
@@ -100,11 +98,10 @@ export function parseBookMarkdown(
   let title: MultilingualContent = { [primaryLang]: 'Untitled' };
   let contentStartIndex = 0;
 
-  // Find and extract the book title (# H1)
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('# ')) {
-      title = parseBilingualText(line.substring(2), primaryLang, secondaryLang);
+      title = parseBilingualContent(line.substring(2), primaryLang, secondaryLang);
       contentStartIndex = i + 1;
       break;
     }
@@ -112,7 +109,6 @@ export function parseBookMarkdown(
 
   const chapterStarts: Array<{ index: number; title: string }> = [];
   
-  // Find all chapter headings (## H2)
   for (let i = contentStartIndex; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('## ')) {
@@ -125,7 +121,6 @@ export function parseBookMarkdown(
 
   const chapters: Chapter[] = [];
   
-  // Case 1: No chapter headings found, treat all content as a single chapter
   if (chapterStarts.length === 0) {
     const content = lines.slice(contentStartIndex).join('\n');
     const segments = parseMarkdownToSegments(content, origin);
@@ -141,12 +136,11 @@ export function parseBookMarkdown(
         });
     }
   } else {
-    // Case 2: Chapter headings found, parse content for each chapter
     chapterStarts.forEach((start, idx) => {
       const nextStart = chapterStarts[idx + 1]?.index || lines.length;
       const chapterContent = lines.slice(start.index + 1, nextStart).join('\n');
       
-      const chapterTitle = parseBilingualText(start.title, primaryLang, secondaryLang);
+      const chapterTitle = parseBilingualContent(start.title, primaryLang, secondaryLang);
       const segments = parseMarkdownToSegments(chapterContent, origin);
       const totalWords = segments.reduce((sum, seg) => sum + (seg.content[primaryLang]?.split(/\s+/).length || 0), 0);
 

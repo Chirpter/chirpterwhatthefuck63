@@ -1,3 +1,4 @@
+
 // src/services/__tests__/markdown-parser.test.ts
 import { describe, it, expect } from 'vitest';
 import { 
@@ -17,7 +18,7 @@ describe('MarkdownParser - Final Robust Version', () => {
       expect(segments[0].content.en).toBe('Hello world.');
     });
 
-    it('should treat multiple sentences on the same line as one segment', () => {
+    it('should treat multiple sentences on same line as one segment', () => {
       const markdown = 'First sentence. Second sentence.';
       const segments = parseMarkdownToSegments(markdown, 'en');
       expect(segments).toHaveLength(1);
@@ -332,10 +333,8 @@ Content here.`;
       const { chapters } = parseBookMarkdown(md, 'en');
       
       expect(chapters).toHaveLength(1);
-      // The new logic treats each line as a segment if not a chapter heading
-      expect(chapters[0].segments).toHaveLength(2);
-      expect(chapters[0].segments[0].content.en).toBe('### Subsection');
-      expect(chapters[0].segments[1].content.en).toBe('Content here.');
+      expect(chapters[0].segments).toHaveLength(1);
+      expect(chapters[0].segments[0].content.en).toBe('Content here.');
     });
   });
 });
