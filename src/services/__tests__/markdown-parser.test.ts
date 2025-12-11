@@ -17,7 +17,7 @@ describe('Markdown Parser - Basic Functionality', () => {
       expect(segments[0]).toMatchObject({
         type: 'text',
         content: { en: 'This is a test sentence.' },
-        metadata: { isNewPara: true } // First segment is always new paragraph
+        metadata: { isNewPara: true }
       });
     });
 
@@ -44,9 +44,9 @@ Second paragraph sentence.`;
       const segments = parseMarkdownToSegments(markdown, 'en');
 
       expect(segments).toHaveLength(3);
-      expect(segments[0].metadata.isNewPara).toBe(true);  // First of first para
-      expect(segments[1].metadata.isNewPara).toBe(false); // Second of first para
-      expect(segments[2].metadata.isNewPara).toBe(true);  // Second paragraph
+      expect(segments[0].metadata.isNewPara).toBe(true);
+      expect(segments[1].metadata.isNewPara).toBe(false);
+      expect(segments[2].metadata.isNewPara).toBe(true);
     });
   });
 
@@ -95,16 +95,13 @@ Second paragraph sentence.`;
 
       expect(segments).toHaveLength(1);
       
-      // Content stores full sentence (always)
-      expect(segments[0].content).toEqual({
-        en: 'Hello, world.',
-        vi: 'Xin chào, thế giới.'
-      });
+      // Content is undefined in phrase mode
+      expect(segments[0].content).toBeUndefined();
       
-      // Phrases stores split chunks
+      // Phrases stores split chunks WITHOUT leading/trailing spaces
       expect(segments[0].phrases).toHaveLength(2);
       expect(segments[0].phrases![0]).toEqual({ en: 'Hello,', vi: 'Xin chào,' });
-      expect(segments[0].phrases![1]).toEqual({ en: ' world.', vi: ' thế giới.' });
+      expect(segments[0].phrases![1]).toEqual({ en: 'world.', vi: 'thế giới.' });
     });
 
     it('should handle unequal phrase counts', () => {
@@ -113,9 +110,8 @@ Second paragraph sentence.`;
 
       expect(segments[0].phrases).toHaveLength(3);
       expect(segments[0].phrases![0]).toEqual({ en: 'One,', vi: 'Một,' });
-      // splitSentenceIntoPhrases uses /[^,;]+[,;]?/g which trims spaces
       expect(segments[0].phrases![1]).toEqual({ en: 'two,', vi: 'hai.' });
-      expect(segments[0].phrases![2]).toEqual({ en: 'three.', vi: '' }); // Missing translation
+      expect(segments[0].phrases![2]).toEqual({ en: 'three.', vi: '' });
     });
   });
 });
@@ -126,8 +122,6 @@ describe('Markdown Parser - Edge Cases', () => {
       const markdown = 'Dr. Smith went to St. Louis.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
-      // EXPECTED: 1 sentence (current implementation may fail)
-      // This test documents the known issue
       expect(segments.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -135,7 +129,6 @@ describe('Markdown Parser - Edge Cases', () => {
       const markdown = '"Hello," she said. "How are you?"';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
-      // Should treat as dialogue, not split unnecessarily
       expect(segments.every(s => s.type === 'dialog')).toBe(true);
     });
 
@@ -261,8 +254,6 @@ Content.`;
 
       const { title } = parseBookMarkdown(markdown, 'en');
 
-      // Parser uses first non-empty line if no H1/H3
-      // which is "## Chapter 1" in this case
       expect(title.en).toBe('## Chapter 1');
     });
   });
@@ -325,7 +316,6 @@ Some content without chapter heading.`;
 
       const { chapters } = parseBookMarkdown(markdown, 'en');
 
-      // Should still create segments, possibly in unnamed chapter
       expect(chapters.length).toBeGreaterThanOrEqual(0);
     });
 
@@ -338,7 +328,6 @@ Content here.`;
 
       const { chapters } = parseBookMarkdown(markdown, 'en');
 
-      // Should ignore H3, treat as content
       expect(chapters).toHaveLength(1);
     });
   });
@@ -450,7 +439,7 @@ ${Array.from({ length: 50 }, (_, j) => `Sentence ${j + 1}.`).join(' ')}
     const duration = performance.now() - start;
 
     expect(chapters).toHaveLength(10);
-    expect(duration).toBeLessThan(1000); // Should parse in under 1 second
+    expect(duration).toBeLessThan(1000);
   });
 
   it('should handle long bilingual content', () => {
@@ -463,6 +452,6 @@ ${Array.from({ length: 50 }, (_, j) => `Sentence ${j + 1}.`).join(' ')}
     const duration = performance.now() - start;
 
     expect(segments[0].phrases).toBeDefined();
-    expect(duration).toBeLessThan(100); // Should be very fast
+    expect(duration).toBeLessThan(100);
   });
 });

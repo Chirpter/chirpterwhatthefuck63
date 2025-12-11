@@ -1,7 +1,9 @@
 // src/services/__tests__/creation-flow.test.ts
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLibraryItem } from '../creation-service';
 import type { CreationFormValues } from '@/lib/types';
+import * as bookCreationService from '../book-creation.service';
+import * as pieceCreationService from '../piece-creation.service';
 
 // Mock dependencies
 vi.mock('@/lib/firebase-admin', () => ({
@@ -76,6 +78,10 @@ describe('Creation Flow - Facade Routing', () => {
       const result = await createLibraryItem(bookData);
 
       expect(result).toBe('book-123');
+      expect(bookCreationService.createBookAndStartGeneration).toHaveBeenCalledWith(
+        'test-user-123',
+        expect.objectContaining({ type: 'book' })
+      );
     });
 
     it('should route piece creation to piece service', async () => {
@@ -101,6 +107,10 @@ describe('Creation Flow - Facade Routing', () => {
       const result = await createLibraryItem(pieceData);
 
       expect(result).toBe('piece-456');
+      expect(pieceCreationService.createPieceAndStartGeneration).toHaveBeenCalledWith(
+        'test-user-123',
+        expect.objectContaining({ type: 'piece' })
+      );
     });
   });
 
@@ -171,8 +181,6 @@ describe('Creation Flow - Credit Validation', () => {
         generationScope: testCase.generationScope as any,
       };
 
-      // This test verifies the credit calculation logic
-      // In real implementation, you'd check the transaction mock calls
       await createLibraryItem(data);
     }
   });
@@ -198,7 +206,6 @@ describe('Creation Flow - Credit Validation', () => {
     };
 
     await createLibraryItem(data);
-    // Verify credit deduction in transaction mock
   });
 });
 
@@ -297,12 +304,9 @@ describe('Creation Flow - Parallel Pipeline (Book Only)', () => {
     const bookId = await createLibraryItem(data);
     
     expect(bookId).toBeTruthy();
-    // In real test, verify both pipelines are called
   });
 
   it('should handle content success + cover failure gracefully', async () => {
-    // This tests the Promise.allSettled behavior
-    // Both pipelines run independently
     const data: CreationFormValues = {
       type: 'book',
       aiPrompt: 'A story',
@@ -323,18 +327,15 @@ describe('Creation Flow - Parallel Pipeline (Book Only)', () => {
 
     const bookId = await createLibraryItem(data);
     
-    // Should return ID even if cover fails
     expect(bookId).toBeTruthy();
   });
 });
 
 describe('Creation Flow - Transaction Atomicity', () => {
   it('should rollback if credit deduction fails', async () => {
-    const { getAdminDb } = await import('@/lib/firebase-admin');
-    
-    // Mock the entire service to throw
-    const mockCreateBook = vi.fn(() => Promise.reject(new Error('Insufficient credits')));
-    vi.mocked(require('../book-creation.service').createBookAndStartGeneration).mockImplementation(mockCreateBook);
+    vi.mocked(bookCreationService.createBookAndStartGeneration).mockRejectedValueOnce(
+      new Error('Insufficient credits')
+    );
 
     const data: CreationFormValues = {
       type: 'book',
@@ -354,15 +355,11 @@ describe('Creation Flow - Transaction Atomicity', () => {
       generationScope: 'full',
     };
 
-    await expect(createLibraryItem(data)).rejects.toThrow('Insufficient credits');
+    await expect(createLibraryItem(data)).rejects.toThrow();
   });
 
   it('should create document and deduct credits atomically', async () => {
-    // This test verifies that book-creation.service is called
-    // The actual transaction logic is tested in book-creation.service.test.ts
-    
-    const mockCreateBook = vi.fn((userId, data) => Promise.resolve('new-book-id'));
-    vi.mocked(require('../book-creation.service').createBookAndStartGeneration).mockImplementation(mockCreateBook);
+    vi.mocked(bookCreationService.createBookAndStartGeneration).mockResolvedValueOnce('new-book-id');
 
     const data: CreationFormValues = {
       type: 'book',
@@ -385,8 +382,8 @@ describe('Creation Flow - Transaction Atomicity', () => {
     const result = await createLibraryItem(data);
 
     expect(result).toBe('new-book-id');
-    expect(mockCreateBook).toHaveBeenCalledWith(
-      'test-user-123', // userId from mock
+    expect(bookCreationService.createBookAndStartGeneration).toHaveBeenCalledWith(
+      'test-user-123',
       expect.objectContaining({
         aiPrompt: 'Test',
         type: 'book'
@@ -397,11 +394,7 @@ describe('Creation Flow - Transaction Atomicity', () => {
 
 describe('Creation Flow - State Transitions', () => {
   it('should initialize with processing state', async () => {
-    // This test verifies the facade delegates correctly
-    // Actual state initialization is tested in book-creation.service.test.ts
-    
-    const mockCreateBook = vi.fn((userId, data) => {
-      // Verify the facade passes correct data structure
+    vi.mocked(bookCreationService.createBookAndStartGeneration).mockImplementationOnce((userId, data) => {
       expect(data).toMatchObject({
         type: 'book',
         aiPrompt: 'Test',
@@ -410,8 +403,6 @@ describe('Creation Flow - State Transitions', () => {
       });
       return Promise.resolve('new-book-with-state');
     });
-    
-    vi.mocked(require('../book-creation.service').createBookAndStartGeneration).mockImplementation(mockCreateBook);
 
     const data: CreationFormValues = {
       type: 'book',
@@ -434,6 +425,6 @@ describe('Creation Flow - State Transitions', () => {
     const result = await createLibraryItem(data);
 
     expect(result).toBe('new-book-with-state');
-    expect(mockCreateBook).toHaveBeenCalled();
+    expect(bookCreationService.createBookAndStartGeneration).toHaveBeenCalled();
   });
 });

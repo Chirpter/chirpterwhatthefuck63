@@ -1,4 +1,4 @@
-// src/features/create/hooks/__tests__/useCreationJob.test.ts
+// src/features/create/hooks/useCreationJob.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCreationJob } from '../../useCreationJob'; // Fixed path
