@@ -1,8 +1,16 @@
-// src/middleware.ts - PRODUCTION READY
+// src/middleware.ts - WITH PERFORMANCE MONITORING
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
+
+// ⏱️ PERFORMANCE LOGGER
+const perfLog = (label: string, startTime: number, pathname: string) => {
+  const duration = performance.now() - startTime;
+  const color = duration < 50 ? '🟢' : duration < 200 ? '🟡' : '🔴';
+  console.log(`${color} [MIDDLEWARE PERF] ${pathname} - ${label}: ${duration.toFixed(2)}ms`);
+  return duration;
+};
 
 function getLogoutReason(errorCode: string): string {
   switch (errorCode) {
@@ -39,28 +47,27 @@ function isPermanentError(errorCode: string): boolean {
   return permanentErrors.some(code => errorCode?.includes(code));
 }
 
-/**
- * Verifies session cookie with retry logic for temporary errors
- */
 async function verifySessionWithRetry(
   sessionCookie: string, 
   maxRetries = 2
 ): Promise<{ success: boolean; error?: any; isTemporary?: boolean }> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const attemptStart = performance.now();
+    
     try {
       const authAdmin = getAuthAdmin();
       await authAdmin.verifySessionCookie(sessionCookie, true);
+      perfLog(`✅ Verification attempt ${attempt}`, attemptStart, 'middleware');
       return { success: true };
     } catch (error: any) {
-      console.error(`[Middleware] Verification attempt ${attempt}/${maxRetries} failed:`, error.code);
+      console.error(`❌ [MIDDLEWARE] Verification attempt ${attempt}/${maxRetries} failed:`, error.code);
+      perfLog(`❌ Verification attempt ${attempt} failed`, attemptStart, 'middleware');
       
-      // If temporary error and not last attempt, retry
       if (isTemporaryError(error.code) && attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 200 * attempt));
         continue;
       }
       
-      // Return error with type info
       return { 
         success: false, 
         error,
@@ -69,7 +76,6 @@ async function verifySessionWithRetry(
     }
   }
   
-  // Max retries exceeded for temporary error
   return { 
     success: false, 
     error: { code: 'max-retries-exceeded' },
@@ -78,36 +84,37 @@ async function verifySessionWithRetry(
 }
 
 export async function middleware(request: NextRequest) {
+  const startTime = performance.now();
   const { pathname } = request.nextUrl;
+  
+  console.log(`🛡️  [MIDDLEWARE] Checking auth for: ${pathname}`);
+  
   let isAuthenticated = false;
   let shouldDeleteCookie = false;
   let logoutReason: string | null = null;
   
   const sessionCookie = request.cookies.get('__session')?.value;
 
-  // Verify session if cookie exists
+  // Step 1: Verify session if cookie exists
   if (sessionCookie) {
+    const verifyStart = performance.now();
     const { success, error, isTemporary } = await verifySessionWithRetry(sessionCookie);
+    perfLog('Session verification', verifyStart, pathname);
     
     if (success) {
       isAuthenticated = true;
     } else {
-      // Permanent errors: delete cookie and redirect
       if (isPermanentError(error.code)) {
         shouldDeleteCookie = true;
         logoutReason = getLogoutReason(error.code);
-        console.error('[Middleware] Permanent auth error, will delete cookie:', error.code);
-      }
-      // Temporary errors: allow access but don't delete cookie
-      else if (isTemporary) {
-        isAuthenticated = true; // Gracefully allow access
-        console.warn('[Middleware] Temporary auth error, allowing access:', error.code);
-      }
-      // Unknown errors: treat as permanent
-      else {
+        console.error('❌ [MIDDLEWARE] Permanent auth error:', error.code);
+      } else if (isTemporary) {
+        isAuthenticated = true;
+        console.warn('⚠️  [MIDDLEWARE] Temporary auth error, allowing access:', error.code);
+      } else {
         shouldDeleteCookie = true;
         logoutReason = 'auth_error';
-        console.error('[Middleware] Unknown auth error, will delete cookie:', error.code);
+        console.error('❌ [MIDDLEWARE] Unknown auth error:', error.code);
       }
     }
   }
@@ -117,6 +124,7 @@ export async function middleware(request: NextRequest) {
 
   // Don't interfere with API routes
   if (isApiRoute) {
+    perfLog('✅ API route - passthrough', startTime, pathname);
     return NextResponse.next();
   }
 
@@ -130,25 +138,26 @@ export async function middleware(request: NextRequest) {
     
     const redirectResponse = NextResponse.redirect(loginUrl);
     
-    // Delete cookie only for permanent errors
     if (shouldDeleteCookie) {
       redirectResponse.cookies.delete('__session');
     }
     
+    perfLog('❌ Redirect to login', startTime, pathname);
     return redirectResponse;
   }
 
   // Redirect authenticated users away from public routes
   if (isAuthenticated && isPublicRoute) {
+    perfLog('↪️  Redirect to library', startTime, pathname);
     return NextResponse.redirect(new URL('/library/book', request.url));
   }
 
-  // For successful cases, create response and delete cookie if needed
   const response = NextResponse.next();
   if (shouldDeleteCookie) {
     response.cookies.delete('__session');
   }
 
+  perfLog('✅ Request allowed', startTime, pathname);
   return response;
 }
 

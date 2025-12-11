@@ -1,4 +1,5 @@
-// src/services/user-service.ts
+
+// src/services/user-service.ts - WITH PERFORMANCE MONITORING
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
@@ -9,35 +10,45 @@ import { getLevelStyles } from '@/lib/utils';
 import { ACHIEVEMENTS } from '@/lib/achievements';
 import { convertTimestamps } from '@/lib/utils';
 
-
 const USERS_COLLECTION = 'users';
 
-/**
- * The definitive server-side function to either fetch an existing user profile
- * or create a new one for a newly authenticated user. Also handles daily login rewards.
- * @param userId - The UID of the authenticated user.
- * @returns An object containing the user profile and optional level up info.
- */
+// ⏱️ PERFORMANCE LOGGER
+const perfLog = (label: string, startTime: number) => {
+  const duration = performance.now() - startTime;
+  const color = duration < 100 ? '🟢' : duration < 300 ? '🟡' : '🔴';
+  console.log(`${color} [USER SERVICE PERF] ${label}: ${duration.toFixed(2)}ms`);
+  return duration;
+};
+
 export async function createOrFetchUserProfile(userId: string): Promise<{ user: User, leveledUpInfo: { newLevel: number, oldLevel: number } | null }> {
+    const startTime = performance.now();
+    console.log('👤 [USER SERVICE] createOrFetchUserProfile for:', userId);
+    
     const adminDb = getAdminDb();
     const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
 
     return await adminDb.runTransaction(async (transaction) => {
+        // Step 1: Get user document
+        const getDocStart = performance.now();
         const userDoc = await transaction.get(userDocRef);
+        perfLog('Get user document', getDocStart);
 
         if (userDoc.exists) {
             const existingUser = userDoc.data() as User;
             const todayUtcString = new Date().toISOString().split('T')[0];
 
             if (existingUser.lastLoginDate === todayUtcString) {
+                perfLog('✅ User exists, same day login', startTime);
                 return { user: convertTimestamps(existingUser), leveledUpInfo: null };
             }
 
+            // Step 2: Calculate daily rewards
+            const rewardCalcStart = performance.now();
             const oldLevel = existingUser.level || 0;
             const newLevel = oldLevel + 1;
             
             const dailyLoginAchievement = ACHIEVEMENTS.find(a => a.id === 'daily_login');
-            let reward = 10; // Default reward
+            let reward = 10;
 
             if (dailyLoginAchievement && dailyLoginAchievement.tiers[0]) {
                 const tier = dailyLoginAchievement.tiers[0];
@@ -51,20 +62,28 @@ export async function createOrFetchUserProfile(userId: string): Promise<{ user: 
                     reward += tier.proBonus;
                 }
             }
+            perfLog('Calculate daily rewards', rewardCalcStart);
 
+            // Step 3: Update user
+            const updateStart = performance.now();
             transaction.update(userDocRef, {
                 lastLoginDate: todayUtcString,
                 level: newLevel,
                 'stats.level': newLevel,
                 credits: FieldValue.increment(reward),
             });
+            perfLog('Update user document', updateStart);
             
             const updatedUser = { ...existingUser, level: newLevel, lastLoginDate: todayUtcString, credits: existingUser.credits + reward };
+            perfLog('✅ TOTAL - Existing user daily login', startTime);
             return { user: convertTimestamps(updatedUser), leveledUpInfo: { newLevel, oldLevel } };
             
         } else {
+            // Step 4: Create new user
+            const createStart = performance.now();
             const { getAuth } = await import('firebase-admin/auth');
             const authUser = await getAuth().getUser(userId);
+            perfLog('Get Firebase Auth user', createStart);
 
             const todayUtcString = new Date().toISOString().split('T')[0];
             const sanitizedDisplayName = authUser.displayName 
@@ -73,9 +92,9 @@ export async function createOrFetchUserProfile(userId: string): Promise<{ user: 
             
             const newUser: User = {
                 uid: userId,
-                email: authUser.email,
+                email: authUser.email ?? null,
                 displayName: sanitizedDisplayName || `User-${userId.substring(0, 5)}`,
-                photoURL: authUser.photoURL,
+                photoURL: authUser.photoURL ?? null,
                 coverPhotoURL: '',
                 isAnonymous: authUser.disabled,
                 plan: 'free',
@@ -89,17 +108,25 @@ export async function createOrFetchUserProfile(userId: string): Promise<{ user: 
                 ownedBookmarkIds: [],
             };
 
+            const setDocStart = performance.now();
             transaction.set(userDocRef, newUser);
+            perfLog('Set new user document', setDocStart);
+            
+            perfLog('✅ TOTAL - New user creation', startTime);
             return { user: convertTimestamps(newUser), leveledUpInfo: { oldLevel: 0, newLevel: 1 } };
         }
     });
 }
 
-
 export async function getUserProfile(userId: string): Promise<User | null> {
+  const startTime = performance.now();
+  console.log('👤 [USER SERVICE] getUserProfile for:', userId);
+  
   const adminDb = getAdminDb();
   const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
   const docSnap = await userDocRef.get();
+
+  perfLog('Get user profile', startTime);
 
   if (docSnap.exists) {
     return convertTimestamps(docSnap.data() as User);
@@ -115,9 +142,6 @@ export async function updateUserProfile(
     profileCoverFile?: File;
   }
 ): Promise<{ photoURL?: string; coverPhotoURL?: string }> {
-  // This function involves file uploads and should be handled with care.
-  // The current implementation is a placeholder and would need a robust
-  // upload mechanism (e.g., to Firebase Storage) in a real app.
   return {};
 }
 
@@ -147,8 +171,11 @@ export async function purchaseGlobalItem(
   itemId: string, 
   itemType: 'book' | 'bookmark'
 ) {
+  const startTime = performance.now();
+  console.log(`🛒 [USER SERVICE] Purchase ${itemType}:`, itemId);
+  
   const adminDb = getAdminDb();
-  return adminDb.runTransaction(async (transaction) => {
+  const result = await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
     
@@ -193,6 +220,9 @@ export async function purchaseGlobalItem(
       [updateField]: FieldValue.arrayUnion(itemId)
     });
   });
+  
+  perfLog(`Purchase ${itemType}`, startTime);
+  return result;
 }
 
 export async function claimAchievement(
@@ -200,10 +230,13 @@ export async function claimAchievement(
   achievementId: string, 
   tierLevel: number
 ) {
+  const startTime = performance.now();
+  console.log('🏆 [USER SERVICE] Claim achievement:', achievementId, 'tier:', tierLevel);
+  
   const adminDb = getAdminDb();
   const userDocRef = adminDb.collection('users').doc(userId);
 
-  return adminDb.runTransaction(async (transaction) => {
+  const result = await adminDb.runTransaction(async (transaction) => {
     const userDoc = await transaction.get(userDocRef);
     
     if (!userDoc.exists) {
@@ -218,8 +251,6 @@ export async function claimAchievement(
     }
     
     const userAchievement = user.achievements?.find(a => a.id === achievementId);
-    
-    // In this model, the achievement might not exist yet if it's the first claim.
     const lastClaimedLevel = userAchievement?.lastClaimedLevel || 0;
     
     if (lastClaimedLevel >= tierLevel) {
@@ -273,10 +304,13 @@ export async function claimAchievement(
     
     return { reward: totalReward, newLevel: tierLevel };
   });
+  
+  perfLog('Claim achievement', startTime);
+  return result;
 }
 
-
 export async function recordPlaylistAdd(userId: string): Promise<void> {
+  const startTime = performance.now();
   const adminDb = getAdminDb();
   const userDocRef = adminDb.collection('users').doc(userId);
   
@@ -285,10 +319,12 @@ export async function recordPlaylistAdd(userId: string): Promise<void> {
       'stats.vocabAddedToPlaylist': FieldValue.increment(1)
     });
     
+    perfLog('Record playlist add', startTime);
+    
     checkAndUnlockAchievements(userId).catch(err => {
-      console.error("Failed to check achievements after playlist add:", err);
+      console.error("Failed to check achievements:", err);
     });
   } catch (error) {
-    console.error("❌ Failed to record playlist add event:", error);
+    console.error("❌ Failed to record playlist add:", error);
   }
 }

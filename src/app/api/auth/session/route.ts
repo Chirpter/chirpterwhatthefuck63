@@ -1,4 +1,4 @@
-// src/app/api/auth/session/route.ts - PRODUCTION READY (WITH GET ENDPOINT)
+// src/app/api/auth/session/route.ts - WITH PERFORMANCE MONITORING
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
@@ -7,79 +7,109 @@ export const runtime = 'nodejs';
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 const FIVE_MINUTES_S = 5 * 60;
 
-/**
- * ✅ NEW: GET endpoint to verify session cookie
- * Used by client to check if cookie is properly set
- */
+// ⏱️ PERFORMANCE LOGGER
+const perfLog = (label: string, startTime: number) => {
+  const duration = performance.now() - startTime;
+  const color = duration < 50 ? '🟢' : duration < 150 ? '🟡' : '🔴';
+  console.log(`${color} [API PERF] ${label}: ${duration.toFixed(2)}ms`);
+  return duration;
+};
+
 export async function GET(request: NextRequest) {
+  const startTime = performance.now();
+  console.log('🔍 [API] GET /api/auth/session - Verifying session');
+  
   const sessionCookie = request.cookies.get('__session')?.value;
   
   if (!sessionCookie) {
+    perfLog('GET - No session cookie', startTime);
     return NextResponse.json({ error: 'No session' }, { status: 401 });
   }
   
   try {
+    const verifyStart = performance.now();
     const authAdmin = getAuthAdmin();
     await authAdmin.verifySessionCookie(sessionCookie, true);
+    perfLog('Session verification', verifyStart);
+    
+    perfLog('✅ GET - Total', startTime);
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
-    console.error('[API Session GET] Invalid session:', error.code);
+    console.error('❌ [API] Invalid session:', error.code);
+    perfLog('❌ GET - Failed', startTime);
     return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = performance.now();
+  console.log('🔐 [API] POST /api/auth/session - Creating session');
+  
   try {
+    // Step 1: Parse request body
+    const parseStart = performance.now();
     const { idToken } = await request.json();
+    perfLog('Parse request body', parseStart);
 
     if (!idToken || typeof idToken !== 'string') {
+      perfLog('❌ POST - Invalid request', startTime);
       return NextResponse.json({ error: 'Invalid request: idToken required' }, { status: 400 });
     }
 
+    // Step 2: Get Auth Admin
+    const adminStart = performance.now();
     const authAdmin = getAuthAdmin();
+    perfLog('Get Auth Admin', adminStart);
     
-    // Verify token and check recent sign-in
+    // Step 3: Verify ID Token
     let decodedToken;
     try {
+      const verifyStart = performance.now();
       decodedToken = await authAdmin.verifyIdToken(idToken);
+      perfLog('Verify ID Token', verifyStart);
     } catch (verifyError: any) {
-      console.error('[API Session] Token verification failed:', verifyError.code);
+      console.error('❌ [API] Token verification failed:', verifyError.code);
+      perfLog('❌ POST - Token verification failed', startTime);
       return NextResponse.json(
         { error: 'Failed to create session.', code: verifyError.code }, 
         { status: 401 }
       );
     }
     
-    // Safe access to auth_time with fallback
+    // Step 4: Check recent sign-in
     const authTime = decodedToken.auth_time || Math.floor(Date.now() / 1000);
     const nowInSeconds = Math.floor(Date.now() / 1000);
     
-    // Check if sign-in is recent (within 5 minutes)
     if (nowInSeconds - authTime > FIVE_MINUTES_S) {
-      console.warn('[API Session] Sign-in not recent enough:', { authTime, now: nowInSeconds, diff: nowInSeconds - authTime });
+      console.warn('⚠️  [API] Sign-in not recent:', { authTime, now: nowInSeconds });
+      perfLog('❌ POST - Not recent sign-in', startTime);
       return NextResponse.json(
         { error: 'Recent sign in required' }, 
         { status: 401 }
       );
     }
 
-    // Create session cookie
+    // Step 5: Create session cookie
     let sessionCookie;
     try {
+      const cookieStart = performance.now();
       sessionCookie = await authAdmin.createSessionCookie(idToken, { 
         expiresIn: FIVE_DAYS_MS 
       });
+      perfLog('Create session cookie', cookieStart);
     } catch (cookieError: any) {
-      console.error('[API Session] Failed to create session cookie:', cookieError.code);
+      console.error('❌ [API] Failed to create session cookie:', cookieError.code);
+      perfLog('❌ POST - Cookie creation failed', startTime);
       return NextResponse.json(
         { error: 'Failed to create session.', code: cookieError.code }, 
         { status: 401 }
       );
     }
     
+    // Step 6: Set cookie in response
+    const responseStart = performance.now();
     const response = NextResponse.json({ success: true }, { status: 200 });
     
-    // Set cookie with strict security settings
     response.cookies.set({
       name: '__session',
       value: sessionCookie,
@@ -89,12 +119,15 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: FIVE_DAYS_MS / 1000,
     });
+    perfLog('Set cookie in response', responseStart);
 
-    console.log('[API Session] Session cookie created successfully for user:', decodedToken.uid);
+    perfLog('✅ POST - Total session creation', startTime);
+    console.log('✅ [API] Session cookie created for user:', decodedToken.uid);
     return response;
 
   } catch (error: any) {
-    console.error('[API Session] Unexpected error:', error);
+    console.error('❌ [API] Unexpected error:', error);
+    perfLog('❌ POST - Unexpected error', startTime);
     return NextResponse.json(
       { error: 'Failed to create session.', code: error.code }, 
       { status: 401 }
@@ -103,27 +136,33 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const startTime = performance.now();
+  console.log('🚪 [API] DELETE /api/auth/session - Logging out');
+  
   const sessionCookie = request.cookies.get('__session')?.value;
   
   // Always return success response first
   const response = NextResponse.json({ success: true }, { status: 200 });
   response.cookies.delete('__session');
   
-  // Revoke tokens in background, don't block response
+  perfLog('Cookie deleted from response', startTime);
+  
+  // Revoke tokens in background
   if (sessionCookie) {
-    // Fire and forget - don't await
     (async () => {
       try {
+        const revokeStart = performance.now();
         const authAdmin = getAuthAdmin();
         const decodedClaims = await authAdmin.verifySessionCookie(sessionCookie);
         await authAdmin.revokeRefreshTokens(decodedClaims.sub);
-        console.log('[API Session] Tokens revoked for user:', decodedClaims.sub);
+        perfLog('Background token revocation', revokeStart);
+        console.log('✅ [API] Tokens revoked for user:', decodedClaims.sub);
       } catch (err) {
-        console.warn('[API Session] Could not revoke tokens:', err);
+        console.warn('⚠️  [API] Could not revoke tokens:', err);
       }
     })();
   }
 
-  console.log('[API Session] Session cookie cleared');
+  perfLog('✅ DELETE - Total', startTime);
   return response;
 }

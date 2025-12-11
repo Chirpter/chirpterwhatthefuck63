@@ -1,4 +1,4 @@
-// src/contexts/auth-context.tsx - FIXED VERSION
+// src/contexts/auth-context.tsx - WITH PERFORMANCE MONITORING
 "use client";
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
@@ -14,7 +14,14 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth';
 
-// --- Type Definition ---
+// ⏱️ PERFORMANCE LOGGER
+const perfLog = (label: string, startTime: number) => {
+  const duration = performance.now() - startTime;
+  const color = duration < 100 ? '🟢' : duration < 300 ? '🟡' : '🔴';
+  console.log(`${color} [PERF] ${label}: ${duration.toFixed(2)}ms`);
+  return duration;
+};
+
 interface AuthContextType {
   authUser: FirebaseUser | null;
   loading: boolean;
@@ -29,103 +36,74 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// --- Helper Functions ---
-
-/**
- * ✅ OPTIMIZED: Reduced retry delay for faster auth
- * Only retry on 5xx errors, fail fast on 4xx
- */
-async function setSessionCookie(idToken: string, maxRetries = 2): Promise<boolean> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`🔄 [Auth] Session cookie attempt ${attempt}/${maxRetries}`);
-      
-      const response = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ idToken }),
-      });
-      
-      if (response.ok) {
-        console.log('✅ [Auth] Session API returned success');
-        return true;
-      }
-      
-      const errorData = await response.json().catch(() => ({}));
-      console.error(`❌ [Auth] Session API error (attempt ${attempt}):`, errorData);
-      
-      // ✅ FAST FAIL: Don't retry on 4xx errors (client errors)
-      if (response.status >= 400 && response.status < 500) {
-        console.error('❌ [Auth] Client error, not retrying');
-        return false;
-      }
-      
-      // ✅ OPTIMIZED: Reduced delay (100ms, 200ms instead of 300ms, 600ms)
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
-      }
-      
-    } catch (error) {
-      console.error(`❌ [Auth] Session cookie attempt ${attempt} failed:`, error);
-      
-      if (attempt === maxRetries) return false;
-      // ✅ OPTIMIZED: Reduced delay on network errors
-      await new Promise(resolve => setTimeout(resolve, 100 * attempt));
-    }
-  }
+async function setSessionCookie(idToken: string): Promise<boolean> {
+  const startTime = performance.now();
+  console.log('🚀 [AUTH] Starting session cookie creation...');
   
-  console.error('❌ [Auth] Failed to set session cookie after all retries');
-  return false;
-}
-
-/**
- * ✅ OPTIMIZED: Faster cookie cleanup, no retry needed
- */
-async function clearSessionCookie(): Promise<boolean> {
   try {
-    const response = await fetch('/api/auth/session', { 
-      method: 'DELETE',
+    const fetchStart = performance.now();
+    const response = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
+      body: JSON.stringify({ idToken }),
     });
-    return response.ok;
+    
+    perfLog('API /api/auth/session fetch', fetchStart);
+    
+    if (response.ok) {
+      perfLog('✅ Total session cookie creation', startTime);
+      return true;
+    }
+    
+    const errorData = await response.json().catch(() => ({}));
+    console.error('❌ [AUTH] Session API error:', errorData);
+    perfLog('❌ Failed session cookie creation', startTime);
+    return false;
+    
   } catch (error) {
-    console.error('❌ [Auth] Failed to clear session cookie:', error);
+    console.error('❌ [AUTH] Network error:', error);
+    perfLog('❌ Failed session cookie creation (network)', startTime);
     return false;
   }
 }
 
-/**
- * ✅ NEW: Email validation helper
- */
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
+async function clearSessionCookie(): Promise<void> {
+  const startTime = performance.now();
+  try {
+    await fetch('/api/auth/session', { 
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    perfLog('Session cookie cleared', startTime);
+  } catch (error) {
+    console.error('❌ Failed to clear session cookie:', error);
+  }
 }
 
-/**
- * ✅ NEW: Password validation helper
- */
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
 function isValidPassword(password: string): boolean {
   return password.length >= 6;
 }
 
-/**
- * ✅ FIXED: Unified navigation helper that works in both test and production
- */
 function navigateTo(path: string) {
   if (typeof window === 'undefined') return;
   
-  // ✅ For tests: Check if window.location.assign is a mock
+  const startTime = performance.now();
+  console.log(`🧭 [NAV] Navigating to: ${path}`);
+  
   if (typeof (window.location.assign as any).mockClear === 'function') {
     (window.location.assign as any)(path);
   } else {
-    // ✅ For production: Use href for instant navigation
     window.location.href = path;
   }
+  
+  perfLog('Navigation initiated', startTime);
 }
 
-// --- Auth Provider Component ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,15 +111,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   
-  // Promise-based lock to prevent concurrent operations
   const authOperationLock = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
+    console.log('👂 [AUTH] Setting up auth state listener...');
+    const listenerStart = performance.now();
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      perfLog('Auth state changed', listenerStart);
       setAuthUser(user);
       setLoading(false);
     });
-    return () => unsubscribe();
+    
+    return () => {
+      console.log('🔌 [AUTH] Cleaning up auth listener');
+      unsubscribe();
+    };
   }, []);
 
   const handleAuthError = useCallback((err: any) => {
@@ -175,21 +160,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           message = 'Sign-in popup was closed. Please try again.';
           break;
         default:
-          console.error('[AuthContext] Unhandled auth error:', err);
+          console.error('[AUTH] Unhandled auth error:', err);
       }
     }
     
     setError(message);
   }, []);
 
-  /**
-   * ✅ OPTIMIZED: Performs auth operation with proper locking and validation
-   */
   const performAuthOperation = useCallback(async (
     operation: () => Promise<FirebaseUser | null>,
     validateInputs?: () => string | null
   ): Promise<boolean> => {
-    // ✅ Validate inputs before starting
+    const operationStart = performance.now();
+    console.log('🔐 [AUTH] Starting auth operation...');
+    
     if (validateInputs) {
       const validationError = validateInputs();
       if (validationError) {
@@ -198,34 +182,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     
-    // If there's an ongoing operation, wait for it
     if (authOperationLock.current) {
-      console.warn('[Auth] Operation already in progress, waiting...');
+      console.warn('⚠️  [AUTH] Operation already in progress');
       return authOperationLock.current;
     }
 
-    // Create new operation promise
     const operationPromise = (async () => {
       setIsSigningIn(true);
       setError(null);
       
       try {
+        // Step 1: Firebase Auth
+        const firebaseStart = performance.now();
         const user = await operation();
+        perfLog('Firebase Auth', firebaseStart);
+        
         if (!user) throw new Error("Authentication failed: No user returned.");
         
+        // Step 2: Get ID Token
+        const tokenStart = performance.now();
         const idToken = await user.getIdToken(true);
+        perfLog('Get ID Token', tokenStart);
+        
+        // Step 3: Create Session Cookie
+        const cookieStart = performance.now();
         const cookieSet = await setSessionCookie(idToken);
+        perfLog('Session Cookie Creation', cookieStart);
         
         if (!cookieSet) {
           throw new Error("Could not create a server session. Please try again.");
         }
         
-        // ✅ FIXED: Use unified navigation helper
+        // Step 4: Navigation
+        perfLog('🎉 TOTAL AUTH OPERATION', operationStart);
         navigateTo('/library/book');
         
         return true;
 
       } catch (err: any) {
+        console.error('❌ [AUTH] Operation failed:', err);
+        perfLog('❌ Failed auth operation', operationStart);
         handleAuthError(err);
         return false;
       } finally {
@@ -267,28 +263,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [performAuthOperation]
   );
 
-  /**
-   * ✅ OPTIMIZED: Parallel logout operations for faster response
-   */
   const logout = useCallback(async (): Promise<void> => {
-    // Wait for any ongoing auth operation
+    const logoutStart = performance.now();
+    console.log('🚪 [AUTH] Starting logout...');
+    
     if (authOperationLock.current) {
-      console.warn('[Auth] Waiting for ongoing operation before logout...');
+      console.log('⏳ [AUTH] Waiting for ongoing operation...');
       await authOperationLock.current;
     }
     
     try {
-      // ✅ OPTIMIZED: Run logout operations in parallel
-      await Promise.all([
-        signOut(auth),
-        clearSessionCookie()
-      ]);
+      const firebaseLogoutStart = performance.now();
+      await signOut(auth);
+      perfLog('Firebase signOut', firebaseLogoutStart);
       
-      // ✅ FIXED: Use unified navigation helper
+      const cookieClearStart = performance.now();
+      await clearSessionCookie();
+      perfLog('Clear session cookie', cookieClearStart);
+      
+      perfLog('🎉 TOTAL LOGOUT', logoutStart);
       navigateTo('/login?reason=logged_out');
     } catch (error) {
-      console.error('[AuthContext] Error during logout:', error);
-      // Force logout even on error
+      console.error('❌ [AUTH] Logout error:', error);
+      perfLog('❌ Failed logout', logoutStart);
       navigateTo('/login?reason=error');
     }
   }, []);
