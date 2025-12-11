@@ -1,10 +1,11 @@
+
 // src/features/create/hooks/useCreationJob.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
-import type { CreationFormValues, LibraryItem, ContentUnit } from '@/lib/types';
+import type { CreationFormValues, LibraryItem, ContentUnit, Book } from '@/lib/types';
 import { createLibraryItem } from '@/services/creation-service';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -20,9 +21,7 @@ interface UseCreationJobParams {
 }
 
 function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
-  const isPhraseMode = false; // Default to sentence
   const primaryLang = 'en';
-  const secondaryLang = 'vi'; // Default secondary for bilingual
   
   const baseData = {
     type,
@@ -80,7 +79,6 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   const timeoutRef = useRef<NodeJS.Timeout>();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Credit cost calculation
   const creditCost = useMemo(() => {
     if (formData.type === 'piece') return 1;
     
@@ -100,9 +98,8 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     return cost;
   }, [formData.type, formData.bookLength, formData.generationScope, formData.coverImageOption]);
 
-  // Validation logic
   const validationMessage = useMemo(() => {
-    if (!user) return ''; // Don't validate if no user
+    if (!user) return ''; 
     if (promptError === 'empty') return 'formErrors.prompt.empty';
     if (promptError === 'too_long') return 'formErrors.prompt.tooLong';
     
@@ -123,7 +120,6 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
 
   const canGenerate = useMemo(() => !validationMessage && user && user.credits >= creditCost, [validationMessage, user, creditCost]);
   
-  // Chapter limits
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
   const minChaptersForCurrentLength = bookLengthOption?.minChapters || 1;
   const maxChapters = 15;
@@ -159,18 +155,18 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
 
       let currentIsPhrase = prev.unit === 'phrase';
       let primary = prev.primaryLanguage;
-      let secondary = prev.availableLanguages[1];
+      let secondary = prev.availableLanguages[1]; 
 
       if (key === 'isBilingual') {
+        secondary = value ? 'vi' : undefined; 
         newData.availableLanguages = value ? [primary, 'vi'] : [primary];
-        secondary = value ? 'vi' : undefined;
       } else if (key === 'primaryLanguage') {
         primary = value;
         newData.primaryLanguage = value;
         newData.availableLanguages = [value, ...(prev.availableLanguages.length > 1 ? [prev.availableLanguages[1]] : [])];
       } else if (key === 'secondaryLanguage') {
         secondary = value;
-        newData.availableLanguages = [primary, value];
+        newData.availableLanguages = [primary, value as string];
       } else if (key === 'unit') {
         currentIsPhrase = value === 'phrase';
         newData.unit = value;
@@ -219,6 +215,17 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   const handleCustomTagAdd = useCallback((tag: string) => {
     setFormData(prev => ({ ...prev, tags: [...prev.tags, tag] }));
   }, []);
+
+  const reset = useCallback((newType: 'book' | 'piece') => {
+    setFormData(getInitialFormData(newType));
+    setIsPromptDefault(true);
+    setPromptError(null);
+    setIsBusy(false);
+    setActiveId(null);
+    setJobData(null);
+    setFinalizedId(null);
+    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+  }, [user?.uid]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,17 +279,6 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     if (finalizedId) router.push(`/library/${type}/${finalizedId}`);
   }, [finalizedId, type, router]);
 
-  const reset = useCallback((newType: 'book' | 'piece') => {
-    setFormData(getInitialFormData(newType));
-    setIsPromptDefault(true);
-    setPromptError(null);
-    setIsBusy(false);
-    setActiveId(null);
-    setJobData(null);
-    setFinalizedId(null);
-    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
-  }, [user?.uid]);
-
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -297,3 +293,5 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     handlePresentationStyleChange, handleTagClick, handleCustomTagAdd, handleSubmit, handleViewResult, reset,
   };
 }
+
+    
