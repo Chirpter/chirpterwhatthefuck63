@@ -1,3 +1,4 @@
+
 // src/lib/types.ts
 
 import { VOCABULARY_CONSTANTS, BOOK_LENGTH_OPTIONS } from "./constants";
@@ -424,5 +425,7 @@ export type Tier = {
 };
   
 export type TierTask = 
-| { type: 'ref'; id: string; goal: number }
-| { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
+| { type: 'ref'; id: string; goal: number; }
+| { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string; };
+
+    
