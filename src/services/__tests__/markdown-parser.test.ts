@@ -1,4 +1,3 @@
-
 // src/services/__tests__/markdown-parser.test.ts - ENHANCED
 import { describe, it, expect } from 'vitest';
 import { 
@@ -201,19 +200,19 @@ describe('Markdown Parser - Edge Cases', () => {
       expect(segments[1].content.en).toBe('Thank you.');
       expect(segments[1].content.vi).toBe('Cảm ơn.');
     });
-
-    it('should handle monolingual CJK characters', () => {
-      const markdown = '這是一個測試。';
-      const segments = parseMarkdownToSegments(markdown, 'zh');
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content.zh).toBe('這是一個測試。');
+    
+    it('should handle monolingual Chinese', () => {
+        const markdown = '這是一個測試。';
+        const segments = parseMarkdownToSegments(markdown, 'zh');
+        expect(segments).toHaveLength(1);
+        expect(segments[0].content.zh).toBe('這是一個測試。');
     });
 
     it('should handle bilingual Japanese', () => {
-      const markdown = 'This is a test. / これはテストです。';
-      const segments = parseMarkdownToSegments(markdown, 'en-ja');
-      expect(segments).toHaveLength(1);
-      expect(segments[0].content.ja).toBe('これはテストです。');
+        const markdown = 'This is a test. / これはテストです。';
+        const segments = parseMarkdownToSegments(markdown, 'en-ja');
+        expect(segments).toHaveLength(1);
+        expect(segments[0].content.ja).toBe('これはテストです。');
     });
 
     it('should handle monolingual Korean', () => {
@@ -222,7 +221,7 @@ describe('Markdown Parser - Edge Cases', () => {
         expect(segments).toHaveLength(1);
         expect(segments[0].content.ko).toBe('이것은 테스트입니다.');
     });
-
+    
     it('should handle bilingual Arabic', () => {
         const markdown = 'Hello / مرحبا';
         const segments = parseMarkdownToSegments(markdown, 'en-ar');
