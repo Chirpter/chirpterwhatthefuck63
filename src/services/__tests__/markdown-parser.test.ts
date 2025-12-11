@@ -73,7 +73,7 @@ describe('MarkdownParser - Sentence-Based Parsing', () => {
       expect(segments[1].content.en).toBe('"How are you?"');
     });
 
-    it('should handle complex sentences with semicolons', () => {
+     it('should handle complex sentences with semicolons', () => {
         const md = 'I came; I saw; I conquered. That was easy.';
         const segments = parseMarkdownToSegments(md, 'en');
         expect(segments).toHaveLength(2);
@@ -122,8 +122,9 @@ describe('MarkdownParser - Sentence-Based Parsing', () => {
     });
 
     it('should handle missing translation gracefully', () => {
-      const markdown = 'English only. {}';
-      const segments = parseMarkdownToSegments(markdown, 'en-vi');
+      const md = 'English only. {}';
+      const segments = parseMarkdownToSegments(md, 'en-vi');
+      
       expect(segments).toHaveLength(1);
       expect(segments[0].content.en).toBe('English only.');
       expect(segments[0].content.vi).toBe('');
@@ -151,9 +152,9 @@ Second sentence. {Câu thứ hai.}`;
   
   describe('✅ Paragraph Breaks', () => {
     it('should mark first sentence of a paragraph as isNewPara', () => {
-      const md = `First paragraph. Continues.
+      const md = `First paragraph sentence one. First paragraph sentence two.
 
-Second paragraph.`;
+Second paragraph sentence.`;
       const segments = parseMarkdownToSegments(md, 'en');
       expect(segments).toHaveLength(3);
       expect(segments[0].metadata.isNewPara).toBe(true);
@@ -172,14 +173,14 @@ Second paragraph.`;
   });
 
   describe('✅ Footnote Annotation Removal', () => {
-    it('should remove footnote [1] from monolingual text', () => {
+    it('should remove footnotes from monolingual text', () => {
         const markdown = 'This is a sentence with a note[1].';
         const segments = parseMarkdownToSegments(markdown, 'en');
         expect(segments[0].content.en).toBe('This is a sentence with a note.');
     });
 
     it('should remove multiple footnotes [23] from bilingual text', () => {
-        const markdown = 'English part[23]. {Phần Tiếng Việt[45].}';
+        const markdown = 'English part[23]. {Phần Tiếng Việt.[45]}';
         const segments = parseMarkdownToSegments(markdown, 'en-vi');
         expect(segments[0].content.en).toBe('English part.');
         expect(segments[0].content.vi).toBe('Phần Tiếng Việt.');
@@ -196,10 +197,11 @@ Second paragraph.`;
       const segments = parseMarkdownToSegments('   \n\n  ', 'en');
       expect(segments).toHaveLength(0);
     });
-
+    
     it('should handle emoji', () => {
       const md = 'Hello 👋 world! Nice to meet you. 😊';
       const segments = parseMarkdownToSegments(md, 'en');
+      
       expect(segments).toHaveLength(2);
       expect(segments[0].content.en).toContain('👋');
       expect(segments[1].content.en).toContain('😊');
@@ -220,7 +222,6 @@ More content.`;
     it('should handle Chinese', () => {
       const md = '这是一个测试。这是第二句。';
       const segments = parseMarkdownToSegments(md, 'zh');
-      // Our simple sentence splitter might not be perfect for every language, but it should handle this case.
       expect(segments).toHaveLength(2);
       expect(segments[0].content.zh).toBe('这是一个测试。');
       expect(segments[1].content.zh).toBe('这是第二句。');
@@ -249,6 +250,14 @@ More content.`;
   });
 
   describe('✅ Complex Real-World Examples', () => {
+    it('should handle AI-generated continuous format', () => {
+      const md = "Hello, how are you? {Xin chào bạn ổn không?} I'm fine. {Tôi ổn.}";
+      const segments = parseMarkdownToSegments(md, 'en-vi');
+      expect(segments).toHaveLength(2);
+      expect(segments[0].content).toEqual({ en: "Hello, how are you?", vi: "Xin chào bạn ổn không?" });
+      expect(segments[1].content).toEqual({ en: "I'm fine.", vi: "Tôi ổn." });
+    });
+
     it('should handle mixed mono and bilingual content', () => {
       const markdown = `First pair. {Cặp đầu tiên.} Second only in English. Third pair. {Cặp thứ ba.}`;
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
@@ -367,7 +376,6 @@ Content. {Nội dung.}`;
 Content here.`;
       const { chapters } = parseBookMarkdown(md, 'en');
       expect(chapters).toHaveLength(1);
-      // The parser should now ignore ### as it's not ##
       expect(chapters[0].segments).toHaveLength(2);
       expect(chapters[0].segments[0].content.en).toBe('### Subsection');
       expect(chapters[0].segments[1].content.en).toBe('Content here.');
