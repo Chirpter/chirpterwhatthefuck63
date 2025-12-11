@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -75,7 +76,7 @@ const SimpleMarkdownRenderer = ({ text }: { text: string }) => {
     return (
         <div className="text-sm text-muted-foreground">
             {lines.map((line, index) => (
-                <div key={index} className="leading-snug">{renderLine(line)}</div>
+                <p key={index} className="leading-snug">{renderLine(line)}</p>
             ))}
         </div>
     );

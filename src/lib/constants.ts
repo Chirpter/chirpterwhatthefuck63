@@ -65,6 +65,8 @@ export const VOCABULARY_CONSTANTS = {
     MAX_TERM_LENGTH: 200,
     MAX_MEANING_LENGTH: 500,
     MAX_EXAMPLE_LENGTH: 1000,
+    MIN_SEARCH_QUERY_LENGTH: 2,
+    MAX_FOLDER_NAME_LENGTH: 50,
   },
   PAGINATION: {
     DEFAULT_PAGE_SIZE: 20,
@@ -86,36 +88,31 @@ export const MAX_PROMPT_LENGTH = 500;
 export const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 export const MAX_IMAGE_SIZE_MB = 2;
 
+// --- NEW POINT-BASED SRS CONSTANTS ---
+export const POINT_THRESHOLDS = {
+  NEW: 0,
+  LEARNING: 700,
+  SHORT_TERM: 1400,
+  LONG_TERM: 3000,
+};
 
-// --- SRS State Thresholds (in days) - DEPRECATED, use POINT_THRESHOLDS ---
+export const POINT_VALUES = {
+  new: { remembered: 200, forgot: -100 },
+  learning: { remembered: 250, forgot: -250 },
+  'short-term': { remembered: 300, forgot: -350 },
+  'long-term': { remembered: 0, forgot: 0 }, // No change for mastered words
+};
+
+export const STREAK_BONUSES = [
+  0,    // Streak 1 (index 0) - No bonus
+  200,  // Streak 2
+  300,  // Streak 3
+  400,  // Streak 4
+  500,  // Streak 5+
+];
+
+export const DAILY_DECAY_POINTS = -200;
+
+// --- DEPRECATED SRS State Thresholds (in days) ---
 export const LEARNING_THRESHOLD_DAYS = 7;
 export const MASTERED_THRESHOLD_DAYS = 30;
-
-
-// --- NEW: SRS Point-based System Constants ---
-
-// The point values at which an item's state changes.
-export const POINT_THRESHOLDS = {
-  NEW: 100,
-  LEARNING: 200,
-  SHORT_TERM: 700,
-  LONG_TERM: 1400,
-} as const;
-
-// The number of points gained or lost for each action based on the current state.
-export const POINT_VALUES = {
-  new: { remembered: 100, forgot: 0 },
-  learning: { remembered: 150, forgot: -50 },
-  'short-term': { remembered: 200, forgot: -100 },
-  'long-term': { remembered: 50, forgot: 0 }, // Forgetting a long-term item is handled differently
-} as const;
-
-// Bonus points awarded for consecutive correct answers (streaks).
-export const STREAK_BONUSES = [
-  10, // Streak of 2
-  25, // Streak of 3
-  50, // Streak of 4
-  100, // Streak of 5
-  150, // Streak of 6+
-] as const;
-

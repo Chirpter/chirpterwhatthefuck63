@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LEARNING_THRESHOLD_DAYS, MASTERED_THRESHOLD_DAYS } from "@/lib/constants";
+import { POINT_THRESHOLDS } from "@/lib/constants";
 import { calculateVirtualMS } from '@/lib/utils';
 import type { SrsState } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -31,38 +31,28 @@ interface VocabularyItemProps {
 
 const MemoryStrengthBar = memo<{ memoryStrength: number }>(({ memoryStrength }) => {
     const { t } = useTranslation(['vocabularyPage']);
-    const MAX_DAYS = 31;
-
-    // Determine current state based on memory strength
-    const currentState: SrsState = useMemo(() => {
-        if (memoryStrength >= MASTERED_THRESHOLD_DAYS) return 'long-term';
-        if (memoryStrength >= LEARNING_THRESHOLD_DAYS) return 'short-term';
-        if (memoryStrength > 0) return 'learning';
-        return 'new';
-    }, [memoryStrength]);
-
-    // Gradient based on state
-    const getProgressGradient = () => {
-        if (currentState === 'new') {
-            return 'bg-gradient-to-t from-slate-400 to-slate-500';
-        }
-        if (currentState === 'learning') {
-            return 'bg-gradient-to-t from-slate-400 via-purple-400 to-purple-500';
-        }
-        if (currentState === 'short-term') {
-            return 'bg-gradient-to-t from-slate-400 via-purple-400 to-pink-500';
-        }
-        // long-term
-        return 'bg-gradient-to-t from-slate-400 via-purple-500 to-orange-400';
+    
+    const getStateAndProgress = (points: number): { state: SrsState; progress: number } => {
+        if (points >= POINT_THRESHOLDS.LONG_TERM) return { state: 'long-term', progress: 100 };
+        if (points >= POINT_THRESHOLDS.SHORT_TERM) return { state: 'short-term', progress: ((points - POINT_THRESHOLDS.SHORT_TERM) / (POINT_THRESHOLDS.LONG_TERM - POINT_THRESHOLDS.SHORT_TERM)) * 100 };
+        if (points >= POINT_THRESHOLDS.LEARNING) return { state: 'learning', progress: ((points - POINT_THRESHOLDS.LEARNING) / (POINT_THRESHOLDS.SHORT_TERM - POINT_THRESHOLDS.LEARNING)) * 100 };
+        return { state: 'new', progress: (points / POINT_THRESHOLDS.LEARNING) * 100 };
     };
 
-    const fillHeightPercentage = Math.min((memoryStrength / MAX_DAYS) * 100, 100);
+    const { state, progress } = getStateAndProgress(memoryStrength);
+
+    const getProgressGradient = () => {
+        if (state === 'new') return 'bg-gradient-to-t from-slate-400 to-slate-500';
+        if (state === 'learning') return 'bg-gradient-to-t from-slate-400 via-purple-400 to-purple-500';
+        if (state === 'short-term') return 'bg-gradient-to-t from-slate-400 via-purple-400 to-pink-500';
+        return 'bg-gradient-to-t from-slate-400 via-purple-500 to-orange-400';
+    };
 
     return (
         <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-muted/30 rounded-l-lg overflow-hidden">
             <div
-                className={`absolute bottom-0 left-0 w-full transition-all duration-500 ${'${getProgressGradient()}'}`}
-                style={{ height: `${'${fillHeightPercentage}'}%` }}
+                className={`absolute bottom-0 left-0 w-full transition-all duration-500 ${getProgressGradient()}`}
+                style={{ height: `${progress}%` }}
             />
         </div>
     );
@@ -79,8 +69,8 @@ const VocabularyItemCardComponent: React.FC<VocabularyItemProps> = ({ item, onPr
   const sourceInfo = useMemo(() => {
     if (item.sourceType === 'book' && !item.sourceDeleted && item.sourceId) {
       const link = item.chapterId && item.segmentId 
-        ? `/read/${'${item.sourceId}'}?chapterId=${'${item.chapterId}'}&segmentId=${'${item.segmentId}'}`
-        : `/read/${'${item.sourceId}'}`;
+        ? `/read/${item.sourceId}?chapterId=${item.chapterId}&segmentId=${item.segmentId}`
+        : `/read/${item.sourceId}`;
       return { icon: 'BookOpen' as IconName, link };
     }
     return { icon: null, link: null };
@@ -88,8 +78,8 @@ const VocabularyItemCardComponent: React.FC<VocabularyItemProps> = ({ item, onPr
   
   const handlePronounceClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    onPronounce(item.term, item.termLang);
-  }, [item.term, item.termLang, onPronounce]);
+    onPronounce(item.term, item.termLanguage);
+  }, [item.term, item.termLanguage, onPronounce]);
 
   const handleEditClick = useCallback(() => {
     onEdit(item);

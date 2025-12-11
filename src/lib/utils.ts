@@ -80,15 +80,15 @@ export function getLevelStyles(level: number, plan: UserPlan, overrideTier?: Lev
   if (plan === 'pro') {
     return {
       tier,
-      frameClasses: `${'${commonFrameClasses}'} bg-gradient-pro-${'${tier}'}`,
-      badgeClasses: `${'${commonBadgeClasses}'} bg-gradient-pro-${'${tier}'} border-white/50`,
+      frameClasses: `${commonFrameClasses} bg-gradient-pro-${tier}`,
+      badgeClasses: `${commonBadgeClasses} bg-gradient-pro-${tier} border-white/50`,
     };
   }
 
   return {
     tier,
-    frameClasses: `${'${commonFrameClasses}'} bg-level-${'${tier}'}`,
-    badgeClasses: `${'${commonBadgeClasses}'} bg-level-${'${tier}'} border-white/50`,
+    frameClasses: `${commonFrameClasses} bg-level-${tier}`,
+    badgeClasses: `${commonBadgeClasses} bg-level-${tier} border-white/50`,
   };
 }
 
@@ -204,5 +204,5 @@ export function getFormattedDate(date: Date): string {
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
-  return `${'${year}'}-${'${month}'}-${'${day}'}`;
+  return `${year}-${month}-${day}`;
 }
