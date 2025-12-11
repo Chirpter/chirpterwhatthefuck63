@@ -12,30 +12,32 @@ function cleanText(text: string): string {
 }
 
 /**
- * Parses monolingual content into a PhraseMap array.
- * This always returns an array with a single item for sentence-mode.
+ * Parses a line of text, which may contain bilingual pairs, into a PhraseMap array.
+ * @param line - The raw line of text.
+ * @param primaryLang - The primary language code.
+ * @param secondaryLang - The secondary language code (if bilingual).
+ * @returns An array of PhraseMap objects. For sentence mode, this will be a single-element array.
  */
-function parseMonolingualContent(line: string, lang: string): PhraseMap[] {
-    const cleaned = cleanText(line);
-    if (!cleaned) return [];
-    return [{ [lang]: cleaned }];
-}
+function parseLineToPhraseMaps(line: string, primaryLang: string, secondaryLang?: string): PhraseMap[] {
+    const cleanedLine = line.trim();
+    if (!cleanedLine) return [];
 
-/**
- * Parses bilingual content using the {translation} syntax.
- * It handles mixed monolingual and bilingual content within the same line.
- * This now returns an array of PhraseMap objects, with one object per sentence pair.
- */
-function parseBilingualContent(line: string, primaryLang: string, secondaryLang: string): PhraseMap[] {
+    if (!secondaryLang) {
+        // Monolingual: one phrase map for the whole line
+        return [{ [primaryLang]: cleanText(cleanedLine) }];
+    }
+
+    // Bilingual: parse using the {translation} syntax
     const bilingualRegex = /([^{}]+)\{([^{}]*)\}/g;
     let match;
     const phrases: PhraseMap[] = [];
     let lastIndex = 0;
 
-    while ((match = bilingualRegex.exec(line)) !== null) {
-        const precedingText = line.substring(lastIndex, match.index).trim();
+    while ((match = bilingualRegex.exec(cleanedLine)) !== null) {
+        // Capture any text between the last match and this one
+        const precedingText = cleanedLine.substring(lastIndex, match.index).trim();
         if (precedingText) {
-            phrases.push({ [primaryLang]: precedingText });
+            phrases.push({ [primaryLang]: cleanText(precedingText) });
         }
 
         const primary = cleanText(match[1]);
@@ -49,9 +51,10 @@ function parseBilingualContent(line: string, primaryLang: string, secondaryLang:
         lastIndex = match.index + match[0].length;
     }
 
-    const remainingText = line.substring(lastIndex).trim();
+    // Capture any remaining text at the end of the line
+    const remainingText = cleanedLine.substring(lastIndex).trim();
     if (remainingText) {
-        phrases.push({ [primaryLang]: remainingText });
+        phrases.push({ [primaryLang]: cleanText(remainingText) });
     }
 
     return phrases;
@@ -59,12 +62,12 @@ function parseBilingualContent(line: string, primaryLang: string, secondaryLang:
 
 
 /**
- * Main parser - processes text line-by-line and delegates to sub-parsers.
+ * Main parser - processes text line-by-line and creates segments.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
   const [primaryLang, secondaryLang, formatFlag] = origin.split('-');
   const isBilingual = !!secondaryLang;
-  const contentUnit: ContentUnit = formatFlag === 'ph' ? 'phrase' : 'sentence';
+  const unit: ContentUnit = formatFlag === 'ph' ? 'phrase' : 'sentence';
 
   const lines = markdown.split('\n');
   const segments: Segment[] = [];
@@ -74,27 +77,25 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
     const trimmedLine = line.trim();
     
     if (trimmedLine.startsWith('#')) {
-        continue;
+        continue; // Skip all headings in segment parsing
     }
 
     if (!trimmedLine) {
       isNewParaNext = true;
       continue;
     }
-
-    let lineContent: PhraseMap[] = [];
     
-    if (isBilingual) {
-        if (contentUnit === 'phrase') {
-            lineContent = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
-        } else { // Sentence mode
-            const sentencePairs = parseBilingualContent(trimmedLine, primaryLang, secondaryLang);
-            sentencePairs.forEach((pair, index) => {
+    const contentPhraseMaps = parseLineToPhraseMaps(trimmedLine, primaryLang, secondaryLang);
+
+    if (contentPhraseMaps.length > 0) {
+        if (unit === 'sentence') {
+            // For sentence mode, each phrase map becomes its own segment
+            contentPhraseMaps.forEach((phraseMap, index) => {
                 segments.push({
                     id: generateLocalUniqueId(),
                     order: segments.length,
                     type: 'text',
-                    content: [pair],
+                    content: [phraseMap], // Always an array, with one element for sentence mode
                     formatting: {},
                     metadata: {
                         isNewPara: isNewParaNext && index === 0,
@@ -102,27 +103,20 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
                     }
                 });
             });
-            isNewParaNext = false;
-            continue;
+        } else { // Phrase mode
+            segments.push({
+                id: generateLocalUniqueId(),
+                order: segments.length,
+                type: 'text',
+                content: contentPhraseMaps, // Array can have multiple elements
+                formatting: {},
+                metadata: {
+                    isNewPara: isNewParaNext,
+                    unit: 'phrase',
+                }
+            });
         }
-    } else { // Monolingual
-      lineContent = parseMonolingualContent(trimmedLine, primaryLang);
-    }
-    
-    if (lineContent.length > 0) {
-      const newSegment: Segment = {
-          id: generateLocalUniqueId(),
-          order: segments.length,
-          type: 'text',
-          content: lineContent,
-          formatting: {},
-          metadata: {
-              isNewPara: isNewParaNext,
-              unit: contentUnit,
-          }
-      };
-      segments.push(newSegment);
-      isNewParaNext = false;
+        isNewParaNext = false;
     }
   }
 
@@ -143,11 +137,12 @@ export function parseBookMarkdown(
   let title: MultilingualContent = { [primaryLang]: 'Untitled' };
   let contentStartIndex = 0;
   
+  // Find the first H1 to use as the book title
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('# ')) {
       const titleText = line.substring(2).trim();
-      title = parseBilingualText(titleText, primaryLang, secondaryLang);
+      title = parseBilingualTitle(titleText, primaryLang, secondaryLang);
       contentStartIndex = i + 1;
       break;
     }
@@ -159,6 +154,7 @@ export function parseBookMarkdown(
   const chapters: Chapter[] = [];
   
   if (chapterParts.length <= 1) {
+    // No '##' found, treat all content as a single chapter
     const segments = parseMarkdownToSegments(contentAfterTitle, origin);
     if (segments.length > 0) {
       const totalWords = calculateTotalWords(segments, primaryLang);
@@ -168,10 +164,11 @@ export function parseBookMarkdown(
         title: { [primaryLang]: 'Chapter 1' },
         segments,
         stats: { totalSegments: segments.length, totalWords, estimatedReadingTime: Math.ceil(totalWords / 200) },
-        metadata: { primaryLanguage: primaryLang }
+        metadata: {}
       });
     }
   } else {
+    // If there's content before the first '##', make it an introduction
     if (chapterParts[0].trim()) {
         const segments = parseMarkdownToSegments(chapterParts[0], origin);
         const totalWords = calculateTotalWords(segments, primaryLang);
@@ -181,16 +178,17 @@ export function parseBookMarkdown(
             title: { [primaryLang]: 'Introduction' },
             segments,
             stats: { totalSegments: segments.length, totalWords, estimatedReadingTime: Math.ceil(totalWords / 200) },
-            metadata: { primaryLanguage: primaryLang }
+            metadata: {}
         });
     }
 
-    chapterParts.slice(1).forEach((part, idx) => {
+    // Process each part that started with '##'
+    chapterParts.slice(1).forEach((part) => {
       const partLines = part.split('\n');
       const chapterTitleLine = partLines[0].trim();
       const chapterContent = partLines.slice(1).join('\n');
       
-      const chapterTitle = parseBilingualText(chapterTitleLine, primaryLang, secondaryLang);
+      const chapterTitle = parseBilingualTitle(chapterTitleLine, primaryLang, secondaryLang);
       const segments = parseMarkdownToSegments(chapterContent, origin);
       const totalWords = calculateTotalWords(segments, primaryLang);
 
@@ -200,7 +198,7 @@ export function parseBookMarkdown(
         title: chapterTitle,
         segments,
         stats: { totalSegments: segments.length, totalWords, estimatedReadingTime: Math.ceil(totalWords / 200) },
-        metadata: { primaryLanguage: primaryLang }
+        metadata: {}
       });
     });
   }
@@ -218,8 +216,7 @@ function calculateTotalWords(segments: Segment[], primaryLang: string): number {
     }, 0);
 }
 
-
-function parseBilingualText(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
+function parseBilingualTitle(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
     if (secondaryLang) {
         const match = text.match(/^(.*?)\s*\{(.*)\}\s*$/);
         if (match) {

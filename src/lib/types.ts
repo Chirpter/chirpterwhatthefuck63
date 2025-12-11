@@ -55,7 +55,7 @@ export type ContentUnit = 'sentence' | 'phrase';
 
 export interface SegmentMetadata {
   isNewPara: boolean;
-  unit: ContentUnit; // RENAMED from bilingualFormat
+  unit: ContentUnit;
   applyDropCap?: boolean;
   /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
@@ -74,8 +74,8 @@ export interface Segment {
   
   /**
    * Holds the textual data as an array of phrases.
-   * - For 'sentence' unit, it's an array with one element: [{ en: "Full sentence.", vi: "Câu đầy đủ." }]
-   * - For 'phrase' unit, it's an array with multiple elements: [{ en: "A phrase", vi: "Một cụm" }, { en: " and another.", vi: " và một cụm nữa." }]
+   * - For `unit: 'sentence'`, it's an array with ONE element: [{ en: "Full sentence.", vi: "Câu đầy đủ." }]
+   * - For `unit: 'phrase'`, it's an array with MULTIPLE elements: [{ en: "A phrase", vi: "Một cụm" }, { en: " and another.", vi: " và một cụm nữa." }]
    */
   content: PhraseMap[];
   
@@ -101,7 +101,7 @@ export interface Chapter {
   segments: Segment[];
   stats: ChapterStats;
   metadata: {
-    primaryLanguage?: string;
+    // No longer need primaryLanguage here, it's derived from Book's origin
   };
 }
 
@@ -271,7 +271,6 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isComplete?: boolean;
-  isBilingual: boolean;
 }
 
 export interface CreationFormValues {

@@ -142,15 +142,14 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
     "userId": "user_xyz_789",
     "title": { "en": "The Two Worlds", "vi": "Hai Thế Giới" },
     "author": "Chirpter AI",
-
+    "prompt": "A story about a dragon crossing into the human world.",
+    
     // --- Định dạng & Ngôn ngữ ---
-    "origin": "en-vi",         // 🛑 BẤT BIẾN: Định dạng gốc của nội dung khi được tạo. Vd: "en", "en-vi", "en-vi-ph".
-    "langs": ["en", "vi"],     // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có trong dữ liệu. Sẽ được cập nhật nếu người dùng dịch thêm.
-    "isBilingual": true,
-
+    "origin": "en-vi",         // 🛑 BẤT BIẾN: Định dạng gốc khi tạo sách. Ví dụ: "en", "en-vi", "en-vi-ph".
+    "langs": ["en", "vi"],     // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có. Sẽ được cập nhật nếu người dùng dịch thêm.
+    
     // --- Phân loại & Tìm kiếm ---
     "tags": ["fantasy", "adventure"],
-    "prompt": "A story about a dragon crossing into the human world.",
 
     // --- Trạng thái Xử lý (Quan trọng cho UI) ---
     "status": "draft",          // Trạng thái tổng thể: 'processing', 'draft', 'published'
@@ -174,7 +173,6 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
             "id": "ch_01",
             "order": 0,
             "title": { "en": "The Portal", "vi": "Cánh Cổng" },
-            "metadata": { "primaryLanguage": "en" },
             "stats": { /* ... */ },
             "segments": [
                 {
@@ -199,7 +197,6 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
             "id": "ch_02",
             "order": 1,
             "title": { "en": "First Words", "vi": "Lời Nói Đầu Tiên" },
-            "metadata": { "primaryLanguage": "en" },
             "stats": { /* ... */ },
             "segments": [
                 {

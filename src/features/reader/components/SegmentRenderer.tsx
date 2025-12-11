@@ -46,59 +46,53 @@ const renderSegmentContent = (
   const { content, metadata } = segment;
   const { unit } = metadata;
 
-  // Render as inline phrases: "Primary (Secondary)"
-  if (isBilingualMode && unit === 'phrase') {
-    return content.map((phrase, index) => {
-      const primaryText = phrase[displayLang1];
-      const secondaryText = displayLang2 !== 'none' ? phrase[displayLang2] : null;
+  // For both 'sentence' and 'phrase' modes, content is always an array.
+  // We just iterate through it.
+  return content.map((phrase, index) => {
+    const primaryText = phrase[displayLang1];
+    const secondaryText = displayLang2 !== 'none' ? phrase[displayLang2] : null;
 
-      if (!primaryText) return null;
+    if (!primaryText) return null;
 
-      const isThisPhraseBlockPlaying = isSegmentPlaying; // Highlight whole block for phrases for now
-
+    // Word-level highlighting only applies to sentence mode for now
+    const primaryContent = (isSegmentPlaying && spokenLang === displayLang1 && unit === 'sentence')
+      ? getWordHighlightContent(primaryText, speechBoundary)
+      : primaryText;
+    
+    const secondaryContent = (secondaryText && isSegmentPlaying && spokenLang === displayLang2 && unit === 'sentence')
+      ? getWordHighlightContent(secondaryText, speechBoundary)
+      : secondaryText;
+      
+    // Phrase mode: "Primary (Secondary) "
+    if (unit === 'phrase') {
       return (
-        <span key={index} className={cn("inline-block mr-1", isThisPhraseBlockPlaying && 'tts-highlight')}>
-          <span lang={displayLang1}>{primaryText}</span>
+        <span key={index} className={cn("inline-block mr-1", isSegmentPlaying && 'tts-highlight')}>
+          <span lang={displayLang1}>{primaryContent}</span>
           {secondaryText && (
-            <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryText})</span>
+            <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryContent})</span>
           )}
         </span>
       );
-    });
-  }
-  
-  // Render as sentences (either stacked bilingual or monolingual)
-  const sentenceMap = content[0]; // Sentence mode always has one item in the array
-  if (!sentenceMap) return null;
-
-  const primaryText = sentenceMap[displayLang1];
-  if (!primaryText) return null;
-
-  const primaryContent = (isSegmentPlaying && spokenLang === displayLang1)
-    ? getWordHighlightContent(primaryText, speechBoundary)
-    : primaryText;
-
-  if (isBilingualMode) {
-    const secondaryText = displayLang2 !== 'none' ? sentenceMap[displayLang2] : null;
-    const secondaryContent = (secondaryText && isSegmentPlaying && spokenLang === displayLang2) 
-      ? getWordHighlightContent(secondaryText, speechBoundary) 
-      : secondaryText;
+    }
     
+    // Sentence mode: Stacked or monolingual
+    if (isBilingualMode) {
+      return (
+        <span key={index} className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
+          <span className="block" lang={displayLang1}>{primaryContent}</span>
+          {secondaryContent && <span className="block text-muted-foreground italic text-[0.9em] mt-1" lang={displayLang2}>{secondaryContent}</span>}
+        </span>
+      );
+    }
+
+    // Default: Monolingual sentence mode
     return (
-      <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
-        <span className="block" lang={displayLang1}>{primaryContent}</span>
-        {secondaryContent && <span className="block text-muted-foreground italic text-[0.9em] mt-1" lang={displayLang2}>{secondaryContent}</span>}
+      <span key={index} className={cn(isSegmentPlaying && 'tts-highlight')}>
+        <span lang={displayLang1}>{primaryContent}</span>
+        {' '}
       </span>
     );
-  }
-
-  // Default: Monolingual sentence mode
-  return (
-    <span className={cn(isSegmentPlaying && 'tts-highlight')}>
-      <span lang={displayLang1}>{primaryContent}</span>
-      {' '}
-    </span>
-  );
+  });
 };
 
 
@@ -122,7 +116,6 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     case 'heading':
       return (
         <h3 data-segment-id={segment.id} className={cn(
-          isSegmentPlaying && 'tts-highlight', 
           "text-2xl font-bold mt-2 mb-2 font-headline", 
           "dark:text-gray-200"
         )}>
@@ -132,14 +125,14 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     
     case 'blockquote':
         return (
-            <blockquote data-segment-id={segment.id} className={cn(isSegmentPlaying && 'tts-highlight', "my-4 w-full")}>
+            <blockquote data-segment-id={segment.id} className={cn("my-4 w-full")}>
                 {renderMainContent()}
             </blockquote>
         );
     
     case 'list_item':
         return (
-            <li data-segment-id={segment.id} className={cn(isSegmentPlaying && 'tts-highlight', 'w-full')}>
+            <li data-segment-id={segment.id} className={cn('w-full')}>
                 {renderMainContent()}
             </li>
         );
