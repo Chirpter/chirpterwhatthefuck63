@@ -1,4 +1,4 @@
-// src/services/MarkdownParser.ts
+// src/services/MarkdownParser.ts - FIXED PHRASE MODE
 import type { Segment, Chapter, MultilingualContent, PhraseMap, Book, Piece, LibraryItem } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
@@ -7,7 +7,6 @@ const PHRASE_BOUNDARIES = /[,;\-:]/g;
 
 function splitSentenceIntoPhrases(sentence: string): string[] {
   const chunks: string[] = [];
-  let currentChunk = '';
   let lastIndex = 0;
 
   const matches = [...sentence.matchAll(PHRASE_BOUNDARIES)];
@@ -18,7 +17,7 @@ function splitSentenceIntoPhrases(sentence: string): string[] {
 
   matches.forEach((match) => {
     const index = match.index!;
-    currentChunk = sentence.slice(lastIndex, index + 1);
+    const currentChunk = sentence.slice(lastIndex, index + 1);
     chunks.push(currentChunk);
     lastIndex = index + 1;
   });
@@ -30,23 +29,24 @@ function splitSentenceIntoPhrases(sentence: string): string[] {
   return chunks.filter(c => c.trim().length > 0);
 }
 
-function pairPhrases(primaryPhrases: string[], secondaryPhrases: string[]): PhraseMap[] {
+function pairPhrases(primaryPhrases: string[], secondaryPhrases: string[], primaryLang: string, secondaryLang: string): PhraseMap[] {
   const maxLength = Math.max(primaryPhrases.length, secondaryPhrases.length);
   const pairedPhrases: PhraseMap[] = [];
   
   for (let i = 0; i < maxLength; i++) {
     const phraseMap: PhraseMap = {};
-    const primaryPhrase = primaryPhrases[i];
-    const secondaryPhrase = secondaryPhrases[i];
     
-    if (primaryPhrase !== undefined) {
-      phraseMap[primaryPhrases[0].split(':')[0] || 'primary'] = primaryPhrase.trim();
+    if (i < primaryPhrases.length) {
+      phraseMap[primaryLang] = primaryPhrases[i].trim();
     }
-    if (secondaryPhrase !== undefined) {
-      phraseMap[secondaryPhrases[0].split(':')[0] || 'secondary'] = secondaryPhrase.trim();
+    if (i < secondaryPhrases.length) {
+      phraseMap[secondaryLang] = secondaryPhrases[i].trim();
     }
     
-    pairedPhrases.push(phraseMap);
+    // ✅ FIX: Only add non-empty phrase maps
+    if (Object.keys(phraseMap).length > 0) {
+      pairedPhrases.push(phraseMap);
+    }
   }
   
   return pairedPhrases;
@@ -63,7 +63,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
   const segments: Segment[] = [];
   let segmentOrder = 0;
   
-  paragraphs.forEach((paragraph, paraIndex) => {
+  paragraphs.forEach((paragraph) => {
     const trimmedPara = paragraph.trim();
     if (!trimmedPara) return;
     
@@ -77,6 +77,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
       const isDialog = /^["']/.test(trimmedSentence);
       
       if (!isBilingual) {
+        // ✅ Monolingual: content field is REQUIRED
         segments.push({
           id: generateLocalUniqueId(),
           order: segmentOrder++,
@@ -90,28 +91,39 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
         const primaryText = parts[0]?.trim() || '';
         const secondaryText = parts[1]?.trim() || '';
         
-        const content: MultilingualContent = {
-          [primaryLang]: primaryText,
-          [secondaryLang]: secondaryText
-        };
-        
-        let phrases: PhraseMap[] | undefined;
-        
-        if (isPhraseMode && primaryText && secondaryText) {
-          const primaryPhrases = splitSentenceIntoPhrases(primaryText);
-          const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
-          phrases = pairPhrases(primaryPhrases, secondaryPhrases);
+        if (!isPhraseMode) {
+          // ✅ Bi-Sentence: content field is REQUIRED, phrases is undefined
+          const content: MultilingualContent = {};
+          if (primaryText) content[primaryLang] = primaryText;
+          if (secondaryText) content[secondaryLang] = secondaryText;
+          
+          segments.push({
+            id: generateLocalUniqueId(),
+            order: segmentOrder++,
+            type: isDialog ? 'dialog' : 'text',
+            content,
+            phrases: undefined,
+            formatting: {},
+            metadata: { isNewPara }
+          });
+        } else {
+          // ✅ Bi-Phrase: phrases field is REQUIRED, content is undefined
+          if (primaryText && secondaryText) {
+            const primaryPhrases = splitSentenceIntoPhrases(primaryText);
+            const secondaryPhrases = splitSentenceIntoPhrases(secondaryText);
+            const phrases = pairPhrases(primaryPhrases, secondaryPhrases, primaryLang, secondaryLang);
+            
+            segments.push({
+              id: generateLocalUniqueId(),
+              order: segmentOrder++,
+              type: isDialog ? 'dialog' : 'text',
+              content: undefined as any, // ✅ FIX: Must explicitly be undefined for phrase mode
+              phrases,
+              formatting: {},
+              metadata: { isNewPara }
+            });
+          }
         }
-        
-        segments.push({
-          id: generateLocalUniqueId(),
-          order: segmentOrder++,
-          type: isDialog ? 'dialog' : 'text',
-          content: isPhraseMode ? undefined : content,
-          phrases: phrases,
-          formatting: {},
-          metadata: { isNewPara }
-        });
       }
     });
   });
@@ -127,10 +139,12 @@ export function parseBookMarkdown(markdown: string, origin: string): { title: Mu
   let currentChapter: Partial<Chapter> | null = null;
   const chapters: Chapter[] = [];
   let contentBuffer = '';
+  let foundTitle = false;
   
   for (const line of lines) {
     const trimmedLine = line.trim();
     
+    // Extract title from H1
     if (trimmedLine.startsWith('# ')) {
       const titleText = trimmedLine.substring(2).trim();
       const titleParts = titleText.split(/\s+\/\s+/);
@@ -138,10 +152,13 @@ export function parseBookMarkdown(markdown: string, origin: string): { title: Mu
       if (secondaryLang && titleParts[1]) {
         title[secondaryLang] = titleParts[1].trim();
       }
+      foundTitle = true;
       continue;
     }
     
+    // Extract chapter from H2
     if (trimmedLine.startsWith('## ')) {
+      // Save previous chapter if exists
       if (currentChapter) {
         const segments = parseMarkdownToSegments(contentBuffer, origin);
         currentChapter.segments = segments;
@@ -177,11 +194,13 @@ export function parseBookMarkdown(markdown: string, origin: string): { title: Mu
       continue;
     }
     
+    // Accumulate content for current chapter
     if (currentChapter) {
       contentBuffer += line + '\n';
     }
   }
   
+  // Save last chapter
   if (currentChapter) {
     const segments = parseMarkdownToSegments(contentBuffer, origin);
     currentChapter.segments = segments;

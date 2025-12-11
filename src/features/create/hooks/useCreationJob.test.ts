@@ -1,7 +1,7 @@
 // src/features/create/hooks/useCreationJob.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useCreationJob } from '../../useCreationJob'; // Fixed path
+import { useCreationJob } from './useCreationJob'; // Fixed path
 import type { User } from '@/lib/types';
 import { doc, onSnapshot } from 'firebase/firestore';
 
@@ -19,7 +19,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) => {
-      if (params) return `${key}(${JSON.stringify(params)})`;
+      if (params) return `${'${key}'}(${'${JSON.stringify(params)}'})`;
       return key;
     },
     i18n: { language: 'en' },

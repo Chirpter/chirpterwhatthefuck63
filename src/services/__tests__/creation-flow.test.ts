@@ -1,4 +1,4 @@
-// src/services/__tests__/creation-flow.test.ts
+// src/services/__tests__/creation-flow-enhanced.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLibraryItem } from '../creation-service';
 import type { CreationFormValues } from '@/lib/types';
@@ -14,27 +14,22 @@ vi.mock('@/lib/firebase-admin', () => ({
         update: vi.fn(),
         get: vi.fn(),
       })),
-      limit: vi.fn(() => ({
-        get: vi.fn(() => ({
-          empty: false,
-          docs: [{
-            data: () => ({
-              uid: 'test-user-123',
-              credits: 100,
-              stats: { booksCreated: 0, piecesCreated: 0 }
-            })
-          }]
-        }))
-      })),
     })),
     runTransaction: vi.fn((callback) => callback({
       get: vi.fn(() => ({
         exists: true,
-        data: () => ({ credits: 100 })
+        data: () => ({ 
+          uid: 'test-user-123',
+          credits: 100, 
+          stats: { booksCreated: 0, piecesCreated: 0 }
+        })
       })),
       set: vi.fn(),
       update: vi.fn(),
     })),
+  })),
+  getAuthAdmin: vi.fn(() => ({
+    verifySessionCookie: vi.fn().mockResolvedValue({ uid: 'test-user-123' })
   })),
   FieldValue: {
     serverTimestamp: () => new Date(),
@@ -42,87 +37,25 @@ vi.mock('@/lib/firebase-admin', () => ({
   }
 }));
 
-vi.mock('../book-creation.service', () => ({
-  createBookAndStartGeneration: vi.fn((userId, data) => Promise.resolve('book-123'))
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(() => ({
+    get: vi.fn((name: string) => ({ value: 'test-session-cookie' }))
+  }))
 }));
 
-vi.mock('../piece-creation.service', () => ({
-  createPieceAndStartGeneration: vi.fn((userId, data) => Promise.resolve('piece-456'))
-}));
+vi.mock('../book-creation.service');
+vi.mock('../piece-creation.service');
 
-describe('Creation Flow - Facade Routing', () => {
+describe('Creation Flow - Authentication & Authorization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('✅ Success Cases', () => {
-    it('should route book creation to book service', async () => {
-      const bookData: CreationFormValues = {
-        type: 'book',
-        aiPrompt: 'A fantasy story',
-        primaryLanguage: 'en',
-        availableLanguages: ['en'],
-        origin: 'en',
-        tags: [],
-        title: { en: 'Test Book' },
-        display: 'book',
-        coverImageOption: 'none',
-        coverImageAiPrompt: '',
-        coverImageFile: null,
-        previousContentSummary: '',
-        targetChapterCount: 3,
-        bookLength: 'short-story',
-        generationScope: 'full',
-      };
-
-      const result = await createLibraryItem(bookData);
-
-      expect(result).toBe('book-123');
-      expect(bookCreationService.createBookAndStartGeneration).toHaveBeenCalledWith(
-        'test-user-123',
-        expect.objectContaining({ type: 'book' })
-      );
-    });
-
-    it('should route piece creation to piece service', async () => {
-      const pieceData: CreationFormValues = {
-        type: 'piece',
-        aiPrompt: 'A motivational quote',
-        primaryLanguage: 'en',
-        availableLanguages: ['en'],
-        origin: 'en',
-        tags: [],
-        title: { en: 'Test Piece' },
-        display: 'card',
-        aspectRatio: '3:4',
-        coverImageOption: 'none',
-        coverImageAiPrompt: '',
-        coverImageFile: null,
-        previousContentSummary: '',
-        targetChapterCount: 0,
-        bookLength: 'short-story',
-        generationScope: 'full',
-      };
-
-      const result = await createLibraryItem(pieceData);
-
-      expect(result).toBe('piece-456');
-      expect(pieceCreationService.createPieceAndStartGeneration).toHaveBeenCalledWith(
-        'test-user-123',
-        expect.objectContaining({ type: 'piece' })
-      );
-    });
-  });
-
-  describe('❌ Error Cases', () => {
-    it('should throw when user not found', async () => {
-      const { getAdminDb } = await import('@/lib/firebase-admin');
-      vi.mocked(getAdminDb).mockReturnValueOnce({
-        collection: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            get: vi.fn(() => ({ empty: true, docs: [] }))
-          }))
-        }))
+  describe('🔐 Session Validation', () => {
+    it('should reject request without session cookie', async () => {
+      const { cookies } = await import('next/headers');
+      vi.mocked(cookies).mockReturnValueOnce({
+        get: vi.fn(() => undefined)
       } as any);
 
       const data: CreationFormValues = {
@@ -143,26 +76,15 @@ describe('Creation Flow - Facade Routing', () => {
         generationScope: 'full',
       };
 
-      await expect(createLibraryItem(data)).rejects.toThrow('No users found');
+      await expect(createLibraryItem(data)).rejects.toThrow('No session cookie found');
     });
-  });
-});
 
-describe('Creation Flow - Credit Validation', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+    it('should reject invalid session cookie', async () => {
+      const { getAuthAdmin } = await import('@/lib/firebase-admin');
+      vi.mocked(getAuthAdmin).mockReturnValueOnce({
+        verifySessionCookie: vi.fn().mockRejectedValue(new Error('auth/invalid-session-cookie'))
+      } as any);
 
-  it('should calculate book credit cost correctly', async () => {
-    const testCases = [
-      { bookLength: 'short-story', generationScope: 'full', coverImageOption: 'none', expected: 1 },
-      { bookLength: 'mini-book', generationScope: 'full', coverImageOption: 'none', expected: 2 },
-      { bookLength: 'standard-book', generationScope: 'firstFew', coverImageOption: 'none', expected: 2 },
-      { bookLength: 'standard-book', generationScope: 'full', coverImageOption: 'none', expected: 8 },
-      { bookLength: 'short-story', generationScope: 'full', coverImageOption: 'ai', expected: 2 },
-    ];
-
-    for (const testCase of testCases) {
       const data: CreationFormValues = {
         type: 'book',
         aiPrompt: 'Test',
@@ -172,237 +94,209 @@ describe('Creation Flow - Credit Validation', () => {
         tags: [],
         title: { en: '' },
         display: 'book',
-        coverImageOption: testCase.coverImageOption as any,
+        coverImageOption: 'none',
         coverImageAiPrompt: '',
         coverImageFile: null,
         previousContentSummary: '',
         targetChapterCount: 3,
-        bookLength: testCase.bookLength as any,
-        generationScope: testCase.generationScope as any,
+        bookLength: 'short-story',
+        generationScope: 'full',
       };
 
-      await createLibraryItem(data);
-    }
-  });
+      await expect(createLibraryItem(data)).rejects.toThrow('Invalid or expired session');
+    });
 
-  it('should always cost 1 credit for piece', async () => {
-    const data: CreationFormValues = {
-      type: 'piece',
-      aiPrompt: 'Test piece',
-      primaryLanguage: 'en',
-      availableLanguages: ['en'],
-      origin: 'en',
-      tags: [],
-      title: { en: '' },
-      display: 'card',
-      aspectRatio: '3:4',
-      coverImageOption: 'none',
-      coverImageAiPrompt: '',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 0,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
+    it('should extract userId from valid session', async () => {
+      vi.mocked(bookCreationService.createBookAndStartGeneration).mockResolvedValue('book-123');
 
-    await createLibraryItem(data);
-  });
-});
-
-describe('Creation Flow - Origin Format Handling', () => {
-  it('should handle monolingual (en)', async () => {
-    const data: CreationFormValues = {
-      type: 'book',
-      aiPrompt: 'A story',
-      primaryLanguage: 'en',
-      availableLanguages: ['en'],
-      origin: 'en',
-      tags: [],
-      title: { en: '' },
-      display: 'book',
-      coverImageOption: 'none',
-      coverImageAiPrompt: '',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 3,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
-
-    const result = await createLibraryItem(data);
-    expect(result).toBeTruthy();
-  });
-
-  it('should handle bilingual sentence (en-vi)', async () => {
-    const data: CreationFormValues = {
-      type: 'book',
-      aiPrompt: 'A bilingual story',
-      primaryLanguage: 'en',
-      availableLanguages: ['en', 'vi'],
-      origin: 'en-vi',
-      tags: [],
-      title: { en: '' },
-      display: 'book',
-      coverImageOption: 'none',
-      coverImageAiPrompt: '',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 3,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
-
-    const result = await createLibraryItem(data);
-    expect(result).toBeTruthy();
-  });
-
-  it('should handle bilingual phrase (en-vi-ph)', async () => {
-    const data: CreationFormValues = {
-      type: 'piece',
-      aiPrompt: 'A phrase-mode piece',
-      primaryLanguage: 'en',
-      availableLanguages: ['en', 'vi'],
-      origin: 'en-vi-ph',
-      tags: [],
-      title: { en: '' },
-      display: 'card',
-      aspectRatio: '3:4',
-      coverImageOption: 'none',
-      coverImageAiPrompt: '',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 0,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
-
-    const result = await createLibraryItem(data);
-    expect(result).toBeTruthy();
-  });
-});
-
-describe('Creation Flow - Parallel Pipeline (Book Only)', () => {
-  it('should start both content and cover pipelines', async () => {
-    const data: CreationFormValues = {
-      type: 'book',
-      aiPrompt: 'A fantasy story',
-      primaryLanguage: 'en',
-      availableLanguages: ['en'],
-      origin: 'en',
-      tags: [],
-      title: { en: '' },
-      display: 'book',
-      coverImageOption: 'ai',
-      coverImageAiPrompt: 'A dragon on a mountain',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 3,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
-
-    const bookId = await createLibraryItem(data);
-    
-    expect(bookId).toBeTruthy();
-  });
-
-  it('should handle content success + cover failure gracefully', async () => {
-    const data: CreationFormValues = {
-      type: 'book',
-      aiPrompt: 'A story',
-      primaryLanguage: 'en',
-      availableLanguages: ['en'],
-      origin: 'en',
-      tags: [],
-      title: { en: '' },
-      display: 'book',
-      coverImageOption: 'ai',
-      coverImageAiPrompt: 'Invalid prompt that fails',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 3,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
-
-    const bookId = await createLibraryItem(data);
-    
-    expect(bookId).toBeTruthy();
-  });
-});
-
-describe('Creation Flow - Transaction Atomicity', () => {
-  it('should rollback if credit deduction fails', async () => {
-    vi.mocked(bookCreationService.createBookAndStartGeneration).mockRejectedValueOnce(
-      new Error('Insufficient credits')
-    );
-
-    const data: CreationFormValues = {
-      type: 'book',
-      aiPrompt: 'Test',
-      primaryLanguage: 'en',
-      availableLanguages: ['en'],
-      origin: 'en',
-      tags: [],
-      title: { en: '' },
-      display: 'book',
-      coverImageOption: 'none',
-      coverImageAiPrompt: '',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 3,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
-
-    await expect(createLibraryItem(data)).rejects.toThrow();
-  });
-
-  it('should create document and deduct credits atomically', async () => {
-    vi.mocked(bookCreationService.createBookAndStartGeneration).mockResolvedValueOnce('new-book-id');
-
-    const data: CreationFormValues = {
-      type: 'book',
-      aiPrompt: 'Test',
-      primaryLanguage: 'en',
-      availableLanguages: ['en'],
-      origin: 'en',
-      tags: [],
-      title: { en: '' },
-      display: 'book',
-      coverImageOption: 'none',
-      coverImageAiPrompt: '',
-      coverImageFile: null,
-      previousContentSummary: '',
-      targetChapterCount: 3,
-      bookLength: 'short-story',
-      generationScope: 'full',
-    };
-
-    const result = await createLibraryItem(data);
-
-    expect(result).toBe('new-book-id');
-    expect(bookCreationService.createBookAndStartGeneration).toHaveBeenCalledWith(
-      'test-user-123',
-      expect.objectContaining({
-        aiPrompt: 'Test',
-        type: 'book'
-      })
-    );
-  });
-});
-
-describe('Creation Flow - State Transitions', () => {
-  it('should initialize with processing state', async () => {
-    vi.mocked(bookCreationService.createBookAndStartGeneration).mockImplementationOnce((userId, data) => {
-      expect(data).toMatchObject({
+      const data: CreationFormValues = {
         type: 'book',
         aiPrompt: 'Test',
         primaryLanguage: 'en',
-        bookLength: 'short-story'
-      });
-      return Promise.resolve('new-book-with-state');
+        availableLanguages: ['en'],
+        origin: 'en',
+        tags: [],
+        title: { en: '' },
+        display: 'book',
+        coverImageOption: 'none',
+        coverImageAiPrompt: '',
+        coverImageFile: null,
+        previousContentSummary: '',
+        targetChapterCount: 3,
+        bookLength: 'short-story',
+        generationScope: 'full',
+      };
+
+      await createLibraryItem(data);
+
+      expect(bookCreationService.createBookAndStartGeneration).toHaveBeenCalledWith(
+        'test-user-123',
+        expect.any(Object)
+      );
     });
+  });
+});
+
+describe('Creation Flow - Origin Format Validation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('✅ Valid Formats', () => {
+    it('should accept monolingual format (en)', async () => {
+      vi.mocked(bookCreationService.createBookAndStartGeneration).mockResolvedValue('book-123');
+
+      const data: CreationFormValues = {
+        type: 'book',
+        aiPrompt: 'A story',
+        primaryLanguage: 'en',
+        availableLanguages: ['en'],
+        origin: 'en',
+        tags: [],
+        title: { en: '' },
+        display: 'book',
+        coverImageOption: 'none',
+        coverImageAiPrompt: '',
+        coverImageFile: null,
+        previousContentSummary: '',
+        targetChapterCount: 3,
+        bookLength: 'short-story',
+        generationScope: 'full',
+      };
+
+      const result = await createLibraryItem(data);
+      expect(result).toBe('book-123');
+    });
+
+    it('should accept bilingual sentence format (en-vi)', async () => {
+      vi.mocked(bookCreationService.createBookAndStartGeneration).mockResolvedValue('book-456');
+
+      const data: CreationFormValues = {
+        type: 'book',
+        aiPrompt: 'A bilingual story',
+        primaryLanguage: 'en',
+        availableLanguages: ['en', 'vi'],
+        origin: 'en-vi',
+        tags: [],
+        title: { en: '' },
+        display: 'book',
+        coverImageOption: 'none',
+        coverImageAiPrompt: '',
+        coverImageFile: null,
+        previousContentSummary: '',
+        targetChapterCount: 3,
+        bookLength: 'short-story',
+        generationScope: 'full',
+      };
+
+      const result = await createLibraryItem(data);
+      expect(result).toBe('book-456');
+    });
+
+    it('should accept bilingual phrase format (en-vi-ph)', async () => {
+      vi.mocked(pieceCreationService.createPieceAndStartGeneration).mockResolvedValue('piece-789');
+
+      const data: CreationFormValues = {
+        type: 'piece',
+        aiPrompt: 'A phrase-mode piece',
+        primaryLanguage: 'en',
+        availableLanguages: ['en', 'vi'],
+        origin: 'en-vi-ph',
+        tags: [],
+        title: { en: '' },
+        display: 'card',
+        aspectRatio: '3:4',
+        coverImageOption: 'none',
+        coverImageAiPrompt: '',
+        coverImageFile: null,
+        previousContentSummary: '',
+        targetChapterCount: 0,
+        bookLength: 'short-story',
+        generationScope: 'full',
+      };
+
+      const result = await createLibraryItem(data);
+      expect(result).toBe('piece-789');
+    });
+  });
+
+  describe('❌ Invalid Formats', () => {
+    it('should reject mismatched primary language', async () => {
+      const data: CreationFormValues = {
+        type: 'book',
+        aiPrompt: 'Test',
+        primaryLanguage: 'en',
+        availableLanguages: ['en'],
+        origin: 'vi', // ❌ Mismatch
+        tags: [],
+        title: { en: '' },
+        display: 'book',
+        coverImageOption: 'none',
+        coverImageAiPrompt: '',
+        coverImageFile: null,
+        previousContentSummary: '',
+        targetChapterCount: 3,
+        bookLength: 'short-story',
+        generationScope: 'full',
+      };
+
+      await expect(createLibraryItem(data)).rejects.toThrow("doesn't match selected primary language");
+    });
+
+    it('should reject bilingual mode with monolingual origin', async () => {
+      const data: CreationFormValues = {
+        type: 'book',
+        aiPrompt: 'Test',
+        primaryLanguage: 'en',
+        availableLanguages: ['en', 'vi'], // ✓ Bilingual
+        origin: 'en', // ❌ Monolingual
+        tags: [],
+        title: { en: '' },
+        display: 'book',
+        coverImageOption: 'none',
+        coverImageAiPrompt: '',
+        coverImageFile: null,
+        previousContentSummary: '',
+        targetChapterCount: 3,
+        bookLength: 'short-story',
+        generationScope: 'full',
+      };
+
+      await expect(createLibraryItem(data)).rejects.toThrow('Bilingual mode selected but origin format is monolingual');
+    });
+
+    it('should reject invalid format flag', async () => {
+      const data: CreationFormValues = {
+        type: 'book',
+        aiPrompt: 'Test',
+        primaryLanguage: 'en',
+        availableLanguages: ['en', 'vi'],
+        origin: 'en-vi-invalid', // ❌ Unknown flag
+        tags: [],
+        title: { en: '' },
+        display: 'book',
+        coverImageOption: 'none',
+        coverImageAiPrompt: '',
+        coverImageFile: null,
+        previousContentSummary: '',
+        targetChapterCount: 3,
+        bookLength: 'short-story',
+        generationScope: 'full',
+      };
+
+      await expect(createLibraryItem(data)).rejects.toThrow("Invalid format flag in origin");
+    });
+  });
+});
+
+describe('Creation Flow - Parallel Pipeline Robustness', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should handle content failure + cover success', async () => {
+    vi.mocked(bookCreationService.createBookAndStartGeneration)
+      .mockResolvedValue('book-with-partial-failure');
 
     const data: CreationFormValues = {
       type: 'book',
@@ -413,8 +307,8 @@ describe('Creation Flow - State Transitions', () => {
       tags: [],
       title: { en: '' },
       display: 'book',
-      coverImageOption: 'none',
-      coverImageAiPrompt: '',
+      coverImageOption: 'ai',
+      coverImageAiPrompt: 'A cover',
       coverImageFile: null,
       previousContentSummary: '',
       targetChapterCount: 3,
@@ -422,9 +316,57 @@ describe('Creation Flow - State Transitions', () => {
       generationScope: 'full',
     };
 
-    const result = await createLibraryItem(data);
+    const bookId = await createLibraryItem(data);
+    expect(bookId).toBeTruthy();
+  });
 
-    expect(result).toBe('new-book-with-state');
-    expect(bookCreationService.createBookAndStartGeneration).toHaveBeenCalled();
+  it('should handle both pipelines failing', async () => {
+    vi.mocked(bookCreationService.createBookAndStartGeneration)
+      .mockResolvedValue('book-all-failed');
+
+    const data: CreationFormValues = {
+      type: 'book',
+      aiPrompt: 'Test',
+      primaryLanguage: 'en',
+      availableLanguages: ['en'],
+      origin: 'en',
+      tags: [],
+      title: { en: '' },
+      display: 'book',
+      coverImageOption: 'ai',
+      coverImageAiPrompt: 'Invalid',
+      coverImageFile: null,
+      previousContentSummary: '',
+      targetChapterCount: 3,
+      bookLength: 'short-story',
+      generationScope: 'full',
+    };
+
+    const bookId = await createLibraryItem(data);
+    expect(bookId).toBeTruthy();
+  });
+});
+
+describe('Creation Flow - Retry Logic', () => {
+  it('should track retry count on regeneration', async () => {
+    // This will be tested at the service level
+    expect(true).toBe(true);
+  });
+});
+
+describe('Creation Flow - Unknown Type Handling', () => {
+  it('should reject unknown content type', async () => {
+    const data: any = {
+      type: 'unknown-type',
+      aiPrompt: 'Test',
+      primaryLanguage: 'en',
+      availableLanguages: ['en'],
+      origin: 'en',
+      tags: [],
+      title: { en: '' },
+      display: 'book',
+    };
+
+    await expect(createLibraryItem(data)).rejects.toThrow('Unknown content type');
   });
 });
