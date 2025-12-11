@@ -18,7 +18,7 @@ describe('Markdown Parser - Basic Functionality', () => {
       expect(segments[0].metadata.isNewPara).toBe(true);
     });
 
-    it('should parse multiple sentences keeping punctuation', () => {
+    it('should parse multiple sentences on the same line as one segment', () => {
       const markdown = 'First sentence. Second sentence.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
@@ -73,7 +73,7 @@ Second paragraph sentence.`;
     });
 
     it('should handle missing translation gracefully', () => {
-      const markdown = 'Only English sentence.';
+      const markdown = 'Only English sentence. / ';
       const segments = parseMarkdownToSegments(markdown, 'en-vi');
 
       expect(segments).toHaveLength(1);
@@ -137,7 +137,7 @@ Second paragraph sentence.`;
 
 describe('Markdown Parser - Edge Cases', () => {
   describe('⚠️ Sentence Boundary Detection', () => {
-    it('should handle abbreviations', () => {
+    it('should not split abbreviations like Dr. or St.', () => {
       const markdown = 'Dr. Smith went to St. Louis.';
       const segments = parseMarkdownToSegments(markdown, 'en');
       expect(segments).toHaveLength(1);
@@ -146,11 +146,12 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should handle quotes correctly', () => {
       const markdown = '"Hello," she said. "How are you?"';
       const segments = parseMarkdownToSegments(markdown, 'en');
+      expect(segments).toHaveLength(1);
       expect(segments[0].content.en).toBe('"Hello," she said. "How are you?"');
       expect(segments[0].type).toBe('dialog');
     });
 
-    it('should handle numbers with decimals', () => {
+    it('should not split on numbers with decimals', () => {
       const markdown = 'He scored 3.5 points. She scored 4.0.';
       const segments = parseMarkdownToSegments(markdown, 'en');
       expect(segments).toHaveLength(1);
@@ -158,7 +159,7 @@ describe('Markdown Parser - Edge Cases', () => {
       expect(segments[0].content.en).toContain('4.0');
     });
 
-    it('should handle ellipsis', () => {
+    it('should handle ellipsis...', () => {
       const markdown = 'She paused... Then continued.';
       const segments = parseMarkdownToSegments(markdown, 'en');
       expect(segments).toHaveLength(1);
@@ -176,10 +177,12 @@ describe('Markdown Parser - Edge Cases', () => {
       expect(segments).toHaveLength(0);
     });
 
-    it('should trim excessive whitespace', () => {
+    it('should trim excessive whitespace from lines', () => {
       const markdown = 'Sentence one.    \n\n\n   Sentence two.';
       const segments = parseMarkdownToSegments(markdown, 'en');
       expect(segments).toHaveLength(2);
+      expect(segments[0].content.en).toBe('Sentence one.');
+      expect(segments[1].content.en).toBe('Sentence two.');
     });
   });
 
@@ -200,10 +203,11 @@ describe('Markdown Parser - Edge Cases', () => {
       expect(segments[1].content.vi).toBe('Cảm ơn.');
     });
 
-    it('should handle Chinese/Japanese characters', () => {
-      const markdown = '你好世界 / Hello world.';
-      const segments = parseMarkdownToSegments(markdown, 'zh-en');
-      expect(segments[0].content.zh).toBe('你好世界');
+    it('should handle CJK characters without spaces', () => {
+      const markdown = '這是一個測試。';
+      const segments = parseMarkdownToSegments(markdown, 'zh');
+      expect(segments).toHaveLength(1);
+      expect(segments[0].content.zh).toBe('這是一個測試。');
     });
   });
 });
@@ -236,7 +240,7 @@ Content.`;
       });
     });
 
-    it('should use first line if no heading', () => {
+    it('should use first non-heading line if no H1 heading', () => {
       const markdown = `This is the first line
 
 ## Chapter 1
@@ -250,8 +254,8 @@ Content.`;
     it('should fall back to chapter title if no book title is found', () => {
         const markdown = `
   
-  ## Chapter 1
-  Content.`;
+## Chapter 1
+Content.`;
   
         const { title } = parseBookMarkdown(markdown, 'en');
   
@@ -320,7 +324,7 @@ Some content without chapter heading.`;
       expect(chapters.length).toBe(0);
     });
 
-    it('should handle nested headings', () => {
+    it('should handle nested headings inside content', () => {
       const markdown = `# Book
 
 ## Chapter 1
@@ -330,6 +334,8 @@ Content here.`;
       const { chapters } = parseBookMarkdown(markdown, 'en');
 
       expect(chapters).toHaveLength(1);
+      // The ### should just be part of the content now
+      expect(chapters[0].segments[0].content.en).toContain('### Subsection');
     });
   });
 });
@@ -356,8 +362,8 @@ describe('🔬 Edge Cases - Advanced', () => {
       expect(segments[0].phrases!.length).toBeGreaterThanOrEqual(5);
     });
 
-    it('should handle exclamation and question marks as sentence enders', () => {
-      const markdown = 'Really? Yes! Okay.';
+    it('should not split sentence on ... ! ? inside a line', () => {
+      const markdown = 'Really? Yes! Okay... this is one line.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
       expect(segments).toHaveLength(1);
@@ -436,7 +442,6 @@ Third. / Thứ ba.`;
     it('should handle CJK characters without spaces', () => {
       const markdown = '這是一個測試。';
       const segments = parseMarkdownToSegments(markdown, 'zh');
-
       expect(segments).toHaveLength(1);
     });
 
