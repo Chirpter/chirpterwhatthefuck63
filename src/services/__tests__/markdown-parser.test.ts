@@ -22,9 +22,8 @@ describe('Markdown Parser - Basic Functionality', () => {
       const markdown = 'First sentence. Second sentence.';
       const segments = parseMarkdownToSegments(markdown, 'en');
 
-      expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('First sentence.');
-      expect(segments[1].content.en).toBe('Second sentence.');
+      expect(segments).toHaveLength(1);
+      expect(segments[0].content.en).toBe('First sentence. Second sentence.');
     });
 
     it('should detect dialogue', () => {
@@ -145,28 +144,27 @@ describe('Markdown Parser - Edge Cases', () => {
     it('should handle quotes correctly', () => {
       const markdown = '"Hello," she said. "How are you?"';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(2);
-      expect(segments[0].content.en).toBe('"Hello," she said.');
-      expect(segments[1].content.en).toBe('"How are you?"');
+      expect(segments).toHaveLength(1);
+      expect(segments[0].content.en).toBe('"Hello," she said. "How are you?"');
       expect(segments[0].type).toBe('dialog');
     });
 
     it('should handle numbers with decimals', () => {
       const markdown = 'He scored 3.5 points. She scored 4.0.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(2);
+      expect(segments).toHaveLength(1);
       expect(segments[0].content.en).toContain('3.5');
-      expect(segments[1].content.en).toContain('4.0');
+      expect(segments[0].content.en).toContain('4.0');
     });
 
     it('should handle ellipsis...', () => {
       const markdown = 'She paused... Then continued.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(2);
+      expect(segments).toHaveLength(1);
     });
   });
 
-  describe('⚠️ Empty and Whitespace', () => {
+  describe('⚠️ Whitespace Handling', () => {
     it('should handle empty markdown', () => {
       const segments = parseMarkdownToSegments('', 'en');
       expect(segments).toHaveLength(0);
@@ -362,7 +360,7 @@ describe('🔬 Edge Cases - Advanced', () => {
     it('should not split sentence on ... ! ? inside a line', () => {
       const markdown = 'Really? Yes! Okay... this is one line.';
       const segments = parseMarkdownToSegments(markdown, 'en');
-      expect(segments).toHaveLength(3); // "Really?", "Yes!", "Okay... this is one line."
+      expect(segments).toHaveLength(1);
     });
   });
 
