@@ -1,4 +1,4 @@
-// src/services/MarkdownParser.ts - REFACTORED to handle phrase splitting from sentence content
+// src/services/MarkdownParser.ts - REFACTORED with robust bilingual parsing
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -16,10 +16,66 @@ function cleanText(text: string): string {
  */
 function splitSentenceIntoPhrases(sentence: string): string[] {
   if (!sentence) return [];
-  // Split by comma or semicolon, but keep the delimiter attached to the preceding part.
   const parts = sentence.match(/[^,;]+[,;]?/g) || [];
   return parts.map(p => p.trim()).filter(p => p.length > 0);
 }
+
+/**
+ * Extracts bilingual text pairs from a line using a simpler, more robust state-machine-like approach.
+ * Format: "English part. {Vietnamese part.} More English."
+ * This function correctly handles cases without spaces after the closing brace.
+ * @param line The string line to parse.
+ * @param primaryLang The code for the primary language.
+ * @param secondaryLang The code for the secondary language.
+ * @returns An array of MultilingualContent objects, each representing a segment.
+ */
+function extractBilingualTextPairs(line: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
+  const pairs: Array<MultilingualContent> = [];
+  if (!secondaryLang) {
+    if (line.trim()) {
+      pairs.push({ [primaryLang]: line.trim() });
+    }
+    return pairs;
+  }
+  
+  let currentIndex = 0;
+  while (currentIndex < line.length) {
+    const openBraceIndex = line.indexOf('{', currentIndex);
+    
+    // Case 1: No more opening braces, the rest of the line is primary text.
+    if (openBraceIndex === -1) {
+      const primaryText = line.substring(currentIndex).trim();
+      if (primaryText) {
+        pairs.push({ [primaryLang]: primaryText });
+      }
+      break;
+    }
+    
+    const closeBraceIndex = line.indexOf('}', openBraceIndex);
+    
+    // Case 2: Malformed (open brace but no close), treat the rest as primary.
+    if (closeBraceIndex === -1) {
+      const primaryText = line.substring(currentIndex).trim();
+      if (primaryText) {
+        pairs.push({ [primaryLang]: primaryText });
+      }
+      break;
+    }
+    
+    // Case 3: Found a valid { ... } pair.
+    const primaryText = line.substring(currentIndex, openBraceIndex).trim();
+    const secondaryText = line.substring(openBraceIndex + 1, closeBraceIndex).trim();
+    
+    if (primaryText) {
+      pairs.push({ [primaryLang]: primaryText, [secondaryLang]: secondaryText });
+    }
+    
+    currentIndex = closeBraceIndex + 1;
+  }
+
+  return pairs;
+}
+
 
 /**
  * Main parser - processes text line-by-line and creates segments.
@@ -44,21 +100,20 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
       continue;
     }
 
-    const sentencePairs = extractBilingualSentences(trimmedLine, primaryLang, secondaryLang);
+    const textPairs = extractBilingualTextPairs(trimmedLine, primaryLang, secondaryLang);
 
-    sentencePairs.forEach((pair, sentenceIndex) => {
+    textPairs.forEach((pair, pairIndex) => {
       const primarySentence = cleanText(pair[primaryLang]);
       const secondarySentence = secondaryLang ? cleanText(pair[secondaryLang] || '') : undefined;
 
       if (!primarySentence) return;
-
-      const isFirstSentenceOfPara = sentenceIndex === 0 && isNewPara;
+      
+      const isFirstOfPairInPara = pairIndex === 0 && isNewPara;
 
       if (unit === 'phrase' && secondaryLang) {
-        // --- PHRASE MODE LOGIC ---
         const primaryPhrases = splitSentenceIntoPhrases(primarySentence);
         const secondaryPhrases = secondarySentence ? splitSentenceIntoPhrases(secondarySentence) : [];
-
+        
         for (let j = 0; j < primaryPhrases.length; j++) {
           const content: MultilingualContent = {
             [primaryLang]: primaryPhrases[j],
@@ -71,12 +126,11 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
             type: 'text',
             content,
             metadata: {
-              isNewPara: j === 0 && isFirstSentenceOfPara
+              isNewPara: j === 0 && isFirstOfPairInPara
             }
           });
         }
       } else {
-        // --- SENTENCE MODE LOGIC ---
         const content: MultilingualContent = { [primaryLang]: primarySentence };
         if (secondaryLang) {
           content[secondaryLang] = secondarySentence || '';
@@ -88,7 +142,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
           type: 'text',
           content,
           metadata: {
-            isNewPara: isFirstSentenceOfPara
+            isNewPara: isFirstOfPairInPara
           }
         });
       }
@@ -96,41 +150,6 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
   }
 
   return segments;
-}
-
-/**
- * Extracts bilingual sentence pairs from a line.
- * Format: "English sentence. {Vietnamese sentence.}"
- */
-function extractBilingualSentences(line: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
-  const pairs: Array<MultilingualContent> = [];
-  let remainingLine = line;
-
-  if (secondaryLang) {
-    const regex = /([^{}]+?)\s*\{([^{}]*)\}/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = regex.exec(line)) !== null) {
-      const textBefore = line.substring(lastIndex, match.index).trim();
-      if (textBefore) {
-        pairs.push({ [primaryLang]: textBefore });
-      }
-      
-      pairs.push({
-        [primaryLang]: match[1].trim(),
-        [secondaryLang]: match[2].trim()
-      });
-      lastIndex = regex.lastIndex;
-    }
-    remainingLine = line.substring(lastIndex);
-  }
-
-  if (remainingLine.trim()) {
-    pairs.push({ [primaryLang]: remainingLine.trim() });
-  }
-
-  return pairs;
 }
 
 /**
@@ -201,14 +220,9 @@ function calculateTotalWords(segments: Segment[], primaryLang: string): number {
 }
 
 function parseBilingualTitle(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
-  if (secondaryLang) {
-    const match = text.match(/^(.*?)\s*\{(.*)\}\s*$/);
-    if (match) {
-      return {
-        [primaryLang]: cleanText(match[1]),
-        [secondaryLang]: cleanText(match[2]),
-      };
-    }
+  const pairs = extractBilingualTextPairs(text, primaryLang, secondaryLang);
+  if (pairs.length > 0) {
+    return pairs[0];
   }
   return { [primaryLang]: cleanText(text) };
 }
