@@ -1,4 +1,4 @@
-// src/services/MarkdownParser.ts - OPTIMIZED LOGIC
+// src/services/MarkdownParser.ts - FINAL VERSION
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -13,6 +13,7 @@ function cleanText(text: string): string {
 
 /**
  * Parses a line of text into a MultilingualContent object.
+ * This is the core logic that handles both sentence and phrase-based bilingual content.
  * @param line - The raw line of text.
  * @param unit - The content unit ('sentence' or 'phrase').
  * @param primaryLang - The primary language code.
@@ -23,22 +24,25 @@ function parseLineToMultilingualContent(line: string, unit: ContentUnit, primary
     const cleanedLine = line.trim();
     if (!cleanedLine) return {};
 
+    // For monolingual content, the process is simple.
     if (!secondaryLang) {
         return { [primaryLang]: cleanText(cleanedLine) };
     }
 
+    // For bilingual phrase-based content (e.g., "A young boy{Một cậu bé} saw the dragon{nhìn thấy con rồng}")
     if (unit === 'phrase') {
-        const parts = cleanedLine.split('|').map(part => {
+        const parts = cleanedLine.split(/([^{}]+{[^{}]*})/g).filter(Boolean).map(part => {
             const match = part.match(/([^{}]+)\{([^{}]*)\}/);
-            return match ? { primary: cleanText(match[1]), secondary: cleanText(match[2]) } : null;
-        }).filter(Boolean);
+            return match ? { primary: cleanText(match[1]), secondary: cleanText(match[2]) } : { primary: cleanText(part), secondary: '' };
+        });
         
         return {
-            [primaryLang]: parts.map(p => p!.primary).join(' | '),
-            [secondaryLang]: parts.map(p => p!.secondary).join(' | '),
+            [primaryLang]: parts.map(p => p!.primary).join('|'),
+            [secondaryLang]: parts.map(p => p!.secondary).join('|'),
         };
     }
 
+    // For bilingual sentence-based content (e.g., "English sentence. {Vietnamese sentence.}")
     const match = cleanedLine.match(/^(.*?)\s*\{(.*)\}\s*$/);
     if (match) {
         return {
@@ -47,13 +51,14 @@ function parseLineToMultilingualContent(line: string, unit: ContentUnit, primary
         };
     }
     
+    // Fallback for bilingual content that doesn't match the pattern.
     return { [primaryLang]: cleanedLine };
 }
 
 
 /**
  * Main parser - processes text line-by-line and creates segments.
- * This version uses the stateless, optimized logic.
+ * This stateless version determines `isNewPara` by looking at the previous line.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
   const [primaryLang, secondaryLang, format] = origin.split('-');
@@ -66,35 +71,32 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
     const line = lines[i];
     const trimmedLine = line.trim();
 
-    if (trimmedLine.startsWith('#')) {
-      continue;
-    }
-    
-    if (!trimmedLine) {
+    // Skip empty lines and chapter headings, as they only serve as separators.
+    if (!trimmedLine || trimmedLine.startsWith('##')) {
         continue;
     }
     
+    // Split line into sentences. This is a simple regex that might not cover all edge cases,
+    // but works for typical prose from the AI.
     const sentences = trimmedLine.match(/[^.!?]+[.!?]\s*/g) || [trimmedLine];
-    
-    // Check if the PREVIOUS line was empty to determine if this is a new paragraph.
-    const isFirstSegmentInLineNewPara = (i === 0) || (lines[i - 1].trim() === '');
     
     for (let j = 0; j < sentences.length; j++) {
         const sentence = sentences[j];
         const content = parseLineToMultilingualContent(sentence, unit, primaryLang, secondaryLang);
         
         if (Object.keys(content).length > 0) {
-            // The very first sentence of a line that follows a blank line is a new paragraph.
-            // Subsequent sentences on the same line are not.
-            const isNewPara = (j === 0) && isFirstSegmentInLineNewPara;
+            // A segment starts a new paragraph if it's the first segment OR
+            // if the previous line in the raw markdown was empty.
+            const isNewPara = (segments.length === 0 && j === 0) || (j === 0 && lines[i - 1]?.trim() === '');
 
             segments.push({
                 id: generateLocalUniqueId(),
                 order: segments.length,
-                type: 'text',
+                type: 'text', // Default type, can be expanded later
                 content: content,
                 metadata: {
-                    isNewPara,
+                    isNewPara: isNewPara,
+                    unit: unit,
                 }
             });
         }
@@ -112,13 +114,14 @@ export function parseBookMarkdown(
   markdown: string,
   origin: string
 ): { title: MultilingualContent; chapters: Chapter[]; unit: ContentUnit } {
-  const [primaryLang, secondaryLang] = origin.split('-');
-  const unit: ContentUnit = origin.endsWith('-ph') ? 'phrase' : 'sentence';
+  const [primaryLang, secondaryLang, format] = origin.split('-');
+  const unit: ContentUnit = format === 'ph' ? 'phrase' : 'sentence';
   const lines = markdown.split('\n');
   
   let title: MultilingualContent = { [primaryLang]: 'Untitled' };
   let contentStartIndex = 0;
   
+  // Find the first H1 to use as the book title
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('# ')) {
@@ -130,6 +133,8 @@ export function parseBookMarkdown(
   }
   
   const contentAfterTitle = lines.slice(contentStartIndex).join('\n');
+  
+  // Split the rest of the content by H2 to get chapters
   const chapterParts = contentAfterTitle.split(/\n## /);
 
   const chapters: Chapter[] = [];
@@ -149,16 +154,19 @@ export function parseBookMarkdown(
       });
   };
 
+  // If there are no '##' headings, treat the whole content as one chapter
   if (chapterParts.length <= 1) {
     if (contentAfterTitle.trim()) {
       processChapterContent(contentAfterTitle, 0, 'Chapter 1');
     }
   } else {
+    // If the first part (before the first '##') has content, treat it as an introduction
     if (chapterParts[0].trim()) {
         processChapterContent(chapterParts[0], 0, 'Introduction');
     }
 
-    chapterParts.slice(1).forEach((part, index) => {
+    // Process each subsequent chapter part
+    chapterParts.slice(1).forEach((part) => {
       const partLines = part.split('\n');
       const chapterTitleLine = partLines[0].trim();
       const chapterContent = partLines.slice(1).join('\n');
@@ -184,8 +192,10 @@ export function parseBookMarkdown(
 
 function calculateTotalWords(segments: Segment[], primaryLang: string): number {
     return segments.reduce((sum, seg) => {
-        const text = seg.content[primaryLang]?.split(' | ').join(' ') || '';
-        return sum + (text.split(/\s+/).filter(Boolean).length || 0);
+        // If it's a phrase, the separator is '|', otherwise it's whitespace
+        const separator = seg.metadata.unit === 'phrase' ? '|' : /\s+/;
+        const text = seg.content[primaryLang] || '';
+        return sum + (text.split(separator).filter(Boolean).length || 0);
     }, 0);
 }
 

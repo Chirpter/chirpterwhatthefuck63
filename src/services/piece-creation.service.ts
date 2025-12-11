@@ -2,7 +2,7 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Piece, PieceFormValues } from "@/lib/types";
+import type { Piece, PieceFormValues, GeneratePieceInput, ContentUnit } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { checkAndUnlockAchievements } from './achievement-service';
 import { updateLibraryItem } from "./library-service";
@@ -94,6 +94,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             contentRetryCount: 0,
             origin: pieceFormData.origin,
             langs: pieceFormData.availableLanguages,
+            unit: pieceFormData.unit,
             prompt: pieceFormData.aiPrompt,
             tags: pieceFormData.tags || [],
             display: pieceFormData.display || 'card',
@@ -102,6 +103,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
             isBilingual: pieceFormData.availableLanguages.length > 1,
+            labels: [],
         };
         transaction.set(newWorkRef, removeUndefinedProps(initialWorkData));
         pieceId = newWorkRef.id;
@@ -127,14 +129,19 @@ async function generateSinglePieceContent(pieceFormData: PieceFormValues): Promi
       throw new Error("A user prompt is required.");
     }
     
-    const [primaryLanguage, secondaryLanguage, format] = pieceFormData.origin.split('-');
-    const isPhraseMode = format === 'ph';
+    const [primaryLanguage, secondaryLanguage] = pieceFormData.origin.split('-');
+    const isPhraseMode = pieceFormData.unit === 'phrase';
     const primaryLangLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
     
     let languageInstruction: string;
     if (secondaryLanguage) {
         const secondaryLangLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
-        languageInstruction = `Write in bilingual ${primaryLangLabel} and ${secondaryLangLabel}, with sentences paired using {} as {translation of that sentence}`;
+        
+        if (isPhraseMode) {
+            languageInstruction = `Write in bilingual ${primaryLangLabel} and ${secondaryLangLabel}. For each phrase, format as: Primary Phrase{Secondary Phrase} separated by a '|' character.`;
+        } else {
+            languageInstruction = `Write the content in bilingual ${primaryLangLabel} and ${secondaryLangLabel}, with sentences paired using {} as {translation of that sentence}`;
+        }
     } else {
         languageInstruction = `Write in ${primaryLangLabel}.`;
     }
@@ -149,7 +156,7 @@ CRITICAL RULES:
 `.trim();
 
     const pieceContentGenerationPrompt = ai.definePrompt({
-        name: 'generateUnifiedPieceMarkdown_v1',
+        name: 'generateUnifiedPieceMarkdown_v2', // Updated version
         input: { schema: PiecePromptInputSchema },
         output: { schema: PieceOutputSchema },
         prompt: `{{{fullInstruction}}}`,
@@ -237,6 +244,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         type: 'piece',
         aiPrompt: promptToUse,
         origin: workData.origin,
+        unit: workData.unit,
         primaryLanguage: workData.langs[0],
         availableLanguages: workData.langs,
         tags: workData.tags || [],

@@ -2,7 +2,7 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType } from "@/lib/types";
+import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, Unit } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { ApiServiceError } from "../lib/errors";
@@ -33,10 +33,11 @@ async function processBookGenerationPipeline(
   bookId: string,
   contentInput: GenerateBookContentInput,
   coverJobType: CoverJobType,
-  coverData?: File | string | null
+  coverData?: File | string | null,
+  unit?: Unit // Pass unit to the pipeline
 ) {
   const [contentResult, coverResult] = await Promise.allSettled([
-    processContentGenerationForBook(userId, bookId, contentInput),
+    processContentGenerationForBook(userId, bookId, contentInput, unit), // Pass unit
     processCoverImageForBook(userId, bookId, coverJobType, coverData, contentInput.prompt)
   ]);
 
@@ -131,6 +132,9 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         chapters: [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
+        isBilingual: bookFormData.availableLanguages.length > 1,
+        unit: bookFormData.unit,
+        labels: [],
     };
     transaction.set(newBookRef, removeUndefinedProps(initialBookData));
     bookId = newBookRef.id;
@@ -154,7 +158,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     bookId, 
     contentInput,
     bookFormData.coverImageOption,
-    bookFormData.coverImageOption === 'upload' ? bookFormData.coverImageFile : bookFormData.coverImageAiPrompt
+    bookFormData.coverImageOption === 'upload' ? bookFormData.coverImageFile : bookFormData.coverImageAiPrompt,
+    bookFormData.unit
   ).catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
   return bookId;
@@ -164,15 +169,20 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 /**
  * Handles the AI content generation part of the pipeline.
  */
-async function processContentGenerationForBook(userId: string, bookId: string, contentInput: GenerateBookContentInput): Promise<Partial<Book>> {
+async function processContentGenerationForBook(
+    userId: string, 
+    bookId: string, 
+    contentInput: GenerateBookContentInput,
+    unit?: Unit
+): Promise<Partial<Book>> {
     const userPrompt = contentInput.prompt.slice(0, MAX_PROMPT_LENGTH);
     const { bookLength, generationScope, origin } = contentInput;
     
     const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookLength);
     const wordsPerChapter = Math.round(((bookLengthOption?.defaultChapters || 3) * 200) / (contentInput.chaptersToGenerate || 3));
 
-    const [primaryLanguage, secondaryLanguage, format] = origin.split('-');
-    const isPhraseMode = format === 'ph';
+    const [primaryLanguage, secondaryLanguage] = origin.split('-');
+    const isPhraseMode = unit === 'phrase';
     
     const bookTypeInstruction = (generationScope === 'full' || !contentInput.totalChapterOutlineCount) ? 'full-book' : 'partial-book';
 
@@ -192,7 +202,13 @@ async function processContentGenerationForBook(userId: string, bookId: string, c
         const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
         
         criticalInstructions.push(`- The book title MUST be a Level 1 Markdown heading, with bilingual versions separated by {} (e.g., '# My Title {Tiêu đề của tôi}).`);
-        criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}`);
+        
+        if (isPhraseMode) {
+            criticalInstructions.push(`- Write content in bilingual ${primaryLabel} and ${secondaryLabel}. For each phrase, format as: Primary Phrase{Secondary Phrase} separated by a '|' character.`);
+            criticalInstructions.push(`- EXAMPLE: A young boy{Một cậu bé} | saw the dragon{nhìn thấy con rồng}.`);
+        } else {
+            criticalInstructions.push(`- Write the content for ALL chapters in bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}`);
+        }
     } else {
         const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
         criticalInstructions.push(`- Write all content and titles in ${langLabel}.`);
@@ -208,7 +224,7 @@ ${criticalInstructions.join('\n')}
 `.trim();
 
     const bookContentGenerationPrompt = ai.definePrompt({
-        name: 'generateUnifiedBookMarkdown_v8',
+        name: 'generateUnifiedBookMarkdown_v9_hybrid', // Updated version
         input: { schema: BookPromptInputSchema },
         output: { schema: BookOutputSchema },
         prompt: `{{{fullInstruction}}}`,
@@ -221,11 +237,12 @@ ${criticalInstructions.join('\n')}
           throw new ApiServiceError('AI returned empty or invalid content.', "UNKNOWN");
         }
         
-        const { title: parsedTitle, chapters: finalChapters } = parseBookMarkdown(aiOutput.markdownContent, origin);
+        const { title: parsedTitle, chapters: finalChapters, unit: parsedUnit } = parseBookMarkdown(aiOutput.markdownContent, origin);
         
         return {
           title: parsedTitle,
           chapters: finalChapters,
+          unit: parsedUnit, // Return the unit determined by the parser
           contentState: 'ready',
           contentRetryCount: 0,
         };
@@ -322,7 +339,9 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     userId, 
     bookId, 
     contentInput, 
-    'none' // Don't touch the cover during content regen
+    'none', // Don't touch the cover during content regen
+    null,
+    bookData.unit // Pass the existing unit
   ).catch(async (err) => {
     console.error(`Background content regeneration failed for book ${bookId}:`, err);
     await updateLibraryItem(userId, bookId, {
@@ -355,20 +374,17 @@ export async function editBookCover(
     return bookSnap.data() as Book;
   });
 
-  const contentInput: GenerateBookContentInput = {
-    prompt: bookData.prompt || '',
-    origin: bookData.origin,
-    bookLength: bookData.intendedLength || 'short-story',
-    generationScope: 'full',
-    chaptersToGenerate: bookData.chapters.length || 0,
-  };
+  // No need for contentInput here as it's only for cover
+  const contentInput: GenerateBookContentInput = { prompt: bookData.prompt || '', origin: bookData.origin, chaptersToGenerate: 0 };
+
 
   processBookGenerationPipeline(
     userId, 
     bookId, 
-    contentInput, // Pass content input for context
+    contentInput,
     newCoverOption,
-    data
+    data,
+    bookData.unit
   ).catch(async (err) => {
     console.error(`Background cover edit failed for book ${bookId}:`, err);
     await updateLibraryItem(userId, bookId, {

@@ -75,23 +75,17 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
         let totalSegmentsInBook = 0;
         let segmentsPlayedSoFar = 0;
         let segmentsInCurrentChapter = 0;
-
+        
+        // This logic now correctly reflects the flat segment structure per chapter
         chapters.forEach((chapter, index) => {
-            const chapterSegments = getItemSegments(book, index);
-            const ttsSegmentsForChapter = chapterSegments.reduce((count, seg) => {
-                let segCount = 0;
-                if (seg.content.primary.trim()) segCount++;
-                if (seg.content.secondary?.trim()) segCount++;
-                return count + segCount;
-            }, 0);
-
-            totalSegmentsInBook += ttsSegmentsForChapter;
+            const chapterSegmentCount = chapter.segments?.length || 0;
+            totalSegmentsInBook += chapterSegmentCount;
             
             if (index < progress.chapterIndex) {
-                segmentsPlayedSoFar += ttsSegmentsForChapter;
+                segmentsPlayedSoFar += chapterSegmentCount;
             }
             if (index === progress.chapterIndex) {
-                segmentsInCurrentChapter = ttsSegmentsForChapter;
+                segmentsInCurrentChapter = chapterSegmentCount;
             }
         });
         

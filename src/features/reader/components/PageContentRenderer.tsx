@@ -5,7 +5,7 @@
 import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, LibraryItem, EditorSettings, Page, PhraseMap } from '@/lib/types';
+import type { Segment, LibraryItem, EditorSettings, Page } from '@/lib/types';
 import { SegmentRenderer } from './SegmentRenderer';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
@@ -27,15 +27,15 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2,
 }: PageContentRendererProps) {
-  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = useAudioPlayer();
+  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang, currentSegment } = useAudioPlayer();
   const segments = page.items;
   
   const currentPlayingSegmentId = useMemo(() => {
-    if (currentPlayingItem?.type !== 'book' || !itemData || currentPlayingItem.id !== itemData.id) {
+    if (currentPlayingItem?.type !== itemData?.type || !itemData || currentPlayingItem.id !== itemData.id) {
         return null;
     }
-    return audioPlayer.currentSegment?.originalSegmentId || null;
-  }, [currentPlayingItem, itemData, audioPlayer.currentSegment]);
+    return currentSegment?.originalSegmentId || null;
+  }, [currentPlayingItem, itemData, currentSegment]);
 
   const proseThemeClass = useMemo(() => {
     if (presentationStyle === 'book') return 'prose dark:prose-invert';
@@ -65,24 +65,6 @@ export function PageContentRenderer({
   
   const isBilingualMode = displayLang2 !== 'none';
   
-  const groupSegmentsByParagraph = () => {
-      const paragraphs: Segment[][] = [];
-      let currentParagraph: Segment[] = [];
-
-      segments.forEach((segment) => {
-          if (segment.metadata.isNewPara && currentParagraph.length > 0) {
-              paragraphs.push(currentParagraph);
-              currentParagraph = [];
-          }
-          currentParagraph.push(segment);
-      });
-
-      if (currentParagraph.length > 0) {
-          paragraphs.push(currentParagraph);
-      }
-      return paragraphs;
-  };
-  
   const contentContainerClasses = cn(
     "max-w-none font-serif w-full h-full",
     proseThemeClass,
@@ -90,49 +72,34 @@ export function PageContentRenderer({
     "overflow-hidden"
   );
 
-  const paragraphs = groupSegmentsByParagraph();
-
   return (
     <div className={contentContainerClasses}>
-        {paragraphs.map((paraSegments, pIndex) => {
-             const applyDropCap = paraSegments.some(s => s.metadata.applyDropCap);
-             
-             // For sentence-by-sentence, each segment is a paragraph
-             if (isBilingualMode && paraSegments.every(s => s.metadata.unit === 'sentence')) {
-                return paraSegments.map((segment) => (
-                     <div key={segment.id} className="my-3"> {/* Add vertical spacing */}
-                        <SegmentRenderer 
-                            segment={segment} 
-                            isPlaying={currentPlayingSegmentId === segment.id}
-                            speechBoundary={currentSpeechBoundary}
-                            spokenLang={currentSpokenSegmentLang}
-                            isBilingualMode={isBilingualMode}
-                            displayLang1={displayLang1}
-                            displayLang2={displayLang2}
-                        />
-                     </div>
-                ));
-             }
+        {segments.map((segment, index) => {
+            const isNewPara = segment.metadata.isNewPara;
+            const applyDropCap = isNewPara && index === 0; // Only apply drop cap to the very first segment of a new paragraph on a page
 
-             // For mono and phrase mode, group segments into a single <p>
-             return (
-                <div key={`p-${pIndex}`}>
-                    <p className={cn(applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
-                        {paraSegments.map((segment) => (
-                            <SegmentRenderer 
-                                key={segment.id} 
-                                segment={segment} 
-                                isPlaying={currentPlayingSegmentId === segment.id}
-                                speechBoundary={currentSpeechBoundary}
-                                spokenLang={currentSpokenSegmentLang}
-                                isBilingualMode={isBilingualMode}
-                                displayLang1={displayLang1}
-                                displayLang2={displayLang2}
-                            />
-                        ))}
-                    </p>
-                </div>
-            )
+            const content = (
+              <SegmentRenderer 
+                  key={segment.id} 
+                  segment={segment} 
+                  isPlaying={currentPlayingSegmentId === segment.id}
+                  speechBoundary={currentSpeechBoundary}
+                  spokenLang={currentSpokenSegmentLang}
+                  isBilingualMode={isBilingualMode}
+                  displayLang1={displayLang1}
+                  displayLang2={displayLang2}
+              />
+            );
+            
+            if(isNewPara) {
+              return (
+                <p key={`p-${segment.id}`} className={cn(applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
+                    {content}
+                </p>
+              );
+            }
+            
+            return content;
         })}
     </div>
   );

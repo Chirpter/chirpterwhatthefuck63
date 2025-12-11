@@ -28,14 +28,6 @@ export type MultilingualContent = {
 
 // --- UNIFIED STRUCTURE FOR ALL TEXTUAL CONTENT ---
 
-/**
- * @typedef {Object.<string, string>} PhraseMap
- * @description A key-value pair for a single phrase in multiple languages.
- */
-export type PhraseMap = {
-  [languageCode: string]: string;
-};
-
 export type ContentUnit = 'sentence' | 'phrase';
 
 export interface SegmentMetadata {
@@ -43,7 +35,10 @@ export interface SegmentMetadata {
   applyDropCap?: boolean;
   style?: string; 
   wordCount?: { [lang: string]: number };
+  primaryLanguage?: string;
+  unit?: ContentUnit; // ✅ RE-ADDED at segment level for flexibility
 }
+
 
 /**
  * @interface Segment
@@ -64,6 +59,9 @@ export interface ChapterStats {
   estimatedReadingTime: number; // in minutes
 }
 
+export type ChapterTitle = MultilingualContent;
+
+
 /**
  * @interface Chapter
  * @description A collection of Segments, representing a chapter in a book.
@@ -71,10 +69,12 @@ export interface ChapterStats {
 export interface Chapter {
   id: string;
   order: number;
-  title: MultilingualContent;
-  segments: Segment[];
+  title: ChapterTitle;
+  segments: Segment[]; // ✅ REVERTED to flat segment array
   stats: ChapterStats;
-  metadata: {};
+  metadata: {
+    primaryLanguage?: string;
+  };
 }
 
 
@@ -186,7 +186,6 @@ interface BaseLibraryItem extends BaseDocument {
   title: MultilingualContent;
   origin: string;
   langs: string[];
-  unit: ContentUnit;
   status: OverallStatus;
   progress?: number;
   isGlobal?: boolean;
@@ -195,6 +194,8 @@ interface BaseLibraryItem extends BaseDocument {
   prompt?: string;
   display: 'book' | 'card';
   tags?: string[];
+  labels?: string[]; // Added for consistency with Firestore data model
+  isBilingual: boolean; // Added for consistency with Firestore data model
 }
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
@@ -206,6 +207,7 @@ export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
 export interface Book extends BaseLibraryItem {
   type: 'book';
   author?: string;
+  unit: ContentUnit; // ✅ RE-ADDED at Book level
   contentState: JobStatus;
   contentError?: string;
   contentRetryCount?: number;
@@ -233,6 +235,7 @@ export interface EditorSettings {
  */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
+  unit: ContentUnit;
   generatedContent: Segment[];
   contentState: JobStatus;
   contentError?: string;
@@ -312,6 +315,7 @@ export interface PlaylistItem {
   data: Partial<Book> | {}; // Partial<Book> for books, {} for vocab folders
   primaryLanguage: string;
   availableLanguages: string[];
+  originLanguages?: string; // New field for AudioEngine
 }
 
 
