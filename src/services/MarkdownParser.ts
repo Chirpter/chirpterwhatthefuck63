@@ -1,4 +1,3 @@
-
 // src/services/MarkdownParser.ts - PRODUCTION READY
 import type { Segment, Chapter, Book, Piece, MultilingualContent, PhraseMap } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -19,9 +18,6 @@ function removeFootnoteAnnotations(text: string): string {
 function splitIntoPhrases(sentence: string): string[] {
   if (!sentence || !sentence.trim()) return [];
   
-  // This regex splits the string by commas, semicolons, colons, or dashes,
-  // but it keeps the delimiter attached to the preceding phrase.
-  // Example: "One, two; three." -> ["One,", "two;", "three."]
   const phrases = sentence.match(/[^,;:\-]+[,;:\-]?|\S+/g) || [];
   
   return phrases.map(p => p.trim()).filter(p => p.length > 0);
@@ -36,13 +32,17 @@ function extractBilingualSentence(
   text: string,
 ): { primary: string; secondary: string } {
   const separator = ' / ';
-  if (text.includes(separator)) {
-    const parts = text.split(separator, 2);
+  const separatorIndex = text.indexOf(separator);
+
+  if (separatorIndex !== -1) {
+    const primary = text.substring(0, separatorIndex);
+    const secondary = text.substring(separatorIndex + separator.length);
     return {
-      primary: removeFootnoteAnnotations(parts[0]),
-      secondary: removeFootnoteAnnotations(parts[1]),
+      primary: removeFootnoteAnnotations(primary),
+      secondary: removeFootnoteAnnotations(secondary),
     };
   }
+  
   // If no separator, the whole line is primary content
   return {
     primary: removeFootnoteAnnotations(text),
@@ -138,22 +138,12 @@ function parseBilingualText(
   primaryLang: string,
   secondaryLang?: string
 ): MultilingualContent {
-  const cleanedText = removeFootnoteAnnotations(text);
-  if (!secondaryLang) {
-    return { [primaryLang]: cleanedText };
+  const { primary, secondary } = extractBilingualSentence(text);
+  const content: MultilingualContent = { [primaryLang]: primary };
+  if (secondaryLang) {
+      content[secondaryLang] = secondary;
   }
-  
-  const separator = ' / ';
-  if (cleanedText.includes(separator)) {
-      const parts = cleanedText.split(separator, 2);
-      return { 
-          [primaryLang]: parts[0]?.trim() || '',
-          [secondaryLang]: parts[1]?.trim() || '' // Ensure secondary is always a string
-      };
-  }
-
-  // If no separator, assume it's all primary language
-  return { [primaryLang]: cleanedText };
+  return content;
 }
 
 /**
@@ -164,20 +154,20 @@ export function parseBookMarkdown(
   origin: string
 ): { title: MultilingualContent; chapters: Chapter[] } {
   const [primaryLang, secondaryLang] = origin.split('-');
-  const lines = markdown.split('\n').filter(l => l.trim());
+  const lines = markdown.split('\n');
   
   let title: MultilingualContent = { [primaryLang]: 'Untitled' };
   let contentStartIndex = 0;
 
   // Find H1 title
-  const h1Index = lines.findIndex(l => l.startsWith('# '));
+  const h1Index = lines.findIndex(l => l.trim().startsWith('# '));
   if (h1Index !== -1) {
-    const titleText = lines[h1Index].substring(2).trim();
+    const titleText = lines[h1Index].trim().substring(2).trim();
     title = parseBilingualText(titleText, primaryLang, secondaryLang);
     contentStartIndex = h1Index + 1;
   } else {
     // Fallback: use first non-empty line that is NOT a chapter heading
-    const firstContentLineIndex = lines.findIndex(l => !l.startsWith('## '));
+    const firstContentLineIndex = lines.findIndex(l => l.trim() && !l.trim().startsWith('## '));
     if (firstContentLineIndex !== -1) {
         title = parseBilingualText(lines[firstContentLineIndex], primaryLang, secondaryLang);
         // We COPY the title, we don't consume the line from content
@@ -197,12 +187,12 @@ export function parseBookMarkdown(
     const sectionLines = section.split('\n');
     const firstLine = sectionLines[0];
     
-    if (!firstLine.startsWith('## ')) continue;
+    if (!firstLine.trim().startsWith('## ')) continue;
     
-    const chapterTitleText = firstLine.substring(3).trim();
+    const chapterTitleText = firstLine.trim().substring(3).trim();
     const chapterTitle = parseBilingualText(chapterTitleText, primaryLang, secondaryLang);
     
-    const chapterContent = sectionLines.slice(1).join('\n').trim();
+    const chapterContent = sectionLines.slice(1).join('\n');
     const segments = parseMarkdownToSegments(chapterContent, origin);
     
     const totalWords = segments.reduce((sum, seg) => {
