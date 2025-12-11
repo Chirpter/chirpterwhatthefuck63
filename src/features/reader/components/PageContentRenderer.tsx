@@ -104,7 +104,7 @@ export function PageContentRenderer({
                   isBilingualMode={isBilingualMode}
                   displayLang1={displayLang1}
                   displayLang2={displayLang2}
-                  unit={item?.unit || 'sentence'}
+                  unit={itemData?.unit || 'sentence'}
               />
             );
             
