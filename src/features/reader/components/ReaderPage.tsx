@@ -129,7 +129,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 
     let newIntent: string;
     if (newDisplayLang2 !== 'none') {
-        newIntent = `${'${newDisplayLang1}'}-${'${newDisplayLang2}'}`;
+        newIntent = `${newDisplayLang1}-${newDisplayLang2}`;
     } else {
         newIntent = newDisplayLang1;
     }
@@ -183,7 +183,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
             }
         }
 
-        const docRef = doc(db, `users/${'${user.uid}'}/libraryItems`, idFromUrl);
+        const docRef = doc(db, `users/${user.uid}/libraryItems`, idFromUrl);
         unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const serverItem = { id: docSnap.id, ...docSnap.data() } as LibraryItem;
@@ -273,7 +273,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${'${selectedText}'}...`;
+        let sentenceContext = `...${selectedText}...`;
 
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
@@ -371,9 +371,9 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   }, [pages]);
 
   useEffect(() => {
-    if (isCalculatingPages || isPreview) return;
+    if (isCalculatingPages || isPreview || !item) return;
     
-    if (audioPlayer.currentPlayingItem?.id === item?.id && audioPlayer.position && audioPlayer.position.segmentIndex >= 0) {
+    if (audioPlayer.currentPlayingItem?.id === item.id && audioPlayer.position.segmentIndex >= 0) {
         const chapterIndex = audioPlayer.position.chapterIndex ?? 0;
         const segmentIndex = audioPlayer.position.segmentIndex;
         
@@ -395,7 +395,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         }
         const chapterIdFromUrl = searchParams.get('chapterId');
         if (chapterIdFromUrl) {
-             const chapterIndex = item?.type === 'book' ? (item as Book).chapters.findIndex(c => c.id === chapterIdFromUrl) : -1;
+             const chapterIndex = item.type === 'book' ? (item as Book).chapters.findIndex(c => c.id === chapterIdFromUrl) : -1;
              if (chapterIndex !== -1 && chapterStartPages[chapterIndex] !== undefined) {
                  setCurrentPageIndex(chapterStartPages[chapterIndex]);
              }
