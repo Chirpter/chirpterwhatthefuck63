@@ -28,8 +28,7 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2,
 }: PageContentRendererProps) {
-  const audioPlayer = useAudioPlayer();
-  const { currentPlayingItem, currentSpeechBoundary, currentSpokenSegmentLang } = audioPlayer;
+  const { currentPlayingItem, position, currentSpokenSegmentLang, speechBoundary } = useAudioPlayer();
   const segments = page.items;
   
   const currentPlayingSegmentId = useMemo(() => {
@@ -37,22 +36,24 @@ export function PageContentRenderer({
         return null;
     }
     
-    const audioPlayerSegment = audioPlayer.position.segmentIndex;
-    const currentChapterIndex = audioPlayer.position.chapterIndex ?? 0;
+    const audioPlayerSegmentIndex = position.segmentIndex;
+    const currentChapterIndex = position.chapterIndex ?? 0;
     
-    if (itemData.type === 'book') {
-        const chapter = itemData.chapters[currentChapterIndex];
-        if (chapter && chapter.segments[audioPlayerSegment]) {
-            return chapter.segments[audioPlayerSegment].id;
+    // Check if the item is a book and has chapters
+    if (itemData.type === 'book' && Array.isArray((itemData as any).chapters)) {
+        const chapter = (itemData as any).chapters[currentChapterIndex];
+        if (chapter && Array.isArray(chapter.segments) && chapter.segments[audioPlayerSegmentIndex]) {
+            return chapter.segments[audioPlayerSegmentIndex].id;
         }
-    } else if (itemData.type === 'piece') {
-        if (itemData.generatedContent[audioPlayerSegment]) {
-            return itemData.generatedContent[audioPlayerSegment].id;
+    } else if (itemData.type === 'piece' && Array.isArray((itemData as any).generatedContent)) {
+        // Handle 'piece' type
+        if ((itemData as any).generatedContent[audioPlayerSegmentIndex]) {
+            return (itemData as any).generatedContent[audioPlayerSegmentIndex].id;
         }
     }
     
     return null;
-  }, [currentPlayingItem, itemData, audioPlayer.position]);
+  }, [currentPlayingItem, itemData, position]);
 
   const proseThemeClass = useMemo(() => {
     if (presentationStyle === 'book') return 'prose dark:prose-invert';
@@ -100,7 +101,7 @@ export function PageContentRenderer({
                   key={segment.id} 
                   segment={segment} 
                   isPlaying={currentPlayingSegmentId === segment.id}
-                  speechBoundary={currentSpeechBoundary}
+                  speechBoundary={speechBoundary}
                   spokenLang={currentSpokenSegmentLang}
                   isBilingualMode={isBilingualMode}
                   displayLang1={displayLang1}
