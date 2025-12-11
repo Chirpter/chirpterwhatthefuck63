@@ -4,7 +4,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, PhraseMap, BilingualFormat } from '@/lib/types';
+import type { Segment, PhraseMap, BilingualFormat, MultilingualContent } from '@/lib/types';
 
 interface SegmentRendererProps {
   segment: Segment;
@@ -14,7 +14,6 @@ interface SegmentRendererProps {
   isBilingualMode: boolean;
   displayLang1: string;
   displayLang2: string; // 'none' or language code
-  bilingualFormat: BilingualFormat;
 }
 
 const getWordHighlightContent = (text: string, boundary: { charIndex: number, charLength: number } | null): React.ReactNode => {
@@ -71,7 +70,7 @@ const renderPhrases = (
 // Monolingual: "Primary sentence."
 // Bilingual: "Primary sentence." on one line, "Secondary sentence." on the line below.
 const renderSentence = (
-  content: { [lang: string]: string },
+  content: MultilingualContent,
   displayLang1: string,
   displayLang2: string,
   isBilingualMode: boolean,
@@ -118,25 +117,24 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     isBilingualMode,
     displayLang1,
     displayLang2,
-    bilingualFormat,
 }) => {
   
   const isSegmentPlaying = isPlaying;
+  const bilingualFormat = segment.metadata.bilingualFormat;
 
   const renderContent = () => {
-    // If phrases are available and format is phrase, use phrase renderer
-    if (segment.phrases && isBilingualMode && bilingualFormat === 'phrase') {
-      return renderPhrases(segment.phrases, displayLang1, displayLang2, isSegmentPlaying, spokenLang, speechBoundary);
+    // If format is phrase, use phrase renderer
+    if (isBilingualMode && bilingualFormat === 'phrase' && Array.isArray(segment.content)) {
+      return renderPhrases(segment.content as PhraseMap[], displayLang1, displayLang2, isSegmentPlaying, spokenLang, speechBoundary);
     }
-    // Otherwise, fall back to rendering the full sentence content for both 'sentence' and 'mono'
-    if (segment.content) {
-      return renderSentence(segment.content, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary);
+    // Otherwise, fall back to rendering the full sentence content
+    if (typeof segment.content === 'object' && !Array.isArray(segment.content)) {
+      return renderSentence(segment.content as MultilingualContent, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary);
     }
     return null;
   };
   
-  const content = segment.content || {};
-  const primaryText = content[displayLang1] || '';
+  const primaryText = (Array.isArray(segment.content) ? segment.content[0]?.[displayLang1] : (segment.content as MultilingualContent)[displayLang1]) || '';
 
   switch (segment.type) {
     case 'heading':

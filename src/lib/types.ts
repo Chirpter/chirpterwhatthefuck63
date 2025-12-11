@@ -51,8 +51,11 @@ export type PhraseMap = {
   [languageCode: string]: string;
 };
 
+export type BilingualFormat = 'sentence' | 'phrase';
+
 export interface SegmentMetadata {
   isNewPara: boolean;
+  bilingualFormat: BilingualFormat;
   applyDropCap?: boolean;
   /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
@@ -62,8 +65,7 @@ export interface SegmentMetadata {
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
- * A segment can hold either a full sentence (in `content`) or a breakdown of phrases (in `phrases`),
- * but not both, to prevent data redundancy and ensure a single source of truth for the text.
+ * The `content` field's type is determined by the `metadata.bilingualFormat`.
  */
 export interface Segment {
   id: string;
@@ -71,17 +73,12 @@ export interface Segment {
   type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
   
   /**
-   * For 'sentence' mode or monolingual content. Contains the full text.
-   * @example { "en": "Hello, how are you?", "vi": "Xin chào, bạn khỏe không?" }
+   * Holds the textual data.
+   * If `metadata.bilingualFormat` is 'sentence', this is a MultilingualContent object.
+   * If `metadata.bilingualFormat` is 'phrase', this is an array of PhraseMap objects.
    */
-  content: MultilingualContent;
+  content: MultilingualContent | PhraseMap[];
   
-  /**
-   * For 'phrase' mode. Contains an array of pre-split phrase pairs.
-   * @example [ { "en": "Hello,", "vi": "Xin chào," }, { "en": " how are you?", "vi": " bạn khỏe không?" } ]
-   */
-  phrases?: PhraseMap[];
-
   formatting: TextFormatting;
   metadata: SegmentMetadata;
 }
@@ -157,7 +154,7 @@ export interface User {
 export type JobStatus = 'pending' | 'processing' | 'ready' | 'error' | 'ignored';
 export type OverallStatus = 'processing' | 'draft' | 'published' | 'archived';
 export type CoverJobType = 'none' | 'upload' | 'ai';
-export type BilingualFormat = 'sentence' | 'phrase';
+
 export type BilingualViewMode = 'primary' | 'secondary' | 'bilingual';
 export type PresentationMode = 'mono' | 'bilingual-sentence' | 'bilingual-phrase';
 
