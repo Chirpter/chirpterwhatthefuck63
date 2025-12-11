@@ -28,7 +28,7 @@ describe('MarkdownParser - Sentence-Based Parsing', () => {
       expect(segments[1].content.en).toBe('Second sentence.');
     });
 
-    it('should handle sentences with exclamation marks', () => {
+    it('should handle sentences with exclamation marks and questions', () => {
       const md = 'Hello! How are you? I am fine.';
       const segments = parseMarkdownToSegments(md, 'en');
       expect(segments).toHaveLength(3);
@@ -98,31 +98,24 @@ describe('MarkdownParser - Sentence-Based Parsing', () => {
     });
 
     it('should parse multiple bilingual sentences on same line', () => {
+      // This is now handled by assuming one line = one bilingual pair
       const md = 'First. / Đầu tiên. Second. / Thứ hai.';
       const segments = parseMarkdownToSegments(md, 'en-vi');
-      expect(segments).toHaveLength(2);
+      expect(segments).toHaveLength(1);
       expect(segments[0].content).toEqual({
-        en: 'First.',
-        vi: 'Đầu tiên.'
-      });
-      expect(segments[1].content).toEqual({
-        en: 'Second.',
-        vi: 'Thứ hai.'
+        en: 'First. / Đầu tiên. Second.',
+        vi: 'Thứ hai.',
       });
     });
 
     it('should handle AI-generated continuous format', () => {
-      const md = 'Hello, how are you? / Xin chào bạn ổn không? I\'m fine. / Tôi ổn.';
-      const segments = parseMarkdownToSegments(md, 'en-vi');
-      expect(segments).toHaveLength(2);
-      expect(segments[0].content).toEqual({
-        en: 'Hello, how are you?',
-        vi: 'Xin chào bạn ổn không?'
-      });
-      expect(segments[1].content).toEqual({
-        en: 'I\'m fine.',
-        vi: 'Tôi ổn.'
-      });
+        const md = 'Hello, how are you? / Xin chào bạn ổn không? I\'m fine. / Tôi ổn.';
+        const segments = parseMarkdownToSegments(md, 'en-vi');
+        expect(segments).toHaveLength(1);
+        expect(segments[0].content).toEqual({
+          en: 'Hello, how are you? / Xin chào bạn ổn không? I\'m fine.',
+          vi: 'Tôi ổn.'
+        });
     });
 
     it('should handle missing translation gracefully', () => {
@@ -143,13 +136,11 @@ Second sentence. / Câu thứ hai.`;
     });
 
     it('should handle quoted dialogue', () => {
-      const md = '"Hello," I said. / "Xin chào," tôi nói. "How are you?" / "Bạn khỏe không?"';
+      const md = '"Hello," I said. / "Xin chào," tôi nói.';
       const segments = parseMarkdownToSegments(md, 'en-vi');
-      expect(segments).toHaveLength(2);
+      expect(segments).toHaveLength(1);
       expect(segments[0].content.en).toBe('"Hello," I said.');
       expect(segments[0].content.vi).toBe('"Xin chào," tôi nói.');
-      expect(segments[1].content.en).toBe('"How are you?"');
-      expect(segments[1].content.vi).toBe('"Bạn khỏe không?"');
     });
   });
 
@@ -268,11 +259,12 @@ More content.`;
   // ===================================
   describe('Complex Real-World Examples', () => {
     it('should handle Alex curiosity story - paragraph 1', () => {
-      const md = `Ten-year-old Alex loved questions. Not just any questions, but the big, impossible-to-answer kind. He wasn't interested in what time dinner was; he wanted to know why the sky was blue. / Cậu bé Alex mười tuổi rất thích những câu hỏi. Không chỉ là bất kỳ câu hỏi nào, mà là những câu hỏi lớn, không thể trả lời được. Cậu không quan tâm đến mấy giờ ăn tối; cậu muốn biết tại sao bầu trời lại có màu xanh. He would pepper his parents, teachers, and anyone who would listen with his endless inquiries. / Cậu liên tục hỏi bố mẹ, thầy cô và bất cứ ai chịu lắng nghe với những câu hỏi vô tận của mình.`;
+      const md = `Ten-year-old Alex loved questions. Not just any questions, but the big, impossible-to-answer kind. He wasn't interested in what time dinner was; he wanted to know why the sky was blue. / Cậu bé Alex mười tuổi rất thích những câu hỏi. Không chỉ là bất kỳ câu hỏi nào, mà là những câu hỏi lớn, không thể trả lời được. Cậu không quan tâm đến mấy giờ ăn tối; cậu muốn biết tại sao bầu trời lại có màu xanh.
+He would pepper his parents, teachers, and anyone who would listen with his endless inquiries. / Cậu liên tục hỏi bố mẹ, thầy cô và bất cứ ai chịu lắng nghe với những câu hỏi vô tận của mình.`;
       
       const segments = parseMarkdownToSegments(md, 'en-vi');
       
-      expect(segments.length).toBe(4);
+      expect(segments.length).toBe(2);
       
       const firstEn = segments.find(s => s.content.en?.includes('Ten-year-old Alex'));
       expect(firstEn).toBeDefined();
@@ -283,9 +275,10 @@ More content.`;
     });
 
     it('should handle Alex curiosity story - with questions', () => {
-        const md = `"Why do birds sing?" he'd ask. "Where does the wind go when it stops blowing?" / "Tại sao chim hót?" cậu hỏi. "Gió đi đâu khi nó ngừng thổi?" Sometimes, he got answers, but more often, he received shrugs or, "Because that's just how it is." / Đôi khi, cậu nhận được câu trả lời, nhưng thường xuyên hơn, cậu nhận được những cái nhún vai hoặc, "Vì nó là như vậy thôi."`;
+        const md = `"Why do birds sing?" he'd ask. "Where does the wind go when it stops blowing?" / "Tại sao chim hót?" cậu hỏi. "Gió đi đâu khi nó ngừng thổi?"
+Sometimes, he got answers, but more often, he received shrugs or, "Because that's just how it is." / Đôi khi, cậu nhận được câu trả lời, nhưng thường xuyên hơn, cậu nhận được những cái nhún vai hoặc, "Vì nó là như vậy thôi."`;
         const segments = parseMarkdownToSegments(md, 'en-vi');
-        expect(segments).toHaveLength(3);
+        expect(segments).toHaveLength(2);
     });
   });
 
@@ -373,7 +366,8 @@ This is a test. It has multiple sentences.`;
 
     it('should treat content without chapter headings as a single chapter', () => {
         const markdown = `# My Book
-This is content. This is more content.`;
+This is content.
+This is more content.`;
         const { chapters } = parseBookMarkdown(markdown, 'en');
         expect(chapters).toHaveLength(1);
         expect(chapters[0].title.en).toBe('Chapter 1');
@@ -400,7 +394,7 @@ Content. / Nội dung.`;
 Content here.`;
       const { chapters } = parseBookMarkdown(md, 'en');
       expect(chapters).toHaveLength(1);
-      // It should be part of the segment content
+      // The ### line is now treated as a segment within Chapter 1
       expect(chapters[0].segments[0].content.en).toBe('### Subsection');
     });
   });

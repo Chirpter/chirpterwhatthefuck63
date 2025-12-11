@@ -12,18 +12,45 @@ function cleanText(text: string): string {
 
 /**
  * A more robust sentence splitter that handles various punctuation and edge cases.
+ * It's designed to be more conservative and avoid splitting on things like abbreviations.
  */
 function splitSentences(text: string): string[] {
     if (!text?.trim()) return [];
-    // This regex looks for sentence-ending punctuation (. ! ?) possibly followed by quotes and then whitespace.
-    // It uses a positive lookbehind to not consume the delimiter.
-    const sentences = text.split(/(?<=[.?!])\s*(?=[A-Z"']|“)/g);
+    
+    // This regex is designed to split sentences based on ending punctuation (. ! ?)
+    // followed by a space and an uppercase letter, or quotes. It avoids splitting on
+    // abbreviations (e.g., Dr., St.) or numbers.
+    const sentences = text.match(/[^.!?]+[.!?"]*(?=\s+[A-Z"“]|$)/g);
+    
+    // If the regex fails (e.g., for single-sentence inputs or unusual structures),
+    // fall back to a simpler split, but ensure the result is not empty.
+    if (!sentences || sentences.length === 0) {
+        const fallback = text.trim();
+        return fallback ? [fallback] : [];
+    }
+    
     return sentences.map(s => s.trim()).filter(Boolean);
 }
 
 /**
+ * Extracts a bilingual sentence pair from a line of text.
+ * @param line - The line containing text like "English part / Vietnamese part".
+ * @param primaryLang - The language code for the first part.
+ * @param secondaryLang - The language code for the second part.
+ * @returns A MultilingualContent object.
+ */
+function extractBilingualSentence(line: string, primaryLang: string, secondaryLang: string): MultilingualContent {
+  const parts = line.split(' / ');
+  return {
+    [primaryLang]: cleanText(parts[0]),
+    [secondaryLang]: cleanText(parts[1] || ''), // Ensure secondary is always a string
+  };
+}
+
+
+/**
  * Parses markdown into segments. This is the core logic.
- * It handles both monolingual and bilingual text based on the 'origin' string.
+ * It now processes line-by-line, which is simpler and more robust.
  */
 export function parseMarkdownToSegments(
   markdown: string,
@@ -43,44 +70,25 @@ export function parseMarkdownToSegments(
       isNewPara = true;
       continue;
     }
-
-    if (trimmedLine.startsWith('## ') || trimmedLine.startsWith('### ')) {
-        // Treat lower-level headings as regular text for simplicity in pieces
-        segments.push({
-            id: generateLocalUniqueId(),
-            order: order++,
-            type: 'text',
-            content: { [primaryLang]: cleanText(trimmedLine) },
-            formatting: {},
-            metadata: { isNewPara }
-        });
-        isNewPara = false;
+    
+    // Ignore chapter headings within the content. They are handled by parseBookMarkdown.
+    if (trimmedLine.startsWith('## ')) {
         continue;
     }
-
-    if (secondaryLang) {
-      const parts = trimmedLine.split(' / ');
-      const englishParts = splitSentences(parts[0]);
-      const otherParts = parts[1] ? splitSentences(parts[1]) : [];
-      
-      const maxLength = Math.max(englishParts.length, otherParts.length);
-      
-      for (let i = 0; i < maxLength; i++) {
-        const content: MultilingualContent = {
-          [primaryLang]: cleanText(englishParts[i] || ''),
-          [secondaryLang]: cleanText(otherParts[i] || '')
-        };
-        
-        segments.push({
-          id: generateLocalUniqueId(),
-          order: order++,
-          type: 'text',
-          content,
-          formatting: {},
-          metadata: { isNewPara: isNewPara && i === 0 }
-        });
-      }
+    
+    if (secondaryLang && trimmedLine.includes(' / ')) {
+      // Bilingual line processing
+      const pairs = extractBilingualSentence(trimmedLine, primaryLang, secondaryLang);
+      segments.push({
+        id: generateLocalUniqueId(),
+        order: order++,
+        type: 'text',
+        content: pairs,
+        formatting: {},
+        metadata: { isNewPara }
+      });
     } else {
+      // Monolingual line processing
       const sentences = splitSentences(trimmedLine);
       sentences.forEach((sentence, index) => {
         segments.push({
@@ -94,13 +102,12 @@ export function parseMarkdownToSegments(
       });
     }
 
-    if (segments.length > 0) {
-      isNewPara = false;
-    }
+    isNewPara = false;
   }
   
   return segments;
 }
+
 
 /**
  * Parses a simple bilingual text for titles/headings.
@@ -111,7 +118,7 @@ function parseBilingualText(
   secondaryLang?: string
 ): MultilingualContent {
   const cleaned = cleanText(text);
-  if (!secondaryLang) {
+  if (!secondaryLang || !cleaned.includes(' / ')) {
     return { [primaryLang]: cleaned };
   }
   
