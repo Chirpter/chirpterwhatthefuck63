@@ -144,10 +144,11 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
     "author": "Chirpter AI",
     "prompt": "A story about a dragon crossing into the human world.",
     
-    // --- Định dạng & Ngôn ngữ (QUAN TRỌNG) ---
-    "origin": "en-vi",         // 🛑 BẤT BIẾN: "Giấy khai sinh" của sách, cho biết nó được tạo ra ban đầu như thế nào (đơn ngữ, song ngữ, dạng cụm từ). Ví dụ: "en", "en-vi", "en-vi-ph".
-    "langs": ["en", "vi"],     // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có. Sẽ được cập nhật nếu người dùng dịch thêm.
-    
+    // --- Định dạng & Ngôn ngữ (Quan trọng cho UI/TTS) ---
+    "origin": "en-vi",         // 🛑 BẤT BIẾN: "Giấy khai sinh" của sách. Ví dụ: "en", "en-vi", "en-vi-ph".
+    "langs": ["en", "vi"],     // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có.
+    "unit": "sentence",       // ✅ BOOK-LEVEL: Đơn vị nội dung của TOÀN BỘ sách ('sentence' hoặc 'phrase').
+
     // --- Phân loại & Tìm kiếm ---
     "tags": ["fantasy", "adventure"],
 
@@ -173,57 +174,40 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
             "id": "ch_01",
             "order": 0,
             "title": { "en": "The Portal", "vi": "Cánh Cổng" },
-            "stats": { /* ... */ },
             "segments": [
                 {
                     "id": "seg_01_01",
                     "order": 0,
                     "type": "text",
-                    "metadata": {
-                        "isNewPara": true,
-                        "unit": "sentence" // ✅ Cờ cho biết content chứa dữ liệu dạng "câu".
-                    },
+                    "metadata": { "isNewPara": true },
                     "formatting": {},
-                    "content": [ // ✅ Luôn là một mảng. Với unit='sentence', nó chỉ có MỘT phần tử.
-                        {
-                            "en": "The rift shimmered, a tear in reality's fabric.",
-                            "vi": "Vết nứt lung linh, một vết rách trên tấm vải của thực tại."
-                        }
-                    ]
+                    "content": {
+                        "en": "The rift shimmered, a tear in reality's fabric.",
+                        "vi": "Vết nứt lung linh, một vết rách trên tấm vải của thực tại."
+                    }
                 }
-            ]
+            ],
+            "stats": { /* ... */ }
         },
         {
             "id": "ch_02",
             "order": 1,
-            "title": { "en": "First Words", "vi": "Lời Nói Đầu Tiên" },
-            "stats": { /* ... */ },
+            "title": { "en": "A New Sound", "vi": "Một Âm Thanh Mới" },
             "segments": [
                 {
                     "id": "seg_02_01",
                     "order": 0,
                     "type": "text",
-                    "metadata": {
-                        "isNewPara": true,
-                        "unit": "phrase" // ✅ Cờ cho biết content chứa dữ liệu dạng "cụm từ".
-                    },
+                    "metadata": { "isNewPara": true },
                     "formatting": {},
-                    "content": [ // ✅ Luôn là một mảng. Với unit='phrase', nó có NHIỀU phần tử.
-                        {
-                            "en": "A young boy",
-                            "vi": "Một cậu bé"
-                        },
-                        {
-                            "en": " saw the dragon and whispered,",
-                            "vi": " nhìn thấy con rồng và thì thầm,"
-                        },
-                        {
-                            "en": " 'You are not from here.'",
-                            "vi": " 'Bạn không phải từ nơi này.'"
-                        }
-                    ]
+                    // Ví dụ cho unit: 'phrase'. Các cụm từ được ngăn cách bằng ký tự '|'
+                    "content": {
+                        "en": "A young boy| saw the dragon and whispered,| 'You are not from here.'",
+                        "vi": "Một cậu bé| nhìn thấy con rồng và thì thầm,| 'Bạn không phải từ nơi này.'"
+                    }
                 }
-            ]
+            ],
+            "stats": { /* ... */ }
         }
     ],
 

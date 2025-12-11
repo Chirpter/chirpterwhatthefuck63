@@ -20,13 +20,6 @@ export class ApiServiceError extends Error {
  * @description A flexible object to hold content in multiple languages.
  * The key is the BCP-47 language code (e.g., 'en', 'vi') and the value is the text content.
  * This is the central type for representing translated text across the application.
- * @example
- * // For a bilingual title:
- * { "en": "The Dragon's Journey", "vi": "Hành Trình Của Rồng" }
- * // For monolingual content:
- * { "vi": "Con rồng đã bay đi." }
- * // For a trilingual segment after on-demand translation:
- * { "vi": "...", "en": "...", "fr": "..." }
  */
 export type MultilingualContent = {
   [languageCode: string]: string;
@@ -55,9 +48,7 @@ export type ContentUnit = 'sentence' | 'phrase';
 
 export interface SegmentMetadata {
   isNewPara: boolean;
-  unit: ContentUnit;
   applyDropCap?: boolean;
-  /** Optional styles or tags for AI processing, e.g., { "style": "sad" } */
   style?: string; 
   wordCount?: { [lang: string]: number };
 }
@@ -65,7 +56,6 @@ export interface SegmentMetadata {
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
- * The `content` field is now ALWAYS an array of PhraseMap.
  */
 export interface Segment {
   id: string;
@@ -73,11 +63,11 @@ export interface Segment {
   type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
   
   /**
-   * Holds the textual data as an array of phrases.
-   * - For `unit: 'sentence'`, it's an array with ONE element: [{ en: "Full sentence.", vi: "Câu đầy đủ." }]
-   * - For `unit: 'phrase'`, it's an array with MULTIPLE elements: [{ en: "A phrase", vi: "Một cụm" }, { en: " and another.", vi: " và một cụm nữa." }]
+   * Holds the textual data.
+   * - For `unit: 'sentence'`, it's an object: { "en": "Full sentence.", "vi": "Câu đầy đủ." }
+   * - For `unit: 'phrase'`, it's a string with a separator: "A phrase {Một cụm}| and another {và một cụm nữa}"
    */
-  content: PhraseMap[];
+  content: MultilingualContent;
   
   formatting: TextFormatting;
   metadata: SegmentMetadata;
@@ -100,9 +90,7 @@ export interface Chapter {
   title: MultilingualContent;
   segments: Segment[];
   stats: ChapterStats;
-  metadata: {
-    // No longer need primaryLanguage here, it's derived from Book's origin
-  };
+  metadata: {};
 }
 
 
@@ -214,6 +202,7 @@ interface BaseLibraryItem extends BaseDocument {
   title: MultilingualContent;
   origin: string;
   langs: string[];
+  unit: ContentUnit; // MOVED TO BOOK/PIECE LEVEL
   status: OverallStatus;
   progress?: number;
   isGlobal?: boolean;
@@ -257,7 +246,6 @@ export interface EditorSettings {
 /**
  * @interface Piece
  * @description Represents a shorter, single-part work like an article, poem, or dialogue.
- * It does not have chapters.
  */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
@@ -270,7 +258,6 @@ export interface Piece extends BaseLibraryItem {
     startTime?: number;
     endTime?: number;
   };
-  isComplete?: boolean;
 }
 
 export interface CreationFormValues {
@@ -283,6 +270,7 @@ export interface CreationFormValues {
   display: 'book' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
   origin: string;
+  unit: ContentUnit; // Add unit to form values
   // Book specific fields
   coverImageOption: 'none' | 'upload' | 'ai';
   coverImageAiPrompt: string;
@@ -454,5 +442,4 @@ export type TierTask =
 | { type: 'ref'; id: string; goal: number }
 | { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
 
-// Renamed for better clarity. Represents the same structure as the old ChapterTitle.
-export type { MultilingualContent as ChapterTitle };
+// Renamed for

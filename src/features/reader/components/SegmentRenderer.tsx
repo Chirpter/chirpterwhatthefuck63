@@ -5,7 +5,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, PhraseMap } from '@/lib/types';
+import type { Segment } from '@/lib/types';
 
 interface SegmentRendererProps {
   segment: Segment;
@@ -15,6 +15,7 @@ interface SegmentRendererProps {
   isBilingualMode: boolean;
   displayLang1: string;
   displayLang2: string; // 'none' or language code
+  bookUnit: 'sentence' | 'phrase'; // Add bookUnit prop
 }
 
 const getWordHighlightContent = (text: string, boundary: { charIndex: number, charLength: number } | null): React.ReactNode => {
@@ -42,57 +43,58 @@ const renderSegmentContent = (
   isSegmentPlaying: boolean,
   spokenLang: string | null,
   speechBoundary: { charIndex: number, charLength: number } | null,
+  bookUnit: 'sentence' | 'phrase'
 ) => {
-  const { content, metadata } = segment;
-  const { unit } = metadata;
+  const { content } = segment;
+  
+  const primaryText = content[displayLang1];
+  const secondaryText = displayLang2 !== 'none' ? content[displayLang2] : null;
 
-  // For both 'sentence' and 'phrase' modes, content is always an array.
-  // We just iterate through it.
-  return content.map((phrase, index) => {
-    const primaryText = phrase[displayLang1];
-    const secondaryText = displayLang2 !== 'none' ? phrase[displayLang2] : null;
+  if (!primaryText) return null;
 
-    if (!primaryText) return null;
+  // Handle Phrase Mode
+  if (bookUnit === 'phrase') {
+      const primaryPhrases = primaryText.split(' | ');
+      const secondaryPhrases = secondaryText?.split(' | ') || [];
 
-    // Word-level highlighting only applies to sentence mode for now
-    const primaryContent = (isSegmentPlaying && spokenLang === displayLang1 && unit === 'sentence')
+      return primaryPhrases.map((phrase, index) => {
+          const secondaryPhrase = secondaryPhrases[index];
+          return (
+              <span key={index} className={cn("inline-block mr-1", isSegmentPlaying && 'tts-highlight')}>
+                  <span lang={displayLang1}>{phrase}</span>
+                  {secondaryPhrase && (
+                      <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryPhrase})</span>
+                  )}
+              </span>
+          );
+      });
+  }
+  
+  // Handle Sentence Mode
+  const primaryContent = (isSegmentPlaying && spokenLang === displayLang1)
       ? getWordHighlightContent(primaryText, speechBoundary)
       : primaryText;
-    
-    const secondaryContent = (secondaryText && isSegmentPlaying && spokenLang === displayLang2 && unit === 'sentence')
+  
+  const secondaryContent = (secondaryText && isSegmentPlaying && spokenLang === displayLang2)
       ? getWordHighlightContent(secondaryText, speechBoundary)
       : secondaryText;
       
-    // Phrase mode: "Primary (Secondary) "
-    if (unit === 'phrase') {
+  if (isBilingualMode) {
       return (
-        <span key={index} className={cn("inline-block mr-1", isSegmentPlaying && 'tts-highlight')}>
-          <span lang={displayLang1}>{primaryContent}</span>
-          {secondaryText && (
-            <span className="text-muted-foreground text-[0.85em] font-light italic ml-1">({secondaryContent})</span>
-          )}
-        </span>
+          <span className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
+              <span className="block" lang={displayLang1}>{primaryContent}</span>
+              {secondaryContent && <span className="block text-muted-foreground italic text-[0.9em] mt-1" lang={displayLang2}>{secondaryContent}</span>}
+          </span>
       );
-    }
-    
-    // Sentence mode: Stacked or monolingual
-    if (isBilingualMode) {
-      return (
-        <span key={index} className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
-          <span className="block" lang={displayLang1}>{primaryContent}</span>
-          {secondaryContent && <span className="block text-muted-foreground italic text-[0.9em] mt-1" lang={displayLang2}>{secondaryContent}</span>}
-        </span>
-      );
-    }
+  }
 
-    // Default: Monolingual sentence mode
-    return (
-      <span key={index} className={cn(isSegmentPlaying && 'tts-highlight')}>
-        <span lang={displayLang1}>{primaryContent}</span>
-        {' '}
+  // Default: Monolingual sentence mode
+  return (
+      <span className={cn(isSegmentPlaying && 'tts-highlight')}>
+          <span lang={displayLang1}>{primaryContent}</span>
+          {' '}
       </span>
-    );
-  });
+  );
 };
 
 
@@ -104,13 +106,14 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     isBilingualMode,
     displayLang1,
     displayLang2,
+    bookUnit, // Receive bookUnit from parent
 }) => {
   
   const isSegmentPlaying = isPlaying;
 
-  const renderMainContent = () => renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary);
+  const renderMainContent = () => renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, bookUnit);
   
-  const primaryText = segment.content[0]?.[displayLang1] || '';
+  const primaryText = segment.content[displayLang1] || '';
 
   switch (segment.type) {
     case 'heading':
