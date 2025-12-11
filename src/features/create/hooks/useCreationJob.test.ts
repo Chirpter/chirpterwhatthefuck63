@@ -35,7 +35,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) => {
-      if (params) return `${key}(${JSON.stringify(params)})`;
+      if (params) return `${'${key}'}(${'${JSON.stringify(params)}'})`;
       return key;
     },
     i18n: { language: 'en' },
@@ -111,15 +111,17 @@ describe('useCreationJob Hook - Form State Management', () => {
     });
 
     it('should reset form when type changes', () => {
-      const { result, rerender } = renderHook(
-        ({ type }) => useCreationJob({ type, editingBookId: null, mode: null }),
-        { initialProps: { type: 'book' as 'book' | 'piece' } }
+      const { result } = renderHook(
+        useCreationJob,
+        { initialProps: { type: 'book' as 'book' | 'piece', editingBookId: null, mode: null } }
       );
 
       const initialPrompt = result.current.formData.aiPrompt;
 
-      rerender({ type: 'piece' as 'book' | 'piece' });
-
+      act(() => {
+        result.current.reset('piece');
+      });
+      
       // ✅ FIX: The hook's reset function now correctly assigns a new default prompt.
       expect(result.current.formData.aiPrompt).not.toBe(initialPrompt);
       expect(result.current.formData.type).toBe('piece');
@@ -405,6 +407,10 @@ describe('🔬 Edge Cases - Advanced', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+     vi.mocked(userContext.useUser).mockReturnValue({
+      user: { uid: 'test-user', credits: 100, plan: 'free' } as User,
+      loading: false, error: null, levelUpInfo: null, clearLevelUpInfo: vi.fn(), reloadUser: vi.fn(), retryUserFetch: vi.fn(),
+    });
   });
 
   describe('⚠️ Race Conditions', () => {
@@ -425,13 +431,12 @@ describe('🔬 Edge Cases - Advanced', () => {
     });
 
     it('should handle concurrent type changes', () => {
-      const { result, rerender } = renderHook(
-        ({ type }) => useCreationJob({ type, editingBookId: null, mode: null }),
-        { initialProps: { type: 'book' as 'book' | 'piece' } }
+      const { result } = renderHook(
+        useCreationJob,
+        { initialProps: { type: 'book' as 'book' | 'piece', editingBookId: null, mode: null } }
       );
-
-      rerender({ type: 'piece' as 'book' | 'piece' });
-      rerender({ type: 'book' as 'book' | 'piece' });
+      act(() => result.current.reset('piece'));
+      act(() => result.current.reset('book'));
 
       expect(result.current.formData.type).toBe('book');
     });

@@ -1,5 +1,5 @@
 // src/features/create/hooks/useCreationJob.ts
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
@@ -33,8 +33,8 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   const [isLoadingExistingBook, setIsLoadingExistingBook] = useState(false);
   
   const [activeId, setActiveId] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return sessionStorage.getItem(`activeJobId_${user?.uid}`) || null;
+    if (typeof window === 'undefined' || !user?.uid) return null;
+    return sessionStorage.getItem(`activeJobId_${user.uid}`) || null;
   });
   
   const [jobData, setJobData] = useState<LibraryItem | null>(null);
@@ -270,7 +270,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    sessionStorage.removeItem(`activeJobId_${user?.uid}`);
+    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
   }, [user]);
 
   return {
