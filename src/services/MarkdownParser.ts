@@ -1,4 +1,3 @@
-
 // src/services/MarkdownParser.ts
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
@@ -92,48 +91,51 @@ function splitIntoSentences(text: string): string[] {
 }
 
 /**
- * REFACTORED: Extracts bilingual text pairs using a single Regex scan.
- * This is simpler and more robust. It looks for patterns of 'text {translation}'.
+ * REFACTORED: Extracts text pairs using conditional logic.
+ * - If bilingual, uses a simple Regex scan for A {B} pairs.
+ * - If monolingual, uses smart sentence splitting.
  */
 function extractBilingualTextPairs(text: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
-    if (!secondaryLang) {
-        // MONOLINGUAL MODE: Use smart sentence splitting
+    
+    if (secondaryLang) {
+        // --- BILINGUAL LOGIC ---
+        // Simple, robust regex to find A {B} pairs.
+        const pairs: Array<MultilingualContent> = [];
+        const regex = /(.*?)\s*\{(.*?)\}/g;
+        let match;
+        let lastIndex = 0;
+
+        while ((match = regex.exec(text)) !== null) {
+            const primaryText = cleanText(match[1]);
+            const secondaryText = cleanText(match[2]);
+
+            if (primaryText) {
+                pairs.push({
+                    [primaryLang]: primaryText,
+                    [secondaryLang]: secondaryText
+                });
+            }
+            lastIndex = match.index + match[0].length;
+        }
+        
+        // Capture any remaining primary text after the last brace
+        if (lastIndex < text.length) {
+            const remainingText = cleanText(text.substring(lastIndex));
+            if (remainingText) {
+                pairs.push({ [primaryLang]: remainingText });
+            }
+        }
+
+        return pairs;
+        
+    } else {
+        // --- MONOLINGUAL LOGIC ---
+        // Use smart sentence splitting.
         return splitIntoSentences(text).map(sentence => {
             const cleaned = cleanText(sentence);
             return cleaned ? { [primaryLang]: cleaned } : null;
         }).filter((p): p is MultilingualContent => p !== null);
     }
-
-    // BILINGUAL MODE: Use a robust regex to capture pairs
-    const pairs: Array<MultilingualContent> = [];
-    // This regex finds content followed by a translation in braces.
-    // It is non-greedy and handles various whitespace.
-    const regex = /(.*?)\s*\{(.*?)\}/g;
-    let match;
-    let lastIndex = 0;
-
-    while ((match = regex.exec(text)) !== null) {
-        const primaryText = cleanText(match[1]);
-        const secondaryText = cleanText(match[2]);
-
-        if (primaryText) {
-            pairs.push({
-                [primaryLang]: primaryText,
-                [secondaryLang]: secondaryText
-            });
-        }
-        lastIndex = match.index + match[0].length;
-    }
-    
-    // Capture any remaining primary text after the last brace
-    if (lastIndex < text.length) {
-        const remainingText = cleanText(text.substring(lastIndex));
-        if (remainingText) {
-            pairs.push({ [primaryLang]: remainingText });
-        }
-    }
-
-    return pairs;
 }
 
 
@@ -155,7 +157,7 @@ function processParagraphIntoSegments(
     let segmentOrder = 0;
     let isFirstSegmentOfPara = isFirstInParagraph;
 
-    // Step 1: Extract sentence pairs
+    // Step 1: Extract sentence pairs (or monolingual sentences)
     const sentencePairs = extractBilingualTextPairs(paragraphText, primaryLang, secondaryLang);
 
     // Step 2: Process each sentence pair
