@@ -13,6 +13,8 @@ import { VocabVideosProvider } from '@/features/learning/contexts/VocabVideosCon
 import { AudioPlayer } from '@/features/player/components/AudioPlayer';
 import type { CombinedBookmark } from '@/lib/types';
 import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/toaster';
+import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
 
 // ✅ FIX: Directly import the client-side listener logic
 import { initializeAchievementListener, cleanupAchievementListener } from '@/features/vocabulary/listeners/achievement-listener';
@@ -49,6 +51,8 @@ export const ClientProviders = ({ initialBookmarks, children }: { initialBookmar
                                         <Suspense fallback={null}>
                                             <AudioPlayer />
                                         </Suspense>
+                                        <Toaster />
+                                        {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
                                     </VocabVideosProvider>
                                 </AudioPlayerProvider>
                             </BookmarkProvider>
