@@ -15,8 +15,6 @@ const DEFAULT_PIECE_PROMPT = "Create an inspiring piece about...";
 
 interface UseCreationJobParams {
   type: 'book' | 'piece';
-  editingBookId: string | null;
-  mode: string | null;
 }
 
 function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
@@ -54,18 +52,17 @@ function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
   };
 }
 
-export function useCreationJob({ type, editingBookId, mode }: UseCreationJobParams) {
+// REMOVED editingBookId and mode from params as they are no longer relevant here.
+export function useCreationJob({ type }: UseCreationJobParams) {
   const { t } = useTranslation(['createPage']);
   const { toast } = useToast();
   const { user } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState<CreationFormValues>(() => getInitialFormData(type));
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const [isLoadingExistingBook, setIsLoadingExistingBook] = useState(false);
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
@@ -145,40 +142,37 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
     setFormData(prev => {
       const newData = { ...prev };
       
-      const updateOrigin = (p: string, s: string | undefined, isPhrase: boolean) => {
-        let newOrigin = p;
-        if (s) newOrigin += `-${s}`;
-        if (isPhrase && s) newOrigin += '-ph';
-        return newOrigin;
-      };
-
-      let currentIsPhrase = prev.unit === 'phrase';
       let primary = prev.primaryLanguage;
-      let secondary: string | undefined = prev.availableLanguages[1];
+      let secondary: string | undefined = prev.availableLanguages.length > 1 ? prev.availableLanguages[1] : undefined;
+      let isPhraseMode = prev.unit === 'phrase';
 
       if (key === 'isBilingual') {
-        secondary = value ? 'vi' : undefined; 
+        secondary = value ? 'vi' : undefined;
         newData.availableLanguages = value ? [primary, 'vi'] : [primary];
       } else if (key === 'primaryLanguage') {
         primary = value;
         newData.primaryLanguage = value;
-        newData.availableLanguages = [value, ...((prev.availableLanguages.length > 1 && prev.availableLanguages[1]) ? [prev.availableLanguages[1]] : [])];
+        newData.availableLanguages = [value, ...(secondary ? [secondary] : [])];
       } else if (key === 'secondaryLanguage') {
-        secondary = value;
-        newData.availableLanguages = [primary, value as string];
-      } else if (key === 'unit') {
-        currentIsPhrase = value === 'phrase';
-        newData.unit = value;
+        secondary = value === 'none' ? undefined : value;
+        newData.availableLanguages = [primary, ...(secondary ? [secondary] : [])];
+      } else if (key === 'isPhraseMode') {
+        isPhraseMode = value;
+        newData.unit = value ? 'phrase' : 'sentence';
       } else {
         (newData as any)[key] = value;
       }
 
-      newData.origin = updateOrigin(primary, secondary, currentIsPhrase);
+      // Reconstruct origin
+      let newOrigin = primary;
+      if (secondary) newOrigin += `-${secondary}`;
+      if (isPhraseMode && secondary) newOrigin += '-ph';
+      newData.origin = newOrigin;
+
       if (key === 'bookLength') {
         const option = BOOK_LENGTH_OPTIONS.find(o => o.value === value);
         if (option) newData.targetChapterCount = option.defaultChapters;
       }
-
       return newData;
     });
   }, []);
@@ -227,9 +221,7 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   }, [user?.uid]);
 
   useEffect(() => {
-    if (type) {
-      reset(type);
-    }
+    reset(type);
   }, [type, reset]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -292,11 +284,9 @@ export function useCreationJob({ type, editingBookId, mode }: UseCreationJobPara
   }, []);
 
   return {
-    formData, isPromptDefault, promptError, isBusy, isLoadingExistingBook, activeId, jobData, finalizedId, creditCost,
-    validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser, mode,
+    formData, isPromptDefault, promptError, isBusy, activeId, jobData, finalizedId, creditCost,
+    validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
     handlePresentationStyleChange, handleTagClick, handleCustomTagAdd, handleSubmit, handleViewResult, reset,
   };
 }
-
-    

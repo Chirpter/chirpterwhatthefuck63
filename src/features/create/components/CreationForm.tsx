@@ -86,8 +86,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     handlePromptFocus,
     handlePresentationStyleChange,
     isPromptDefault,
-    mode,
-    isLoadingExistingBook,
     isBusy,
     promptError,
     jobData,
@@ -126,6 +124,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     : `card_${(formData.aspectRatio || '3:4').replace(':', '_')}`;
 
   const isBilingual = formData.availableLanguages.length > 1;
+  const isPhraseMode = formData.unit === 'phrase';
 
   return (
     <>
@@ -133,44 +132,11 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
 
         {mobilePreview}
 
-        {type === 'book' && mode === 'addChapters' && (
-          <div className="space-y-2 p-4 border rounded-lg">
-            <Label htmlFor="previousContentSummary" className="font-body text-base font-medium flex items-center">
-              <Icon name="MessageSquare" className="h-5 w-5 mr-2 text-primary" /> {t('addChapters.summaryLabel')}
-            </Label>
-            <Textarea
-              id="previousContentSummary"
-              placeholder={t('addChapters.summaryPlaceholder')}
-              name="previousContentSummary"
-              value={formData.previousContentSummary}
-              onChange={handleInputChange}
-              className="font-body"
-              rows={4}
-              disabled={true}
-            />
-            <Label htmlFor="targetChapterCount" className="font-body text-base font-medium flex items-center mt-2">
-              <Icon name="ListChecks" className="h-5 w-5 mr-2 text-primary" /> {t('advancedSettings.chapterCountLabel')}
-            </Label>
-            <Input
-              id="targetChapterCount"
-              type="number"
-              min="1"
-              max="12"
-              name="targetChapterCount"
-              value={formData.targetChapterCount}
-              onChange={handleInputChange}
-              onBlur={handleChapterCountBlur}
-              className="font-body"
-              disabled={isLoadingExistingBook}
-            />
-          </div>
-        )}
-
         <div className="space-y-2 p-4 border rounded-lg bg-muted/50">
           <Label htmlFor="aiPrompt" className="font-body text-base font-medium flex items-center">
             <Icon name="Sparkles" className="h-5 w-5 mr-2 text-primary" />
-            {type === 'book' && mode === 'addChapters' ? t('aiPrompt.addChaptersBookLabel') : (type === 'book' ? t('aiPrompt.bookLabel') : t('aiPrompt.pieceLabel'))}
-            {mode !== 'addChapters' && <span className="text-destructive ml-1">*</span>}
+            {type === 'book' ? t('aiPrompt.bookLabel') : t('aiPrompt.pieceLabel')}
+            <span className="text-destructive ml-1">*</span>
           </Label>
           <Textarea
             id="aiPrompt"
@@ -184,7 +150,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
               isPromptDefault && "text-muted-foreground italic"
             )}
             rows={5}
-            disabled={isLoadingExistingBook}
+            disabled={isBusy}
             maxLength={MAX_PROMPT_LENGTH}
           />
           <div className="text-right text-xs text-muted-foreground pt-1">
@@ -198,18 +164,18 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
         <CreationLanguageSettings
           isBilingual={isBilingual}
           onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
-          isPhraseMode={formData.origin.endsWith('-ph')}
-          onIsPhraseModeChange={() => handleValueChange('origin', formData.origin)}
+          isPhraseMode={isPhraseMode}
+          onIsPhraseModeChange={() => handleValueChange('isPhraseMode', !isPhraseMode)}
           primaryLanguage={formData.primaryLanguage}
           onPrimaryLangChange={(value) => handleValueChange('primaryLanguage', value)}
           secondaryLanguage={formData.availableLanguages[1]}
           onSecondaryLangChange={(value) => handleValueChange('secondaryLanguage', value)}
           availableLanguages={job.availableLanguages}
-          isDisabled={isLoadingExistingBook || isBusy || (mode === 'addChapters' && isBilingual)}
+          isDisabled={isBusy}
           idPrefix={type}
         />
 
-        {type === 'book' && mode !== 'addChapters' && (
+        {type === 'book' && (
           <CoverImageSettings
               coverImageOption={formData.coverImageOption}
               onCoverOptionChange={(value) => handleValueChange('coverImageOption', value)}
@@ -217,7 +183,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
               onCoverFileChange={handleFileChange}
               coverImageAiPrompt={formData.coverImageAiPrompt}
               onCoverAiPromptChange={handleInputChange}
-              isDisabled={isLoadingExistingBook || isBusy}
+              isDisabled={isBusy}
               isProUser={isProUser}
           />
         )}
@@ -230,7 +196,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
             />
         )}
 
-        {type === 'book' && mode !== 'addChapters' && (
+        {type === 'book' && (
           <AdvancedSettings
             bookLength={formData.bookLength}
             onBookLengthChange={(value) => handleValueChange('bookLength', value)}
@@ -239,7 +205,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
             onTargetChapterCountBlur={handleChapterCountBlur}
             generationScope={formData.generationScope}
             onGenerationScopeChange={(value) => handleValueChange('generationScope', value)}
-            isDisabled={isLoadingExistingBook || isBusy}
+            isDisabled={isBusy}
             minChapters={minChaptersForCurrentLength}
             maxChapters={maxChapters}
           />

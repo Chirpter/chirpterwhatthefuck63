@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Icon } from '@/components/ui/icons';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMobile } from '@/hooks/useMobile';
-import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/contexts/user-context';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { cn } from '@/lib/utils';
@@ -19,38 +18,29 @@ import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCa
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
   const isMobile = useMobile();
-  const searchParams = useSearchParams();
   const { user } = useUser();
   const audioPlayer = useAudioPlayer();
   const isPlayerVisible = !!audioPlayer.currentPlayingItem;
 
-  const mode = searchParams.get('mode');
-  const editingBookId = searchParams.get('bookId');
-
-  const [activeTab, setActiveTab] = useState<'book' | 'piece'>(mode === 'addChapters' ? 'book' : 'book');
+  const [activeTab, setActiveTab] = useState<'book' | 'piece'>('book');
   
   const job = useCreationJob({
     type: activeTab,
-    editingBookId: activeTab === 'book' ? editingBookId : null,
-    mode: activeTab === 'book' ? mode : null,
   });
 
   const handleTabChange = useCallback((newTab: string) => {
-    if (mode === 'addChapters') return;
     const tabValue = newTab as 'book' | 'piece';
     setActiveTab(tabValue);
     job.reset(tabValue); // Pass new type to reset function
-  }, [mode, job]);
+  }, [job]);
 
-  const pageTitle = mode === 'addChapters' ? t('addChaptersTitle') : t('createContentTitle');
+  const pageTitle = t('createContentTitle');
   
   const { isBusy, validationMessage, canGenerate, creditCost, finalizedId } = job;
 
   const formId = "creation-form";
   
-  const submitButtonText = mode === 'addChapters' 
-    ? t('generateButton.addChapters') 
-    : t('generateButton.default');
+  const submitButtonText = t('generateButton.default');
 
   const showCreditBadge = !isBusy && !finalizedId;
   const isSubmitDisabled = isBusy || !!validationMessage || !canGenerate;
@@ -97,13 +87,12 @@ export default function CreateView() {
         >
           <div className="p-4 border-b">
             <TabsList className="grid w-full grid-cols-2 font-body">
-              <TabsTrigger value="book" disabled={mode === 'addChapters'}>{t('tabs.book')}</TabsTrigger>
-              <TabsTrigger value="piece" disabled={mode === 'addChapters'}>{t('tabs.piece')}</TabsTrigger>
+              <TabsTrigger value="book">{t('tabs.book')}</TabsTrigger>
+              <TabsTrigger value="piece">{t('tabs.piece')}</TabsTrigger>
             </TabsList>
           </div>
 
           <ScrollArea className="flex-grow">
-            {/* The bottom padding is added to ensure content doesn't get hidden behind the fixed footer */}
             <div className="p-4"> 
               <TabsContent value="book" className="m-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0">
                 <CreationForm job={job} formId={formId} type="book"/>
@@ -116,12 +105,11 @@ export default function CreateView() {
           </ScrollArea>
         </Tabs>
         
-        {/* This footer is now fixed at the bottom on mobile */}
         <div className="p-4 border-t bg-card mt-auto space-y-2 fixed bottom-0 left-0 right-0 md:static">
             {!isBusy && validationMessage && (
                 <div className="flex items-center justify-center text-xs text-destructive font-medium">
                     <Icon name="Info" className="mr-1 h-3.5 w-3.5" />
-                    {validationMessage}
+                    {t(validationMessage)}
                 </div>
             )}
             <Button
