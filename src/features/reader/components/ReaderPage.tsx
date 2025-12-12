@@ -30,6 +30,8 @@ import { useMobile } from '@/hooks/useMobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { getLibraryItemById } from '@/services/client/library-service';
 import { PageContentRenderer } from './PageContentRenderer';
+import { regenerateBookContent } from '@/services/book-creation.service';
+
 
 const LookupPopover = dynamic(() => import('@/features/reader/components/LookupPopover'), { ssr: false });
 const AudioSettingsPopover = dynamic(() => import('@/features/player/components/AudioSettingsPopover').then(mod => mod.AudioSettingsPopover), { ssr: false });
@@ -77,7 +79,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const { authUser } = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
-  const { t, i18n } = useTranslation(['readerPage', 'common']);
+  const { t, i18n } = useTranslation(['readerPage', 'common', 'toast']);
   const audioPlayer = useAudioPlayer();
   const { wordLookupEnabled } = useSettings();
   const isMobile = useMobile();
@@ -102,6 +104,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 
   const [displayLang1, setDisplayLang1] = useState('en');
   const [displayLang2, setDisplayLang2] = useState('none');
+  const [isGeneratingChapters, setIsGeneratingChapters] = useState(false);
   
   const bilingualFormat: BilingualFormat = useMemo(() => {
     if (!item || !item.origin) return 'sentence';
@@ -405,6 +408,45 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   }, [audioPlayer.currentPlayingItem, audioPlayer.position, currentPageIndex, getPageForSegment, searchParams, isCalculatingPages, isPreview, item, chapterStartPages]);
 
 
+  const canGenerateNextChapters = useMemo(() => {
+    if (!item || item.type !== 'book') return false;
+    const book = item as Book;
+    const isLongForm = book.length === 'standard-book' || book.length === 'long-book';
+    const hasOutline = !!book.outline && book.outline.length > 0;
+    const hasMoreChaptersToGenerate = hasOutline && book.chapters.length < book.outline.length;
+    return isLongForm && hasMoreChaptersToGenerate;
+  }, [item]);
+
+  const handleGenerateNextChapters = useCallback(async () => {
+    if (!canGenerateNextChapters || !user || !item || item.type !== 'book') return;
+
+    setIsGeneratingChapters(true);
+    toast({
+        title: t('toast:regenContentTitle'),
+        description: t('toast:regenDesc')
+    });
+
+    try {
+        const book = item as Book;
+        const existingContentSummary = book.chapters
+            .map(c => `# ${c.title.en}\n...`) // Simple summary
+            .join('\n');
+            
+        // We call the same function, but the prompt will now include the summary
+        await regenerateBookContent(user.uid, book.id, `Continue the story from this summary: ${existingContentSummary}`);
+        // The onSnapshot listener will automatically update the UI with new chapters
+    } catch (error) {
+        toast({
+            title: t('common:error'),
+            description: (error as Error).message || t('toast:regenErrorDesc'),
+            variant: "destructive"
+        });
+    } finally {
+        setIsGeneratingChapters(false);
+    }
+  }, [canGenerateNextChapters, user, item, t, toast]);
+  
+
   const renderLoading = () => (
     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 text-center bg-background">
       <Icon name="BookOpen" className="h-12 w-12 animate-pulse text-primary" />
@@ -566,7 +608,17 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
-                           <p>No content to display.</p>
+                           {canGenerateNextChapters ? (
+                                <div className="space-y-4">
+                                    <p>{t('generateMoreChaptersPrompt')}</p>
+                                    <Button onClick={handleGenerateNextChapters} disabled={isGeneratingChapters}>
+                                        {isGeneratingChapters && <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" />}
+                                        {t('generateMoreChaptersButton')}
+                                    </Button>
+                                </div>
+                           ) : (
+                                <p>No content to display.</p>
+                           )}
                         </div>
                     )}
                 </motion.div>
@@ -582,3 +634,4 @@ export const ReaderPage = (props: { isPreview?: boolean }) => {
       <ReaderView {...props} />
   );
 }
+```
