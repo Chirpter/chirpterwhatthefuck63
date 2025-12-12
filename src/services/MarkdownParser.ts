@@ -102,63 +102,45 @@ function splitIntoSentences(text: string): string[] {
 
 
 /**
- * Extracts bilingual text pairs from a line.
- * This is a robust scanner that doesn't rely on sentence structure.
+ * REFACTORED: Extracts bilingual text pairs using a single Regex scan.
+ * This is simpler and more robust. It looks for patterns of 'text {translation}'.
  */
 function extractBilingualTextPairs(text: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
-    const pairs: Array<MultilingualContent> = [];
-    
     if (!secondaryLang) {
         // MONOLINGUAL MODE: Use smart sentence splitting
-        const sentences = splitIntoSentences(text);
-        sentences.forEach(sentence => {
+        return splitIntoSentences(text).map(sentence => {
             const cleaned = cleanText(sentence);
-            if (cleaned) {
-                pairs.push({ [primaryLang]: cleaned });
-            }
-        });
-        return pairs;
+            return cleaned ? { [primaryLang]: cleaned } : null;
+        }).filter((p): p is MultilingualContent => p !== null);
     }
 
-    // BILINGUAL MODE: {...} is the absolute source of truth
-    let currentIndex = 0;
-    while (currentIndex < text.length) {
-        const openBraceIndex = text.indexOf('{', currentIndex);
-        
-        // If no more opening braces are found
-        if (openBraceIndex === -1) {
-            const remainingText = cleanText(text.substring(currentIndex));
-            if (remainingText) {
-                pairs.push({ [primaryLang]: remainingText });
-            }
-            break;
-        }
+    // BILINGUAL MODE: Use a robust regex to capture pairs
+    const pairs: Array<MultilingualContent> = [];
+    // This regex finds content followed by a translation in braces.
+    // It is non-greedy and handles various whitespace.
+    const regex = /(.*?)\s*\{(.*?)\}/g;
+    let match;
+    let lastIndex = 0;
 
-        // Text before the brace is part of the primary content
-        const primaryTextBeforeBrace = cleanText(text.substring(currentIndex, openBraceIndex));
+    while ((match = regex.exec(text)) !== null) {
+        const primaryText = cleanText(match[1]);
+        const secondaryText = cleanText(match[2]);
 
-        const closeBraceIndex = text.indexOf('}', openBraceIndex);
-
-        // If no closing brace is found (malformed)
-        if (closeBraceIndex === -1) {
-            const malformedText = cleanText(text.substring(currentIndex));
-            if (malformedText) {
-                pairs.push({ [primaryLang]: malformedText });
-            }
-            break;
-        }
-
-        const secondaryText = cleanText(text.substring(openBraceIndex + 1, closeBraceIndex));
-        
-        // If there's primary text before the brace, it forms a pair with the content in the brace
-        if (primaryTextBeforeBrace) {
-             pairs.push({ 
-                [primaryLang]: primaryTextBeforeBrace, 
-                [secondaryLang]: secondaryText || '' 
+        if (primaryText) {
+            pairs.push({
+                [primaryLang]: primaryText,
+                [secondaryLang]: secondaryText
             });
         }
-        
-        currentIndex = closeBraceIndex + 1;
+        lastIndex = match.index + match[0].length;
+    }
+    
+    // Capture any remaining primary text after the last brace
+    if (lastIndex < text.length) {
+        const remainingText = cleanText(text.substring(lastIndex));
+        if (remainingText) {
+            pairs.push({ [primaryLang]: remainingText });
+        }
     }
 
     return pairs;
