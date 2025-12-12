@@ -26,8 +26,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Fetch initial global data on the server
   const systemBookmarks = await getSystemBookmarks();
   const bookmarkMetadata = await getBookmarkMetadata();
+
+  // Combine the data on the server before passing it down
   const combinedBookmarks = systemBookmarks.map(bookmark => ({
     ...bookmark,
     ...(bookmarkMetadata.find(m => m.id === bookmark.id) || {}),
@@ -43,6 +46,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="https://firebaseinstallations.googleapis.com" />
       </head>
       <body className={`${notoSerif.variable} ${inter.variable} font-body antialiased`}>
+        {/* Pass server-fetched data to the client-side provider */}
         <ClientProviders initialBookmarks={combinedBookmarks}>
           {children}
         </ClientProviders>

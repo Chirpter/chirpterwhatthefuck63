@@ -7,7 +7,7 @@ import type { CombinedBookmark } from '../hooks/useLibrary';
 
 export interface LibraryContextType {
   availableBookmarks: CombinedBookmark[];
-  onBookmarkChange: (itemId: string, newBookmark: BookmarkType) => void;
+  onBookmarkChange: (itemId: string, newBookmarkId: BookmarkType) => void;
   onDelete: (item: LibraryItem) => void;
 }
 

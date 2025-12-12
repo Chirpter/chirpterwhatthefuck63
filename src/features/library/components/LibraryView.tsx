@@ -339,7 +339,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle className="font-headline">{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {t('common:alertDialog.deleteWarning', { title: itemToDelete.title.primary })}
+                    {t('common:alertDialog.deleteWarning', { title: (itemToDelete.title as any).primary || itemToDelete.title[Object.keys(itemToDelete.title)[0]] })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
