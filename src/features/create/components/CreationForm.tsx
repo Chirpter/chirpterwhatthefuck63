@@ -165,7 +165,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           isBilingual={isBilingual}
           onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
           isPhraseMode={isPhraseMode}
-          onIsPhraseModeChange={() => handleValueChange('isPhraseMode', !isPhraseMode)}
+          onIsPhraseModeChange={(checked) => handleValueChange('isPhraseMode', checked)}
           primaryLanguage={formData.primaryLanguage}
           onPrimaryLangChange={(value) => handleValueChange('primaryLanguage', value)}
           secondaryLanguage={formData.availableLanguages[1]}

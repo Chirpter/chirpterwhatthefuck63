@@ -15,7 +15,7 @@ interface LanguageSettingsProps {
   isBilingual: boolean;
   onIsBilingualChange: (checked: boolean) => void;
   isPhraseMode: boolean;
-  onIsPhraseModeChange: () => void;
+  onIsPhraseModeChange: (checked: boolean) => void;
   primaryLanguage: string;
   onPrimaryLangChange: (value: string) => void;
   secondaryLanguage?: string;
@@ -58,14 +58,9 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
        {isBilingual && (
         <div className="space-y-2 pt-2">
             <Label className="font-body">{t('languageSettings.bilingualFormatTitle')}</Label>
-            {/* ✅ FIX: Removed disabled from RadioGroup */}
             <RadioGroup
                 value={isPhraseMode ? 'phrase' : 'sentence'}
-                onValueChange={(value) => {
-                    if ((value === 'phrase' && !isPhraseMode) || (value === 'sentence' && isPhraseMode)) {
-                        onIsPhraseModeChange();
-                    }
-                }}
+                onValueChange={(value) => onIsPhraseModeChange(value === 'phrase')}
                 className="grid grid-cols-2 gap-3"
             >
                 <Label

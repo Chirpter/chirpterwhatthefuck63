@@ -140,40 +140,41 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const handleValueChange = useCallback((key: string, value: any) => {
     setFormData(prev => {
-      const newData = { ...prev };
-      
-      let primary = prev.primaryLanguage;
-      let secondary: string | undefined = prev.availableLanguages.length > 1 ? prev.availableLanguages[1] : undefined;
-      let isPhraseMode = prev.unit === 'phrase';
+        let newFormData = { ...prev };
+        
+        switch(key) {
+            case 'isBilingual':
+                newFormData.availableLanguages = value ? [newFormData.primaryLanguage, 'vi'] : [newFormData.primaryLanguage];
+                break;
+            case 'isPhraseMode':
+                 newFormData.unit = value ? 'phrase' : 'sentence';
+                break;
+            case 'primaryLanguage':
+                newFormData.primaryLanguage = value;
+                newFormData.availableLanguages = [value, ...(newFormData.availableLanguages.length > 1 ? [newFormData.availableLanguages[1]] : [])];
+                break;
+            case 'secondaryLanguage':
+                newFormData.availableLanguages = [newFormData.primaryLanguage, ...(value !== 'none' ? [value] : [])];
+                break;
+            case 'bookLength':
+                const option = BOOK_LENGTH_OPTIONS.find(o => o.value === value);
+                if (option) {
+                    newFormData.targetChapterCount = option.defaultChapters;
+                }
+                newFormData.bookLength = value;
+                break;
+            default:
+                (newFormData as any)[key] = value;
+        }
 
-      if (key === 'isBilingual') {
-        secondary = value ? 'vi' : undefined;
-        newData.availableLanguages = value ? [primary, 'vi'] : [primary];
-      } else if (key === 'primaryLanguage') {
-        primary = value;
-        newData.primaryLanguage = value;
-        newData.availableLanguages = [value, ...(secondary ? [secondary] : [])];
-      } else if (key === 'secondaryLanguage') {
-        secondary = value === 'none' ? undefined : value;
-        newData.availableLanguages = [primary, ...(secondary ? [secondary] : [])];
-      } else if (key === 'isPhraseMode') {
-        isPhraseMode = value;
-        newData.unit = value ? 'phrase' : 'sentence';
-      } else {
-        (newData as any)[key] = value;
-      }
+        // Reconstruct origin
+        const [primary, secondary] = newFormData.availableLanguages;
+        let newOrigin = primary;
+        if (secondary) newOrigin += `-${secondary}`;
+        if (newFormData.unit === 'phrase' && secondary) newOrigin += '-ph';
+        newFormData.origin = newOrigin;
 
-      // Reconstruct origin
-      let newOrigin = primary;
-      if (secondary) newOrigin += `-${secondary}`;
-      if (isPhraseMode && secondary) newOrigin += '-ph';
-      newData.origin = newOrigin;
-
-      if (key === 'bookLength') {
-        const option = BOOK_LENGTH_OPTIONS.find(o => o.value === value);
-        if (option) newData.targetChapterCount = option.defaultChapters;
-      }
-      return newData;
+        return newFormData;
     });
   }, []);
 
