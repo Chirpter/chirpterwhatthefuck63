@@ -31,6 +31,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { getLibraryItemById } from '@/services/client/library-service';
 import { regenerateBookContent } from '@/services/book-creation.service';
+import { PageContentRenderer } from './PageContentRenderer';
 
 
 const LookupPopover = dynamic(() => import('@/features/reader/components/LookupPopover'), { ssr: false });
