@@ -141,9 +141,9 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
             return cleaned ? { [primaryLang]: cleaned } : null;
         });
         
-        // ✅ FIX: Use a robust type guard to satisfy TypeScript
+        // Use a type guard to filter out nulls and satisfy TypeScript
         function isNotNullOrUndefined<T>(value: T | null | undefined): value is T {
-            return value !== null && value !== undefined;
+          return value !== null && value !== undefined;
         }
         return mappedItems.filter(isNotNullOrUndefined);
     }
@@ -174,10 +174,11 @@ function processParagraphIntoSegments(
 
         if (unit === 'phrase' && secondaryLang) {
             finalContent[primaryLang] = splitSentenceIntoPhrases(primarySentence);
-            if (sentencePair[secondaryLang] && typeof sentencePair[secondaryLang] === 'string') {
-                finalContent[secondaryLang] = splitSentenceIntoPhrases(sentencePair[secondaryLang] as string);
+            const secondarySentence = sentencePair[secondaryLang];
+            if (secondarySentence && typeof secondarySentence === 'string') {
+                finalContent[secondaryLang] = splitSentenceIntoPhrases(secondarySentence);
             } else {
-                finalContent[secondaryLang] = [];
+                finalContent[secondaryLang] = []; // Ensure it's an array even if empty
             }
         } else {
             // For 'sentence' unit, the content is already a string.
@@ -289,9 +290,6 @@ export function parseBookMarkdown(
                 title: chapterTitle,
                 segments,
                 stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang) },
-                metadata: {
-                    primaryLanguage: primaryLang
-                }
             });
         }
     };
@@ -305,7 +303,6 @@ export function parseBookMarkdown(
                 title: { [primaryLang]: `Chapter 1` },
                 segments,
                 stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang) },
-                metadata: { primaryLanguage: primaryLang }
             });
         }
     } else {
