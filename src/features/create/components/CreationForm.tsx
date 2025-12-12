@@ -2,9 +2,8 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Icon } from '@/components/ui/icons';
@@ -17,66 +16,7 @@ import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { PromptSuggestions } from './PromptSuggestions';
-
-interface TagManagerProps {
-  tags: string[];
-  onAddTag: (tag: string) => void;
-  onRemoveTag: (tag: string) => void;
-  isDisabled: boolean;
-}
-
-const TagManager: React.FC<TagManagerProps> = ({ tags, onAddTag, onRemoveTag, isDisabled }) => {
-  const [inputValue, setInputValue] = useState('');
-
-  const handleAdd = () => {
-    if (inputValue.trim()) {
-      onAddTag(inputValue.trim());
-      setInputValue('');
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAdd();
-    }
-  };
-  
-  return (
-    <div className="space-y-2 p-4 border rounded-lg">
-      <Label className="font-body text-base font-medium flex items-center">
-        <Icon name="Tag" className="h-5 w-5 mr-2 text-primary" />
-        Tags
-      </Label>
-      <div className="flex gap-2">
-        <Input
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="e.g., fantasy, adventure"
-          className="font-body"
-          disabled={isDisabled}
-          maxLength={20}
-        />
-        <Button type="button" onClick={handleAdd} disabled={isDisabled || tags.length >= 3}>Add</Button>
-      </div>
-       {tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-2">
-          {tags.map(tag => (
-            <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => onRemoveTag(tag)}>
-              {tag}
-              <Icon name="X" className="ml-2 h-3 w-3" />
-            </Badge>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
 
 interface CreationFormProps {
   job: any; // The entire hook result
@@ -106,9 +46,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     maxChapters,
     reset,
     isProUser,
-    handleTagAdd,
-    handleTagRemove,
-    handlePromptSuggestionClick, // Use the new handler
+    handlePromptSuggestionClick, // Use the correct handler for prompt suggestions
   } = job;
   
   const mobilePreview = isMobile ? (
@@ -165,11 +103,10 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
             disabled={isBusy}
             maxLength={MAX_PROMPT_LENGTH}
           />
-          {isPromptDefault && (
-            <div className="pt-2">
-                <PromptSuggestions onSelect={handlePromptSuggestionClick} />
-            </div>
-          )}
+          <div className="pt-2">
+              {/* This now correctly functions as Prompt Suggestions */}
+              <PromptSuggestions onSelect={handlePromptSuggestionClick} />
+          </div>
           <div className="text-right text-xs text-muted-foreground pt-1">
             {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`}
           </div>
@@ -178,12 +115,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           )}
         </div>
         
-        <TagManager
-          tags={formData.tags}
-          onAddTag={handleTagAdd}
-          onRemoveTag={handleTagRemove}
-          isDisabled={isBusy}
-        />
+        {/* The separate TagManager is removed as it was incorrect. Tag logic can be added here if needed in the future. */}
 
         <CreationLanguageSettings
           isBilingual={isBilingual}

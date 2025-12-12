@@ -1,4 +1,5 @@
 
+
 // src/features/create/hooks/useCreationJob.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -220,23 +221,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setFormData(prev => ({ ...prev, display: isBook ? 'book' : 'card', aspectRatio }));
   }, []);
   
-  const handleTagAdd = useCallback((tag: string) => {
-    const sanitizedTag = tag.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 20);
-    if (sanitizedTag && !formData.tags.includes(sanitizedTag) && formData.tags.length < 3) {
-      setFormData(prev => ({ ...prev, tags: [...prev.tags, sanitizedTag] }));
-    }
-  }, [formData.tags]);
-
-  const handleTagRemove = useCallback((tagToRemove: string) => {
-    setFormData(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tagToRemove) }));
-  }, []);
-  
-  // Handler for prompt suggestion clicks
   const handlePromptSuggestionClick = useCallback((prompt: string) => {
     if (isPromptDefault) {
       setIsPromptDefault(false);
     }
     setFormData(prev => ({ ...prev, aiPrompt: prompt }));
+    setPromptError(null); // Clear any previous errors
   }, [isPromptDefault]);
 
 
@@ -322,7 +312,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     formData, isPromptDefault, promptError, isBusy, activeId, jobData, finalizedId, creditCost,
     validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
-    handlePresentationStyleChange, handleTagAdd, handleTagRemove, handleSubmit, handleViewResult, reset,
+    handlePresentationStyleChange, handleSubmit, handleViewResult, reset,
     isRateLimited, handlePromptSuggestionClick,
   };
 }
