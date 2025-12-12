@@ -79,7 +79,7 @@ function extractBilingualTextPairs(line: string, primaryLang: string, secondaryL
 
 /**
  * Main parser - processes text line-by-line and creates segments.
- * Now uses a `paragraph_break` segment type instead of metadata flags.
+ * Now uses a `start_para` type instead of metadata.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
     const [primaryLang, secondaryLang, format] = origin.split('-');
@@ -88,25 +88,19 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
     const lines = markdown.split('\n');
     const segments: Segment[] = [];
     let segmentOrder = 0;
+    let isFirstSegmentInParagraph = true;
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const trimmedLine = line.trim();
-
-        const isNewPara = (segments.length === 0 && trimmedLine !== '') || 
-                          (lines[i - 1]?.trim() === '' && trimmedLine !== '');
-
-        if (!trimmedLine || trimmedLine.startsWith('## ')) {
+        
+        if (!trimmedLine) {
+            isFirstSegmentInParagraph = true; // Next non-empty line will start a new paragraph
             continue;
         }
-
-        if (isNewPara && segments.length > 0) {
-            segments.push({
-                id: generateLocalUniqueId(),
-                order: segmentOrder++,
-                type: 'paragraph_break',
-                content: { [primaryLang]: '' }
-            });
+        
+        if (trimmedLine.startsWith('## ')) {
+            continue;
         }
 
         const textPairs = extractBilingualTextPairs(trimmedLine, primaryLang, secondaryLang);
@@ -117,33 +111,30 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
 
             if (!primarySentence) return;
             
+            const createSegmentsForUnit = (primaryText: string, secondaryText?: string) => {
+                const content: MultilingualContent = { [primaryLang]: primaryText };
+                if (secondaryLang && secondaryText) {
+                    content[secondaryLang] = secondaryText;
+                }
+                
+                segments.push({
+                    id: generateLocalUniqueId(),
+                    order: segmentOrder++,
+                    type: isFirstSegmentInParagraph ? 'start_para' : 'text',
+                    content
+                });
+                isFirstSegmentInParagraph = false; // Only the very first segment of the block gets 'start_para'
+            };
+
             if (unit === 'phrase' && secondaryLang) {
                 const primaryPhrases = splitSentenceIntoPhrases(primarySentence);
                 const secondaryPhrases = secondarySentence ? splitSentenceIntoPhrases(secondarySentence) : [];
                 
                 primaryPhrases.forEach((phrase, j) => {
-                    segments.push({
-                        id: generateLocalUniqueId(),
-                        order: segmentOrder++,
-                        type: 'text',
-                        content: {
-                            [primaryLang]: phrase,
-                            [secondaryLang]: secondaryPhrases[j] || '',
-                        }
-                    });
+                    createSegmentsForUnit(phrase, secondaryPhrases[j] || '');
                 });
             } else {
-                const content: MultilingualContent = { [primaryLang]: primarySentence };
-                if (secondaryLang) {
-                    content[secondaryLang] = secondarySentence || '';
-                }
-
-                segments.push({
-                    id: generateLocalUniqueId(),
-                    order: segmentOrder++,
-                    type: 'text',
-                    content
-                });
+                createSegmentsForUnit(primarySentence, secondarySentence);
             }
         });
     }
@@ -212,8 +203,11 @@ export function parseBookMarkdown(
 
 function calculateTotalWords(segments: Segment[], primaryLang: string): number {
     return segments.reduce((sum, seg) => {
-        const text = seg.content[primaryLang] || '';
-        return sum + (text.split(/\s+/).filter(Boolean).length || 0);
+        if (seg.type === 'start_para' || seg.type === 'text') {
+            const text = seg.content[primaryLang] || '';
+            return sum + (text.split(/\s+/).filter(Boolean).length || 0);
+        }
+        return sum;
     }, 0);
 }
 

@@ -90,12 +90,7 @@ export function PageContentRenderer({
   return (
     <div className={contentContainerClasses}>
         {segments.map((segment, index) => {
-            if (segment.type === 'paragraph_break') {
-                return <div key={segment.id} className="h-4" />;
-            }
-            
-            // Check if this segment is the start of a paragraph
-            const isNewPara = index === 0 || segments[index - 1]?.type === 'paragraph_break';
+            const isNewPara = segment.type === 'start_para';
             const applyDropCap = isNewPara && index === 0 && page.pageIndex === 0;
 
             const content = (
