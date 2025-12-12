@@ -19,6 +19,38 @@ interface PageContentRendererProps {
   displayLang2: string; // 'none' or language code
 }
 
+// Function to group segments into paragraphs
+const groupSegmentsIntoParagraphs = (segments: Segment[]): Segment[][] => {
+    if (!segments || segments.length === 0) return [];
+  
+    const paragraphs: Segment[][] = [];
+    let currentParagraph: Segment[] = [];
+  
+    segments.forEach(segment => {
+      // Each 'start_para' or 'heading' begins a new paragraph block
+      if (segment.type === 'start_para' || segment.type === 'heading' || segment.type === 'blockquote') {
+        if (currentParagraph.length > 0) {
+          paragraphs.push(currentParagraph);
+        }
+        currentParagraph = [segment];
+      } else {
+        if (currentParagraph.length === 0) {
+          // Handle cases where the first segment isn't 'start_para'
+          currentParagraph.push(segment);
+        } else {
+          currentParagraph.push(segment);
+        }
+      }
+    });
+  
+    if (currentParagraph.length > 0) {
+      paragraphs.push(currentParagraph);
+    }
+  
+    return paragraphs;
+};
+
+
 export function PageContentRenderer({ 
     page, 
     presentationStyle, 
@@ -38,10 +70,11 @@ export function PageContentRenderer({
     if (itemData.type === 'book') {
         const chapter = itemData.chapters?.[position.chapterIndex];
         if (chapter && chapter.segments) {
-            // This logic now correctly reflects the flat segment structure per chapter
-            const spokenSegment = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
-            if (!spokenSegment) return null;
-            return chapter.segments.find(s => s.id === spokenSegment.originalSegmentId) || null;
+            // The spoken segment is determined by the engine's internal queue
+            const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
+            if (!spokenSegmentFromEngine) return null;
+            // Find the original segment data using the ID
+            return chapter.segments.find(s => s.id === spokenSegmentFromEngine.originalSegmentId) || null;
         }
     }
     
@@ -85,39 +118,37 @@ export function PageContentRenderer({
     layoutClasses,
     "overflow-hidden"
   );
+  
+  const paragraphs = useMemo(() => groupSegmentsIntoParagraphs(segments), [segments]);
 
   return (
     <div className={contentContainerClasses}>
-        {segments.map((segment, index) => {
-            const isStartPara = segment.type === 'start_para';
-            const applyDropCap = isStartPara && index === 0 && page.pageIndex === 0;
+        {paragraphs.map((paragraph, pIndex) => {
+            const firstSegment = paragraph[0];
+            const ParagraphWrapper = firstSegment.type === 'blockquote' ? 'blockquote' : 'p';
+            const applyDropCap = firstSegment.type === 'start_para' && pIndex === 0 && page.pageIndex === 0;
 
-            const content = (
-              <SegmentRenderer 
-                  key={segment.id} 
-                  segment={segment} 
-                  isPlaying={currentPlayingSegmentId === segment.id}
-                  speechBoundary={speechBoundary}
-                  spokenLang={currentSpokenLang}
-                  isBilingualMode={isBilingualMode}
-                  displayLang1={displayLang1}
-                  displayLang2={displayLang2}
-                  unit={itemData?.unit || 'sentence'}
-              />
+            return (
+                <ParagraphWrapper key={pIndex} className={cn(
+                    (firstSegment.type === 'start_para' || firstSegment.type === 'text') && "mt-4 first:mt-0",
+                    applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary"
+                )}>
+                    {paragraph.map((segment) => (
+                        <SegmentRenderer 
+                            key={segment.id} 
+                            segment={segment} 
+                            isPlaying={currentPlayingSegmentId === segment.id}
+                            speechBoundary={speechBoundary}
+                            spokenLang={currentSpokenLang}
+                            isBilingualMode={isBilingualMode}
+                            displayLang1={displayLang1}
+                            displayLang2={displayLang2}
+                            unit={itemData?.unit || 'sentence'}
+                        />
+                    ))}
+                </ParagraphWrapper>
             );
-            
-            if (isStartPara) {
-              return (
-                <p key={`p-${segment.id}`} className={cn("mt-4 first:mt-0", applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
-                    {content}
-                </p>
-              );
-            }
-            
-            return content;
         })}
     </div>
   );
 }
-
-    
