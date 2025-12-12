@@ -107,6 +107,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     isProUser,
     handleTagAdd,
     handleTagRemove,
+    handlePromptSuggestionClick, // Use the new handler
   } = job;
   
   const mobilePreview = isMobile ? (
@@ -135,10 +136,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
 
   const isBilingual = formData.availableLanguages.length > 1;
   const isPhraseMode = formData.unit === 'phrase';
-  
-  const handlePromptSelect = (prompt: string) => {
-    handleValueChange('aiPrompt', prompt);
-  };
 
   return (
     <>
@@ -169,7 +166,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           />
           {isPromptDefault && (
             <div className="pt-2">
-                <PromptSuggestions onSelect={handlePromptSelect} />
+                <PromptSuggestions onSelect={handlePromptSuggestionClick} />
             </div>
           )}
           <div className="text-right text-xs text-muted-foreground pt-1">

@@ -229,6 +229,15 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const handleTagRemove = useCallback((tagToRemove: string) => {
     setFormData(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tagToRemove) }));
   }, []);
+  
+  // Handler for prompt suggestion clicks
+  const handlePromptSuggestionClick = useCallback((prompt: string) => {
+    if (isPromptDefault) {
+      setIsPromptDefault(false);
+    }
+    setFormData(prev => ({ ...prev, aiPrompt: prompt }));
+  }, [isPromptDefault]);
+
 
   const reset = useCallback((newType: 'book' | 'piece') => {
     setFormData(getInitialFormData(newType, t));
@@ -313,6 +322,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
     handlePresentationStyleChange, handleTagAdd, handleTagRemove, handleSubmit, handleViewResult, reset,
-    isRateLimited, // Expose rate limit state
+    isRateLimited, handlePromptSuggestionClick,
   };
 }
