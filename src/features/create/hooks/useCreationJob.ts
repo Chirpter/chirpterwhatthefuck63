@@ -11,21 +11,24 @@ import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
-const DEFAULT_BOOK_PROMPT = "Write a captivating story about...";
-const DEFAULT_PIECE_PROMPT = "Create an inspiring piece about...";
-
-interface UseCreationJobParams {
-  type: 'book' | 'piece';
-}
-
-function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
+const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string): CreationFormValues => {
   const primaryLang = 'en';
+
+  // Get a random prompt from presets
+  const suggestions = [
+    t('presets:bedtime_story'),
+    t('presets:life_lesson'),
+    t('presets:kindness_story'),
+    t('presets:fantasy_story'),
+    t('presets:fairy_tale'),
+  ];
+  const defaultPrompt = suggestions[Math.floor(Math.random() * suggestions.length)];
   
   const baseData = {
     type,
     primaryLanguage: primaryLang,
     availableLanguages: [primaryLang],
-    aiPrompt: type === 'book' ? DEFAULT_BOOK_PROMPT : DEFAULT_PIECE_PROMPT,
+    aiPrompt: defaultPrompt,
     tags: [],
     title: { en: '' },
     origin: primaryLang,
@@ -51,15 +54,19 @@ function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
     ...baseData,
     display: 'book' as const,
   };
+};
+
+interface UseCreationJobParams {
+  type: 'book' | 'piece';
 }
 
 export function useCreationJob({ type }: UseCreationJobParams) {
-  const { t } = useTranslation(['createPage', 'common', 'toast']);
+  const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
   const { toast } = useToast();
   const { user } = useUser();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<CreationFormValues>(() => getInitialFormData(type));
+  const [formData, setFormData] = useState<CreationFormValues>(() => getInitialFormData(type, t));
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -130,7 +137,9 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     const { name, value } = e.target;
     
     if (name === 'aiPrompt') {
-      setIsPromptDefault(false);
+      if (isPromptDefault) {
+        setIsPromptDefault(false);
+      }
       if (value.length === 0) setPromptError('empty');
       else if (value.length > MAX_PROMPT_LENGTH) setPromptError('too_long');
       else setPromptError(null);
@@ -140,9 +149,13 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       ...prev,
       [name]: name === 'targetChapterCount' ? parseInt(value, 10) || 0 : value
     }));
-  }, []);
+  }, [isPromptDefault]);
 
   const handleValueChange = useCallback((key: string, value: any) => {
+    if (key === 'aiPrompt' && isPromptDefault) {
+      setIsPromptDefault(false);
+    }
+
     setFormData(prev => {
         let newFormData = { ...prev };
         
@@ -180,7 +193,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
         return newFormData;
     });
-  }, []);
+  }, [isPromptDefault]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, coverImageFile: e.target.files?.[0] || null }));
@@ -206,16 +219,19 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setFormData(prev => ({ ...prev, display: isBook ? 'book' : 'card', aspectRatio }));
   }, []);
   
-  const handleTagClick = useCallback((tag: string) => {
-    setFormData(prev => ({ ...prev, tags: prev.tags.includes(tag) ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag] }));
-  }, []);
+  const handleTagAdd = useCallback((tag: string) => {
+    const sanitizedTag = tag.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 20);
+    if (sanitizedTag && !formData.tags.includes(sanitizedTag) && formData.tags.length < 5) {
+      setFormData(prev => ({ ...prev, tags: [...prev.tags, sanitizedTag] }));
+    }
+  }, [formData.tags]);
 
-  const handleCustomTagAdd = useCallback((tag: string) => {
-    setFormData(prev => ({ ...prev, tags: [...prev.tags, tag] }));
+  const handleTagRemove = useCallback((tagToRemove: string) => {
+    setFormData(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tagToRemove) }));
   }, []);
 
   const reset = useCallback((newType: 'book' | 'piece') => {
-    setFormData(getInitialFormData(newType));
+    setFormData(getInitialFormData(newType, t));
     setIsPromptDefault(true);
     setPromptError(null);
     setIsBusy(false);
@@ -223,7 +239,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setJobData(null);
     setFinalizedId(null);
     if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
-  }, [user?.uid]);
+  }, [user?.uid, t]);
 
   useEffect(() => {
     reset(type);
@@ -296,7 +312,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     formData, isPromptDefault, promptError, isBusy, activeId, jobData, finalizedId, creditCost,
     validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
-    handlePresentationStyleChange, handleTagClick, handleCustomTagAdd, handleSubmit, handleViewResult, reset,
+    handlePresentationStyleChange, handleTagAdd, handleTagRemove, handleSubmit, handleViewResult, reset,
     isRateLimited, // Expose rate limit state
   };
 }

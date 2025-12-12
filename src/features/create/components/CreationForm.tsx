@@ -18,47 +18,56 @@ import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCa
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { PromptSuggestions } from './PromptSuggestions';
 
-interface TagSelectorProps {
-  suggestedTags: string[];
-  selectedTags: string[];
-  onTagClick: (tag: string) => void;
-  onCustomTagAdd: (tag: string) => void;
-  maxTags: number;
+interface TagManagerProps {
+  tags: string[];
+  onAddTag: (tag: string) => void;
+  onRemoveTag: (tag: string) => void;
+  isDisabled: boolean;
 }
 
-const TagSelector: React.FC<TagSelectorProps> = ({ suggestedTags, selectedTags, onTagClick, onCustomTagAdd, maxTags }) => {
-  const [customTag, setCustomTag] = useState('');
-  const [popoverOpen, setPopoverOpen] = useState(false);
+const TagManager: React.FC<TagManagerProps> = ({ tags, onAddTag, onRemoveTag, isDisabled }) => {
+  const [inputValue, setInputValue] = useState('');
 
-  const handleAddCustom = () => {
-    // Sanitize the tag: lowercase, replace spaces with hyphens, remove special chars, trim length
-    const sanitizedTag = customTag
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .substring(0, 15);
-      
-    if (sanitizedTag && !selectedTags.includes(sanitizedTag)) {
-      onCustomTagAdd(sanitizedTag);
+  const handleAdd = () => {
+    if (inputValue.trim()) {
+      onAddTag(inputValue.trim());
+      setInputValue('');
     }
-    setCustomTag('');
-    setPopoverOpen(false);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAdd();
+    }
+  };
+  
   return (
-    <div className="space-y-3">
-       {selectedTags.length > 0 && (
-        <div className="flex flex-wrap gap-1 items-center text-sm">
-          <span className="text-muted-foreground mr-2">Selected:</span>
-          {selectedTags.map(tag => (
-            <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => onTagClick(tag)}>
+    <div className="space-y-2 p-4 border rounded-lg">
+      <Label className="font-body text-base font-medium flex items-center">
+        <Icon name="Tag" className="h-5 w-5 mr-2 text-primary" />
+        Tags
+      </Label>
+      <div className="flex gap-2">
+        <Input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="e.g., fantasy, adventure"
+          className="font-body"
+          disabled={isDisabled}
+        />
+        <Button type="button" onClick={handleAdd} disabled={isDisabled}>Add</Button>
+      </div>
+       {tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-2">
+          {tags.map(tag => (
+            <Badge key={tag} variant="secondary" className="cursor-pointer" onClick={() => onRemoveTag(tag)}>
               {tag}
-              <Icon name="X" className="ml-1 h-3 w-3" />
+              <Icon name="X" className="ml-2 h-3 w-3" />
             </Badge>
           ))}
         </div>
@@ -96,8 +105,8 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     maxChapters,
     reset,
     isProUser,
-    handleTagClick,
-    handleCustomTagAdd,
+    handleTagAdd,
+    handleTagRemove,
   } = job;
   
   const mobilePreview = isMobile ? (
@@ -171,6 +180,13 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           )}
         </div>
         
+        <TagManager
+          tags={formData.tags}
+          onAddTag={handleTagAdd}
+          onRemoveTag={handleTagRemove}
+          isDisabled={isBusy}
+        />
+
         <CreationLanguageSettings
           isBilingual={isBilingual}
           onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}

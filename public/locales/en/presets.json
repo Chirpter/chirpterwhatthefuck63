@@ -1,7 +1,9 @@
 {
-    "bedtime_story": "A bedtime story for kids",
-    "life_lesson": "A story about life lessons",
-    "kindness_story": "A story about kindness",
-    "fantasy_story": "A story about medieval fantasy",
-    "fairy_tale": "A fairy tale"
+    "bedtime_story": "A gentle story about a firefly who is afraid of the dark.",
+    "life_lesson": "A short story about a grumpy old bear who learns the importance of sharing.",
+    "kindness_story": "A story about a little girl who helps a lost kitten find its way home.",
+    "fantasy_story": "A medieval fantasy story about a young squire who discovers a magical sword.",
+    "fairy_tale": "A fairy tale about a princess who rescues a prince from an enchanted sleep.",
+    "default_book_prompt": "A gentle story about a firefly who is afraid of the dark.",
+    "default_piece_prompt": "An inspiring quote about perseverance."
 }

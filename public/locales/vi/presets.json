@@ -1,7 +1,9 @@
 {
-    "bedtime_story": "Truyện ru ngủ cho bé",
-    "life_lesson": "Truyện về bài học cuộc sống",
-    "kindness_story": "Truyện về lòng tốt",
-    "fantasy_story": "Truyện về thế giới giả tưởng trung cổ",
-    "fairy_tale": "Một câu chuyện cổ tích"
+    "bedtime_story": "Một câu chuyện nhẹ nhàng về một chú đom đóm sợ bóng tối.",
+    "life_lesson": "Một câu chuyện ngắn về một con gấu già cộc cằn học được tầm quan trọng của sự chia sẻ.",
+    "kindness_story": "Một câu chuyện về một cô bé giúp một chú mèo con đi lạc tìm đường về nhà.",
+    "fantasy_story": "Một câu chuyện giả tưởng thời trung cổ về một cận vệ trẻ phát hiện ra một thanh kiếm ma thuật.",
+    "fairy_tale": "Một câu chuyện cổ tích về một nàng công chúa giải cứu hoàng tử khỏi một giấc ngủ bị mê hoặc.",
+    "default_book_prompt": "Một câu chuyện nhẹ nhàng về một chú đom đóm sợ bóng tối.",
+    "default_piece_prompt": "Một câu trích dẫn truyền cảm hứng về sự kiên trì."
 }
