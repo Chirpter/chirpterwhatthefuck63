@@ -184,11 +184,13 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
         </div>
       );
 
-    case 'text':
     case 'start_para':
+    case 'text':
         return <span data-segment-id={segment.id}>{renderMainContent()}</span>;
     
     default:
         return null;
   }
 };
+
+    

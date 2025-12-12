@@ -12,14 +12,14 @@ function cleanText(text: string): string {
 }
 
 /**
- * Splits a sentence into phrases based on commas, semicolons, and hyphens.
+ * Splits a sentence into phrases based on commas and semicolons.
  * Preserves punctuation at the end of each phrase.
  */
 function splitSentenceIntoPhrases(sentence: string): string[] {
     if (!sentence) return [];
     
-    // Match text segments separated by , ; or - (including the delimiter)
-    const parts = sentence.match(/[^,;-]+[,;-]?/g) || [];
+    // Match text segments separated by , or ; (including the delimiter)
+    const parts = sentence.match(/[^,;]+[,;]?/g) || [];
     
     return parts
         .map(p => p.trim())
@@ -93,10 +93,10 @@ function splitIntoSentences(text: string): string[] {
 
 
 /**
- * REFACTORED: Extracts text pairs using a simple and robust Regex scan.
+ * Extracts text pairs using a simple and robust Regex scan.
+ * Handles both monolingual and bilingual text based on whether `secondaryLang` is provided.
  */
 function extractBilingualTextPairs(text: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
-    
     if (secondaryLang) {
         // --- BILINGUAL LOGIC ---
         const pairs: Array<MultilingualContent> = [];
@@ -105,7 +105,6 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
         let match;
 
         while ((match = regex.exec(text)) !== null) {
-            // Check for any text between the last match and this one, treat as primary-only
             if (match.index > lastIndex) {
                 const orphanText = cleanText(text.substring(lastIndex, match.index));
                 if (orphanText) {
@@ -116,26 +115,22 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
             const primaryText = cleanText(match[1]);
             const secondaryText = cleanText(match[2]);
             
-            // Only add if there is primary text. Secondary is optional.
             if (primaryText) {
                 pairs.push({
                     [primaryLang]: primaryText,
-                    [secondaryLang]: secondaryText // Will be empty string if {} is empty
+                    [secondaryLang]: secondaryText
                 });
             }
             lastIndex = match.index + match[0].length;
         }
         
-        // Capture any remaining primary text after the last brace
         if (lastIndex < text.length) {
             const remainingText = cleanText(text.substring(lastIndex));
             if (remainingText) {
                 pairs.push({ [primaryLang]: remainingText });
             }
         }
-
         return pairs;
-        
     } else {
         // --- MONOLINGUAL LOGIC ---
         return splitIntoSentences(text).map(sentence => {
@@ -145,15 +140,13 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
     }
 }
 
-
 /**
  * Processes a paragraph into segments. Now adapts based on the 'unit'.
  */
 function processParagraphIntoSegments(
     paragraphText: string, 
     origin: string, 
-    unit: ContentUnit,
-    isFirstInParagraph: boolean
+    unit: ContentUnit
 ): Segment[] {
     const parts = origin.split('-');
     const primaryLang = parts[0];
@@ -162,29 +155,27 @@ function processParagraphIntoSegments(
     const segments: Segment[] = [];
     let segmentOrder = 0;
 
-    // Step 1: Extract sentence pairs (or monolingual sentences)
     const sentencePairs = extractBilingualTextPairs(paragraphText, primaryLang, secondaryLang);
 
-    // Step 2: Process each sentence into one or more segments
     sentencePairs.forEach((sentencePair, index) => {
         const primarySentence = sentencePair[primaryLang];
-        if (!primarySentence) return;
+        if (!primarySentence || typeof primarySentence !== 'string') return;
         
         let finalContent: MultilingualContent = {};
 
         if (unit === 'phrase') {
             finalContent[primaryLang] = splitSentenceIntoPhrases(primarySentence);
-            if (secondaryLang && sentencePair[secondaryLang]) {
-                finalContent[secondaryLang] = splitSentenceIntoPhrases(sentencePair[secondaryLang]!);
+            if (secondaryLang && sentencePair[secondaryLang] && typeof sentencePair[secondaryLang] === 'string') {
+                finalContent[secondaryLang] = splitSentenceIntoPhrases(sentencePair[secondaryLang] as string);
             }
-        } else { // 'sentence' mode
+        } else {
             finalContent = sentencePair;
         }
         
         segments.push({
             id: generateLocalUniqueId(),
             order: segmentOrder++,
-            type: (isFirstInParagraph && index === 0) ? 'start_para' : 'text',
+            type: (index === 0) ? 'start_para' : 'text',
             content: finalContent,
         });
     });
@@ -199,20 +190,15 @@ function processParagraphIntoSegments(
 export function parseMarkdownToSegments(markdown: string, origin: string, unit: ContentUnit): Segment[] {
     const lines = markdown.split('\n');
     const segments: Segment[] = [];
+
     let currentParagraph = '';
-    let isNewParagraph = true;
 
     const flushParagraph = () => {
         const trimmedParagraph = currentParagraph.trim();
         if (trimmedParagraph) {
-            const paraSegments = processParagraphIntoSegments(
-                trimmedParagraph, 
-                origin,
-                unit,
-                isNewParagraph
-            );
-            
+            const paraSegments = processParagraphIntoSegments(trimmedParagraph, origin, unit);
             paraSegments.forEach(seg => {
+                // Ensure correct order across paragraphs
                 seg.order = segments.length;
                 segments.push(seg);
             });
@@ -225,13 +211,11 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
 
         if (trimmedLine.startsWith('## ')) {
             flushParagraph();
-            isNewParagraph = true;
-            continue;
+            continue; 
         }
 
         if (!trimmedLine) {
             flushParagraph();
-            isNewParagraph = true;
             continue;
         }
 
@@ -354,3 +338,5 @@ export function getItemSegments(
 
     return [];
 }
+
+    

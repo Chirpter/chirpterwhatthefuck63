@@ -33,13 +33,11 @@ async function getUserIdFromSession(): Promise<string> {
  * ✅ VALIDATION: Ensure origin format matches spec requirements
  */
 function validateOriginFormat(formData: CreationFormValues): void {
-  const { origin, primaryLanguage, availableLanguages } = formData;
+  const { origin, primaryLanguage, availableLanguages, unit } = formData;
   
-  // Valid formats: "en", "en-vi", "en-vi-ph"
   const parts = origin.split('-');
   const [primary, secondary, format] = parts;
   
-  // Check primary language matches
   if (primary !== primaryLanguage) {
     throw new ApiServiceError(
       `Origin primary language (${primary}) doesn't match selected primary language (${primaryLanguage})`,
@@ -47,7 +45,6 @@ function validateOriginFormat(formData: CreationFormValues): void {
     );
   }
   
-  // Check bilingual consistency
   if (availableLanguages.length > 1) {
     if (!secondary) {
       throw new ApiServiceError(
@@ -70,12 +67,18 @@ function validateOriginFormat(formData: CreationFormValues): void {
     }
   }
   
-  // Check format flag
   if (format && format !== 'ph') {
     throw new ApiServiceError(
       `Invalid format flag in origin: ${format}. Only 'ph' is allowed.`,
       'VALIDATION'
     );
+  }
+
+  if (format === 'ph' && unit !== 'phrase') {
+      throw new ApiServiceError(`Origin format mismatch: origin has '-ph' but unit is '${unit}'`, 'VALIDATION');
+  }
+  if (format !== 'ph' && unit === 'phrase') {
+      throw new ApiServiceError(`Origin format mismatch: unit is 'phrase' but origin is missing '-ph'`, 'VALIDATION');
   }
 }
 
@@ -85,32 +88,28 @@ function validateOriginFormat(formData: CreationFormValues): void {
 export async function createLibraryItem(formData: CreationFormValues): Promise<string> {
   console.log('📝 [Creation Service] Starting creation for type:', formData.type);
   
-  // Step 1: Extract authenticated user ID
   const userId = await getUserIdFromSession();
   
-  // Step 2: Validate origin format
   validateOriginFormat(formData);
   
-  // Step 3: Route to appropriate service
   try {
     if (formData.type === 'book') {
       const bookId = await createBookAndStartGeneration(userId, formData);
       console.log('✅ [Creation Service] Book created:', bookId);
       return bookId;
     } else if (formData.type === 'piece') {
-      const pieceId = await createPieceAndStartGeneration(userId, formData);
+      const pieceId = await createPieceAndStartGeneration(userId, formData as any);
       console.log('✅ [Creation Service] Piece created:', pieceId);
       return pieceId;
     } else {
       throw new ApiServiceError(
-        `Unknown content type: ${formData.type}`,
+        `Unknown content type: ${(formData as any).type}`,
         'VALIDATION'
       );
     }
   } catch (error: any) {
     console.error('❌ [Creation Service] Failed:', error.message);
     
-    // Re-throw with better error message
     if (error instanceof ApiServiceError) {
       throw error;
     }
@@ -122,3 +121,5 @@ export async function createLibraryItem(formData: CreationFormValues): Promise<s
     );
   }
 }
+
+    

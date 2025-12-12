@@ -27,7 +27,7 @@ export function PageContentRenderer({
     displayLang1,
     displayLang2,
 }: PageContentRendererProps) {
-  const { currentPlayingItem, position, speechBoundary, currentSegmentLanguage } = useAudioPlayer();
+  const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary, currentSegmentLanguage } = useAudioPlayer();
   const segments = page.items;
   
   const currentSpokenSegment = useMemo(() => {
@@ -38,9 +38,8 @@ export function PageContentRenderer({
     if (itemData.type === 'book') {
         const chapter = itemData.chapters?.[position.chapterIndex];
         if (chapter && chapter.segments) {
-            // This logic assumes a direct mapping for now.
-            // For phrase-by-phrase, the `originalSegmentId` on the spoken segment would be key.
-            const spokenSegment = (currentPlayingItem as any).data?.segments?.[position.segmentIndex];
+            // This logic now correctly reflects the flat segment structure per chapter
+            const spokenSegment = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
             if (!spokenSegment) return null;
             return chapter.segments.find(s => s.id === spokenSegment.originalSegmentId) || null;
         }
@@ -90,8 +89,8 @@ export function PageContentRenderer({
   return (
     <div className={contentContainerClasses}>
         {segments.map((segment, index) => {
-            const isNewPara = segment.type === 'start_para';
-            const applyDropCap = isNewPara && index === 0 && page.pageIndex === 0;
+            const isStartPara = segment.type === 'start_para';
+            const applyDropCap = isStartPara && index === 0 && page.pageIndex === 0;
 
             const content = (
               <SegmentRenderer 
@@ -107,7 +106,7 @@ export function PageContentRenderer({
               />
             );
             
-            if (isNewPara) {
+            if (isStartPara) {
               return (
                 <p key={`p-${segment.id}`} className={cn("mt-4 first:mt-0", applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary")}>
                     {content}
@@ -120,3 +119,5 @@ export function PageContentRenderer({
     </div>
   );
 }
+
+    

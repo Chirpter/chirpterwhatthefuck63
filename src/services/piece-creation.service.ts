@@ -181,7 +181,7 @@ CRITICAL RULES:
         }
         
         const finalTitle = parseBilingualText(titleText, primaryLanguage, secondaryLanguage);
-        const segments = parseMarkdownToSegments(contentMarkdown, pieceFormData.origin);
+        const segments = parseMarkdownToSegments(contentMarkdown, pieceFormData.origin, pieceFormData.unit);
         
         return {
           title: finalTitle,
@@ -264,3 +264,5 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         });
     });
 }
+
+    
