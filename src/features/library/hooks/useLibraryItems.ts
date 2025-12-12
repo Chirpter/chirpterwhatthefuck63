@@ -37,10 +37,9 @@ export const useLibraryItems = ({
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
-  // FIX: Use useRef for lastDoc to prevent infinite loop.
   const lastDocRef = useRef<DocumentData | null>(null);
   
-  const pageRef = useRef(1); // For vocabulary pagination
+  const pageRef = useRef(1);
   const isFetchingRef = useRef(false);
 
   const fetchItems = useCallback(async (isInitialLoad: boolean) => {
@@ -49,15 +48,13 @@ export const useLibraryItems = ({
     isFetchingRef.current = true;
     if (isInitialLoad) {
       setIsLoading(true);
-      lastDocRef.current = null; // Reset pagination cursor
+      lastDocRef.current = null;
       setItems([]);
       pageRef.current = 1;
     } else {
       setIsLoadingMore(true);
     }
     setError(null);
-
-    console.log(`[useLibraryItems] Fetching... Initial: ${isInitialLoad}, Type: ${contentType || 'all'}, Status: ${status}, LastDoc: ${lastDocRef.current ? 'Yes' : 'No'}`);
 
     try {
       let result;
@@ -81,10 +78,9 @@ export const useLibraryItems = ({
           startAfter: isInitialLoad ? null : lastDocRef.current,
         });
         result = { items: libResult.items, hasMore: !!libResult.lastDoc };
-        lastDocRef.current = libResult.lastDoc; // Update the ref
+        lastDocRef.current = libResult.lastDoc;
       }
       
-      console.log(`[useLibraryItems] Fetched ${result.items.length} items. Has More: ${result.hasMore}`);
       setItems(prev => isInitialLoad ? result.items : [...prev, ...result.items]);
       setHasMore(result.hasMore);
 
@@ -96,7 +92,7 @@ export const useLibraryItems = ({
       setIsLoadingMore(false);
       isFetchingRef.current = false;
     }
-  }, [user, enabled, contentType, status, limit, folder, searchTerm]); // REMOVED lastDoc from dependencies
+  }, [user, enabled, contentType, status, limit, folder, searchTerm]); 
   
   useEffect(() => {
     fetchItems(true);

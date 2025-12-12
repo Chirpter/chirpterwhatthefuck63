@@ -1,6 +1,6 @@
 // src/features/create/hooks/useCreationJob.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
@@ -9,6 +9,7 @@ import { createLibraryItem } from '@/services/creation-service';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
+import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
 const DEFAULT_BOOK_PROMPT = "Write a captivating story about...";
 const DEFAULT_PIECE_PROMPT = "Create an inspiring piece about...";
@@ -53,7 +54,7 @@ function getInitialFormData(type: 'book' | 'piece'): CreationFormValues {
 }
 
 export function useCreationJob({ type }: UseCreationJobParams) {
-  const { t } = useTranslation(['createPage']);
+  const { t } = useTranslation(['createPage', 'common', 'toast']);
   const { toast } = useToast();
   const { user } = useUser();
   const router = useRouter();
@@ -62,6 +63,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [isRateLimited, setIsRateLimited] = useState(false);
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
@@ -72,6 +74,10 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const [finalizedId, setFinalizedId] = useState<string | null>(null);
   
   const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // Hook to get all processing items
+  const { items: processingItems } = useLibraryItems({ status: 'processing' });
+  const processingJobsCount = processingItems.length;
 
   const creditCost = useMemo(() => {
     if (formData.type === 'piece') return 1;
@@ -225,7 +231,18 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || validationMessage) return;
+    if (!user || validationMessage || isRateLimited) return;
+
+    if (processingJobsCount >= 3) {
+        toast({
+            title: t('toast:tooManyJobsTitle'),
+            description: t('toast:tooManyJobsDesc'),
+            variant: 'destructive',
+        });
+        setIsRateLimited(true);
+        setTimeout(() => setIsRateLimited(false), 10000); // 10-second cooldown
+        return;
+    }
 
     setIsBusy(true);
     try {
@@ -233,12 +250,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       setActiveId(jobId);
       sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       
-      toast({ title: t('toast.generationStarted'), description: t('toast.generationStartedDesc') });
+      toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {
-      toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
+      toast({ title: t('toast:error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
     }
-  }, [user, validationMessage, formData, t, toast]);
+  }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited]);
 
   useEffect(() => {
     if (!activeId || !user) return;
@@ -280,5 +297,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
     handlePresentationStyleChange, handleTagClick, handleCustomTagAdd, handleSubmit, handleViewResult, reset,
+    isRateLimited, // Expose rate limit state
   };
 }

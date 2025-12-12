@@ -37,14 +37,14 @@ export default function CreateView() {
 
   const pageTitle = t('createContentTitle');
   
-  const { isBusy, validationMessage, canGenerate, creditCost, finalizedId } = job;
+  const { isBusy, validationMessage, canGenerate, creditCost, finalizedId, isRateLimited } = job;
 
   const formId = "creation-form";
   
-  const submitButtonText = t('generateButton.default');
+  const submitButtonText = isRateLimited ? t('common:pleaseWait') : t('generateButton.default');
 
-  const showCreditBadge = !isBusy && !finalizedId;
-  const isSubmitDisabled = isBusy || !!validationMessage || !canGenerate;
+  const showCreditBadge = !isBusy && !finalizedId && !isRateLimited;
+  const isSubmitDisabled = isBusy || !!validationMessage || !canGenerate || isRateLimited;
   
   const handleSubmitClick = () => {
     document.getElementById(formId)?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
@@ -121,7 +121,7 @@ export default function CreateView() {
             >
                 {isBusy ? (
                     <><Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> {t('status.conceptualizing')}</>
-                ) : !canGenerate && !validationMessage && user ? (
+                ) : !canGenerate && !validationMessage && user && !isRateLimited ? (
                     <><Icon name="Info" className="mr-2 h-4 w-4" /> {t('common:insufficientCreditsTitle')}</>
                 ) : (
                     <>
