@@ -61,7 +61,6 @@ export interface Chapter {
   title: ChapterTitle;
   segments: Segment[]; // Uses the updated Segment type
   stats: ChapterStats;
-  metadata: {};
 }
 
 
@@ -415,5 +414,3 @@ export type Tier = {
 export type TierTask = 
 | { type: 'ref'; id: string; goal: number }
 | { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
-
-    
