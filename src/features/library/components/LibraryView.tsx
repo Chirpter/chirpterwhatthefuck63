@@ -36,7 +36,7 @@ import { useToast } from '@/hooks/useToast';
 import { useVocabulary } from '@/features/vocabulary/hooks/useVocabulary';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { BookmarkStyleProvider } from './BookmarkStyleProvider';
-import { getSystemBookmarks, getBookmarkMetadata } from '@/services/bookmark-service';
+import { useBookmarks } from '@/contexts/bookmark-context'; // Use the global bookmark context
 
 // Lazy load components
 const BookItemCard = dynamic(() => import('./BookItemCard').then(mod => mod.BookItemCard), {
@@ -63,30 +63,8 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   const router = useRouter();
   const { toast } = useToast();
   
-  const [availableBookmarks, setAvailableBookmarks] = useState<CombinedBookmark[]>([]);
-  const [bookmarksLoading, setBookmarksLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchBookmarks = async () => {
-        try {
-            const [systemBookmarks, metadata] = await Promise.all([
-                getSystemBookmarks(),
-                getBookmarkMetadata()
-            ]);
-            const metadataMap = new Map(metadata.map(m => [m.id, m]));
-            const combined = systemBookmarks.map(bookmark => ({
-                ...bookmark,
-                ...(metadataMap.get(bookmark.id) || {}),
-            }));
-            setAvailableBookmarks(combined);
-        } catch (error) {
-            console.error("Failed to load global bookmark data:", error);
-        } finally {
-            setBookmarksLoading(false);
-        }
-    };
-    fetchBookmarks();
-  }, []);
+  // Use the global context to get all available bookmarks
+  const { availableBookmarks, isLoading: bookmarksLoading } = useBookmarks();
 
   const [isAddVocabDialogOpen, setIsAddVocabDialogOpen] = useState(false);
   const [isAddFolderDialogOpen, setIsAddFolderDialogOpen] = useState(false);
