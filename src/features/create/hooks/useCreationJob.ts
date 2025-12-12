@@ -71,7 +71,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const [jobData, setJobData] = useState<LibraryItem | null>(null);
   const [finalizedId, setFinalizedId] = useState<string | null>(null);
   
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   const creditCost = useMemo(() => {
@@ -210,10 +209,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, []);
 
   const reset = useCallback((newType: 'book' | 'piece') => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
     setFormData(getInitialFormData(newType));
     setIsPromptDefault(true);
     setPromptError(null);
@@ -238,18 +233,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       setActiveId(jobId);
       sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       
-      // ✅ FIX: Store timeout reference
-      timeoutRef.current = setTimeout(() => {
-        toast({ title: t('toast.timeout'), description: t('toast.timeoutDesc'), variant: 'destructive' });
-        reset(type);
-      }, 180000);
-      
       toast({ title: t('toast.generationStarted'), description: t('toast.generationStartedDesc') });
     } catch (error: any) {
       toast({ title: t('toast.error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
     }
-  }, [user, validationMessage, formData, type, t, toast, reset]);
+  }, [user, validationMessage, formData, t, toast]);
 
   useEffect(() => {
     if (!activeId || !user) return;
@@ -270,12 +259,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         setIsBusy(false);
         setActiveId(null);
         if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
-        
-        // ✅ FIX: Clear the timeout as soon as the job is finalized
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
       }
     });
     
@@ -288,8 +271,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   useEffect(() => {
     return () => {
-      // ✅ FIX: Ensure timeout is cleared on component unmount
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       unsubscribeRef.current?.();
     };
   }, []);
