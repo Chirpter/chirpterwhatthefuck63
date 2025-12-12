@@ -16,7 +16,6 @@ import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string): CreationFormValues => {
   const primaryLang = 'en';
 
-  // Get a random prompt from presets
   const suggestions = [
     t('presets:bedtime_story'),
     t('presets:life_lesson'),
@@ -73,6 +72,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isRateLimited, setIsRateLimited] = useState(false);
+  const [customTagInput, setCustomTagInput] = useState('');
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
@@ -84,7 +84,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Hook to get all processing items
   const { items: processingItems } = useLibraryItems({ status: 'processing' });
   const processingJobsCount = processingItems.length;
 
@@ -186,7 +185,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
                 (newFormData as any)[key] = value;
         }
 
-        // Reconstruct origin
         const [primary, secondary] = newFormData.availableLanguages;
         let newOrigin = primary;
         if (secondary) newOrigin += `-${secondary}`;
@@ -220,14 +218,27 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     const aspectRatio = isBook ? undefined : value.split('_')[1].replace('_', ':') as '1:1' | '3:4' | '4:3';
     setFormData(prev => ({ ...prev, display: isBook ? 'book' : 'card', aspectRatio }));
   }, []);
-  
-  const handlePromptSuggestionClick = useCallback((prompt: string) => {
-    if (isPromptDefault) {
-      setIsPromptDefault(false);
+
+  const handleTagClick = useCallback((tag: string) => {
+    const currentPrompt = isPromptDefault ? '' : formData.aiPrompt;
+    setFormData(prev => ({
+        ...prev,
+        aiPrompt: `${currentPrompt} ${tag}`.trim(),
+    }));
+    setIsPromptDefault(false);
+  }, [formData.aiPrompt, isPromptDefault]);
+
+  const handleCustomTagChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomTagInput(e.target.value);
+  }, []);
+
+  const handleCustomTagAdd = useCallback(() => {
+    const newTag = customTagInput.trim().replace(/\s+/g, '-').toLowerCase();
+    if (newTag && newTag.length <= 20) {
+        handleTagClick(newTag);
+        setCustomTagInput('');
     }
-    setFormData(prev => ({ ...prev, aiPrompt: prompt }));
-    setPromptError(null); // Clear any previous errors
-  }, [isPromptDefault]);
+  }, [customTagInput, handleTagClick]);
 
 
   const reset = useCallback((newType: 'book' | 'piece') => {
@@ -256,7 +267,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
             variant: 'destructive',
         });
         setIsRateLimited(true);
-        setTimeout(() => setIsRateLimited(false), 10000); // 10-second cooldown
+        setTimeout(() => setIsRateLimited(false), 10000);
         return;
     }
 
@@ -313,6 +324,10 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
     handlePresentationStyleChange, handleSubmit, handleViewResult, reset,
-    isRateLimited, handlePromptSuggestionClick,
+    isRateLimited, 
+    handleTagClick,
+    handleCustomTagChange,
+    handleCustomTagAdd,
+    customTagInput,
   };
 }

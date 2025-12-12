@@ -16,7 +16,7 @@ import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
-import { PromptSuggestions } from './PromptSuggestions';
+import { TagManager } from './TagManager';
 
 interface CreationFormProps {
   job: any; // The entire hook result
@@ -46,7 +46,10 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     maxChapters,
     reset,
     isProUser,
-    handlePromptSuggestionClick, // Use the correct handler for prompt suggestions
+    handleTagClick,
+    handleCustomTagChange,
+    handleCustomTagAdd,
+    customTagInput,
   } = job;
   
   const mobilePreview = isMobile ? (
@@ -104,8 +107,12 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
             maxLength={MAX_PROMPT_LENGTH}
           />
           <div className="pt-2">
-              {/* This now correctly functions as Prompt Suggestions */}
-              <PromptSuggestions onSelect={handlePromptSuggestionClick} />
+            <TagManager 
+                onTagClick={handleTagClick}
+                customTagInput={customTagInput}
+                onCustomTagChange={handleCustomTagChange}
+                onCustomTagAdd={handleCustomTagAdd}
+            />
           </div>
           <div className="text-right text-xs text-muted-foreground pt-1">
             {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`}
@@ -115,8 +122,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           )}
         </div>
         
-        {/* The separate TagManager is removed as it was incorrect. Tag logic can be added here if needed in the future. */}
-
         <CreationLanguageSettings
           isBilingual={isBilingual}
           onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
