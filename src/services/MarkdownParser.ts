@@ -133,10 +133,13 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
         return pairs;
     } else {
         // --- MONOLINGUAL LOGIC ---
-        return splitIntoSentences(text).map(sentence => {
+        const mappedItems = splitIntoSentences(text).map(sentence => {
             const cleaned = cleanText(sentence);
             return cleaned ? { [primaryLang]: cleaned } : null;
-        }).filter((p): p is MultilingualContent => p !== null);
+        });
+        
+        // ✅ FIX: Use a proper type guard to filter out nulls
+        return mappedItems.filter((p): p is MultilingualContent => p !== null);
     }
 }
 
@@ -163,10 +166,13 @@ function processParagraphIntoSegments(
         
         let finalContent: MultilingualContent = {};
 
-        if (unit === 'phrase') {
+        if (unit === 'phrase' && secondaryLang) {
             finalContent[primaryLang] = splitSentenceIntoPhrases(primarySentence);
-            if (secondaryLang && sentencePair[secondaryLang] && typeof sentencePair[secondaryLang] === 'string') {
+            if (sentencePair[secondaryLang] && typeof sentencePair[secondaryLang] === 'string') {
                 finalContent[secondaryLang] = splitSentenceIntoPhrases(sentencePair[secondaryLang] as string);
+            } else {
+                // If there's no secondary sentence, provide an empty array to maintain structure
+                finalContent[secondaryLang] = [];
             }
         } else {
             finalContent = sentencePair;
@@ -233,13 +239,12 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
  */
 export function parseBookMarkdown(
     markdown: string,
-    origin: string
-): { title: MultilingualContent; chapters: Chapter[]; unit: ContentUnit } {
+    origin: string,
+    unit: ContentUnit
+): { title: MultilingualContent; chapters: Chapter[] } {
     const parts = origin.split('-');
     const primaryLang = parts[0];
     const secondaryLang = parts.length > 1 ? parts[1] : undefined;
-    const format = parts.length > 2 ? parts[2] : undefined;
-    const unit: ContentUnit = format === 'ph' ? 'phrase' : 'sentence';
     
     let title: MultilingualContent = { [primaryLang]: 'Untitled' };
     let contentAfterTitle = markdown;
@@ -298,7 +303,7 @@ export function parseBookMarkdown(
         chapterContents.forEach(text => processChapter(text));
     }
     
-    return { title, chapters, unit };
+    return { title, chapters };
 }
 
 
@@ -338,5 +343,3 @@ export function getItemSegments(
 
     return [];
 }
-
-    
