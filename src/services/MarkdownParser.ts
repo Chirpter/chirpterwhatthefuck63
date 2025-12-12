@@ -34,14 +34,12 @@ function splitSentenceIntoPhrases(sentence: string): string[] {
 function splitIntoSentences(text: string): string[] {
     if (!text) return [];
     
-    // Common abbreviations that should NOT trigger sentence breaks
     const abbreviations = [
         'Dr', 'Mr', 'Mrs', 'Ms', 'Prof', 'Sr', 'Jr',
         'St', 'Ave', 'Blvd', 'Rd', 'etc', 'vs', 'Inc', 'Ltd', 'Corp',
         'U\\.S', 'U\\.K', 'U\\.S\\.A', 'Ph\\.D', 'M\\.D', 'B\\.A', 'M\\.A'
     ];
     
-    // Create unique placeholders
     const ABBR_PREFIX = '___ABBR_';
     const DECIMAL_PREFIX = '___DEC_';
     const ELLIPSIS_PREFIX = '___ELLIP_';
@@ -50,36 +48,30 @@ function splitIntoSentences(text: string): string[] {
     const replacements: Array<{ placeholder: string; original: string }> = [];
     let counter = 0;
     
-    // Step 1: Protect ellipsis followed by lowercase (continuation)
     processed = processed.replace(/\.{3}(?=\s+[a-z])/g, () => {
-        const placeholder = `${ELLIPSIS_PREFIX}${counter++}___`;
+        const placeholder = `${'${ELLIPSIS_PREFIX}'}${'${counter++}'}___`;
         replacements.push({ placeholder, original: '...' });
         return placeholder;
     });
     
-    // Step 2: Protect decimal numbers
     processed = processed.replace(/\d+\.\d+/g, (match) => {
-        const placeholder = `${DECIMAL_PREFIX}${counter++}___`;
+        const placeholder = `${'${DECIMAL_PREFIX}'}${'${counter++}'}___`;
         replacements.push({ placeholder, original: match });
         return placeholder;
     });
     
-    // Step 3: Protect abbreviations
     abbreviations.forEach(abbr => {
-        const regex = new RegExp(`\\b${abbr}\\.`, 'gi');
+        const regex = new RegExp(`\\b${'${abbr}'}\\.`, 'gi');
         processed = processed.replace(regex, (match) => {
-            const placeholder = `${ABBR_PREFIX}${counter++}___`;
+            const placeholder = `${'${ABBR_PREFIX}'}${'${counter++}'}___`;
             replacements.push({ placeholder, original: match });
             return placeholder;
         });
     });
     
-    // Step 4: Split on sentence boundaries
-    // Matches: [.!?] followed by (space + capital) OR end of string
     const sentenceRegex = /[^.!?]+[.!?]+(?=\s+[A-Z]|\s*$)/g;
     const sentences = processed.match(sentenceRegex) || [];
     
-    // If no matches, treat as single sentence
     if (sentences.length === 0 && processed.trim()) {
         let restored = processed;
         replacements.forEach(({ placeholder, original }) => {
@@ -88,7 +80,6 @@ function splitIntoSentences(text: string): string[] {
         return [restored.trim()];
     }
     
-    // Step 5: Restore placeholders in each sentence
     return sentences
         .map(sentence => {
             let restored = sentence;
@@ -99,7 +90,6 @@ function splitIntoSentences(text: string): string[] {
         })
         .filter(s => s.length > 0);
 }
-
 
 /**
  * REFACTORED: Extracts bilingual text pairs using a single Regex scan.
@@ -192,7 +182,7 @@ function processParagraphIntoSegments(
                     id: generateLocalUniqueId(),
                     order: segmentOrder++,
                     type: isFirstSegmentOfPara ? 'start_para' : 'text',
-                    content
+                    content,
                 });
 
                 isFirstSegmentOfPara = false;
@@ -208,7 +198,7 @@ function processParagraphIntoSegments(
                 id: generateLocalUniqueId(),
                 order: segmentOrder++,
                 type: isFirstSegmentOfPara ? 'start_para' : 'text',
-                content
+                content,
             });
 
             isFirstSegmentOfPara = false;
@@ -300,7 +290,7 @@ export function parseBookMarkdown(
 
     const processChapter = (chapterText: string) => {
         const chapterLines = chapterText.trim().split('\n');
-        const chapterTitleLine = chapterLines[0] || `Chapter ${chapters.length + 1}`;
+        const chapterTitleLine = chapterLines[0] || `Chapter ${'${chapters.length + 1}'}`;
         const chapterContent = chapterLines.slice(1).join('\n');
         
         const chapterTitle = extractBilingualTextPairs(chapterTitleLine.replace(/^##\s*/, ''), primaryLang, secondaryLang)[0] || { [primaryLang]: chapterTitleLine };
