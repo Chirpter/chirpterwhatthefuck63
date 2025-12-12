@@ -1,3 +1,4 @@
+
 // src/features/reader/components/ReaderPage.tsx
 
 'use client';
@@ -29,7 +30,6 @@ import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { getLibraryItemById } from '@/services/client/library-service';
-import { PageContentRenderer } from './PageContentRenderer';
 import { regenerateBookContent } from '@/services/book-creation.service';
 
 
@@ -380,8 +380,8 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         const chapterIndex = audioPlayer.position.chapterIndex ?? 0;
         const segmentIndex = audioPlayer.position.segmentIndex;
         
-        if (item.type === 'book' && item.chapters[chapterIndex]?.segments[segmentIndex]) {
-            const segmentId = item.chapters[chapterIndex].segments[segmentIndex].id;
+        if (item.type === 'book' && (item as Book).chapters[chapterIndex]?.segments[segmentIndex]) {
+            const segmentId = (item as Book).chapters[chapterIndex].segments[segmentIndex].id;
             const pageIndex = getPageForSegment(segmentId);
             if (pageIndex !== -1 && pageIndex !== currentPageIndex) {
                 setCurrentPageIndex(pageIndex);
@@ -634,4 +634,3 @@ export const ReaderPage = (props: { isPreview?: boolean }) => {
       <ReaderView {...props} />
   );
 }
-```
