@@ -22,7 +22,7 @@ interface LanguageSettingsProps {
   onSecondaryLangChange: (value: string) => void;
   availableLanguages: { value: string; label: string }[];
   isDisabled: boolean;
-  idPrefix: 'book' | 'Piece';
+  idPrefix: 'book' | 'piece';
 }
 
 export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
@@ -50,14 +50,15 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
           {t('languageSettings.title')}
         </Label>
         <div className="flex items-center space-x-2 mt-2">
-          <Switch id={`${'${idPrefix}'}IsBilingual`} checked={isBilingual} onCheckedChange={onIsBilingualChange} disabled={isDisabled} />
-          <Label htmlFor={`${'${idPrefix}'}IsBilingual`} className="font-body">{t('languageSettings.bilingualSwitch')}</Label>
+          <Switch id={`${idPrefix}IsBilingual`} checked={isBilingual} onCheckedChange={onIsBilingualChange} disabled={isDisabled} />
+          <Label htmlFor={`${idPrefix}IsBilingual`} className="font-body">{t('languageSettings.bilingualSwitch')}</Label>
         </div>
       </div>
       
        {isBilingual && (
         <div className="space-y-2 pt-2">
             <Label className="font-body">{t('languageSettings.bilingualFormatTitle')}</Label>
+            {/* ✅ FIX: Removed disabled from RadioGroup */}
             <RadioGroup
                 value={isPhraseMode ? 'phrase' : 'sentence'}
                 onValueChange={(value) => {
@@ -68,28 +69,28 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
                 className="grid grid-cols-2 gap-3"
             >
                 <Label
-                    htmlFor={`${'${idPrefix}'}-sentence`}
+                    htmlFor={`${idPrefix}-sentence`}
                     className={cn(
                         "p-3 border rounded-lg transition-all flex items-center gap-3",
                         !isPhraseMode ? "ring-2 ring-primary border-primary bg-primary/10" : "border-border",
-                        !isDisabled ? "cursor-pointer hover:border-primary/50" : "cursor-not-allowed opacity-70"
+                        isDisabled ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-primary/50"
                     )}
                 >
-                    <RadioGroupItem value="sentence" id={`${'${idPrefix}'}-sentence`} disabled={isDisabled} />
+                    <RadioGroupItem value="sentence" id={`${idPrefix}-sentence`} disabled={isDisabled} />
                     <div>
                         <div className="font-medium font-body">{t('languageSettings.sentenceFormat')}</div>
                         <p className="text-xs text-muted-foreground">{t('languageSettings.sentenceFormatDesc')}</p>
                     </div>
                 </Label>
                 <Label
-                    htmlFor={`${'${idPrefix}'}-phrase`}
+                    htmlFor={`${idPrefix}-phrase`}
                     className={cn(
                         "p-3 border rounded-lg transition-all flex items-center gap-3",
                         isPhraseMode ? "ring-2 ring-primary border-primary bg-primary/10" : "border-border",
-                        !isDisabled ? "cursor-pointer hover:border-primary/50" : "cursor-not-allowed opacity-70"
+                        isDisabled ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-primary/50"
                     )}
                 >
-                    <RadioGroupItem value="phrase" id={`${'${idPrefix}'}-phrase`} disabled={isDisabled} />
+                    <RadioGroupItem value="phrase" id={`${idPrefix}-phrase`} disabled={isDisabled} />
                     <div>
                         <div className="font-medium font-body">{t('languageSettings.phraseFormat')}</div>
                         <p className="text-xs text-muted-foreground">{t('languageSettings.phraseFormatDesc')}</p>
@@ -101,9 +102,9 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor={`${'${idPrefix}'}PrimaryLanguage`} className="font-body flex items-center">{t('languageSettings.primaryLabel')} <span className="text-destructive ml-1">*</span></Label>
+          <Label htmlFor={`${idPrefix}PrimaryLanguage`} className="font-body flex items-center">{t('languageSettings.primaryLabel')} <span className="text-destructive ml-1">*</span></Label>
           <Select onValueChange={onPrimaryLangChange} value={primaryLanguage} disabled={isDisabled}>
-            <SelectTrigger id={`${'${idPrefix}'}PrimaryLanguage`} className="font-body"><SelectValue placeholder={t('languageSettings.selectLanguagePlaceholder')} /></SelectTrigger>
+            <SelectTrigger id={`${idPrefix}PrimaryLanguage`} className="font-body"><SelectValue placeholder={t('languageSettings.selectLanguagePlaceholder')} /></SelectTrigger>
             <SelectContent className="font-body">
               {availableLanguages.map(lang => <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>)}
             </SelectContent>
@@ -111,9 +112,9 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
         </div>
         {isBilingual && (
           <div>
-            <Label htmlFor={`${'${idPrefix}'}SecondaryLanguage`} className="font-body flex items-center">{t('languageSettings.secondaryLabel')} <span className="text-destructive ml-1">*</span></Label>
+            <Label htmlFor={`${idPrefix}SecondaryLanguage`} className="font-body flex items-center">{t('languageSettings.secondaryLabel')} <span className="text-destructive ml-1">*</span></Label>
             <Select onValueChange={onSecondaryLangChange} value={secondaryLanguage} disabled={isDisabled}>
-              <SelectTrigger id={`${'${idPrefix}'}SecondaryLanguage`} className="font-body"><SelectValue placeholder={t('languageSettings.selectLanguagePlaceholder')} /></SelectTrigger>
+              <SelectTrigger id={`${idPrefix}SecondaryLanguage`} className="font-body"><SelectValue placeholder={t('languageSettings.selectLanguagePlaceholder')} /></SelectTrigger>
               <SelectContent className="font-body">
                 {availableSecondaryLanguages.map(lang => <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>)}
               </SelectContent>
