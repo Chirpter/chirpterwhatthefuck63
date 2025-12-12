@@ -145,27 +145,30 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
     "prompt": "A story about a dragon crossing into the human world.",
     
     // --- Định dạng & Ngôn ngữ (Quan trọng cho UI/TTS) ---
-    "origin": "en-vi",         // 🛑 BẤT BIẾN: "Giấy khai sinh" của sách. Ví dụ: "en", "en-vi", "en-vi-ph".
-    "langs": ["en", "vi"],     // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có.
-    "unit": "sentence",        // ✅ BOOK-LEVEL: Đơn vị nội dung của TOÀN BỘ sách ('sentence' hoặc 'phrase').
+    "origin": "en-vi-ph",      // 🛑 BẤT BIẾN: "Giấy khai sinh" của sách. Ví dụ: "en", "en-vi", "en-vi-ph".
+    "langs": ["en", "vi"],      // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có.
+    "unit": "phrase",           // ✅ BOOK-LEVEL: Đơn vị nội dung của TOÀN BỘ sách ('sentence' hoặc 'phrase').
 
     // --- Phân loại & Tìm kiếm ---
-    "tags": ["fantasy", "adventure"],
+    "tags": ["fantasy", "adventure"], // Tags do người dùng/hệ thống gán
+    "labels": ["bilingual", "short-read"], // Labels do hệ thống tự động gán để lọc
+    "display": "book",          // Luôn là "book" cho loại nội dung này
+    "isGlobal": false,          // Có phải là sách trong cửa hàng chung không?
 
     // --- Trạng thái Xử lý (Quan trọng cho UI) ---
     "status": "draft",          // Trạng thái tổng thể: 'processing', 'draft', 'published'
-    "contentState": "ready",    // 'processing', 'ready', 'error'
-    "coverState": "ready",      // 'processing', 'ready', 'error', 'ignored'
-    "contentError": null,
-    "coverError": null,
-    "contentRetryCount": 0,
-    "coverRetryCount": 0,
+    "contentState": "ready",    // Trạng thái nội dung: 'processing', 'ready', 'error'
+    "coverState": "ready",      // Trạng thái ảnh bìa: 'processing', 'ready', 'error', 'ignored'
+    "contentError": null,       // Thông báo lỗi nếu tạo nội dung thất bại
+    "coverError": null,         // Thông báo lỗi nếu tạo ảnh bìa thất bại
+    "contentRetries": 0,        // Số lần đã thử tạo lại nội dung
+    "coverRetries": 0,          // Số lần đã thử tạo lại ảnh bìa
 
     // --- Thông tin Ảnh bìa ---
     "cover": {
-        "type": "ai",
+        "type": "ai", // 'ai', 'upload', hoặc 'none'
         "url": "https://path/to/image.webp",
-        "inputPrompt": "A mythical dragon emerging from a portal into a modern city street"
+        "inputPrompt": "A mythical dragon emerging from a portal..."
     },
 
     // --- Nội dung Chính (THEO KIẾN TRÚC THỐNG NHẤT) ---
@@ -181,27 +184,18 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
                     "type": "text",
                     "metadata": { "isNewPara": true },
                     "content": {
-                        "en": "The rift shimmered, a tear in reality's fabric.",
-                        "vi": "Vết nứt lung linh, một vết rách trên tấm vải của thực tại."
+                        "en": "The rift shimmered,",
+                        "vi": "Vết nứt lung linh,"
                     }
-                }
-            ],
-            "stats": { /* ... */ }
-        },
-        {
-            "id": "ch_02",
-            "order": 1,
-            "title": { "en": "A New Sound", "vi": "Một Âm Thanh Mới" },
-            "segments": [
+                },
                 {
-                    "id": "seg_02_01",
-                    "order": 0,
+                    "id": "seg_01_02",
+                    "order": 1,
                     "type": "text",
-                    "metadata": { "isNewPara": true },
-                    // Ví dụ cho unit: 'phrase'. Các cụm từ được ngăn cách bằng ký tự '|'
+                    "metadata": { "isNewPara": false },
                     "content": {
-                        "en": "A young boy| saw the dragon and whispered,| 'You are not from here.'",
-                        "vi": "Một cậu bé| nhìn thấy con rồng và thì thầm,| 'Bạn không phải từ nơi này.'"
+                        "en": " a tear in reality's fabric.",
+                        "vi": " một vết rách trên tấm vải của thực tại."
                     }
                 }
             ],
