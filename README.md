@@ -171,7 +171,7 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
         "inputPrompt": "A mythical dragon emerging from a portal..."
     },
 
-    // --- Nội dung Chính (THEO KIẾN TRÚC THỐNG NHẤT) ---
+    // --- Nội dung Chính (THEO KIẾN TRÚC TỐI ƯU HÓA) ---
     "chapters": [
         {
             "id": "ch_01",
@@ -182,7 +182,6 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
                     "id": "seg_01_01",
                     "order": 0,
                     "type": "text",
-                    "metadata": { "isNewPara": true },
                     "content": {
                         "en": "The rift shimmered,",
                         "vi": "Vết nứt lung linh,"
@@ -192,14 +191,31 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
                     "id": "seg_01_02",
                     "order": 1,
                     "type": "text",
-                    "metadata": { "isNewPara": false },
                     "content": {
                         "en": " a tear in reality's fabric.",
                         "vi": " một vết rách trên tấm vải của thực tại."
                     }
+                },
+                {
+                  "id": "seg_para_break_1",
+                  "order": 2,
+                  "type": "paragraph_break",
+                  "content": { "en": "" }
+                },
+                {
+                    "id": "seg_01_03",
+                    "order": 3,
+                    "type": "text",
+                    "content": {
+                        "en": "A new paragraph starts here.",
+                        "vi": "Một đoạn mới bắt đầu ở đây."
+                    }
                 }
             ],
-            "stats": { /* ... */ }
+            "stats": { 
+                "totalSegments": 4,
+                "totalWords": 12 
+            }
         }
     ],
 
