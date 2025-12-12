@@ -1,3 +1,4 @@
+
 // src/features/create/hooks/useCreationJob.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -221,7 +222,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
   const handleTagAdd = useCallback((tag: string) => {
     const sanitizedTag = tag.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 20);
-    if (sanitizedTag && !formData.tags.includes(sanitizedTag) && formData.tags.length < 5) {
+    if (sanitizedTag && !formData.tags.includes(sanitizedTag) && formData.tags.length < 3) {
       setFormData(prev => ({ ...prev, tags: [...prev.tags, sanitizedTag] }));
     }
   }, [formData.tags]);

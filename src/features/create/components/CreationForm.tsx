@@ -59,8 +59,9 @@ const TagManager: React.FC<TagManagerProps> = ({ tags, onAddTag, onRemoveTag, is
           placeholder="e.g., fantasy, adventure"
           className="font-body"
           disabled={isDisabled}
+          maxLength={20}
         />
-        <Button type="button" onClick={handleAdd} disabled={isDisabled}>Add</Button>
+        <Button type="button" onClick={handleAdd} disabled={isDisabled || tags.length >= 3}>Add</Button>
       </div>
        {tags.length > 0 && (
         <div className="flex flex-wrap gap-2 pt-2">
