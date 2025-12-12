@@ -1,7 +1,7 @@
 
+'use server';
 
-import { collection, getDocs, query } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getAdminDb } from '@/lib/firebase-admin';
 import type { SystemBookmark, BookmarkMetadata } from '@/lib/types';
 import { ApiServiceError } from '@/lib/errors';
 import { convertTimestamps } from '@/lib/utils';
@@ -12,8 +12,8 @@ import { convertTimestamps } from '@/lib/utils';
  */
 export async function getSystemBookmarks(): Promise<SystemBookmark[]> {
     try {
-        const q = query(collection(db, 'systemBookmarks'));
-        const querySnapshot = await getDocs(q);
+        const adminDb = getAdminDb();
+        const querySnapshot = await adminDb.collection('systemBookmarks').get();
         return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() }) as SystemBookmark);
     } catch (error) {
         console.error("Error fetching system bookmarks:", error);
@@ -27,8 +27,8 @@ export async function getSystemBookmarks(): Promise<SystemBookmark[]> {
  */
 export async function getBookmarkMetadata(): Promise<BookmarkMetadata[]> {
     try {
-        const q = query(collection(db, 'bookmarkMetadata'));
-        const querySnapshot = await getDocs(q);
+        const adminDb = getAdminDb();
+        const querySnapshot = await adminDb.collection('bookmarkMetadata').get();
         return querySnapshot.docs.map(doc => convertTimestamps({ id: doc.id, ...doc.data() }) as BookmarkMetadata);
     } catch (error) {
         console.error("Error fetching bookmark metadata:", error);
