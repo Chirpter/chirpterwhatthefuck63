@@ -66,7 +66,6 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
                     }
                 }}
                 className="grid grid-cols-2 gap-3"
-                disabled={isDisabled}
             >
                 <Label
                     htmlFor={`${'${idPrefix}'}-sentence`}
@@ -76,7 +75,7 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
                         !isDisabled ? "cursor-pointer hover:border-primary/50" : "cursor-not-allowed opacity-70"
                     )}
                 >
-                    <RadioGroupItem value="sentence" id={`${'${idPrefix}'}-sentence`} />
+                    <RadioGroupItem value="sentence" id={`${'${idPrefix}'}-sentence`} disabled={isDisabled} />
                     <div>
                         <div className="font-medium font-body">{t('languageSettings.sentenceFormat')}</div>
                         <p className="text-xs text-muted-foreground">{t('languageSettings.sentenceFormatDesc')}</p>
@@ -90,7 +89,7 @@ export const CreationLanguageSettings: React.FC<LanguageSettingsProps> = ({
                         !isDisabled ? "cursor-pointer hover:border-primary/50" : "cursor-not-allowed opacity-70"
                     )}
                 >
-                    <RadioGroupItem value="phrase" id={`${'${idPrefix}'}-phrase`} />
+                    <RadioGroupItem value="phrase" id={`${'${idPrefix}'}-phrase`} disabled={isDisabled} />
                     <div>
                         <div className="font-medium font-body">{t('languageSettings.phraseFormat')}</div>
                         <p className="text-xs text-muted-foreground">{t('languageSettings.phraseFormatDesc')}</p>
