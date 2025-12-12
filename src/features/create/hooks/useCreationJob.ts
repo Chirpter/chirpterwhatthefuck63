@@ -72,7 +72,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isRateLimited, setIsRateLimited] = useState(false);
-  const [customTagInput, setCustomTagInput] = useState('');
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
@@ -221,25 +220,32 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const handleTagClick = useCallback((tag: string) => {
     const currentPrompt = isPromptDefault ? '' : formData.aiPrompt;
-    setFormData(prev => ({
-        ...prev,
-        aiPrompt: `${currentPrompt} ${tag}`.trim(),
-    }));
-    setIsPromptDefault(false);
-  }, [formData.aiPrompt, isPromptDefault]);
+    
+    setFormData(prev => {
+        const isAlreadyTagged = prev.tags.includes(tag);
+        let newTags;
+        
+        if (isAlreadyTagged) {
+            newTags = prev.tags.filter(t => t !== tag);
+        } else {
+            if (prev.tags.length >= 3) {
+                toast({ title: t('toast:maxTagsTitle'), description: t('toast:maxTagsDesc'), variant: 'destructive' });
+                return prev; // Return current state if limit is reached
+            }
+            newTags = [...prev.tags, tag];
+        }
 
-  const handleCustomTagChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomTagInput(e.target.value);
-  }, []);
-
-  const handleCustomTagAdd = useCallback(() => {
-    const newTag = customTagInput.trim().replace(/\s+/g, '-').toLowerCase();
-    if (newTag && newTag.length <= 20) {
-        handleTagClick(newTag);
-        setCustomTagInput('');
-    }
-  }, [customTagInput, handleTagClick]);
-
+        if (isPromptDefault) {
+          setIsPromptDefault(false);
+        }
+        
+        return {
+            ...prev,
+            tags: newTags
+        };
+    });
+  }, [formData.aiPrompt, isPromptDefault, t, toast]);
+  
 
   const reset = useCallback((newType: 'book' | 'piece') => {
     setFormData(getInitialFormData(newType, t));
@@ -326,8 +332,5 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     handlePresentationStyleChange, handleSubmit, handleViewResult, reset,
     isRateLimited, 
     handleTagClick,
-    handleCustomTagChange,
-    handleCustomTagAdd,
-    customTagInput,
   };
 }

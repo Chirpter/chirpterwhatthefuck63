@@ -47,9 +47,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     reset,
     isProUser,
     handleTagClick,
-    handleCustomTagChange,
-    handleCustomTagAdd,
-    customTagInput,
   } = job;
   
   const mobilePreview = isMobile ? (
@@ -109,9 +106,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           <div className="pt-2">
             <TagManager 
                 onTagClick={handleTagClick}
-                customTagInput={customTagInput}
-                onCustomTagChange={handleCustomTagChange}
-                onCustomTagAdd={handleCustomTagAdd}
+                selectedTags={formData.tags}
             />
           </div>
           <div className="text-right text-xs text-muted-foreground pt-1">
