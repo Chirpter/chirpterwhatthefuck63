@@ -38,9 +38,8 @@ export function PageContentRenderer({
     if (itemData.type === 'book') {
         const chapter = itemData.chapters?.[position.chapterIndex];
         if (chapter && chapter.segments) {
-            // Find the original segment that the spoken segment belongs to
-            // This is complex because one original segment can be multiple spoken segments (in phrase mode)
-            // For now, we'll assume a direct mapping for simplicity
+            // This logic assumes a direct mapping for now.
+            // For phrase-by-phrase, the `originalSegmentId` on the spoken segment would be key.
             const spokenSegment = (currentPlayingItem as any).data?.segments?.[position.segmentIndex];
             if (!spokenSegment) return null;
             return chapter.segments.find(s => s.id === spokenSegment.originalSegmentId) || null;
@@ -91,7 +90,12 @@ export function PageContentRenderer({
   return (
     <div className={contentContainerClasses}>
         {segments.map((segment, index) => {
-            const isNewPara = segment.metadata.isNewPara;
+            if (segment.type === 'paragraph_break') {
+                return <div key={segment.id} className="h-4" />;
+            }
+            
+            // Check if this segment is the start of a paragraph
+            const isNewPara = index === 0 || segments[index - 1]?.type === 'paragraph_break';
             const applyDropCap = isNewPara && index === 0 && page.pageIndex === 0;
 
             const content = (

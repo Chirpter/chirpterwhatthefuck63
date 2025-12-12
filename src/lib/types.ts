@@ -30,30 +30,27 @@ export type MultilingualContent = {
 
 export type ContentUnit = 'sentence' | 'phrase';
 
-export interface SegmentMetadata {
-  isNewPara: boolean; // ✅ The flag to indicate the start of a new paragraph
-  wordCount?: { [lang: string]: number };
-  primaryLanguage?: string;
-}
-
-
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
+ * A `paragraph_break` type is used to explicitly mark the beginning of a new paragraph,
+ * removing the need for stateful checks during rendering.
  */
 export interface Segment {
   id: string;
   order: number;
-  type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image';
+  type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image' | 'paragraph_break';
   content: MultilingualContent;
-  metadata: SegmentMetadata;
+  metadata?: { // Metadata is now optional
+    wordCount?: { [lang: string]: number };
+    primaryLanguage?: string;
+  };
 }
 
 
 export interface ChapterStats {
   totalSegments: number;
   totalWords: number;
-  estimatedReadingTime: number; // in minutes
 }
 
 export type ChapterTitle = MultilingualContent;
@@ -67,7 +64,7 @@ export interface Chapter {
   id: string;
   order: number;
   title: ChapterTitle;
-  segments: Segment[]; // ✅ A flat array of segments
+  segments: Segment[]; // Uses the updated Segment type
   stats: ChapterStats;
   metadata: {
     primaryLanguage?: string;
@@ -127,7 +124,7 @@ export type CoverJobType = 'none' | 'upload' | 'ai';
 
 export type BilingualViewMode = 'primary' | 'secondary' | 'bilingual';
 export type PresentationMode = 'mono' | 'bilingual-sentence' | 'bilingual-phrase';
-
+export type BilingualFormat = 'sentence' | 'phrase';
 
 export interface Cover {
   type: CoverJobType;
@@ -239,6 +236,7 @@ export interface Piece extends BaseLibraryItem {
     startTime?: number;
     endTime?: number;
   };
+  isBilingual?: boolean;
 }
 
 export interface CreationFormValues {
@@ -310,6 +308,7 @@ export interface PlaylistItem {
   primaryLanguage: string;
   availableLanguages: string[];
   originLanguages?: string; // New field for AudioEngine
+  origin?: string; // Added for consistency
 }
 
 
