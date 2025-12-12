@@ -94,8 +94,8 @@ export const TagManager: React.FC<TagManagerProps> = ({
             <Button
               type="button"
               variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-full"
+              size="sm"
+              className="h-8 w-8"
               onClick={() => setIsAdding(true)}
               aria-label="Add custom tag"
             >
