@@ -79,22 +79,43 @@ const renderSegmentContent = (
 ) => {
   const { content } = segment;
 
-  const renderContentForLang = (lang: string, isPrimary: boolean) => {
+  // --- NEW: BI-PHRASE MODE RENDERING ---
+  if (isBilingualMode && unit === 'phrase') {
+      const primaryPhrases = content[displayLang1];
+      const secondaryPhrases = content[displayLang2];
+      
+      if (!Array.isArray(primaryPhrases)) {
+          // Fallback if data is not in phrase format
+          return <span className="text-destructive">Error: Phrase data format expected.</span>;
+      }
+
+      return (
+        <span className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
+            {primaryPhrases.map((phrase, index) => {
+                const secondaryPhrase = Array.isArray(secondaryPhrases) ? secondaryPhrases[index] : '';
+                return (
+                    <span key={index} className="inline mr-1">
+                        {parseSimpleMarkdown(phrase)}
+                        {secondaryPhrase && (
+                            <span className="text-muted-foreground italic text-[0.9em] ml-1">
+                                ({parseSimpleMarkdown(secondaryPhrase)})
+                            </span>
+                        )}
+                        {' '}
+                    </span>
+                );
+            })}
+        </span>
+      );
+  }
+
+  // --- EXISTING SENTENCE/MONOLINGUAL MODE RENDERING ---
+  const renderContentForLang = (lang: string) => {
       const langContent = content[lang];
-      if (!langContent) return null;
+      if (!langContent || Array.isArray(langContent)) return null;
 
       const isThisLangPlaying = isSegmentPlaying && spokenLang === lang;
       
-      if (Array.isArray(langContent)) {
-          // Phrase mode - content is an array of strings
-          return langContent.map((phrase, idx) => (
-              <span key={idx} className="inline-block mr-1">
-                  {isThisLangPlaying ? getWordHighlightContent(phrase, speechBoundary) : parseSimpleMarkdown(phrase)}
-              </span>
-          ));
-      }
-      
-      // Sentence mode - content is a single string
       return (
           <span className={cn(!isBilingualMode && isSegmentPlaying && "tts-highlight")}>
               {isThisLangPlaying ? getWordHighlightContent(langContent, speechBoundary) : parseSimpleMarkdown(langContent)}
@@ -102,12 +123,11 @@ const renderSegmentContent = (
       );
   };
 
-  const primaryContent = renderContentForLang(displayLang1, true);
+  const primaryContent = renderContentForLang(displayLang1);
   if (!primaryContent) return null;
 
   if (isBilingualMode) {
-      const secondaryContent = renderContentForLang(displayLang2, false);
-      
+      const secondaryContent = renderContentForLang(displayLang2);
       return (
         <span className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
             <span className="block" lang={displayLang1}>{primaryContent}</span>
@@ -192,5 +212,3 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
         return null;
   }
 };
-
-    
