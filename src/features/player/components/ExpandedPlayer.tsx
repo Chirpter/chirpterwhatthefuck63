@@ -80,7 +80,7 @@ export function ExpandedPlayer() {
         
         const titleObj = chapter.title;
         if (typeof titleObj === 'object' && titleObj !== null) {
-             return (titleObj as ChapterTitle)[chapter.metadata?.primaryLanguage || primaryLang] || Object.values(titleObj)[0] || t('common:untitled');
+             return (titleObj as ChapterTitle)[primaryLang] || Object.values(titleObj)[0] || t('common:untitled');
         }
         return String(titleObj);
     }, [currentPlayingItem, position.chapterIndex, t, primaryLang]);
@@ -166,7 +166,7 @@ export function ExpandedPlayer() {
                                 <DropdownMenuItem key={chapter.id} onSelect={() => handleChapterSelect(index)} disabled={isLoading} className={cn("cursor-pointer", isCurrent && "bg-accent/50")}>
                                     <div className="flex items-center justify-between w-full">
                                         <span className={cn(isCurrent && "font-bold text-primary")}>
-                                            {t('chapterIndicator', { ns: 'readerPage', chapterNum: index + 1, chapterTitle: chapter.title[chapter.metadata?.primaryLanguage || primaryLang] })}
+                                            {t('chapterIndicator', { ns: 'readerPage', chapterNum: index + 1, chapterTitle: chapter.title[primaryLang] })}
                                         </span>
                                         {isCurrent && (
                                             <Link href={readerPageHref} onClick={(e) => e.stopPropagation()} className="p-1 -mr-1 rounded-sm hover:bg-accent">

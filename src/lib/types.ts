@@ -61,9 +61,7 @@ export interface Chapter {
   title: ChapterTitle;
   segments: Segment[]; // Uses the updated Segment type
   stats: ChapterStats;
-  metadata: {
-    primaryLanguage?: string;
-  };
+  metadata: {};
 }
 
 
