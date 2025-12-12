@@ -90,7 +90,7 @@ const renderSegmentContent = (
       }
 
       return (
-        <span className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
+        <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
             {primaryPhrases.map((phrase, index) => {
                 const secondaryPhrase = Array.isArray(secondaryPhrases) ? secondaryPhrases[index] : '';
                 return (
