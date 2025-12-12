@@ -16,13 +16,13 @@ export class ApiServiceError extends Error {
 }
 
 /**
- * @typedef {Object.<string, string>} MultilingualContent
+ * @typedef {Object.<string, string | string[]>} MultilingualContent
  * @description A flexible object to hold content in multiple languages.
- * The key is the BCP-47 language code (e.g., 'en', 'vi') and the value is the text content.
- * This is the central type for representing translated text across the application.
+ * The key is the BCP-47 language code (e.g., 'en', 'vi').
+ * The value can be a single string (for a sentence) or an array of strings (for phrases).
  */
 export type MultilingualContent = {
-  [languageCode: string]: string;
+  [languageCode: string]: string | string[];
 };
 
 

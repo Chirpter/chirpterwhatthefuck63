@@ -12,19 +12,20 @@ function cleanText(text: string): string {
 }
 
 /**
- * Splits a sentence into phrases based on commas and semicolons.
+ * Splits a sentence into phrases based on commas, semicolons, and hyphens.
  * Preserves punctuation at the end of each phrase.
  */
 function splitSentenceIntoPhrases(sentence: string): string[] {
     if (!sentence) return [];
     
-    // Match text segments separated by , or ; (including the delimiter)
-    const parts = sentence.match(/[^,;]+[,;]?/g) || [];
+    // Match text segments separated by , ; or - (including the delimiter)
+    const parts = sentence.match(/[^,;-]+[,;-]?/g) || [];
     
     return parts
         .map(p => p.trim())
         .filter(p => p.length > 0);
 }
+
 
 /**
  * Smart sentence splitting for MONOLINGUAL text only.
@@ -47,7 +48,7 @@ function splitIntoSentences(text: string): string[] {
     const replacements: Array<{ placeholder: string; original: string }> = [];
     let counter = 0;
     
-    processed = processed.replace(/\.{3}(?=\s+[a-z])/g, () => {
+    processed = processed.replace(/\.{3,}/g, () => {
         const placeholder = `${'${ELLIPSIS_PREFIX}'}${'${counter++}'}___`;
         replacements.push({ placeholder, original: '...' });
         return placeholder;
@@ -68,7 +69,7 @@ function splitIntoSentences(text: string): string[] {
         });
     });
     
-    const sentenceRegex = /[^.!?]+[.!?]+(?=\s+[A-Z]|\s*$)/g;
+    const sentenceRegex = /[^.!?]+(?:[.!?]+["']?|$)(?=\s+[A-Z]|\s*$)/g;
     const sentences = processed.match(sentenceRegex) || [];
     
     if (sentences.length === 0 && processed.trim()) {
@@ -90,29 +91,36 @@ function splitIntoSentences(text: string): string[] {
         .filter(s => s.length > 0);
 }
 
+
 /**
- * REFACTORED: Extracts text pairs using conditional logic.
- * - If bilingual, uses a simple Regex scan for A {B} pairs.
- * - If monolingual, uses smart sentence splitting.
+ * REFACTORED: Extracts text pairs using a simple and robust Regex scan.
  */
 function extractBilingualTextPairs(text: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
     
     if (secondaryLang) {
         // --- BILINGUAL LOGIC ---
-        // Simple, robust regex to find A {B} pairs.
         const pairs: Array<MultilingualContent> = [];
         const regex = /(.*?)\s*\{(.*?)\}/g;
-        let match;
         let lastIndex = 0;
+        let match;
 
         while ((match = regex.exec(text)) !== null) {
+            // Check for any text between the last match and this one, treat as primary-only
+            if (match.index > lastIndex) {
+                const orphanText = cleanText(text.substring(lastIndex, match.index));
+                if (orphanText) {
+                    pairs.push({ [primaryLang]: orphanText });
+                }
+            }
+
             const primaryText = cleanText(match[1]);
             const secondaryText = cleanText(match[2]);
-
+            
+            // Only add if there is primary text. Secondary is optional.
             if (primaryText) {
                 pairs.push({
                     [primaryLang]: primaryText,
-                    [secondaryLang]: secondaryText
+                    [secondaryLang]: secondaryText // Will be empty string if {} is empty
                 });
             }
             lastIndex = match.index + match[0].length;
@@ -130,7 +138,6 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
         
     } else {
         // --- MONOLINGUAL LOGIC ---
-        // Use smart sentence splitting.
         return splitIntoSentences(text).map(sentence => {
             const cleaned = cleanText(sentence);
             return cleaned ? { [primaryLang]: cleaned } : null;
@@ -140,91 +147,68 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
 
 
 /**
- * Processes a paragraph into segments based on unit type.
+ * Processes a paragraph into segments. Now adapts based on the 'unit'.
  */
 function processParagraphIntoSegments(
     paragraphText: string, 
     origin: string, 
+    unit: ContentUnit,
     isFirstInParagraph: boolean
 ): Segment[] {
     const parts = origin.split('-');
     const primaryLang = parts[0];
     const secondaryLang = parts.length > 1 ? parts[1] : undefined;
-    const format = parts.length > 2 ? parts[2] : undefined;
-    const unit: ContentUnit = format === 'ph' ? 'phrase' : 'sentence';
     
     const segments: Segment[] = [];
     let segmentOrder = 0;
-    let isFirstSegmentOfPara = isFirstInParagraph;
 
     // Step 1: Extract sentence pairs (or monolingual sentences)
     const sentencePairs = extractBilingualTextPairs(paragraphText, primaryLang, secondaryLang);
 
-    // Step 2: Process each sentence pair
-    sentencePairs.forEach((sentencePair) => {
+    // Step 2: Process each sentence into one or more segments
+    sentencePairs.forEach((sentencePair, index) => {
         const primarySentence = sentencePair[primaryLang];
-        const secondarySentence = secondaryLang ? sentencePair[secondaryLang] : undefined;
-
         if (!primarySentence) return;
+        
+        let finalContent: MultilingualContent = {};
 
-        if (unit === 'phrase' && secondaryLang) {
-            // Phrase mode: ALWAYS split by commas/semicolons
-            const primaryPhrases = splitSentenceIntoPhrases(primarySentence);
-            const secondaryPhrases = secondarySentence 
-                ? splitSentenceIntoPhrases(secondarySentence) 
-                : [];
-
-            primaryPhrases.forEach((phrase, index) => {
-                const content: MultilingualContent = { [primaryLang]: phrase };
-                if (secondaryLang && secondaryPhrases[index]) {
-                    content[secondaryLang] = secondaryPhrases[index];
-                }
-
-                segments.push({
-                    id: generateLocalUniqueId(),
-                    order: segmentOrder++,
-                    type: isFirstSegmentOfPara ? 'start_para' : 'text',
-                    content,
-                });
-
-                isFirstSegmentOfPara = false;
-            });
-        } else {
-            // Sentence mode: one segment per sentence
-            const content: MultilingualContent = { [primaryLang]: primarySentence };
-            if (secondaryLang && secondarySentence !== undefined) {
-                content[secondaryLang] = secondarySentence;
+        if (unit === 'phrase') {
+            finalContent[primaryLang] = splitSentenceIntoPhrases(primarySentence);
+            if (secondaryLang && sentencePair[secondaryLang]) {
+                finalContent[secondaryLang] = splitSentenceIntoPhrases(sentencePair[secondaryLang]!);
             }
-
-            segments.push({
-                id: generateLocalUniqueId(),
-                order: segmentOrder++,
-                type: isFirstSegmentOfPara ? 'start_para' : 'text',
-                content,
-            });
-
-            isFirstSegmentOfPara = false;
+        } else { // 'sentence' mode
+            finalContent = sentencePair;
         }
+        
+        segments.push({
+            id: generateLocalUniqueId(),
+            order: segmentOrder++,
+            type: (isFirstInParagraph && index === 0) ? 'start_para' : 'text',
+            content: finalContent,
+        });
     });
 
     return segments;
 }
 
+
 /**
  * Main parser - processes markdown text into segments.
  */
-export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
+export function parseMarkdownToSegments(markdown: string, origin: string, unit: ContentUnit): Segment[] {
     const lines = markdown.split('\n');
     const segments: Segment[] = [];
     let currentParagraph = '';
-    let isNewParagraph = true; // The very first content is always the start of a paragraph
+    let isNewParagraph = true;
 
     const flushParagraph = () => {
         const trimmedParagraph = currentParagraph.trim();
         if (trimmedParagraph) {
             const paraSegments = processParagraphIntoSegments(
                 trimmedParagraph, 
-                origin, 
+                origin,
+                unit,
                 isNewParagraph
             );
             
@@ -247,19 +231,18 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
 
         if (!trimmedLine) {
             flushParagraph();
-            isNewParagraph = true; // Signal that the next text block starts a new paragraph
+            isNewParagraph = true;
             continue;
         }
 
-        // Accumulate lines into current paragraph
         currentParagraph += (currentParagraph ? ' ' : '') + trimmedLine;
     }
 
-    // Flush any remaining paragraph
     flushParagraph();
 
     return segments;
 }
+
 
 /**
  * Parses book-level markdown with title and chapters.
@@ -275,14 +258,17 @@ export function parseBookMarkdown(
     const unit: ContentUnit = format === 'ph' ? 'phrase' : 'sentence';
     
     let title: MultilingualContent = { [primaryLang]: 'Untitled' };
-    let contentAfterTitle = markdown.trim();
+    let contentAfterTitle = markdown;
 
     const lines = markdown.split('\n');
     const firstH1Index = lines.findIndex(line => line.trim().startsWith('# '));
 
     if (firstH1Index !== -1) {
         const titleLine = lines[firstH1Index].trim().substring(2).trim();
-        title = extractBilingualTextPairs(titleLine, primaryLang, secondaryLang)[0] || { [primaryLang]: titleLine };
+        const extractedTitle = extractBilingualTextPairs(titleLine, primaryLang, secondaryLang)[0];
+        if (extractedTitle) {
+          title = extractedTitle;
+        }
         contentAfterTitle = lines.slice(firstH1Index + 1).join('\n');
     }
 
@@ -296,19 +282,15 @@ export function parseBookMarkdown(
         const chapterContent = chapterLines.slice(1).join('\n');
         
         const chapterTitle = extractBilingualTextPairs(chapterTitleLine.replace(/^##\s*/, ''), primaryLang, secondaryLang)[0] || { [primaryLang]: chapterTitleLine };
-        const segments = parseMarkdownToSegments(chapterContent, origin);
+        const segments = parseMarkdownToSegments(chapterContent, origin, unit);
 
         if (segments.length > 0) {
-            const totalWords = calculateTotalWords(segments, primaryLang);
             chapters.push({
                 id: generateLocalUniqueId(),
                 order: chapters.length,
                 title: chapterTitle,
                 segments,
-                stats: {
-                    totalSegments: segments.length,
-                    totalWords,
-                },
+                stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang) },
                 metadata: {
                     primaryLanguage: primaryLang
                 }
@@ -317,7 +299,7 @@ export function parseBookMarkdown(
     };
     
     if (chapterContents.length === 0 && contentAfterTitle.trim()) {
-        const segments = parseMarkdownToSegments(contentAfterTitle, origin);
+        const segments = parseMarkdownToSegments(contentAfterTitle, origin, unit);
         if (segments.length > 0) {
             chapters.push({
                 id: generateLocalUniqueId(),
@@ -337,17 +319,19 @@ export function parseBookMarkdown(
 
 
 /**
- * Calculates total word count from segments.
+ * Calculates total word count from segments, handling both string and array content.
  */
 function calculateTotalWords(segments: Segment[], primaryLang: string): number {
     return segments.reduce((sum, seg) => {
-        if (seg.type === 'start_para' || seg.type === 'text') {
-            const text = seg.content[primaryLang] || '';
+        const content = seg.content[primaryLang];
+        if (content) {
+            const text = Array.isArray(content) ? content.join(' ') : content;
             return sum + (text.split(/\s+/).filter(Boolean).length || 0);
         }
         return sum;
     }, 0);
 }
+
 
 /**
  * Helper to extract segments from library items.

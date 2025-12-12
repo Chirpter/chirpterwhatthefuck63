@@ -181,31 +181,16 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
                 {
                     "id": "seg_01_01",
                     "order": 0,
-                    "type": "text",
+                    "type": "start_para",
                     "content": {
-                        "en": "The rift shimmered,",
-                        "vi": "Vết nứt lung linh,"
+                        "en": ["The rift shimmered,", "a tear in reality's fabric."],
+                        "vi": ["Vết nứt lung linh,", "một vết rách trên tấm vải của thực tại."]
                     }
                 },
                 {
                     "id": "seg_01_02",
                     "order": 1,
-                    "type": "text",
-                    "content": {
-                        "en": " a tear in reality's fabric.",
-                        "vi": " một vết rách trên tấm vải của thực tại."
-                    }
-                },
-                {
-                  "id": "seg_para_break_1",
-                  "order": 2,
-                  "type": "paragraph_break",
-                  "content": { "en": "" }
-                },
-                {
-                    "id": "seg_01_03",
-                    "order": 3,
-                    "type": "text",
+                    "type": "start_para",
                     "content": {
                         "en": "A new paragraph starts here.",
                         "vi": "Một đoạn mới bắt đầu ở đây."
@@ -213,7 +198,7 @@ Dưới đây là cấu trúc đầy đủ và đã được thống nhất củ
                 }
             ],
             "stats": { 
-                "totalSegments": 4,
+                "totalSegments": 2,
                 "totalWords": 12 
             }
         }
