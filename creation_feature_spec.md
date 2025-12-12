@@ -341,10 +341,6 @@ Phrase one, {Cụm từ một,} | and phrase two. {và cụm từ hai.}
 ---
 
 ## 🐛 KNOWN ISSUES / AREAS FOR IMPROVEMENT
-*All major known issues have been resolved as of the last update.*
-- The system is now robust against race conditions from old `setTimeout` calls.
-- `bi-phrase` data structure is now correctly generated and stored.
-- All creation flows are correctly routed through the `createLibraryItem` facade.
 
 ---
 

@@ -20,6 +20,7 @@ import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { PromptSuggestions } from './PromptSuggestions';
 
 interface TagSelectorProps {
   suggestedTags: string[];
@@ -125,6 +126,10 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
 
   const isBilingual = formData.availableLanguages.length > 1;
   const isPhraseMode = formData.unit === 'phrase';
+  
+  const handlePromptSelect = (prompt: string) => {
+    handleValueChange('aiPrompt', prompt);
+  };
 
   return (
     <>
@@ -153,8 +158,13 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
             disabled={isBusy}
             maxLength={MAX_PROMPT_LENGTH}
           />
+          {isPromptDefault && (
+            <div className="pt-2">
+                <PromptSuggestions onSelect={handlePromptSelect} />
+            </div>
+          )}
           <div className="text-right text-xs text-muted-foreground pt-1">
-            {/* {`${'${formData.aiPrompt.length}'} / ${MAX_PROMPT_LENGTH}`} */}
+            {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`}
           </div>
           {promptError === 'empty' && (
             <p className="text-xs text-destructive">{t('formErrors.prompt.empty')}</p>
