@@ -37,7 +37,8 @@ import { useToast } from '@/hooks/useToast';
 import { useVocabulary } from '@/features/vocabulary/hooks/useVocabulary';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { BookmarkStyleProvider } from './BookmarkStyleProvider';
-import { useBookmarks } from '@/hooks/useBookmarks';
+import { useBookmarks } from '@/contexts/bookmark-context';
+
 
 // Lazy load components
 const BookItemCard = dynamic(() => import('./BookItemCard').then(mod => mod.BookItemCard), {
@@ -64,36 +65,35 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   const router = useRouter();
   const { toast } = useToast();
   
-  const { availableBookmarks, isLoading: bookmarksLoading } = useBookmarks();
-
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAddFolderDialogOpen, setIsAddFolderDialogOpen] = useState(false);
   
   const isVocabActive = contentType === 'vocabulary';
   
+  // Conditionally call hooks based on content type
   const libraryHook = useLibrary({ 
       contentType: isVocabActive ? undefined : contentType,
+      enabled: !isVocabActive,
   });
   
   const vocabularyHook = useVocabulary({ enabled: isVocabActive });
   
+  // Use the correct hook based on the content type
   const {
     filteredItems,
     itemToDelete,
     isDeleting,
     handleDelete,
     cancelDelete,
-    handleBookmarkChange,
     confirmDelete,
-    isLoading 
+    isLoading: isLibraryLoading,
+    loadMoreItems: loadMoreLibrary,
+    hasMore: hasMoreLibrary,
+    isLoadingMore: isLoadingMoreLibrary,
   } = libraryHook;
-  
-  const libraryContextValue = useMemo(() => ({
-    availableBookmarks,
-    onBookmarkChange: handleBookmarkChange,
-    onDelete: confirmDelete,
-  }), [availableBookmarks, handleBookmarkChange, confirmDelete]);
-  
+
+  const { availableBookmarks } = useContext(LibraryContext);
+
   const handleTabChange = (value: string) => {
     router.push(`/library/${value}`);
   };
@@ -187,11 +187,11 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   }
 
   const renderContent = () => {
-    const isUiLoading = isVocabActive ? vocabularyHook.isLoading : isLoading;
+    const isLoading = isVocabActive ? vocabularyHook.isLoading : isLibraryLoading;
 
-    if (isUiLoading || bookmarksLoading) {
+    if (isLoading) {
       return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
           {[...Array(6)].map((_, i) => (
              <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse">
                 <Skeleton className="h-48 bg-muted rounded-md mb-4" />
@@ -202,7 +202,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
       );
     }
     
-    if (contentType === 'vocabulary') {
+    if (isVocabActive) {
       return <VocabularyView hook={vocabularyHook} />;
     }
     
@@ -216,48 +216,47 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
       );
     }
     
-    const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && libraryHook.hasMore;
+    const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && hasMoreLibrary;
 
-    const itemsToRender = (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-        <AnimatePresence>
-          {filteredItems.map((item: LibraryItem) => {
-              let cardContent;
-              if (item.type === 'book') {
-                  if (item.status === 'processing') {
-                  cardContent = <ProcessingBookItemCard book={item as Book} onDelete={confirmDelete}/>;
-                  } else {
-                  cardContent = <BookItemCard book={item as Book} />;
-                  }
-              } else if (item.type === 'piece') {
-                  cardContent = <PieceItemCard work={item as Piece} />;
-              }
-
-              return (
-                  <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                      {cardContent}
-                  </motion.div>
-              )
-          })}
-        </AnimatePresence>
-      </div>
-    );
+    const bookItems = filteredItems.filter(item => item.type === 'book') as Book[];
+    const pieceItems = filteredItems.filter(item => item.type === 'piece') as Piece[];
 
     return (
       <>
-        {contentType === 'book' ? (
-           <BookmarkStyleProvider items={filteredItems} availableBookmarks={availableBookmarks}>
-              {itemsToRender}
+        {contentType === 'book' && (
+           <BookmarkStyleProvider items={bookItems} availableBookmarks={availableBookmarks}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+                <AnimatePresence>
+                  {bookItems.map((item) => (
+                      <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                          {item.status === 'processing' 
+                            ? <ProcessingBookItemCard book={item} onDelete={confirmDelete}/>
+                            : <BookItemCard book={item} />
+                          }
+                      </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
            </BookmarkStyleProvider>
-        ) : (
-          itemsToRender
         )}
 
-        {shouldShowLoadMore && !libraryHook.isLoadingMore && (
+        {contentType === 'piece' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+              <AnimatePresence>
+                {pieceItems.map((item) => (
+                    <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                        <PieceItemCard work={item} />
+                    </motion.div>
+                ))}
+              </AnimatePresence>
+          </div>
+        )}
+
+        {shouldShowLoadMore && !isLoadingMoreLibrary && (
           <div className="text-center mt-8">
             <Button 
               variant="link" 
-              onClick={libraryHook.loadMoreItems} 
+              onClick={loadMoreLibrary} 
               className="text-muted-foreground hover:text-primary"
             >
               {t('common:loadMore')}
@@ -265,7 +264,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
             </Button>
           </div>
         )}
-        {libraryHook.isLoadingMore && (
+        {isLoadingMoreLibrary && (
           <div className="text-center mt-8">
             <Icon name="Loader2" className="h-6 w-6 animate-spin text-primary mx-auto" />
           </div>
@@ -275,7 +274,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   };
 
   return (
-    <LibraryContext.Provider value={libraryContextValue}>
+    <div>
       <AddVocabDialog
         isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
@@ -364,12 +363,36 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
           </Suspense>
         )}
       </div>
-    </LibraryContext.Provider>
+    </div>
   );
 }
 
 export default function LibraryView(props: LibraryViewProps) {
+  const { availableBookmarks, isLoading: bookmarksLoading } = useBookmarks();
+  const libraryHook = useLibrary({ contentType: props.contentType, enabled: false });
+
+  const libraryContextValue = useMemo(() => ({
+    availableBookmarks,
+    onBookmarkChange: libraryHook.handleBookmarkChange,
+    onDelete: libraryHook.confirmDelete,
+  }), [availableBookmarks, libraryHook.handleBookmarkChange, libraryHook.confirmDelete]);
+
+  if (bookmarksLoading) {
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 mt-6">
+          {[...Array(6)].map((_, i) => (
+             <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse">
+                <Skeleton className="h-48 bg-muted rounded-md mb-4" />
+                <Skeleton className="h-6 w-3/4 bg-muted rounded-md mb-2" />
+            </div>
+          ))}
+        </div>
+      );
+  }
+
   return (
+    <LibraryContext.Provider value={libraryContextValue}>
       <LibraryViewContent {...props} />
+    </LibraryContext.Provider>
   );
 }
