@@ -1,8 +1,8 @@
 
+
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useAuth } from '@/contexts/auth-context';
 import { useUser } from '@/contexts/user-context';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
@@ -311,4 +311,4 @@ export default function useVocabVideos() {
         registerReplayTrigger,
         clearSearch,
     };
-};
+}

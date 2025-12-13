@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -183,7 +184,7 @@ export const VideoSnippetPopover: React.FC<{ term: string; children: React.React
         onClick={(e) => e.stopPropagation()}
       >
         {isOpen && (
-          <VideoSnippetContent term={term} />
+          <VideoSnippetPopoverContent term={term} />
         )}
       </PopoverContent>
     </Popover>

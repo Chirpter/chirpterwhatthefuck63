@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -18,7 +19,7 @@ import { useVocabVideosContext } from '../../contexts/VocabVideosContext';
 import LookupPopover from '@/features/reader/components/LookupPopover';
 import { VocabVideoPlayer, type VocabVideoPlayerHandle } from './VocabVideoPlayer';
 import type { Piece } from '@/lib/types';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 
 function VocabVideosView() {
   const { t, i18n } = useTranslation(['learningPage', 'common', 'toast']);
