@@ -33,7 +33,7 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
   return (
     <div className="space-y-3 p-4 border rounded-lg">
       <Label className="font-body text-base font-medium flex items-center">
-        <Icon name="GalleryThumbnails" className="h-5 w-5 mr-2 text-primary" /> {t('presentationStyle.title')}
+        <Icon name="LayoutDashboard" className="h-5 w-5 mr-2 text-primary" /> {t('presentationStyle.title')}
       </Label>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {options.map(option => (
