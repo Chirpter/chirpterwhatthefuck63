@@ -1,3 +1,4 @@
+
 // src/services/piece-creation.service.ts
 
 'use server';
@@ -9,7 +10,7 @@ import { checkAndUnlockAchievements } from './achievement-service';
 import { updateLibraryItem } from "./library-service";
 import { ApiServiceError } from "../lib/errors";
 import { parseMarkdownToSegments } from './MarkdownParser';
-import { ai } from '@/ai/genkit';
+import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
 
@@ -264,5 +265,3 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         });
     });
 }
-
-    

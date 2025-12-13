@@ -1,3 +1,4 @@
+
 // src/services/book-creation.service.ts
 
 'use server';
@@ -8,7 +9,7 @@ import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { ApiServiceError } from "../lib/errors";
 import { parseBookMarkdown } from './MarkdownParser';
-import { ai } from '@/ai/genkit';
+import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 import { getStorage } from 'firebase-admin/storage';

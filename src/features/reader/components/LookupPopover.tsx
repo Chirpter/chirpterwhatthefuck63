@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -7,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
-import { translateText, type TranslateTextOutput } from '@/ai/flows/translate-text-flow';
+import { translateText, type TranslateTextOutput } from '@/services/ai/flows/translate-text.flow';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { addVocabularyItem } from '@/services/client/vocabulary-service';
 import { Skeleton } from '@/components/ui/skeleton';

@@ -18,7 +18,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import type { LibraryItem } from '@/lib/types';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 // 4. Import trực tiếp từ service chịu trách nhiệm
 import { regenerateBookContent } from '@/services/book-creation.service';
 import { useToast } from '@/hooks/useToast';
