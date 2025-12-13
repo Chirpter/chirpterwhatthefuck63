@@ -1,12 +1,10 @@
-
-
 // src/features/create/hooks/useCreationJob.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
-import type { CreationFormValues, LibraryItem, ContentUnit, Book } from '@/lib/types';
+import type { CreationFormValues, LibraryItem, ContentUnit, Book, Piece } from '@/lib/types';
 import { createLibraryItem } from '@/services/server/creation.service';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -300,11 +298,17 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       const data = snapshot.data() as LibraryItem;
       setJobData(data);
       
-      const isBook = data.type === 'book';
-      const contentDone = data.contentState === 'ready' || data.contentState === 'error';
-      const coverDone = isBook ? (data as Book).coverState !== 'processing' : true;
-      
-      if (contentDone && coverDone) {
+      // Determine completion based on item type
+      let isComplete = false;
+      if (data.type === 'book') {
+          const bookData = data as Book;
+          isComplete = bookData.contentState !== 'processing' && bookData.coverState !== 'processing';
+      } else if (data.type === 'piece') {
+          const pieceData = data as Piece;
+          isComplete = pieceData.contentState !== 'processing';
+      }
+
+      if (isComplete) {
         setFinalizedId(activeId);
         setIsBusy(false);
         setActiveId(null);

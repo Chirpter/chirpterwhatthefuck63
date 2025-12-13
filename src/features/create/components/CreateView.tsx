@@ -63,14 +63,14 @@ export default function CreateView() {
                 onCreateAnother={() => job.reset('book')}
             />
         );
-    } else { // piece
-        return (
-             <PieceItemCardRenderer
-                item={job.jobData}
-                isPreview={false}
-             />
-        );
     }
+    // Correctly render the Piece preview component for the 'piece' tab
+    return (
+        <PieceItemCardRenderer
+          item={job.jobData}
+          isPreview={false} // isPreview=false to show loading/final state
+        />
+    );
   };
 
   return (

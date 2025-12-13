@@ -6,7 +6,7 @@ import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { PageContentRenderer } from '@/features/reader/components/PageContentRenderer';
-import type { LibraryItem } from '@/lib/types';
+import type { LibraryItem, Piece } from '@/lib/types';
 import { getItemSegments } from '@/services/shared/MarkdownParser';
 import { Icon } from '@/components/ui/icons';
 import { useTranslation } from 'react-i18next';
@@ -38,16 +38,17 @@ const MAX_PREVIEW_SEGMENTS = 10;
  * It is NOT a full page reader.
  */
 export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ item, isPreview, chapterIndex = 0 }) => {
-  const { t } = useTranslation('createPage');
+  const { t } = useTranslation(['createPage']);
   const [editorSettings] = useEditorSettings(item?.id || null);
 
-  const aspectRatioClass = item?.type === 'piece' ? getAspectRatioClass(item.aspectRatio) : '';
+  const aspectRatioClass = (item?.type === 'piece' && (item as Piece).aspectRatio) 
+      ? getAspectRatioClass((item as Piece).aspectRatio) 
+      : 'aspect-[3/4]'; // Default aspect ratio
 
   const segmentsToRender = useMemo(() => {
       if (!item) return [];
       const allSegments = getItemSegments(item, chapterIndex);
       if (isPreview) {
-          // Only take a few segments for the preview to optimize performance
           return allSegments.slice(0, MAX_PREVIEW_SEGMENTS);
       }
       return allSegments;
@@ -55,46 +56,36 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
   
   const cardClassName = useMemo(() => {
     return cn(
-      "w-full shadow-xl overflow-hidden",
+      "w-full shadow-xl overflow-hidden rounded-lg",
       item?.display === 'card' 
         ? `max-w-md ${aspectRatioClass}` 
-        : 'max-w-3xl h-full', // For book mode, allow full height
+        : 'max-w-3xl h-full',
       editorSettings.background,
-      isPreview ? "h-full" : "max-h-full"
+      isPreview ? "h-full" : "h-auto max-h-[80vh]" // Adjust height for different contexts
     );
   }, [item?.display, editorSettings.background, aspectRatioClass, isPreview]);
 
+  // --- RENDER LOGIC ----
+  
+  const pieceItem = item as Piece | null;
 
-  // ---- RENDER LOGIC ----
-  
-  // Loading state (used in CreateView)
-  if (!item && !isPreview) {
+  // State 1: Finalized (and not a preview)
+  if (pieceItem && pieceItem.contentState !== 'processing' && !isPreview) {
      return (
-      <div className={cn("flex flex-col items-center justify-center text-center h-full")}>
-        <Icon name="Wand2" className="h-16 w-16 text-primary/80 mx-auto mb-4 animate-pulse" />
-        <p className="text-md text-muted-foreground font-body">{t('status.contentProcessing')}</p>
-        <p className="text-sm text-muted-foreground/70 font-body mt-2">{t('loading.stayOnPage')}</p>
-      </div>
-    );
-  }
-  
-  // Finalized state (used in CreateView)
-  if (item && item.contentState !== 'processing' && !isPreview) {
-     return (
-        <div className={cn("h-full w-full flex flex-col items-center justify-center")}>
+        <div className={cn("h-full w-full flex flex-col items-center justify-center gap-4")}>
             <div className={cardClassName}>
                 <div className="h-full overflow-y-auto @container/content-card">
                     <PageContentRenderer
                         page={{ pageIndex: 0, items: segmentsToRender, estimatedHeight: 0 }}
-                        presentationStyle={item.display}
+                        presentationStyle={pieceItem.display || 'card'}
                         editorSettings={editorSettings}
-                        itemData={item}
+                        itemData={pieceItem}
                     />
                 </div>
             </div>
-             <div className="mt-4 text-center space-y-2">
+             <div className="mt-2 text-center space-y-2">
                 <Button variant="link" asChild className="text-lg font-semibold font-headline p-0 h-auto">
-                    <Link href="/library/piece">
+                    <Link href={`/library/piece`}>
                         <Icon name="Library" className="mr-2 h-5 w-5" />
                         {t('status.complete')}
                     </Link>
@@ -104,7 +95,19 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
     );
   }
 
-  // Initial state or library preview state
+  // State 2: Processing (and not a preview)
+  if (pieceItem && pieceItem.contentState === 'processing' && !isPreview) {
+      return (
+        <div className={cn("flex flex-col items-center justify-center text-center h-full gap-4")}>
+            <div className={cn(cardClassName, "flex items-center justify-center")}>
+                 <Icon name="Wand2" className="h-16 w-16 text-primary/80 mx-auto mb-4 animate-pulse" />
+            </div>
+            <p className="text-md text-muted-foreground font-body">{t('status.contentProcessing')}</p>
+        </div>
+      )
+  }
+
+  // State 3: Initial placeholder or library preview
   const isInitialState = !item;
   const finalSegments = isInitialState ? [{ id: 'p1', order: 1, type: 'text', content: { primary: t('previewArea.piecePlaceholderDesktopHint') }, formatting: {}, metadata: { isNewPara: true, wordCount: {primary: 0}} }] : segmentsToRender;
   
