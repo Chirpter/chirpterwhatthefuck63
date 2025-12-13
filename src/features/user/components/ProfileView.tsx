@@ -23,9 +23,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { User } from '@/lib/types';
-import { ACHIEVEMENTS } from '@/lib/achievements';
+import { ACHIEVEMENTS } from '@/features/user/constants/achievements';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/auth-context';
+import { Logo } from '@/components/ui/Logo';
 
 
 // --- Reusable Components for the new Profile View ---
@@ -194,7 +195,10 @@ export default function ProfileView() {
     if (loading || !user || !authUser) {
         return (
             <div className="flex h-full w-full items-center justify-center">
-                <Icon name="Loader2" className="h-12 w-12 animate-spin text-primary" />
+                <div className="text-center">
+                    <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
+                    <p className="mt-2 text-sm text-muted-foreground">Loading Profile...</p>
+                </div>
             </div>
         );
     }

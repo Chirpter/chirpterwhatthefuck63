@@ -1,13 +1,15 @@
-// src/lib/test-utils.tsx - FIXED VERSION
+
+// src/lib/test-utils.tsx
+
 import React from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n';
-import { AuthProvider } from '@/contexts/auth-context';
-import { UserProvider } from '@/contexts/user-context';
+import { AuthProvider } from '@/providers/auth-provider';
+import { UserProvider } from '@/providers/user-provider';
 import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { SettingsProvider } from '@/contexts/settings-context';
 import { BookmarkProvider } from '@/contexts/bookmark-context';
-import { vi, beforeEach, afterEach } from 'vitest';
+import { vi, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { User as AppUser, CombinedBookmark } from './types';
@@ -69,38 +71,27 @@ afterEach(() => {
 });
 
 /**
- * ✅ FIXED: Enhanced mock with better tracking
+ * Mocks the window.location object for navigation tests.
+ * This is crucial for testing navigation logic without actual browser reloads.
  */
 export function setupLocationMock() {
   const mockNavigate = vi.fn((path: string) => {
-    // Simulate immediate navigation for tests
-    console.log('[TEST] Navigate called:', path);
+    // This console log helps trace navigation calls during tests.
+    console.log(`[TEST] Mock navigation to: ${path}`);
   });
   
   const mockReplace = vi.fn();
   
-  // Store original location to restore it
   const originalLocation = window.location;
-  const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'location');
 
-  // Delete the property to make it reconfigurable
+  // Use delete to allow re-defining the window.location property
   delete (window as any).location;
 
-  // ✅ FIXED: Create a proper mock that matches window.location interface
   const mockLocation = {
     assign: mockNavigate,
     replace: mockReplace,
     href: 'http://localhost:3000/',
-    origin: 'http://localhost:3000',
-    protocol: 'http:',
-    host: 'localhost:3000',
-    hostname: 'localhost',
-    port: '3000',
-    pathname: '/',
-    search: '',
-    hash: '',
-    reload: vi.fn(),
-    toString: () => 'http://localhost:3000/',
+    // Add other properties if your code uses them
   };
 
   Object.defineProperty(window, 'location', {
@@ -110,16 +101,12 @@ export function setupLocationMock() {
   });
 
   const cleanup = () => {
-    // Restore the original location object
-    if (originalDescriptor) {
-      Object.defineProperty(window, 'location', originalDescriptor);
-    } else {
-      Object.defineProperty(window, 'location', {
-        value: originalLocation,
-        writable: true,
-        configurable: true,
-      });
-    }
+    // Restore the original window.location object after tests
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
     mockNavigate.mockClear();
     mockReplace.mockClear();
   };
@@ -127,18 +114,14 @@ export function setupLocationMock() {
   return {
     mockNavigate,
     mockReplace,
-    getNavigatedUrl: () => mockNavigate.mock.calls[0]?.[0],
-    getReplacedUrl: () => mockReplace.mock.calls[0]?.[0],
-    getAllNavigations: () => mockNavigate.mock.calls.map(call => call[0]),
-    wasNavigatedTo: (path: string) => mockNavigate.mock.calls.some(call => call[0] === path),
     cleanup,
   };
 }
 
 /**
- * ✅ FIXED: Isolated test wrapper with proper mocking
+ * A wrapper component that provides all necessary contexts for testing individual components.
  */
-export const CombinedProviders: React.FC = ({ children }) => {
+export const CombinedProviders: React.FC<{children: React.ReactNode}> = ({ children }) => {
   return (
     <I18nextProvider i18n={i18n}>
       <AuthProvider>

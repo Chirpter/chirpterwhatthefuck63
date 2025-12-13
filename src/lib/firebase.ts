@@ -1,5 +1,3 @@
-
-
 // ARCHITECTURAL NOTE:
 // This application is configured to connect to the primary Firebase project.
 // Any access to secondary, system-level data (like global bookmarks) should
@@ -24,38 +22,32 @@ const primaryFirebaseConfig: FirebaseOptions = {
 };
 
 // ✅ ENHANCED: Validate all required Firebase config fields
-const requiredFields: Array<{ key: keyof FirebaseOptions; envName: string }> = [
-  { key: 'apiKey', envName: 'NEXT_PUBLIC_FIREBASE_API_KEY' },
-  { key: 'authDomain', envName: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN' },
-  { key: 'projectId', envName: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID' },
-  { key: 'storageBucket', envName: 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET' },
-  { key: 'messagingSenderId', envName: 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID' },
-  { key: 'appId', envName: 'NEXT_PUBLIC_FIREBASE_APP_ID' },
-  // Measurement ID is optional and often not present. Removing it from required fields.
-  // { key: 'measurementId', envName: 'NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID' },
+const requiredFields: Array<keyof FirebaseOptions> = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
 ];
 
-requiredFields.forEach(({ key, envName }) => {
-  const value = primaryFirebaseConfig[key];
-  if (!value || (typeof value === 'string' && value.includes('YOUR_'))) {
-    throw new Error(
-      `❌ Missing or invalid Firebase config: ${envName}\n` +
-      `Please check your .env.local file and ensure ${envName} is set correctly.\n` +
-      `Current value: ${value || 'undefined'}`
-    );
-  }
-});
+const missingField = requiredFields.find(field => !primaryFirebaseConfig[field]);
+
+if (missingField) {
+  throw new Error(`❌ Missing Firebase config: The environment variable for "${missingField}" is not set. Please check your .env.local file.`);
+}
 
 // Singleton pattern to initialize Firebase app
 function initializePrimaryApp(): FirebaseApp {
-  try {
-    // Attempt to get the default app. If it doesn't exist, this will throw.
-    return getApp();
-  } catch (error) {
-    // If it fails, initialize the app for the first time.
-    return initializeApp(primaryFirebaseConfig);
+  // Use getApps() to check if apps are already initialized.
+  const apps = getApps();
+  if (apps.length > 0) {
+    return getApp(); // Return the default app if it exists
   }
+  // Otherwise, initialize the default app.
+  return initializeApp(primaryFirebaseConfig);
 }
+
 
 const primaryApp = initializePrimaryApp();
 

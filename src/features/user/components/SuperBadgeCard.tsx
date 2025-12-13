@@ -8,11 +8,13 @@ import { Icon, type IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { ACHIEVEMENTS, type Achievement } from '@/lib/achievements';
+import { ACHIEVEMENTS } from '@/lib/achievements';
+import type { Achievement } from '@/lib/achievements';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/auth-context';
 import { useTranslation } from 'react-i18next';
 import type { Tier, TierTask } from '@/lib/types';
+import { useUser } from '@/contexts/user-context';
 
 
 const achievementsMap = new Map(ACHIEVEMENTS.map(a => [a.id, a]));

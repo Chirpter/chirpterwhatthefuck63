@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState } from 'react';
@@ -16,7 +17,8 @@ import { useAdminBookmarks } from '../hooks/useAdminBookmarks';
 import { AdminBookmarkForm } from './AdminBookmarkForm';
 import { BookmarkCard, type BookmarkCardProps } from '@/features/user/components/BookmarkCard';
 import { BookmarkStyleProvider } from '@/features/library/components/BookmarkStyleProvider';
-import { ACHIEVEMENTS, type Achievement } from '@/lib/achievements';
+import { ACHIEVEMENTS } from '@/lib/achievements';
+import type { Achievement } from '@/lib/achievements';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -244,4 +246,3 @@ export default function AdminView() {
     </div>
   );
 }
-    

@@ -50,19 +50,16 @@ const initializeNewApp = (): admin.app.App => {
  * Includes detailed logging for debugging initialization behavior.
  */
 const getOrInitializeApp = (): admin.app.App => {
-  console.log('🔍 [Firebase Admin] getOrInitializeApp called');
-  console.log('🔍 [Firebase Admin] Current apps count:', admin.apps.length);
-  console.log('🔍 [Firebase Admin] App names:', admin.apps.map(a => a?.name || '[DEFAULT]'));
-
-  try {
-    // admin.app() throws if no app is initialized, which is our check.
-    const existingApp = admin.app();
-    console.log('✅ [Firebase Admin] Using existing default app.');
-    return existingApp;
-  } catch (error) {
-    console.log('⚠️  [Firebase Admin] No existing default app found, initializing new one...');
-    return initializeNewApp();
+  // The admin SDK is designed to be a singleton.
+  // We check if it's already initialized to prevent errors in environments
+  // where modules can be re-evaluated (like during Next.js hot-reloading).
+  if (admin.apps.length > 0 && admin.apps[0]) {
+    // Return the already initialized default app
+    return admin.apps[0];
   }
+
+  // If no app is initialized, create a new one.
+  return initializeNewApp();
 };
 
 
