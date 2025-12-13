@@ -1,10 +1,12 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Book, BookmarkMetadata } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
-import { getGlobalBooks, getBookmarkMetadata, getSystemBookmarks } from '@/services/library-service';
+import { getGlobalBooks } from '@/services/library-service';
+import { getBookmarkMetadata, getSystemBookmarks } from '@/services/bookmark-service';
 import type { DocumentData } from 'firebase/firestore';
 import type { CombinedBookmark } from '@/features/library/hooks/useLibrary';
 import { useAuth } from '@/contexts/auth-context';
