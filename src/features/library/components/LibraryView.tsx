@@ -1,3 +1,4 @@
+// src/features/library/components/LibraryView.tsx
 "use client";
 
 import React, { useCallback, lazy, Suspense, useState, useEffect, useMemo, useContext } from 'react';
@@ -66,7 +67,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   // Use the global context to get all available bookmarks
   const { availableBookmarks, isLoading: bookmarksLoading } = useBookmarks();
 
-  const [isAddVocabDialogOpen, setIsAddVocabDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAddFolderDialogOpen, setIsAddFolderDialogOpen] = useState(false);
   
   const isVocabActive = contentType === 'vocabulary';
@@ -267,7 +268,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   return (
     <LibraryContext.Provider value={libraryContextValue}>
       <AddVocabDialog
-        isOpen={isAddVocabDialogOpen}
+        isOpen={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onSuccess={handleAddVocabSuccess}
         allFolders={vocabularyHook.folders}

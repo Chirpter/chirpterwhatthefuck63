@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
 import type { LibraryItem, OverallStatus } from '@/lib/types';
-import { getLibraryItems, deleteLibraryItem as serviceDeleteLibraryItem, updateLibraryItem } from '@/services/library-service';
+import { deleteLibraryItem as serviceDeleteLibraryItem, updateLibraryItem } from '@/services/library-service';
 import { useLibraryItems } from './useLibraryItems';
 
 interface UseLibraryProps {
@@ -40,11 +40,12 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
     }
     
     if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
       itemsToFilter = itemsToFilter.filter(item => {
         const title = (item.title as any)?.primary || 
                       Object.values(item.title)[0] || 
                       '';
-        return title.toLowerCase().includes(searchTerm.toLowerCase());
+        return title.toLowerCase().includes(lowerCaseSearchTerm);
       });
     }
     
@@ -64,32 +65,31 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
       await serviceDeleteLibraryItem(user.uid, itemToDelete.id);
       mutate(prevItems => prevItems?.filter(item => item.id !== itemToDelete.id) || []);
       
+      const title = (itemToDelete.title as any)?.primary || Object.values(itemToDelete.title)[0] || 'item';
       toast({
         title: t("common:success"),
-        description: t("common:alertDialog.deleteSuccess", { 
-          title: (itemToDelete.title as any).primary 
-        }),
+        description: t("common:alertDialog.deleteSuccess", { title }),
       });
       
     } catch (error) {
       console.error('[useLibrary] Delete error:', error);
+      const title = (itemToDelete.title as any)?.primary || Object.values(itemToDelete.title)[0] || 'item';
       toast({
         title: t("common:error"),
-        description: t("libraryPage:toastFailedToDelete", { 
-          title: (itemToDelete.title as any).primary
-        }),
+        description: t("libraryPage:toastFailedToDelete", { title }),
         variant: "destructive",
       });
       
     } finally {
-      setIsDeleting(false);
-      setItemToDelete(null);
+        setIsDeleting(false);
+        setItemToDelete(null);
     }
   }, [itemToDelete, user, t, toast, mutate]);
 
   const handleBookmarkChange = useCallback(async (itemId: string, newBookmarkId: string) => {
     if (!user) return;
 
+    // Optimistic UI update
     mutate(prevItems => {
         if (!prevItems) return [];
         return prevItems.map(item => 
@@ -108,7 +108,7 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
         description: t('bookCard:toastBookmarkError'), 
         variant: 'destructive' 
       });
-      // Optional: Revert local state on error
+      // Revert local state on error
       mutate(prevItems => {
         if (!prevItems) return [];
         return prevItems.map(item =>

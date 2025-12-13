@@ -6,7 +6,7 @@ import { useUser } from '@/contexts/user-context';
 import type { LibraryItem, OverallStatus, VocabularyItem, VocabularyFilters } from '@/lib/types';
 import { getLibraryItems as serviceGetLibraryItems } from '@/services/library-service';
 import { getVocabularyItemsPaginated } from '@/services/client/vocabulary-service';
-import type { DocumentData } from 'firebase-admin/firestore';
+import type { DocumentData } from 'firebase/firestore';
 
 
 interface UseLibraryItemsProps {
