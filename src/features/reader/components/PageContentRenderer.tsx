@@ -85,19 +85,16 @@ export function PageContentRenderer({
   const currentSpokenLang = currentSegmentLanguage;
 
   const proseThemeClass = useMemo(() => {
-    if (presentationStyle === 'doc') return 'prose dark:prose-invert';
-    if (presentationStyle === 'card') {
-        switch (editorSettings.background) {
-            case 'bg-reader-sepia': return 'prose-on-sepia prose-dynamic';
-            case 'bg-reader-slate': return 'prose-on-slate dark prose-dynamic';
-            case 'bg-reader-lined': return 'prose-on-lined-paper prose-dynamic';
-            case 'bg-reader-grid': return 'prose-on-grid prose-dynamic';
-            case 'bg-reader-crumbled': return 'prose-on-crumbled prose-dynamic';
-            default: return 'prose-dynamic';
-        }
+    // Both 'doc' and 'card' styles should be responsive.
+    switch (editorSettings.background) {
+        case 'bg-reader-sepia': return 'prose-on-sepia prose-dynamic';
+        case 'bg-reader-slate': return 'prose-on-slate dark prose-dynamic';
+        case 'bg-reader-lined': return 'prose-on-lined-paper prose-dynamic';
+        case 'bg-reader-grid': return 'prose-on-grid prose-dynamic';
+        case 'bg-reader-crumbled': return 'prose-on-crumbled prose-dynamic';
+        default: return 'prose dark:prose-invert prose-dynamic';
     }
-    return 'prose dark:prose-invert';
-  }, [editorSettings.background, presentationStyle]);
+  }, [editorSettings.background]);
   
   const layoutClasses = useMemo(() => {
     if (presentationStyle === 'card') {
@@ -107,6 +104,7 @@ export function PageContentRenderer({
             editorSettings.textAlign
         );
     }
+    // For 'doc' style
     return 'p-8 md:p-12';
   }, [presentationStyle, editorSettings]);
   

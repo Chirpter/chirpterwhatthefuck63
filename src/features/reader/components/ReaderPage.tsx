@@ -1,4 +1,3 @@
-
 // src/features/reader/components/ReaderPage.tsx
 
 'use client';
@@ -601,7 +600,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                     ) : currentPageData ? (
                         <PageContentRenderer 
                                 page={currentPageData}
-                                presentationStyle='book'
+                                presentationStyle='doc'
                                 editorSettings={editorSettings}
                                 itemData={item}
                                 displayLang1={displayLang1}
