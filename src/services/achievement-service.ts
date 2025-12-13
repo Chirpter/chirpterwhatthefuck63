@@ -1,9 +1,10 @@
 
+
 'use server';
 
 import { getAdminDb } from '@/lib/firebase-admin';
 import type { User, UserAchievement } from '@/lib/types';
-import { ACHIEVEMENTS } from '@/lib/achievements';
+import { ACHIEVEMENTS } from '@/features/user/constants/achievements';
 
 /**
  * @fileoverview Dedicated service for managing achievement logic.
@@ -24,7 +25,7 @@ export async function checkAndUnlockAchievements(userId: string): Promise<void> 
         await adminDb.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (!userDoc.exists) {
-                console.warn(`[AchievementService] User document ${userId} not found. Skipping achievement check.`);
+                console.warn(`[AchievementService] User document ${'${userId}'} not found. Skipping achievement check.`);
                 return;
             }
 

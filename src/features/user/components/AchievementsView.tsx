@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -8,9 +9,9 @@ import { claimAchievement } from '@/services/user-service';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/ui/icons';
 import { AchievementCard } from '@/features/user/components/AchievementCard';
-import { ACHIEVEMENTS } from '@/lib/achievements';
+import { ACHIEVEMENTS } from '@/features/user/constants/achievements';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Achievement } from '@/lib/achievements';
+import type { Achievement } from '@/features/user/constants/achievements';
 import { SuperBadgeCard } from './SuperBadgeCard';
 import type { Tier, TierTask } from '@/lib/types';
 import { cn } from '@/lib/utils';

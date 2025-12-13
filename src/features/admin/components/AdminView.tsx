@@ -17,8 +17,8 @@ import { useAdminBookmarks } from '../hooks/useAdminBookmarks';
 import { AdminBookmarkForm } from './AdminBookmarkForm';
 import { BookmarkCard, type BookmarkCardProps } from '@/features/user/components/BookmarkCard';
 import { BookmarkStyleProvider } from '@/features/library/components/BookmarkStyleProvider';
-import { ACHIEVEMENTS } from '@/lib/achievements';
-import type { Achievement } from '@/lib/achievements';
+import { ACHIEVEMENTS } from '@/features/user/constants/achievements';
+import type { Achievement } from '@/features/user/constants/achievements';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import {
