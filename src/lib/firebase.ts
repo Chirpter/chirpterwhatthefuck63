@@ -48,11 +48,13 @@ requiredFields.forEach(({ key, envName }) => {
 
 // Singleton pattern to initialize Firebase app
 function initializePrimaryApp(): FirebaseApp {
-  const apps = getApps();
-  if (apps.length > 0) {
-    return getApp(); // Return the default app if already initialized
+  try {
+    // Attempt to get the default app. If it doesn't exist, this will throw.
+    return getApp();
+  } catch (error) {
+    // If it fails, initialize the app for the first time.
+    return initializeApp(primaryFirebaseConfig);
   }
-  return initializeApp(primaryFirebaseConfig);
 }
 
 const primaryApp = initializePrimaryApp();
