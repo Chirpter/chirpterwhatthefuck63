@@ -30,8 +30,8 @@ export function MobileNav({ onLinkClick }: MobileNavProps) {
             className={cn(
               "font-body justify-start w-full text-base py-3",
               isActive 
-                ? "bg-accent text-accent-foreground hover:bg-accent/90" 
-                : ""
+                ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                : "hover:bg-accent/80 hover:text-accent-foreground" // Use a more subtle hover for consistency
             )}
             onClick={onLinkClick}
           >
