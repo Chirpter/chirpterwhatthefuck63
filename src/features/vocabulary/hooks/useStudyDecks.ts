@@ -21,7 +21,7 @@ interface FolderWithCount {
 }
 
 export const useStudyDecks = ({ selectedSrsState }: useStudyDecksProps) => {
-    const { user } = useAuth();
+    const { user } = useUser();
     const { toast } = useToast();
 
     // Use a single live query to get all data needed for this view.

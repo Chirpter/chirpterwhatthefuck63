@@ -54,7 +54,7 @@ export const MiniVocabView: React.FC = () => {
     const { t } = useTranslation(['learningPage', 'common', 'vocabularyPage', 'toast']);
     const { toast } = useToast();
     const audioPlayer = useAudioPlayer();
-    const { user } = useAuth();
+    const { user } = useUser();
     
     const [mode, setMode] = useState<'vocab' | 'flashcard'>('vocab');
     const [itemToEdit, setItemToEdit] = useState<VocabularyItem | null>(null);

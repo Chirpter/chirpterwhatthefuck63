@@ -1,5 +1,4 @@
 // src/app/(app)/layout.tsx
-'use client';
 
 import React from 'react';
 import AppLayoutContent from '@/components/layout/AppLayoutContent';

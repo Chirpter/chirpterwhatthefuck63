@@ -382,7 +382,7 @@ const CollectionView = ({ refreshTrigger }: { refreshTrigger: number }) => {
 // --- MAIN COMPONENT ---
 export default function FocusHatching() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
-  const { user } = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
   const [showCollection, setShowCollection] = useState(false);
   const [hatchingState, setHatchingState] = useState<HatchData | null>(null);

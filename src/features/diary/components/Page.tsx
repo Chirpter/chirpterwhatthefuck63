@@ -31,7 +31,7 @@ const MOOD_OPTIONS = ['😊', '😄', '😔', '😠', '🥰', '🤔', '😐'];
 
 const DiaryCoverMenu: React.FC<{ entries: (DiaryEntry | null)[]; onNavigate: (date: Date) => void }> = ({ entries, onNavigate }) => {
     const [date, setDate] = React.useState<Date | undefined>(new Date());
-    const { user } = useAuth();
+    const { user } = useUser();
 
     const daysWithEntries = React.useMemo(() => {
         return entries

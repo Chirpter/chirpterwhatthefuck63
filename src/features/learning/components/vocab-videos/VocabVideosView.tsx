@@ -24,7 +24,7 @@ function VocabVideosView() {
   const { t, i18n } = useTranslation(['learningPage', 'common', 'toast']);
   const searchParams = useSearchParams();
   const playerRef = useRef<VocabVideoPlayerHandle>(null);
-  const { user } = useAuth();
+  const { user } = useUser();
 
   const {
     query,

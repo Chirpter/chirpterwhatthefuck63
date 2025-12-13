@@ -30,7 +30,7 @@ export const SuperBadgeCard: React.FC<{
   currentProgress,
   tiers,
 }) => {
-  const { user } = useAuth();
+  const { user } = useUser();
   const { t } = useTranslation(['achievements', 'common']);
   const userAchievementsMap = useMemo(() => new Map(user?.achievements?.map(a => [a.id, a])), [user?.achievements]);
 

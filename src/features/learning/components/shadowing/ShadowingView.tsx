@@ -57,7 +57,7 @@ const isValidYouTubeUrl = (url: string) => {
 export default function ShadowingView() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
 
   const [url, setUrl] = useState('');
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);

@@ -37,7 +37,7 @@ const RegeneratePromptDialog: React.FC<RegeneratePromptDialogProps> = ({
   item,
 }) => {
   const { t } = useTranslation(['bookCard', 'common', 'toast']);
-  const { user } = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
   const [newPrompt, setNewPrompt] = useState(item.prompt || '');
   const [isSubmitting, setIsSubmitting] = useState(false);

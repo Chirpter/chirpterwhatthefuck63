@@ -23,7 +23,7 @@ const generateRequestId = (detail: any): string => {
 };
 
 export const useDiaryFoundation = (services: FoundationContainer | null) => {
-  const { user } = useAuth();
+  const { user } = useUser();
 
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState({ width: 500, height: 700 });

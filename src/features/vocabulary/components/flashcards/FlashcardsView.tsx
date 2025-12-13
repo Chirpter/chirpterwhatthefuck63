@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 import * as srsService from "@/services/srs-service";
 import type { VocabularyItem, SrsState } from '@/lib/types';
 import { AnimatePresence } from 'framer-motion';
@@ -33,7 +33,7 @@ const trackDailyProgress = (itemId: string) => {
 
 export default function FlashcardsView() {
     const { t } = useTranslation(['vocabularyPage', 'common', 'toast']);
-    const { user } = useAuth();
+    const { user } = useUser();
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const folder = searchParams.get('folder');

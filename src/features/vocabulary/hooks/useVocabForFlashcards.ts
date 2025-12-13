@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/useToast';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 export const useVocabForFlashcards = (folder: string | null, srsState: SrsState | null) => {
-    const { user } = useAuth();
+    const { user } = useUser();
     const { toast } = useToast();
     
     const cards = useLiveQuery(

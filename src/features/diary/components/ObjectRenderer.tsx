@@ -61,7 +61,7 @@ export const ObjectRenderer: React.FC<ObjectRendererProps> = React.memo(({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const textContentRef = useRef<HTMLDivElement>(null);
   const [isEditingText, setIsEditingText] = useState(false);
-  const { user } = useAuth();
+  const { user } = useUser();
 
   // Track if we're currently saving to prevent race conditions
   const [isSaving, setIsSaving] = useState(false);

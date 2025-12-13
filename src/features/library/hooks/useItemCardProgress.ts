@@ -13,7 +13,7 @@ interface ProgressInfo {
 }
 
 export const useItemCardProgress = (itemId: string | null, item: LibraryItem | null): ProgressInfo => {
-    const { user } = useAuth();
+    const { user } = useUser();
     const [progress, setProgress] = useState<AudioProgressState | null>(null);
 
     const getProgressFromStorage = useCallback(() => {

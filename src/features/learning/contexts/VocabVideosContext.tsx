@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext } from 'react';
-import { useVocabVideos } from '../hooks/useVocabVideos';
+import useVocabVideos from '../hooks/useVocabVideos';
 
 // --- Type Definition ---
 // The state shape is determined by the return type of the useVocabVideos hook.

@@ -3,6 +3,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { type LibraryItem, type FoundClip, type Piece, ApiServiceError } from '@/lib/types';
@@ -19,8 +20,8 @@ interface LookupState {
   context: "vocab-videos";
 }
 
-export const useVocabVideos = () => {
-    const { user } = useAuth();
+export default function useVocabVideos() {
+    const { user } = useUser();
     const { t } = useTranslation(['learningPage', 'common', 'toast']);
     const { toast } = useToast();
 
