@@ -8,7 +8,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
-import { BOOK_LENGTH_OPTIONS, type BookLengthOptionValue } from "@/lib/constants";
+import { BOOK_LENGTH_OPTIONS } from "@/lib/constants";
+import type { BookLengthOptionValue } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CreditIcon } from "@/components/ui/CreditIcon";
