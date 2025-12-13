@@ -44,7 +44,7 @@ const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string):
   if (type === 'piece') {
     return {
       ...baseData,
-      display: 'card' as const,
+      display: 'doc' as const,
       aspectRatio: '3:4' as const,
     };
   }
@@ -105,8 +105,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const validationMessage = useMemo(() => {
     if (!user) return ''; 
-    if (promptError === 'empty') return 'formErrors.prompt.empty';
     if (promptError === 'too_long') return 'formErrors.prompt.tooLong';
+    
+    // Always check for an empty prompt, even if it's not the default one.
+    if (!isPromptDefault && formData.aiPrompt.trim() === '') {
+        return 'formErrors.prompt.empty';
+    }
     
     if (formData.type === 'book') {
       const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
@@ -121,9 +125,14 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     }
 
     return '';
-  }, [formData, promptError, user]);
+  }, [formData, promptError, user, isPromptDefault]);
 
-  const canGenerate = useMemo(() => !validationMessage && user && user.credits >= creditCost, [validationMessage, user, creditCost]);
+  const canGenerate = useMemo(() => {
+    // Cannot generate if there's a validation message or if the prompt is the default placeholder.
+    if (validationMessage || isPromptDefault) return false;
+    // Check for user and credits.
+    return user && user.credits >= creditCost;
+  }, [validationMessage, isPromptDefault, user, creditCost]);
   
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
   const minChaptersForCurrentLength = bookLengthOption?.minChapters || 1;
@@ -135,12 +144,17 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     const { name, value } = e.target;
     
     if (name === 'aiPrompt') {
-      if (isPromptDefault) {
-        setIsPromptDefault(false);
-      }
-      if (value.length === 0) setPromptError('empty');
-      else if (value.length > MAX_PROMPT_LENGTH) setPromptError('too_long');
-      else setPromptError(null);
+        const trimmedValue = value.trim();
+        if (isPromptDefault && value !== '') {
+            setIsPromptDefault(false);
+        }
+        if (!isPromptDefault && trimmedValue === '') {
+            setPromptError('empty');
+        } else if (value.length > MAX_PROMPT_LENGTH) {
+            setPromptError('too_long');
+        } else {
+            setPromptError(null);
+        }
     }
     
     setFormData(prev => ({
@@ -207,6 +221,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     if (isPromptDefault) {
       setFormData(prev => ({ ...prev, aiPrompt: '' }));
       setIsPromptDefault(false);
+      setPromptError('empty'); // Set error immediately on focus if default
     }
   }, [isPromptDefault]);
   
@@ -217,34 +232,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const handleAspectRatioChange = useCallback((aspectRatio: '1:1' | '3:4' | '4:3') => {
     setFormData(prev => ({ ...prev, aspectRatio }));
   }, []);
-
-  const handleTagClick = useCallback((tag: string) => {
-    const currentPrompt = isPromptDefault ? '' : formData.aiPrompt;
-    
-    setFormData(prev => {
-        const isAlreadyTagged = prev.tags.includes(tag);
-        let newTags;
-        
-        if (isAlreadyTagged) {
-            newTags = prev.tags.filter(t => t !== tag);
-        } else {
-            if (prev.tags.length >= 3) {
-                toast({ title: t('toast:maxTagsTitle'), description: t('toast:maxTagsDesc'), variant: 'destructive' });
-                return prev; // Return current state if limit is reached
-            }
-            newTags = [...prev.tags, tag];
-        }
-
-        if (isPromptDefault) {
-          setIsPromptDefault(false);
-        }
-        
-        return {
-            ...prev,
-            tags: newTags
-        };
-    });
-  }, [formData.aiPrompt, isPromptDefault, t, toast]);
   
 
   const reset = useCallback((newType: 'book' | 'piece') => {
@@ -264,7 +251,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || validationMessage || isRateLimited) return;
+    if (!user || validationMessage || isRateLimited || isPromptDefault || formData.aiPrompt.trim() === '') {
+        if(isPromptDefault || formData.aiPrompt.trim() === '') {
+            setPromptError('empty');
+        }
+        return;
+    }
 
     if (processingJobsCount >= 3) {
         toast({
@@ -288,7 +280,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       toast({ title: t('toast:error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
     }
-  }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited]);
+  }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited, isPromptDefault]);
 
   useEffect(() => {
     if (!activeId || !user) return;
@@ -337,6 +329,5 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
     handleDisplayChange, handleAspectRatioChange, handleSubmit, handleViewResult, reset,
     isRateLimited, 
-    handleTagClick,
   };
 }

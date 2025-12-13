@@ -16,7 +16,6 @@ import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
-import { TagManager } from './TagManager';
 
 interface CreationFormProps {
   job: any; // The entire hook result
@@ -46,7 +45,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
     maxChapters,
     reset,
     isProUser,
-    handleTagClick,
   } = job;
   
   const type = formData.type;
@@ -101,12 +99,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
             disabled={isBusy}
             maxLength={MAX_PROMPT_LENGTH}
           />
-          <div className="pt-2">
-            <TagManager 
-                onTagClick={handleTagClick}
-                selectedTags={formData.tags}
-            />
-          </div>
           <div className="text-right text-xs text-muted-foreground pt-1">
             {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`}
           </div>
