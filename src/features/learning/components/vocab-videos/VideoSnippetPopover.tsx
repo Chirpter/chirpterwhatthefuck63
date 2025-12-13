@@ -184,7 +184,7 @@ export const VideoSnippetPopover: React.FC<{ term: string; children: React.React
         onClick={(e) => e.stopPropagation()}
       >
         {isOpen && (
-          <VideoSnippetPopoverContent term={term} />
+          <VideoSnippetContent term={term} />
         )}
       </PopoverContent>
     </Popover>
