@@ -47,7 +47,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://www.googleapis.com" />
         <link rel="dns-prefetch" href="https://firebaseinstallations.googleapis.com" />
       </head>
-      <body className={`${'${notoSerif.variable}'} ${'${inter.variable}'} font-body antialiased`}>
+      <body className={`${notoSerif.variable} ${inter.variable} font-body antialiased`}>
         {/* Pass server-fetched data to the client-side provider */}
         <ClientProviders initialBookmarks={combinedBookmarks}>
           {children}

@@ -12,7 +12,7 @@ import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { VocabVideosProvider } from '@/features/learning/contexts/VocabVideosContext';
 import { AudioPlayer } from '@/features/player/components/AudioPlayer';
 import type { CombinedBookmark } from '@/lib/types';
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from '@/providers/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
 
