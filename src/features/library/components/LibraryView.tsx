@@ -1,4 +1,3 @@
-
 // src/features/library/components/LibraryView.tsx
 "use client";
 
@@ -38,8 +37,7 @@ import { useToast } from '@/hooks/useToast';
 import { useVocabulary } from '@/features/vocabulary/hooks/useVocabulary';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { BookmarkStyleProvider } from './BookmarkStyleProvider';
-import { useBookmarks } from '@/hooks/useBookmarks'; // Use the global bookmark context
-import Masonry from 'react-masonry-css';
+import { useBookmarks } from '@/hooks/useBookmarks';
 
 // Lazy load components
 const BookItemCard = dynamic(() => import('./BookItemCard').then(mod => mod.BookItemCard), {
@@ -60,15 +58,6 @@ interface LibraryViewProps {
 }
 
 const INITIAL_LOAD_THRESHOLD = 20;
-
-const masonryBreakpoints = {
-  default: 6,
-  1536: 5, // 2xl
-  1280: 4, // xl
-  1024: 4, // lg
-  768: 3,  // md
-  640: 2   // sm
-};
 
 function LibraryViewContent({ contentType }: LibraryViewProps) {
   const { t } = useTranslation(['libraryPage', 'common', 'bookCard', 'vocabularyPage', 'toast', 'presets']);
@@ -202,9 +191,9 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
 
     if (isUiLoading || bookmarksLoading) {
       return (
-        <div className="masonry-grid">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {[...Array(6)].map((_, i) => (
-             <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse h-64 w-full">
+             <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse">
                 <Skeleton className="h-48 bg-muted rounded-md mb-4" />
                 <Skeleton className="h-6 w-3/4 bg-muted rounded-md mb-2" />
             </div>
@@ -230,11 +219,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
     const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && libraryHook.hasMore;
 
     const itemsToRender = (
-      <Masonry
-        breakpointCols={masonryBreakpoints}
-        className="masonry-grid"
-        columnClassName="masonry-grid_column"
-      >
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
         <AnimatePresence>
           {filteredItems.map((item: LibraryItem) => {
               let cardContent;
@@ -249,13 +234,13 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
               }
 
               return (
-                  <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="mb-6">
+                  <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
                       {cardContent}
                   </motion.div>
               )
           })}
         </AnimatePresence>
-      </Masonry>
+      </div>
     );
 
     return (
