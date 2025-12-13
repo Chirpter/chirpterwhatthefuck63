@@ -1,9 +1,8 @@
 // src/services/server/vocabulary.service.ts
 'use server'; // This directive applies to all functions in this file.
 
-import { collection, writeBatch, query, getDocs, orderBy, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase'; // This should be the client-side db instance
-import { convertTimestamps, removeUndefinedProps } from '@/lib/utils';
+import { getAdminDb } from '@/lib/firebase-admin'; // ✅ FIX: Use admin SDK on the server
+import { convertTimestamps } from '@/lib/utils';
 import type { SyncAction } from '@/services/client/local-database';
 import { handleVocabularyError, VocabularyErrorCode } from '@/features/vocabulary/utils/error-handler';
 import type { VocabularyItem } from '@/lib/types';
@@ -22,12 +21,13 @@ import type { VocabularyItem } from '@/lib/types';
  */
 export async function fetchAllVocabularyFromFirestore(userId: string): Promise<VocabularyItem[]> {
   try {
-    const vocabCollectionRef = collection(db, `users/${userId}/vocabulary`);
-    const q = query(vocabCollectionRef, orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
+    const adminDb = getAdminDb(); // ✅ FIX: Use admin DB instance
+    const vocabCollectionRef = adminDb.collection(`users/${userId}/vocabulary`);
+    const q = vocabCollectionRef.orderBy('createdAt', 'desc');
+    const querySnapshot = await q.get(); // ✅ FIX: Use .get() for admin SDK
+    
     return querySnapshot.docs.map(docSnap => {
       const data = docSnap.data() as Omit<VocabularyItem, 'id'>;
-      // Note: `convertTimestamps` is a server-side utility here.
       return convertTimestamps({ id: docSnap.id, ...data });
     });
   } catch (error) {
@@ -43,20 +43,22 @@ export async function fetchAllVocabularyFromFirestore(userId: string): Promise<V
  */
 export async function syncVocabularyBatch(userId: string, actions: SyncAction[]): Promise<void> {
   try {
-    const batch = writeBatch(db);
-    const vocabCollectionRef = collection(db, `users/${userId}/vocabulary`);
+    const adminDb = getAdminDb(); // ✅ FIX: Use admin DB instance
+    const batch = adminDb.batch(); // ✅ FIX: Get batch from admin DB
+    const vocabCollectionRef = adminDb.collection(`users/${userId}/vocabulary`);
 
     for (const action of actions) {
-      const docRef = doc(vocabCollectionRef, action.key);
+      const docRef = vocabCollectionRef.doc(action.key); // ✅ FIX: Use .doc() for admin SDK
       switch (action.type) {
         case 'create':
           if (action.payload) {
-            batch.set(docRef, { ...action.payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+            // Note: serverTimestamp is handled by FieldValue in firebase-admin, but we assume it's set on payload
+            batch.set(docRef, { ...action.payload, createdAt: new Date(), updatedAt: new Date() });
           }
           break;
         case 'update':
           if (action.payload) {
-            batch.update(docRef, { ...action.payload, updatedAt: serverTimestamp() });
+            batch.update(docRef, { ...action.payload, updatedAt: new Date() });
           }
           break;
         case 'delete':
