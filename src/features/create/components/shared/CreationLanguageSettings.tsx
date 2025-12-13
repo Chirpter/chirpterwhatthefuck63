@@ -1,4 +1,4 @@
-
+// src/features/create/components/shared/CreationLanguageSettings.tsx
 
 "use client";
 
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 import { Icon } from '@/components/ui/icons';
 
 interface LanguageSettingsProps {

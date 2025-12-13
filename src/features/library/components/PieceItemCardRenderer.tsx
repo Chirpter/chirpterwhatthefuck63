@@ -1,3 +1,5 @@
+// src/features/library/components/PieceItemCardRenderer.tsx
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -92,7 +94,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
             </div>
              <div className="mt-4 text-center space-y-2">
                 <Button variant="link" asChild className="text-lg font-semibold font-headline p-0 h-auto">
-                    <Link href="/library/other">
+                    <Link href="/library/piece">
                         <Icon name="Library" className="mr-2 h-5 w-5" />
                         {t('status.complete')}
                     </Link>

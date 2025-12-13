@@ -1,4 +1,4 @@
-
+// src/features/create/components/shared/CoverImageSettings.tsx
 
 "use client";
 

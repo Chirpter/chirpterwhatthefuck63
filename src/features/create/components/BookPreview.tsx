@@ -1,4 +1,4 @@
-
+// src/features/create/components/BookPreview.tsx
 
 "use client";
 
@@ -48,7 +48,7 @@ interface BookPreviewProps {
   finalUser?: User | null; // Use the detailed User type
 }
 
-export const BookPreview: React.FC<BookPreviewProps> = ({ isOpen, pageContent, finalBook, finalUser }) => {
+const BookPreviewComponent: React.FC<BookPreviewProps> = ({ isOpen, pageContent, finalBook, finalUser }) => {
   const { t } = useTranslation(['createPage', 'common', 'bookCard']);
 
   const renderFinalCover = () => {
@@ -64,7 +64,7 @@ export const BookPreview: React.FC<BookPreviewProps> = ({ isOpen, pageContent, f
     }
     
     // Case 1: Cover is an image and is ready
-    if (finalBook.cover?.url && finalBook.coverStatus === 'ready') {
+    if (finalBook.cover?.url && finalBook.coverState === 'ready') {
       return (
         <div className="w-full h-full relative">
           <img src={finalBook.cover.url} alt={finalBook.title.primary} className="w-full h-full object-cover" />
@@ -73,7 +73,7 @@ export const BookPreview: React.FC<BookPreviewProps> = ({ isOpen, pageContent, f
     }
 
     // Case 2: Cover is still processing
-    if (finalBook.coverStatus === 'processing') {
+    if (finalBook.coverState === 'processing') {
       return (
         <div className="w-full h-full bg-gradient-to-br from-muted to-background flex flex-col items-center justify-center p-4 text-center">
             <Icon name="Wand2" className="h-10 w-10 text-primary animate-pulse mb-2" />
@@ -120,3 +120,5 @@ export const BookPreview: React.FC<BookPreviewProps> = ({ isOpen, pageContent, f
     </div>
   );
 };
+
+export const BookPreview = React.memo(BookPreviewComponent);
