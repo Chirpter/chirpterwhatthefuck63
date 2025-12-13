@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo } from 'react';
@@ -6,7 +5,7 @@ import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { motion } from "framer-motion";
-import { CoverImage } from '@/features/library/components/CoverImage';
+import CoverImage from '@/features/library/components/CoverImage';
 import type { Book, PlaylistItem as TPlaylistItem } from '@/lib/types';
 
 export function CollapsedPlayer() {

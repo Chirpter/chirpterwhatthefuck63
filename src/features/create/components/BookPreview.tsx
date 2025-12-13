@@ -4,11 +4,8 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { useTranslation } from 'react-i18next';
-import type { Book } from '@/lib/types';
-import type { User as AuthUser } from 'firebase/auth'; // Keep this for the prop type
-import type { User } from '@/lib/types'; // And keep this for the prop type
-import { Icon } from '@/components/ui/icons';
+import type { Book, User } from '@/lib/types';
+import CoverImage from '@/features/library/components/CoverImage';
 
 const Typewriter: React.FC<{ text: string }> = ({ text: fullText }) => {
     const [text, setText] = React.useState('');
@@ -43,87 +40,48 @@ const Typewriter: React.FC<{ text: string }> = ({ text: fullText }) => {
 
 interface BookPreviewProps {
   isOpen: boolean;
-  pageContent: string; // Changed to string
+  pageContent: string;
   finalBook?: Book;
-  finalUser?: User | null; // Use the detailed User type
+  finalUser?: User | null;
 }
 
 const BookPreviewComponent: React.FC<BookPreviewProps> = ({ isOpen, pageContent, finalBook, finalUser }) => {
-  const { t } = useTranslation(['createPage', 'common', 'bookCard']);
+    
+    const titleToDisplay = React.useMemo(() => {
+        if (!finalBook) return 'Your Book Title';
+        const titleContent = finalBook.title.primary || Object.values(finalBook.title)[0] || 'Untitled';
+        return Array.isArray(titleContent) ? titleContent.join(' ') : titleContent;
+    }, [finalBook]);
 
-  const renderFinalCover = () => {
-    if (!finalBook) {
-         // Default initial state before generation starts
-        return (
-            <div className="text-center p-4">
-              <h2 className="font-headline title">{t('previewArea.bookTitle')}</h2>
-              <p className="font-body author">{t('previewArea.bookAuthor')}</p>
-              <div className="emblem">✨</div>
-            </div>
-        );
-    }
-    
-    // ✅ FIX: Ensure titleForAlt is always a string
-    const titleFromBook = finalBook.title.primary || Object.values(finalBook.title)[0] || 'Untitled';
-    const titleForAlt = Array.isArray(titleFromBook) ? titleFromBook.join(' ') : titleFromBook;
-    
-    // Case 1: Cover is an image and is ready
-    if (finalBook.cover?.url && finalBook.coverState === 'ready') {
-      return (
-        <div className="w-full h-full relative">
-          <img src={finalBook.cover.url} alt={titleForAlt} className="w-full h-full object-cover" />
-        </div>
-      );
-    }
 
-    // Case 2: Cover is still processing
-    if (finalBook.coverState === 'processing') {
-      return (
-        <div className="w-full h-full bg-gradient-to-br from-muted to-background flex flex-col items-center justify-center p-4 text-center">
-            <Icon name="Wand2" className="h-10 w-10 text-primary animate-pulse mb-2" />
-            <p className="text-xs font-semibold text-muted-foreground">{t('bookCard:coverProcessing')}</p>
-        </div>
-      );
-    }
-    
-    // Case 3: No cover, cover failed, or content just finished. Show title/author.
-    const titleToDisplay = Array.isArray(finalBook.title.primary) ? (finalBook.title.primary as string[]).join(' ') : finalBook.title.primary;
+    const authorToDisplay = finalUser?.displayName || 'Author';
+
     return (
-      <div className="text-center p-4">
-        <h2 className="font-headline title" style={{ fontSize: '1.8rem', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-            {titleToDisplay}
-        </h2>
-        <p className="font-body author">{finalUser?.displayName || t('common:author')}</p>
-        <div className="emblem">✨</div>
-      </div>
-    );
-  };
+        <div id="book" className={cn('book-container', { open: isOpen })}>
+            <div className="book-component back-cover"></div>
 
+            <div className="book-component page">
+                {isOpen && <Typewriter text={pageContent} />}
+            </div>
 
-  return (
-    <div id="book" className={cn('book-container', { open: isOpen })}>
-      {/* Back cover of the book */}
-      <div className="book-component back-cover"></div>
+            <div className="book-component cover">
+                <div className="book-component front-cover">
+                    {/* The CoverImage component is now the single source of truth */}
+                    <CoverImage
+                        title={titleToDisplay}
+                        author={authorToDisplay}
+                        coverStatus={finalBook?.coverState}
+                        cover={finalBook?.cover}
+                        imageHint={finalBook?.imageHint}
+                        isRetrying={false} // This preview is non-interactive for retries
+                    />
+                </div>
+                <div className="book-component inside-front"></div>
+            </div>
 
-      {/* The main page content area */}
-      <div className="book-component page">
-        {/* The Typewriter is now called internally, only when the book is open */}
-        {isOpen && <Typewriter text={pageContent} />}
-      </div>
-
-      {/* The front cover assembly (front face and inside face) */}
-      <div className="book-component cover">
-        <div className="book-component front-cover">
-          {renderFinalCover()}
+            <div className="book-component spine"></div>
         </div>
-        {/* The inside face of the front cover */}
-        <div className="book-component inside-front"></div>
-      </div>
-
-      {/* The spine of the book */}
-      <div className="book-component spine"></div>
-    </div>
-  );
+    );
 };
 
 export const BookPreview = React.memo(BookPreviewComponent);

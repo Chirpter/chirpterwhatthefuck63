@@ -1,4 +1,4 @@
-
+// src/features/library/components/CoverImage.tsx
 
 "use client";
 
@@ -18,12 +18,12 @@ interface CoverImageProps {
   imageHint?: string;
   className?: string;
   onRegenerate?: () => void;
-  isRetrying: boolean; // New prop
+  isRetrying?: boolean;
   isPromptError?: boolean;
   retryCount?: number;
 }
 
-export const CoverImage: React.FC<CoverImageProps> = ({
+export default function CoverImage({
   title,
   author,
   coverStatus,
@@ -31,10 +31,10 @@ export const CoverImage: React.FC<CoverImageProps> = ({
   imageHint,
   className,
   onRegenerate,
-  isRetrying,
-  isPromptError,
+  isRetrying = false,
+  isPromptError = false,
   retryCount = 0,
-}) => {
+}: CoverImageProps) {
   const { t } = useTranslation(['bookCard', 'common']);
   const coverUrl = cover?.url;
 
@@ -75,7 +75,7 @@ export const CoverImage: React.FC<CoverImageProps> = ({
           return (
             <Image
               src={coverUrl}
-              alt={`Cover of ${title}`}
+              alt={title}
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 20vw, 15vw"
               className="object-cover"
@@ -88,9 +88,10 @@ export const CoverImage: React.FC<CoverImageProps> = ({
         // Default title-based fallback that mimics the 3D book's front cover
         return (
            <div className="front-cover w-full h-full">
-            <div className="text-center p-4 flex flex-col justify-center items-center h-full">
-                <h2 className="font-headline text-lg md:text-xl font-bold break-words" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>{title}</h2>
-                {author && <p className="font-body text-sm mt-2" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}>{t('common:byAuthor', { author })}</p>}
+            <div className="text-center p-4">
+                <h2 className="font-headline title">{title}</h2>
+                {author && <p className="font-body author">{t('common:byAuthor', { author })}</p>}
+                <div className="emblem">✨</div>
             </div>
           </div>
         );

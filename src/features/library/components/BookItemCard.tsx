@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { useUser } from '@/contexts/user-context';
-import { CoverImage } from './CoverImage';
+import CoverImage from './CoverImage';
 import {
   Tooltip,
   TooltipContent,

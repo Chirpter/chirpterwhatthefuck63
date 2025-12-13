@@ -18,7 +18,7 @@ import {
 import type { PlaylistItem as TPlaylistItem, Book } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
-import { CoverImage } from '@/features/library/components/CoverImage';
+import CoverImage from '@/features/library/components/CoverImage';
 
 
 export function NowPlayingCard({ item, onRemove, onPlay }: { item: TPlaylistItem | null; onRemove: (item: TPlaylistItem) => void; onPlay: (item: TPlaylistItem) => void; }) {

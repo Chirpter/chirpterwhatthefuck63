@@ -1,6 +1,6 @@
 
 
-"use client";
+'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { NowPlayingCard } from '@/features/playlist/components/NowPlayingCard';
-import { CoverImage } from '@/features/library/components/CoverImage';
+import CoverImage from '@/features/library/components/CoverImage';
 import Link from 'next/link';
 
 
