@@ -6,9 +6,10 @@ import { useTranslation } from 'react-i18next';
 import { Label } from '@/components/ui/label';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import type { Piece } from '@/lib/types';
 
 interface StyleOption {
-  value: 'document' | 'card';
+  value: 'doc' | 'card';
   labelKey: string;
   icon: IconName;
 }
@@ -21,10 +22,10 @@ const aspectRatioIcons: Record<'1:1' | '3:4' | '4:3', IconName> = {
 };
 
 interface PresentationStyleSelectorProps {
-  display: 'document' | 'card';
+  display: 'doc' | 'card';
   aspectRatio: '1:1' | '3:4' | '4:3';
-  onDisplayChange: (display: 'document' | 'card') => void;
-  onAspectRatioChange: (aspectRatio: '1:1' | '3:4' | '4:3') => void;
+  onDisplayChange: (display: 'doc' | 'card') => void;
+  onAspectRatioChange: (aspectRatio: '1:1' | '3.4' | '4:3') => void;
   disabled?: boolean;
 }
 
@@ -38,7 +39,7 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
   const { t } = useTranslation('createPage');
 
   const mainOptions: StyleOption[] = [
-    { value: 'document', labelKey: 'presentationStyle.document', icon: 'BookOpen' },
+    { value: 'doc', labelKey: 'presentationStyle.document', icon: 'BookOpen' },
     { value: 'card', labelKey: 'presentationStyle.card', icon: 'LayoutDashboard' },
   ];
 

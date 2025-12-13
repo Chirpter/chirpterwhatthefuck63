@@ -51,7 +51,7 @@ const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string):
   
   return {
     ...baseData,
-    display: 'document' as const,
+    display: 'doc' as const,
   };
 };
 
@@ -210,7 +210,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     }
   }, [isPromptDefault]);
   
-  const handleDisplayChange = useCallback((display: 'document' | 'card') => {
+  const handleDisplayChange = useCallback((display: 'doc' | 'card') => {
     setFormData(prev => ({ ...prev, display }));
   }, []);
 

@@ -178,7 +178,7 @@ interface BaseLibraryItem extends BaseDocument {
   price?: number;
   originId?: string;
   prompt?: string;
-  display: 'document' | 'card';
+  display: 'doc' | 'card';
   tags?: string[];
   labels?: string[]; // Added for consistency with Firestore data model
   unit: ContentUnit;
@@ -238,7 +238,7 @@ export interface CreationFormValues {
   aiPrompt: string;
   tags: string[];
   title: MultilingualContent;
-  display: 'document' | 'card';
+  display: 'doc' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
   origin: string;
   unit: ContentUnit; // Add unit to form values
