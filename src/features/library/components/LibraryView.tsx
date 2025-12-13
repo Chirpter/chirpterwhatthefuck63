@@ -185,6 +185,10 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
     }
     return null;
   }
+  
+  // ✅ FIX: Moved useMemo hooks to the top level of the component
+  const bookItems = useMemo(() => filteredItems.filter((item): item is Book => 'type' in item && item.type === 'book'), [filteredItems]);
+  const pieceItems = useMemo(() => filteredItems.filter((item): item is Piece => 'type' in item && item.type === 'piece'), [filteredItems]);
 
   const renderContent = () => {
     const isLoading = isVocabActive ? vocabularyHook.isLoading : isLibraryLoading;
@@ -218,9 +222,6 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
     
     const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && hasMoreLibrary;
 
-    const bookItems = useMemo(() => filteredItems.filter((item): item is Book => item.type === 'book'), [filteredItems]);
-    const pieceItems = useMemo(() => filteredItems.filter((item): item is Piece => item.type === 'piece'), [filteredItems]);
-    
     return (
       <>
         {contentType === 'book' && (
