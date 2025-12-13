@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
-import { CoverImage } from './CoverImage';
+import CoverImage from './CoverImage';
 import { useLibrary } from '../hooks/useLibrary';
 
 interface ProcessingBookItemCardProps {
