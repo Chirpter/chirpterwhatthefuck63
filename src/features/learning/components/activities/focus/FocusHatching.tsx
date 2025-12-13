@@ -270,7 +270,7 @@ const HatchingTimer = ({
 
       const minutes = Math.floor((diff / (1000 * 60)) % 60);
       const seconds = Math.floor((diff / 1000) % 60);
-      setTimeLeft(`${'${String(minutes).padStart(2, '0')}'}:${'${String(seconds).padStart(2, '0')}'}`);
+      setTimeLeft(`${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
     };
 
     updateTimer();
@@ -607,5 +607,7 @@ export default function FocusHatching() {
     </div>
   );
 }
+
+    
 
     
