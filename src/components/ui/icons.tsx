@@ -88,6 +88,7 @@ import {
   SkipBack,
   SkipForward,
   IterationCw,
+  ArrowRight, // Added this icon
 } from 'lucide-react';
 import * as React from 'react';
 
@@ -201,6 +202,7 @@ export const Icons = {
   SkipForward,
   IterationCw,
   Shadowing: ShadowingIcon,
+  ArrowRight, // Added this icon
 };
 
 export type IconName = keyof typeof Icons;
