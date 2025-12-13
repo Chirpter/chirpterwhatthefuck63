@@ -1,9 +1,8 @@
-// src/features/user/components/ProfileView.tsx
+
 
 "use client";
 
 import React, { useState, useRef, useMemo } from 'react';
-import { useAuth } from '@/contexts/auth-context';
 import { useUser } from '@/contexts/user-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,6 +25,7 @@ import {
 import type { User } from '@/lib/types';
 import { ACHIEVEMENTS } from '@/lib/achievements';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/contexts/auth-context';
 
 
 // --- Reusable Components for the new Profile View ---
@@ -37,8 +37,8 @@ const StatItem = ({ value, label }: { value: string | number, label: string }) =
   </div>
 );
 
-const WishNote = ({ children, style, contentClass }: { children: React.ReactNode, style?: React.CSSProperties, contentClass?: string }) => (
-  <foreignObject style={style} width="96" height="56">
+const WishNote = ({ children, x, y, style, contentClass }: { children: React.ReactNode, x?: number, y?: number, style?: React.CSSProperties, contentClass?: string }) => (
+  <foreignObject x={x} y={y} style={style} width="96" height="56">
       <Popover>
         <PopoverTrigger asChild>
           <button 
@@ -124,7 +124,7 @@ const JourneyTree: React.FC<JourneyTreeProps> = ({ userLevel, userGender }) => {
         */}
 
         {/* Wish notes can still be included */}
-         <WishNote style={{ x: 150, y: 240, transform: 'rotate(2deg)' }} contentClass="text-rose-800">
+         <WishNote x={150} y={240} style={{ transform: 'rotate(2deg)' }} contentClass="text-rose-800">
             "A new journey awaits."
         </WishNote>
       </svg>
@@ -149,8 +149,8 @@ const TimelinePost = ({ icon, title, description, children }: { icon: any, title
 
 export default function ProfileView() {
     const { user, loading, reloadUser } = useUser();
-    const { toast } = useToast();
     const { authUser } = useAuth(); // Import authUser
+    const { toast } = useToast();
     const [isUploading, setIsUploading] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [isUploadingCover, setIsUploadingCover] = useState(false);
