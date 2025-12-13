@@ -21,13 +21,13 @@ export function TopbarNav() {
           <Button
             key={link.href}
             asChild
-            variant={isActive ? "default" : "ghost"}
+            variant="ghost"
             size="sm"
             className={cn(
               "font-body text-sm",
               isActive 
-                ? "font-semibold bg-accent text-accent-foreground hover:bg-accent/90" 
-                : "text-foreground hover:bg-secondary/80"
+                ? "font-semibold bg-primary text-primary-foreground hover:bg-primary/90" 
+                : "text-foreground hover:bg-secondary"
             )}
           >
             <Link href={link.href}>

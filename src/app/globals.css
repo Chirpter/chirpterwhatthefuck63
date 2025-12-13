@@ -56,7 +56,7 @@
     --popover-foreground: 210 15% 88%;
 
     --primary: 348 83% 47%; /* Deep Red */
-    --primary-foreground: 355 100% 97%;
+    --primary-foreground: 210 15% 95%; /* Brighter white for contrast */
 
     --secondary: 220 10% 18%;
     --secondary-foreground: 210 15% 80%;
@@ -65,7 +65,7 @@
     --muted-foreground: 210 10% 60%;
 
     --accent: 51 100% 50%; /* Gold */
-    --accent-foreground: 220 10% 10%;
+    --accent-foreground: 210 15% 88%; /* FIX: Use light foreground color */
 
     --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 98%;
@@ -826,6 +826,7 @@
     
 
     
+
 
 
 
