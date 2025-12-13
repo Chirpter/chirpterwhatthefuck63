@@ -107,7 +107,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     if (!user) return ''; 
     if (promptError === 'too_long') return 'formErrors.prompt.tooLong';
     
-    // Always check for an empty prompt, even if it's not the default one.
+    // ✅ FIX: Only check for empty prompt if the user has interacted with it.
     if (!isPromptDefault && formData.aiPrompt.trim() === '') {
         return 'formErrors.prompt.empty';
     }
@@ -128,11 +128,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, [formData, promptError, user, isPromptDefault]);
 
   const canGenerate = useMemo(() => {
-    // Cannot generate if there's a validation message or if the prompt is the default placeholder.
-    if (validationMessage || isPromptDefault) return false;
-    // Check for user and credits.
+    // ✅ FIX: Do not block generation if the prompt is default.
+    // Block only if there's an actual validation message.
+    if (validationMessage) return false;
+    
     return user && user.credits >= creditCost;
-  }, [validationMessage, isPromptDefault, user, creditCost]);
+  }, [validationMessage, user, creditCost]);
   
   const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
   const minChaptersForCurrentLength = bookLengthOption?.minChapters || 1;
@@ -251,8 +252,9 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || validationMessage || isRateLimited || isPromptDefault || formData.aiPrompt.trim() === '') {
-        if(isPromptDefault || formData.aiPrompt.trim() === '') {
+    // ✅ FIX: Check the validation message directly, which now correctly handles the default prompt state.
+    if (!user || validationMessage || isRateLimited) {
+        if (!isPromptDefault && formData.aiPrompt.trim() === '') {
             setPromptError('empty');
         }
         return;
