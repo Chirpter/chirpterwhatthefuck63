@@ -67,22 +67,26 @@ export default function CreateView() {
             />
         );
     }
-    // For 'piece' tab, construct a preview item from form data
+    
+    // ✅ UNIFIED PREVIEW LOGIC:
+    // The preview's appearance is ALWAYS driven by `formData`.
+    // The content is filled in by `jobData` when available.
     const previewItem: Partial<Piece> = {
-      ...job.jobData, // Use jobData as base in case it exists
-      display: job.formData.display,
-      aspectRatio: job.formData.aspectRatio,
-      // If there's no real data yet, provide a placeholder title.
-      // The renderer will know how to handle this.
-      title: job.jobData?.title || { primary: t('previewArea.pieceTitleDesktop') },
-      generatedContent: job.jobData?.generatedContent || [],
-      contentState: job.isBusy ? 'processing' : (job.jobData ? job.jobData.contentState : 'pending'),
+        // Core data from the job result (if it exists)
+        ...job.jobData,
+        // Visual properties ALWAYS come from the form for instant feedback
+        display: job.formData.display,
+        aspectRatio: job.formData.aspectRatio,
+        // Content properties fall back to placeholders
+        title: job.jobData?.title || { primary: t('previewArea.pieceTitleDesktop') },
+        generatedContent: job.jobData?.generatedContent || [],
+        contentState: job.isBusy ? 'processing' : (job.jobData ? job.jobData.contentState : 'pending'),
     };
     
     return (
         <PieceItemCardRenderer
           item={previewItem as Piece}
-          isPreview={!job.jobData} // It's a preview until the final data arrives
+          isPreview={!job.jobData}
         />
     );
   };
