@@ -74,7 +74,7 @@ export async function getLibraryItems(
     
     return {
       items,
-      lastDoc: lastDocData,
+      lastDoc: lastDocData ? convertTimestamps(lastDocData) : null,
     };
   } catch (error: any) {
     console.error('[SERVICE] Firestore Query Error in getLibraryItems:', error);
@@ -157,7 +157,7 @@ export async function getGlobalBooks(
 
     return {
       items,
-      lastDoc: lastDocData,
+      lastDoc: lastDocData ? convertTimestamps(lastDocData) : null,
     };
   } catch (error: any) {
     console.error('Error in getGlobalBooks (server):', error);
