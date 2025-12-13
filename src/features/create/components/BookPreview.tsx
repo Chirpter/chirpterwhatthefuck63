@@ -63,11 +63,15 @@ const BookPreviewComponent: React.FC<BookPreviewProps> = ({ isOpen, pageContent,
         );
     }
     
+    // ✅ FIX: Ensure titleForAlt is always a string
+    const titleFromBook = finalBook.title.primary || Object.values(finalBook.title)[0] || 'Untitled';
+    const titleForAlt = Array.isArray(titleFromBook) ? titleFromBook.join(' ') : titleFromBook;
+    
     // Case 1: Cover is an image and is ready
     if (finalBook.cover?.url && finalBook.coverState === 'ready') {
       return (
         <div className="w-full h-full relative">
-          <img src={finalBook.cover.url} alt={finalBook.title.primary} className="w-full h-full object-cover" />
+          <img src={finalBook.cover.url} alt={titleForAlt} className="w-full h-full object-cover" />
         </div>
       );
     }
@@ -83,10 +87,11 @@ const BookPreviewComponent: React.FC<BookPreviewProps> = ({ isOpen, pageContent,
     }
     
     // Case 3: No cover, cover failed, or content just finished. Show title/author.
+    const titleToDisplay = Array.isArray(finalBook.title.primary) ? (finalBook.title.primary as string[]).join(' ') : finalBook.title.primary;
     return (
       <div className="text-center p-4">
         <h2 className="font-headline title" style={{ fontSize: '1.8rem', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-            {finalBook.title.primary}
+            {titleToDisplay}
         </h2>
         <p className="font-body author">{finalUser?.displayName || t('common:author')}</p>
         <div className="emblem">✨</div>
