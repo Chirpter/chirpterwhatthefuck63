@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { getDiff, type DiffSegment } from '@/services/diff-service';
+import { getDiff, type DiffSegment } from '@/services/client/diff.service';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useToast } from '@/hooks/useToast';
 import WordBlockRenderer from './WordBlockRenderer';

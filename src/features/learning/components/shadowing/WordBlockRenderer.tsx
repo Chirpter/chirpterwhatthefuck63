@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import type { DiffSegment } from '@/services/diff-service';
+import type { DiffSegment } from '@/services/client/diff.service';
 
 interface WordBlockRendererProps {
   text: string;

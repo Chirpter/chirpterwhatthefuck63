@@ -25,7 +25,7 @@ interface PresentationStyleSelectorProps {
   display: 'doc' | 'card';
   aspectRatio: '1:1' | '3:4' | '4:3';
   onDisplayChange: (display: 'doc' | 'card') => void;
-  onAspectRatioChange: (aspectRatio: '1:1' | '3.4' | '4:3') => void;
+  onAspectRatioChange: (aspectRatio: '1:1' | '3:4' | '4:3') => void;
   disabled?: boolean;
 }
 

@@ -41,9 +41,18 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
   const { t } = useTranslation(['createPage']);
   const [editorSettings] = useEditorSettings(item?.id || null);
 
-  const aspectRatioClass = (item?.type === 'piece' && (item as Piece).aspectRatio) 
-      ? getAspectRatioClass((item as Piece).aspectRatio) 
-      : 'aspect-[3/4]'; // Default aspect ratio
+  const aspectRatioClass = useMemo(() => {
+    if (item?.type === 'piece') {
+        const piece = item as Piece;
+        // If the display is 'doc', we default to a portrait (3:4) aspect ratio for the card preview.
+        if (piece.display === 'doc') {
+            return getAspectRatioClass('3:4');
+        }
+        return getAspectRatioClass(piece.aspectRatio);
+    }
+    return getAspectRatioClass('3:4'); // Default for when there's no item
+  }, [item]);
+
 
   const segmentsToRender = useMemo(() => {
       if (!item) return [];
