@@ -5,7 +5,7 @@
 ## 1. Triết lý cốt lõi
 
 - **Feature-Sliced Design (Phân lớp theo tính năng):** Logic, UI, và dữ liệu của một tính năng nghiệp vụ (domain) cụ thể sẽ được nhóm lại với nhau. Điều này giúp tăng tính đóng gói, giảm sự phụ thuộc chéo và giúp việc tìm kiếm, sửa đổi code trở nên cực kỳ nhanh chóng.
-- **Tách biệt các mối quan tâm (Separation of Concerns):** Mỗi thư mục, mỗi file có một vai trò và trách nhiệm duy nhất, không chồng chéo.
+- **Tách biệt các mối quanâm (Separation of Concerns):** Mỗi thư mục, mỗi file có một vai trò và trách nhiệm duy nhất, không chồng chéo.
 - **Dễ đoán (Predictability):** Cấu trúc file và quy ước đặt tên phải đủ rõ ràng để bất kỳ ai cũng có thể đoán được vị trí và vai trò của một đoạn code mà không cần tìm kiếm nhiều.
 
 ---
@@ -37,7 +37,7 @@ chirpter/
 │   │       └── services/     #     - Service CHỈ dùng trong tính năng Admin
 │   │
 │   ├── contexts/             # ✅ Global State Management & Providers
-│   │   ├── AuthContext.tsx   #   - Định nghĩa Context VÀ export Provider
+│   │   ├── auth-context.tsx   #   - Định nghĩa Context VÀ export Provider
 │   │   └── ...
 │   │
 │   ├── hooks/                # ✅ Reusable GLOBAL Hooks (dùng ở nhiều feature)
@@ -45,8 +45,9 @@ chirpter/
 │   │   └── useToast.ts
 │   │
 │   ├── services/             # ✅ Global Business Logic Services (Non-UI)
-│   │   ├── user-service.ts   #   - Logic quản lý người dùng (giao tiếp Firebase)
-│   │   └── ...               #   - Logic nghiệp vụ lõi, tái sử dụng được
+│   │   ├── client/           #     - Service chạy phía client (IndexedDB)
+│   │   ├── user-service.ts   #     - Service chạy phía server (Firebase Admin)
+│   │   └── ...               #     - Logic nghiệp vụ lõi, tái sử dụng được
 │   │
 │   ├── lib/                  # ✅ Core Utilities & Definitions (Non-UI, Global)
 │   │   ├── constants.ts      #   - Hằng số toàn cục
@@ -59,7 +60,7 @@ chirpter/
 │   │   └── flows/            #   - Chứa các flow AI cụ thể
 │   │
 │   └── providers/            # ✅ Global Context Providers Wrapper
-│       └── AppProviders.tsx  #   - Một component duy nhất để wrap tất cả provider
+│       └── client-providers.tsx  #   - Một component duy nhất để wrap tất cả provider phía client
 │
 ├── public/                   # ✅ Static Assets (Nằm ngoài src/)
 │   ├── locales/
@@ -95,12 +96,14 @@ chirpter/
 
 ### `src/contexts` & `src/providers` - Hệ Thống Cung Cấp Toàn Cục
 - **Vai trò:**
-    - `src/contexts/`: Định nghĩa các React Context và export cả component Provider tương ứng. Ví dụ: `AuthContext.tsx` sẽ export `AuthContext` và `AuthProvider`.
-    - `src/providers/`: Chỉ chứa 1 file `AppProviders.tsx` để tổng hợp tất cả các provider từ `src/contexts` lại, giúp `layout.tsx` gốc luôn gọn gàng.
+    - `src/contexts/`: Định nghĩa các React Context và export cả component Provider tương ứng. Ví dụ: `auth-context.tsx` sẽ export `AuthContext` và `AuthProvider`.
+    - `src/providers/`: Chỉ chứa 1 file `client-providers.tsx` để tổng hợp tất cả các provider từ `src/contexts` lại, giúp `layout.tsx` gốc luôn gọn gàng.
 
 ### `src/services` - Phòng Logic Nghiệp Vụ (Toàn Cục)
 - **Vai trò:** Chứa các logic nghiệp vụ lõi, không gắn với giao diện (non-UI), và có thể được tái sử dụng trên toàn ứng dụng. Đây là nơi xử lý giao tiếp với cơ sở dữ liệu, các API bên ngoài.
-- **Ví dụ:** `user-service.ts`, `book-creation-service.ts`.
+- **Phân loại:**
+    - `client/`: Các service chỉ chạy ở phía client (ví dụ: tương tác với IndexedDB).
+    - Files ở gốc: Các service chạy ở phía server (server actions, tương tác với Firebase Admin SDK).
 
 ### `src/lib` - Hộp Công Cụ Tiện Ích (Toàn Cục)
 - **Vai trò:** Chứa các hàm tiện ích thuần túy (`utils.ts`), định nghĩa kiểu (`types.ts`), và hằng số (`constants.ts`) dùng chung cho toàn bộ dự án. Đây là những thành phần không chứa logic nghiệp vụ phức tạp.
@@ -129,94 +132,3 @@ chirpter/
 | 📁 **File CSS/Style** | `kebab-case.css` | `app-shell.module.css`, `globals.css`| **GHI NHỚ: CSS dùng kebab-case**. Giống với quy ước đặt tên class trong CSS, tạo sự đồng bộ và dễ nhận biết. |
 
 ---
-
-## 5. Cấu trúc dữ liệu Firestore chi tiết (Ví dụ: Một `Book`)
-
-Dưới đây là cấu trúc đầy đủ và đã được thống nhất của một tài liệu `Book` được lưu trữ trong Firestore. Kiến trúc này được thiết kế để linh hoạt, mạnh mẽ và phục vụ cho tất cả các tính năng của ứng dụng.
-
-```json
-{
-    // --- Metadata Cốt lõi & Nhận dạng ---
-    "id": "book_abc_123",
-    "type": "book",
-    "userId": "user_xyz_789",
-    "title": { "en": "The Two Worlds", "vi": "Hai Thế Giới" },
-    "author": "Chirpter AI",
-    "prompt": "A story about a dragon crossing into the human world.",
-    
-    // --- Định dạng & Ngôn ngữ (Quan trọng cho UI/TTS) ---
-    "origin": "en-vi-ph",      // 🛑 BẤT BIẾN: "Giấy khai sinh" của sách. Ví dụ: "en", "en-vi", "en-vi-ph".
-    "langs": ["en", "vi"],      // ✅ LINH HOẠT: Mảng chứa tất cả các ngôn ngữ hiện có.
-    "unit": "phrase",           // ✅ BOOK-LEVEL: Đơn vị nội dung của TOÀN BỘ sách ('sentence' hoặc 'phrase').
-
-    // --- Phân loại & Tìm kiếm ---
-    "tags": ["fantasy", "adventure"], // Tags do người dùng/hệ thống gán
-    "labels": ["bilingual", "short-read"], // Labels do hệ thống tự động gán để lọc
-    "display": "book",          // Luôn là "book" cho loại nội dung này
-    "isGlobal": false,          // Có phải là sách trong cửa hàng chung không?
-
-    // --- Trạng thái Xử lý (Quan trọng cho UI) ---
-    "status": "draft",          // Trạng thái tổng thể: 'processing', 'draft', 'published'
-    "contentState": "ready",    // Trạng thái nội dung: 'processing', 'ready', 'error'
-    "coverState": "ready",      // Trạng thái ảnh bìa: 'processing', 'ready', 'error', 'ignored'
-    "contentError": null,       // Thông báo lỗi nếu tạo nội dung thất bại
-    "coverError": null,         // Thông báo lỗi nếu tạo ảnh bìa thất bại
-    "contentRetries": 0,        // Số lần đã thử tạo lại nội dung
-    "coverRetries": 0,          // Số lần đã thử tạo lại ảnh bìa
-
-    // --- Thông tin Ảnh bìa ---
-    "cover": {
-        "type": "ai", // 'ai', 'upload', hoặc 'none'
-        "url": "https://path/to/image.webp",
-        "inputPrompt": "A mythical dragon emerging from a portal..."
-    },
-
-    // --- Nội dung Chính (THEO KIẾN TRÚC TỐI ƯU HÓA) ---
-    "chapters": [
-        {
-            "id": "ch_01",
-            "order": 0,
-            "title": { "en": "The Portal", "vi": "Cánh Cổng" },
-            "segments": [
-                {
-                    "id": "seg_01_01",
-                    "order": 0,
-                    "type": "start_para",
-                    "content": {
-                        "en": "The rift shimmered,",
-                        "vi": "Vết nứt lung linh,"
-                    }
-                },
-                {
-                    "id": "seg_01_02",
-                    "order": 1,
-                    "type": "text",
-                    "content": {
-                        "en": " a tear in reality's fabric.",
-                        "vi": " một vết rách trên tấm vải của thực tại."
-                    }
-                },
-                {
-                    "id": "seg_01_03",
-                    "order": 2,
-                    "type": "start_para",
-                    "content": {
-                        "en": "A new paragraph starts here.",
-                        "vi": "Một đoạn mới bắt đầu ở đây."
-                    }
-                }
-            ],
-            "stats": { 
-                "totalSegments": 3,
-                "totalWords": 12 
-            }
-        }
-    ],
-
-    // --- Dữ liệu Hệ thống & Người dùng ---
-    "isComplete": false,             // Người dùng tự đánh dấu đã đọc xong hay chưa.
-    "selectedBookmark": "default", // ID của bookmark được chọn để hiển thị.
-    "createdAt": "...",              // Firestore Timestamp
-    "updatedAt": "..."               // Firestore Timestamp
-}
-```
