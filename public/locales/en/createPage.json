@@ -1,120 +1,93 @@
-
 {
     "createContentTitle": "Create Content",
-    "addChaptersTitle": "Add Chapters",
     "tabs": {
-      "book": "Book",
-      "piece": "Piece"
+        "book": "Book",
+        "piece": "Piece"
     },
     "aiPrompt": {
-      "bookLabel": "Describe the book you want to create",
-      "addChaptersBookLabel": "Describe what should happen in the new chapters",
-      "pieceLabel": "Describe the content you want to create"
-    },
-    "coverImage": {
-      "title": "Cover Image",
-      "selectOptionPlaceholder": "Select a cover option",
-      "optionNone": "None - Use a default text cover",
-      "optionUpload": "Upload Image",
-      "optionAi": "Generate with AI (1 Credit)",
-      "uploadFileLabel": "Upload your cover image",
-      "aiPromptLabel": "AI Cover Image Prompt",
-      "aiPromptPlaceholder": "e.g., An abstract painting of a dragon",
-      "proFeatureTooltip": "Pro feature! Upgrade to upload your own images."
-    },
-    "advancedSettings": {
-      "title": "Advanced Settings",
-      "bookLengthTitle": "Book Length",
-      "bookLength": {
-        "short-story": "Short Story",
-        "short-storyDescription": "~600 words",
-        "mini-book": "Mini-Book",
-        "mini-bookDescription": "~1500 words",
-        "standard-book": "Standard Book",
-        "standard-bookDescription": "~4500 words",
-        "long-book": "Long Book",
-        "long-bookDescription": "~5000+ words"
-      },
-      "chapterCountLabel": "Number of Chapters",
-      "generationScopeTitle": "Generation Scope",
-      "scopeFirstFew": "Outline + First Chapters",
-      "scopeFirstFewDesc": "Generate an outline for all chapters, but only write the content for the first few.",
-      "scopeFull": "Full Content",
-      "scopeFullDesc": "Generate the content for all requested chapters at once."
+        "bookLabel": "What is your book about?",
+        "pieceLabel": "What do you want to write about?"
     },
     "languageSettings": {
-      "title": "Language Settings",
-      "bilingualSwitch": "Bilingual Content",
-      "primaryLabel": "Primary Language",
-      "secondaryLabel": "Secondary Language",
-      "selectLanguagePlaceholder": "Select language",
-      "bilingualFormatTitle": "Bilingual Format",
-      "sentenceFormat": "Sentence by Sentence",
-      "sentenceFormatDesc": "Translation appears on a new line.",
-      "phraseFormat": "Phrase by Phrase",
-      "phraseFormatDesc": "Translation appears next to the original phrase.",
-      "languageConflictToastTitle": "Language Conflict",
-      "languageConflictToastDescription": "Primary and secondary languages cannot be the same.",
-      "languageConflictPiece": "Language Conflict"
+        "title": "Language & Format",
+        "bilingualSwitch": "Bilingual",
+        "primaryLabel": "Primary Language",
+        "secondaryLabel": "Secondary Language",
+        "selectLanguagePlaceholder": "Select language",
+        "bilingualFormatTitle": "Bilingual Format",
+        "sentenceFormat": "Sentence-by-Sentence",
+        "sentenceFormatDesc": "Full sentences are paired for translation.",
+        "phraseFormat": "Phrase-by-Phrase",
+        "phraseFormatDesc": "Sentences are broken into smaller phrases."
+    },
+    "coverImage": {
+        "title": "Cover Image",
+        "selectOptionPlaceholder": "Select a cover option",
+        "optionNone": "None (Default Cover)",
+        "optionUpload": "Upload Image (Pro)",
+        "optionAi": "Generate with AI",
+        "uploadFileLabel": "Upload your cover image",
+        "aiPromptLabel": "Describe the cover you want to generate",
+        "aiPromptPlaceholder": "e.g., A dragon flying over a crystal forest at dawn"
     },
     "presentationStyle": {
-      "title": "Presentation Style",
-      "book": "Book",
-      "card1x1": "Card (1:1)",
-      "card3x4": "Card (3:4)",
-      "card4x3": "Card (4:3)"
+        "title": "Presentation Style",
+        "document": "Document",
+        "card": "Card",
+        "aspectRatio": "Aspect Ratio"
     },
-    "generateButton": {
-      "default": "Generate",
-      "addChapters": "Add Chapters",
-      "viewBook": "View Book",
-      "viewWork": "View Piece",
-      "loading": "Generating..."
+    "advancedSettings": {
+        "title": "Advanced Settings",
+        "bookLengthTitle": "Book Length",
+        "bookLength": {
+            "short-story": "Short Story",
+            "short-storyDescription": "A brief narrative, great for quick reads.",
+            "mini-book": "Mini-Book",
+            "mini-bookDescription": "A concise book, ideal for focused topics.",
+            "standard-book": "Standard Book",
+            "standard-bookDescription": "A full-length book with multiple chapters.",
+            "long-book": "Long Book",
+            "long-bookDescription": "An extensive work for in-depth storytelling."
+        },
+        "chapterCountLabel": "Number of Chapters",
+        "generationScopeTitle": "Generation Scope",
+        "scopeFirstFew": "Generate First Few Chapters",
+        "scopeFirstFewDesc": "Get an outline and the first chapters quickly.",
+        "scopeFull": "Generate Full Book",
+        "scopeFullDesc": "Generate the entire book content at once."
     },
     "formErrors": {
-      "prompt": {
-        "empty": "Prompt cannot be empty.",
-        "tooLong": "Prompt is too long."
-      },
-      "language": {
-        "secondaryMissing": "Please select a secondary language for bilingual content.",
-        "sameLanguage": "Primary and secondary languages must be different."
-      },
-      "chapters": {
-        "outOfRange": "Chapter count must be between {{min}} and {{max}}."
-      },
-      "cover": {
-        "uploadMissing": "Please select a file to upload."
-      }
+        "prompt": {
+            "empty": "The prompt cannot be empty.",
+            "tooLong": "The prompt is too long."
+        },
+        "languages": {
+            "sameLanguage": "Primary and secondary languages cannot be the same."
+        },
+        "chapterCount": {
+            "outOfRange": "Chapter count is out of range for the selected book length."
+        }
     },
-    "previewArea": {
-      "bookPlaceholder": "Your book cover will appear here.",
-      "bookTitle": "My Book",
-      "bookAuthor": "By You",
-      "mobilePiecePlaceholderTitle": "Preview Appears Here",
-      "mobilePiecePlaceholderDescription": "Your generated short-form content will be previewed on this side of the screen on larger displays.",
-      "piecePlaceholderDesktopHint": "Your generated short-form content will appear here.",
-      "pieceTitleDesktop": "Content Preview",
-      "pieceCreatedTitle": "Content Generated!",
-      "openFullBookButton": "Open in Reader"
+    "generateButton": {
+        "default": "Generate"
     },
     "status": {
-      "contentProcessing": "Writing your story...",
-      "coverProcessing": "Creating your cover art...",
-      "finishing": "Finalizing your creation..."
+        "conceptualizing": "Conceptualizing...",
+        "contentProcessing": "Writing your story...",
+        "coverProcessing": "Designing your cover...",
+        "complete": "View in Library"
     },
     "finalState": {
-      "allSuccessTitle": "Creation Complete!",
-      "allSuccessDesc": "Your new creation is ready in your library.",
-      "contentSuccessCoverFailTitle": "Content Ready, Cover Failed",
-      "contentSuccessCoverFailDesc": "Your book's content is ready, but the cover art failed to generate.",
-      "contentFailCoverSuccessTitle": "Cover Ready, Content Failed",
-      "contentFailCoverSuccessDesc": "Your cover art is ready, but the book's content failed to generate.",
-      "allFailTitle": "Creation Failed",
-      "allFailDesc": "Unfortunately, both content and cover generation failed."
+        "contentSuccessCoverFailTitle": "Content Ready!",
+        "contentSuccessCoverFailDesc": "Your book's content is complete, but the cover failed. You can retry cover generation from your library.",
+        "contentFailCoverSuccessTitle": "Cover Ready!",
+        "contentFailCoverSuccessDesc": "The cover looks great, but content generation failed. You can retry from your library.",
+        "allFailTitle": "Generation Incomplete",
+        "allFailDesc": "Both content and cover generation failed. You can retry the process from your library."
     },
-    "addChapters": {
-      "summaryLabel": "Summary of Previous Chapters (Auto-filled)",
-      "summaryPlaceholder": "Loading summary..."
+    "previewArea": {
+        "bookPlaceholder": "Your book will appear here",
+        "pieceTitleDesktop": "Your Piece",
+        "piecePlaceholderDesktopHint": "Describe what you want to create..."
     }
 }

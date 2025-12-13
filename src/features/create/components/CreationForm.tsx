@@ -21,10 +21,9 @@ import { TagManager } from './TagManager';
 interface CreationFormProps {
   job: any; // The entire hook result
   formId: string;
-  type: 'book' | 'piece';
 }
 
-export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type }) => {
+export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
   const { t } = useTranslation(['createPage', 'presets']);
   const isMobile = useMobile();
 
@@ -35,7 +34,8 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     handleFileChange,
     handleChapterCountBlur,
     handlePromptFocus,
-    handlePresentationStyleChange,
+    handleDisplayChange,
+    handleAspectRatioChange,
     isPromptDefault,
     isBusy,
     promptError,
@@ -48,6 +48,8 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     isProUser,
     handleTagClick,
   } = job;
+  
+  const type = formData.type;
   
   const mobilePreview = isMobile ? (
     <div className="my-4 min-h-[357px] flex items-center justify-center border-2 border-dashed border-border bg-background/50 p-4 rounded-lg">
@@ -69,10 +71,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
     </div>
   ) : null;
   
-  const presentationStyleValue = formData.display === 'book'
-    ? 'book'
-    : `card_${(formData.aspectRatio || '3:4').replace(':', '_')}`;
-
   const isBilingual = formData.availableLanguages.length > 1;
   const isPhraseMode = formData.unit === 'phrase';
 
@@ -146,8 +144,10 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
         
         {type === 'piece' && (
             <PresentationStyleSelector
-                value={presentationStyleValue}
-                onValueChange={handlePresentationStyleChange}
+                display={formData.display}
+                aspectRatio={formData.aspectRatio}
+                onDisplayChange={handleDisplayChange}
+                onAspectRatioChange={handleAspectRatioChange}
                 disabled={isBusy}
             />
         )}

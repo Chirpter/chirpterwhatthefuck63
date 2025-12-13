@@ -209,11 +209,13 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       setIsPromptDefault(false);
     }
   }, [isPromptDefault]);
+  
+  const handleDisplayChange = useCallback((display: 'book' | 'card') => {
+    setFormData(prev => ({ ...prev, display }));
+  }, []);
 
-  const handlePresentationStyleChange = useCallback((value: string) => {
-    const isBook = value === 'book';
-    const aspectRatio = isBook ? undefined : value.split('_')[1].replace('_', ':') as '1:1' | '3:4' | '4:3';
-    setFormData(prev => ({ ...prev, display: isBook ? 'book' : 'card', aspectRatio }));
+  const handleAspectRatioChange = useCallback((aspectRatio: '1:1' | '3:4' | '4:3') => {
+    setFormData(prev => ({ ...prev, aspectRatio }));
   }, []);
 
   const handleTagClick = useCallback((tag: string) => {
@@ -333,7 +335,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     formData, isPromptDefault, promptError, isBusy, activeId, jobData, finalizedId, creditCost,
     validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
-    handlePresentationStyleChange, handleSubmit, handleViewResult, reset,
+    handleDisplayChange, handleAspectRatioChange, handleSubmit, handleViewResult, reset,
     isRateLimited, 
     handleTagClick,
   };

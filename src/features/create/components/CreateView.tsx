@@ -66,10 +66,11 @@ export default function CreateView() {
             />
         );
     }
+    // For 'piece' tab
     return (
         <PieceItemCardRenderer
           item={job.jobData}
-          isPreview={false}
+          isPreview={false} // Use the non-preview mode for the creation screen
         />
     );
   };
@@ -84,7 +85,6 @@ export default function CreateView() {
            <h2 className="text-xl md:text-2xl font-headline font-semibold text-center md:text-left">{pageTitle}</h2>
         </div>
         
-        {/* The Tabs component now only controls the active tab state */}
         <Tabs
           onValueChange={handleTabChange}
           value={activeTab}
@@ -99,11 +99,9 @@ export default function CreateView() {
 
           <ScrollArea className="flex-grow">
             <div className="p-4">
-              {/* A single CreationForm handles rendering for both tabs */}
               <CreationForm 
                 job={job} 
                 formId={formId} 
-                type={activeTab}
               />
             </div>
           </ScrollArea>

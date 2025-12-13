@@ -8,26 +8,38 @@ import { Icon, type IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 interface StyleOption {
-  value: string;
+  value: 'document' | 'card';
   labelKey: string;
   icon: IconName;
-  iconWrapperClass?: string;
 }
 
+const aspectRatioOptions: ('1:1' | '3:4' | '4:3')[] = ['1:1', '3:4', '4:3'];
+const aspectRatioIcons: Record<'1:1' | '3:4' | '4:3', IconName> = {
+  '1:1': 'Square',
+  '3:4': 'RectangleVertical',
+  '4:3': 'RectangleHorizontal',
+};
+
 interface PresentationStyleSelectorProps {
-  value: string; // A combined value like 'book', 'card_1_1'
-  onValueChange: (style: string) => void;
+  display: 'book' | 'card';
+  aspectRatio: '1:1' | '3:4' | '4:3';
+  onDisplayChange: (display: 'book' | 'card') => void;
+  onAspectRatioChange: (aspectRatio: '1:1' | '3:4' | '4:3') => void;
   disabled?: boolean;
 }
 
-export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps> = ({ value, onValueChange, disabled }) => {
+export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps> = ({
+  display,
+  aspectRatio,
+  onDisplayChange,
+  onAspectRatioChange,
+  disabled,
+}) => {
   const { t } = useTranslation('createPage');
 
-  const options: StyleOption[] = [
-    { value: 'book', labelKey: 'presentationStyle.book', icon: 'BookOpen' },
-    { value: 'card_1_1', labelKey: 'presentationStyle.card1x1', icon: 'Square', iconWrapperClass: 'w-8 h-8' },
-    { value: 'card_3_4', labelKey: 'presentationStyle.card3x4', icon: 'RectangleVertical', iconWrapperClass: 'w-6 h-8' },
-    { value: 'card_4_3', labelKey: 'presentationStyle.card4x3', icon: 'RectangleHorizontal', iconWrapperClass: 'w-8 h-6' },
+  const mainOptions: StyleOption[] = [
+    { value: 'document', labelKey: 'presentationStyle.document', icon: 'BookOpen' },
+    { value: 'card', labelKey: 'presentationStyle.card', icon: 'LayoutDashboard' },
   ];
 
   return (
@@ -35,14 +47,14 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
       <Label className="font-body text-base font-medium flex items-center">
         <Icon name="LayoutDashboard" className="h-5 w-5 mr-2 text-primary" /> {t('presentationStyle.title')}
       </Label>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {options.map(option => (
+      <div className="grid grid-cols-2 gap-3">
+        {mainOptions.map(option => (
           <div
             key={option.value}
-            onClick={() => !disabled && onValueChange(option.value)}
+            onClick={() => !disabled && onDisplayChange(option.value)}
             className={cn(
-              "border rounded-lg p-2 flex flex-col items-center justify-center gap-2 text-center transition-all min-h-[90px]",
-              value === option.value
+              "border rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all min-h-[90px]",
+              display === option.value
                 ? "ring-2 ring-primary border-primary bg-primary/10"
                 : "border-border",
               !disabled
@@ -50,13 +62,37 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
                 : "cursor-not-allowed opacity-70"
             )}
           >
-            <div className={cn("flex items-center justify-center", option.iconWrapperClass)}>
-              <Icon name={option.icon} className="text-primary h-full w-full" />
-            </div>
+            <Icon name={option.icon} className="text-primary h-8 w-8" />
             <p className="text-xs font-medium font-body">{t(option.labelKey)}</p>
           </div>
         ))}
       </div>
+
+      {display === 'card' && (
+        <div className="pt-3 border-t">
+          <Label className="text-xs text-muted-foreground">{t('presentationStyle.aspectRatio')}</Label>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {aspectRatioOptions.map(ratio => (
+              <div
+                key={ratio}
+                onClick={() => !disabled && onAspectRatioChange(ratio)}
+                className={cn(
+                  "border rounded-md p-2 flex flex-col items-center justify-center gap-1 text-center transition-all h-16",
+                  aspectRatio === ratio
+                    ? "ring-2 ring-primary border-primary bg-primary/10"
+                    : "border-border",
+                  !disabled
+                    ? "cursor-pointer hover:border-primary/50 hover:bg-muted"
+                    : "cursor-not-allowed opacity-70"
+                )}
+              >
+                <Icon name={aspectRatioIcons[ratio]} className="h-5 text-primary/80" />
+                <p className="text-xs font-mono font-medium">{ratio}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
