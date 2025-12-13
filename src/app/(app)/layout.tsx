@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, Suspense } from 'react';
@@ -14,7 +15,7 @@ import { AppErrorManager } from '@/services/error-manager';
 // Component LevelUpDialog được lazy load vì nó không phải lúc nào cũng cần thiết
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
 
-// Component đơn giản để hiển thị trạng thái tải ban đầu
+// ✅ UNIFIED: This is now the single source of truth for global loading screens.
 const InitialLoader = ({ message = "Loading..." }: { message?: string }) => (
     <div className="flex h-screen w-full items-center justify-center">
       <div className="text-center">
@@ -83,13 +84,9 @@ const AuthenticatedContent = ({ children }: { children: React.ReactNode }) => {
                         onRetry={retryUserFetch}
                         onLogout={logout}
                     />
+                // ✅ UNIFIED: Replaced Loader2 spinner with the InitialLoader component for consistency.
                 ) : !user ? (
-                    <div className="flex h-full w-full items-center justify-center">
-                        <div className="text-center">
-                            <Icon name="Loader2" className="h-10 w-10 animate-spin text-primary mx-auto" />
-                            <p className="mt-2 text-sm text-muted-foreground">Finalizing your profile...</p>
-                        </div>
-                    </div>
+                    <InitialLoader message="Finalizing your profile..." />
                 ) : (
                     children
                 )}

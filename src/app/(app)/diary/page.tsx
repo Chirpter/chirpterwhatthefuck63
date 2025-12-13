@@ -2,11 +2,15 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Icon } from '@/components/ui/icons';
+import { Logo } from '@/components/ui/Logo';
 
+// ✅ UPDATED: The loader now uses the standardized InitialLoader style with the Logo.
 const DiaryViewLoader = () => (
     <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Icon name="BookOpen" className="h-12 w-12 animate-pulse text-primary" />
+        <div className="text-center">
+            <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
+            <p className="mt-2 text-sm text-muted-foreground">Loading Diary...</p>
+        </div>
     </div>
 );
 

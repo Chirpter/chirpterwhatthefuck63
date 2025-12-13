@@ -25,6 +25,8 @@ import {
 import type { User } from '@/lib/types';
 import { ACHIEVEMENTS } from '@/lib/achievements';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/contexts/auth-context';
+import { Logo } from '@/components/ui/Logo';
 
 
 // --- Reusable Components for the new Profile View ---
@@ -36,8 +38,8 @@ const StatItem = ({ value, label }: { value: string | number, label: string }) =
   </div>
 );
 
-const WishNote = ({ children, style, contentClass }: { children: React.ReactNode, style?: React.CSSProperties, contentClass?: string }) => (
-  <foreignObject style={style} width="96" height="56">
+const WishNote = ({ children, x, y, style, contentClass }: { children: React.ReactNode, x?: number, y?: number, style?: React.CSSProperties, contentClass?: string }) => (
+  <foreignObject x={x} y={y} style={style} width="96" height="56">
       <Popover>
         <PopoverTrigger asChild>
           <button 
@@ -75,7 +77,7 @@ interface JourneyTreeProps {
 const JourneyTree: React.FC<JourneyTreeProps> = ({ userLevel, userGender }) => {
   // TODO: Add logic to select the correct SVG based on userLevel.
   // For now, it's a placeholder.
-  const treeState = `Level ${'${userLevel}'}`;
+  const treeState = `Level ${userLevel}`;
   const character = userGender === 'female' ? 'Girl' : 'Boy';
 
   return (
@@ -123,7 +125,7 @@ const JourneyTree: React.FC<JourneyTreeProps> = ({ userLevel, userGender }) => {
         */}
 
         {/* Wish notes can still be included */}
-         <WishNote style={{ x: 150, y: 240, transform: 'rotate(2deg)' }} contentClass="text-rose-800">
+         <WishNote x={150} y={240} style={{ transform: 'rotate(2deg)' }} contentClass="text-rose-800">
             "A new journey awaits."
         </WishNote>
       </svg>
@@ -147,7 +149,8 @@ const TimelinePost = ({ icon, title, description, children }: { icon: any, title
 
 
 export default function ProfileView() {
-    const { user, loading, reloadUser, authUser } = useUser();
+    const { user, loading, reloadUser } = useUser();
+    const { authUser } = useAuth(); // Import authUser
     const { toast } = useToast();
     const [isUploading, setIsUploading] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -192,7 +195,10 @@ export default function ProfileView() {
     if (loading || !user || !authUser) {
         return (
             <div className="flex h-full w-full items-center justify-center">
-                <Icon name="Loader2" className="h-12 w-12 animate-spin text-primary" />
+                <div className="text-center">
+                    <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
+                    <p className="mt-2 text-sm text-muted-foreground">Loading Profile...</p>
+                </div>
             </div>
         );
     }

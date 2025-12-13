@@ -1,5 +1,6 @@
 
 
+
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -20,6 +21,7 @@ import LookupPopover from '@/features/reader/components/LookupPopover';
 import { VocabVideoPlayer, type VocabVideoPlayerHandle } from './VocabVideoPlayer';
 import type { Piece } from '@/lib/types';
 import { useUser } from '@/contexts/user-context';
+import { Logo } from '@/components/ui/Logo';
 
 function VocabVideosView() {
   const { t, i18n } = useTranslation(['learningPage', 'common', 'toast']);

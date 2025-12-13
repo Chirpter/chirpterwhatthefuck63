@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -85,10 +86,14 @@ export default function LoginView() {
     setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
   };
 
+  // ✅ UNIFIED: Use the standard InitialLoader style for auth checks
   if (isAuthLoading || authUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Logo className="h-16 w-16 animate-pulse text-primary" />
+        <div className="text-center">
+            <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
+            <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
