@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AudioProgressState, Book, LibraryItem } from '@/lib/types';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 
 interface ProgressInfo {
     overallProgress: number;
