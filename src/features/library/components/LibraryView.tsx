@@ -38,7 +38,8 @@ import { useToast } from '@/hooks/useToast';
 import { useVocabulary } from '@/features/vocabulary/hooks/useVocabulary';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { BookmarkStyleProvider } from './BookmarkStyleProvider';
-import { useBookmarks } from '@/contexts/bookmark-context'; // Use the global bookmark context
+import { useBookmarks } from '@/hooks/useBookmarks'; // Use the global bookmark context
+import Masonry from 'react-masonry-css';
 
 // Lazy load components
 const BookItemCard = dynamic(() => import('./BookItemCard').then(mod => mod.BookItemCard), {
@@ -60,12 +61,20 @@ interface LibraryViewProps {
 
 const INITIAL_LOAD_THRESHOLD = 20;
 
+const masonryBreakpoints = {
+  default: 6,
+  1536: 5, // 2xl
+  1280: 4, // xl
+  1024: 4, // lg
+  768: 3,  // md
+  640: 2   // sm
+};
+
 function LibraryViewContent({ contentType }: LibraryViewProps) {
   const { t } = useTranslation(['libraryPage', 'common', 'bookCard', 'vocabularyPage', 'toast', 'presets']);
   const router = useRouter();
   const { toast } = useToast();
   
-  // Use the global context to get all available bookmarks
   const { availableBookmarks, isLoading: bookmarksLoading } = useBookmarks();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -193,9 +202,9 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
 
     if (isUiLoading || bookmarksLoading) {
       return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-6">
+        <div className="masonry-grid">
           {[...Array(6)].map((_, i) => (
-             <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse h-64 w-full break-inside-avoid">
+             <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse h-64 w-full">
                 <Skeleton className="h-48 bg-muted rounded-md mb-4" />
                 <Skeleton className="h-6 w-3/4 bg-muted rounded-md mb-2" />
             </div>
@@ -218,33 +227,47 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
       );
     }
     
-    const gridLayoutClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6";
     const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && libraryHook.hasMore;
 
-    return (
-      <BookmarkStyleProvider items={filteredItems} availableBookmarks={availableBookmarks}>
-        <div className={gridLayoutClasses}>
-          <AnimatePresence>
-            {filteredItems.map((item: LibraryItem) => {
-                let cardContent;
-                if (item.type === 'book') {
-                    if (item.status === 'processing') {
-                    cardContent = <ProcessingBookItemCard book={item as Book} onDelete={confirmDelete}/>;
-                    } else {
-                    cardContent = <BookItemCard book={item as Book} />;
-                    }
-                } else if (item.type === 'piece') {
-                    cardContent = <PieceItemCard work={item as Piece} />;
-                }
+    const itemsToRender = (
+      <Masonry
+        breakpointCols={masonryBreakpoints}
+        className="masonry-grid"
+        columnClassName="masonry-grid_column"
+      >
+        <AnimatePresence>
+          {filteredItems.map((item: LibraryItem) => {
+              let cardContent;
+              if (item.type === 'book') {
+                  if (item.status === 'processing') {
+                  cardContent = <ProcessingBookItemCard book={item as Book} onDelete={confirmDelete}/>;
+                  } else {
+                  cardContent = <BookItemCard book={item as Book} />;
+                  }
+              } else if (item.type === 'piece') {
+                  cardContent = <PieceItemCard work={item as Piece} />;
+              }
 
-                return (
-                    <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                        {cardContent}
-                    </motion.div>
-                )
-            })}
-          </AnimatePresence>
-        </div>
+              return (
+                  <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="mb-6">
+                      {cardContent}
+                  </motion.div>
+              )
+          })}
+        </AnimatePresence>
+      </Masonry>
+    );
+
+    return (
+      <>
+        {contentType === 'book' ? (
+           <BookmarkStyleProvider items={filteredItems} availableBookmarks={availableBookmarks}>
+              {itemsToRender}
+           </BookmarkStyleProvider>
+        ) : (
+          itemsToRender
+        )}
+
         {shouldShowLoadMore && !libraryHook.isLoadingMore && (
           <div className="text-center mt-8">
             <Button 
@@ -262,7 +285,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
             <Icon name="Loader2" className="h-6 w-6 animate-spin text-primary mx-auto" />
           </div>
         )}
-      </BookmarkStyleProvider>
+      </>
     );
   };
 
