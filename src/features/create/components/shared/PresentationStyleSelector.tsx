@@ -39,7 +39,7 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
   const { t } = useTranslation('createPage');
 
   const mainOptions: StyleOption[] = [
-    { value: 'doc', labelKey: 'presentationStyle.document', icon: 'BookOpen' },
+    { value: 'doc', labelKey: 'presentationStyle.document', icon: 'FileText' },
     { value: 'card', labelKey: 'presentationStyle.card', icon: 'LayoutDashboard' },
   ];
 
