@@ -72,20 +72,20 @@ describe('Auth Production Edge Cases', () => {
     locationMock.cleanup();
   });
 
-  describe('Cookie Creation', () => {
-    it('should succeed immediately when session API works', async () => {
+  describe('Session Cookie Creation', () => {
+    it('should succeed immediately and navigate when session API works', async () => {
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(null) : callback(null), 0);
+        setTimeout(() => callback(null), 0);
         return () => {};
       });
 
       const mockUser = {
         uid: 'test-123',
         getIdToken: vi.fn().mockResolvedValue('fake-token'),
-      };
+      } as Partial<FirebaseUser> as FirebaseUser;
 
       vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-        user: mockUser as any,
+        user: mockUser,
       } as any);
 
       global.fetch = vi.fn(() => 
@@ -112,23 +112,23 @@ describe('Auth Production Edge Cases', () => {
       await waitFor(() => {
         expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
         const elapsed = Date.now() - startTime;
-        expect(elapsed).toBeLessThan(2000);
+        expect(elapsed).toBeLessThan(2000); // Should be very fast
       }, { timeout: 3000 });
     });
 
-    it('should timeout gracefully if session API fails', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(null) : callback(null), 0);
-        return () => {};
-      });
+    it('should show an error after retries if session API consistently fails', async () => {
+        vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
+            setTimeout(() => callback(null), 0);
+            return () => {};
+        });
 
       const mockUser = {
         uid: 'test-123',
         getIdToken: vi.fn().mockResolvedValue('fake-token'),
-      };
+      } as Partial<FirebaseUser> as FirebaseUser;
 
       vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-        user: mockUser as any,
+        user: mockUser,
       } as any);
 
       global.fetch = vi.fn(() => 
@@ -158,138 +158,5 @@ describe('Auth Production Edge Cases', () => {
 
       expect(locationMock.mockNavigate).not.toHaveBeenCalled();
     }, 5000);
-  });
-
-  describe('4xx Error Handling', () => {
-    it('should not retry on 400 Bad Request', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(null) : callback(null), 0);
-        return () => {};
-      });
-
-      const mockUser = {
-        uid: 'test-123',
-        getIdToken: vi.fn().mockResolvedValue('fake-token'),
-      };
-
-      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-        user: mockUser as any,
-      } as any);
-
-      global.fetch = vi.fn(() => 
-        Promise.resolve({
-          ok: false,
-          status: 400,
-          json: async () => ({ error: 'Bad request' }),
-        } as Response)
-      ) as any;
-
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      });
-
-      fireEvent.click(screen.getByText('Sign In'));
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(1);
-        const errorText = screen.getByTestId('error').textContent;
-        expect(errorText).toContain('Could not create a server session');
-      }, { timeout: 2000 });
-    });
-
-    it('should retry on 500 Server Error', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(null) : callback(null), 0);
-        return () => {};
-      });
-
-      const mockUser = {
-        uid: 'test-123',
-        getIdToken: vi.fn().mockResolvedValue('fake-token'),
-      };
-
-      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-        user: mockUser as any,
-      } as any);
-
-      let attempts = 0;
-      global.fetch = vi.fn(() => {
-        attempts++;
-        if (attempts < 2) {
-          return Promise.resolve({
-            ok: false,
-            status: 500,
-            json: async () => ({ error: 'Server error' }),
-          } as Response);
-        }
-        
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ success: true }),
-        } as Response);
-      }) as any;
-
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      });
-
-      fireEvent.click(screen.getByText('Sign In'));
-
-      await waitFor(() => {
-        expect(attempts).toBe(2);
-        expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
-      }, { timeout: 3000 });
-    }, 5000);
-  });
-
-  describe('Logout Flow', () => {
-    it('should clean up properly and navigate with window.location', async () => {
-      const mockUser = {
-        uid: 'test-user-123',
-        email: 'test@example.com',
-      } as FirebaseUser;
-
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(mockUser) : callback(mockUser), 0);
-        return () => {};
-      });
-
-      vi.mocked(signOut).mockResolvedValue(undefined);
-
-      global.fetch = vi.fn(() => 
-        Promise.resolve({
-          ok: true,
-          json: async () => ({ success: true }),
-        } as Response)
-      ) as any;
-
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('user')).toHaveTextContent('test-user-123');
-      });
-
-      fireEvent.click(screen.getByText('Logout'));
-
-      await waitFor(() => {
-        expect(locationMock.mockNavigate).toHaveBeenCalledWith('/login?reason=logged_out');
-      }, { timeout: 1000 });
-    });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
 import type { CombinedBookmark } from '@/lib/types';
 
 // The shape of the context data

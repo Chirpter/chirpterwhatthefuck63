@@ -633,13 +633,13 @@ class AudioEngine {
 
     for (const vocab of items) {
       if (vocab.term) {
-        speechSegments.push({ text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${vocab.id}-term` });
+        speechSegments.push({ text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${'${vocab.id}'}-term` });
       }
       if (vocab.meaning) {
-        speechSegments.push({ text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${vocab.id}-meaning` });
+        speechSegments.push({ text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${'${vocab.id}'}-meaning` });
       }
       if (vocab.example) {
-        speechSegments.push({ text: vocab.example, lang: vocab.exampleLanguage || vocab.termLanguage, originalSegmentId: `${vocab.id}-example` });
+        speechSegments.push({ text: vocab.example, lang: vocab.exampleLanguage || vocab.termLanguage, originalSegmentId: `${'${vocab.id}'}-example` });
       }
     }
     return speechSegments;

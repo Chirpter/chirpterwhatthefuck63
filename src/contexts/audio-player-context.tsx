@@ -107,8 +107,8 @@ const ensurePlaylistItem = (item: LibraryItem | PlaylistItem): PlaylistItem => {
       title = bookData.title;
     } else if (typeof bookData.title === 'object' && bookData.title !== null) {
       // Safely access primary language, providing fallbacks
-      title = bookData.title[primaryLang] || 
-              Object.values(bookData.title)[0] || 
+      title = (bookData.title as MultilingualContent)[primaryLang] as string || 
+              Object.values(bookData.title)[0] as string || 
               'Untitled Book';
     } else {
       title = 'Untitled Book';

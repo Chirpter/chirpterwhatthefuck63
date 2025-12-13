@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import React, { Suspense } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import i18n from '@/lib/i18n';
-import { AuthProvider } from '@/contexts/auth-context';
-import { UserProvider } from '@/contexts/user-context';
+import { AuthProvider } from '@/providers/auth-provider'; // Updated import
+import { UserProvider } from '@/providers/user-provider'; // Updated import
 import { SettingsProvider } from '@/contexts/settings-context';
 import { BookmarkProvider } from '@/contexts/bookmark-context';
 import { AudioPlayerProvider } from '@/contexts/audio-player-context';

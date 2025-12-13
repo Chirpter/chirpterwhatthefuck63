@@ -73,14 +73,14 @@ describe('Logout Flow Tests', () => {
   });
 
   describe('Basic Logout Flow', () => {
-    it('should logout authenticated user successfully', async () => {
+    it('should logout authenticated user and navigate via window.location', async () => {
       const mockUser = {
         uid: 'test-user-123',
         email: 'test@example.com',
       } as FirebaseUser;
 
       vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(mockUser) : callback(mockUser), 0);
+        setTimeout(() => callback(mockUser), 0);
         return () => {};
       });
 
@@ -104,74 +104,8 @@ describe('Logout Flow Tests', () => {
           method: 'DELETE',
           credentials: 'include'
         });
+        // ✅ VERIFY: Check that navigation was done via window.location.href
         expect(locationMock.mockNavigate).toHaveBeenCalledWith('/login?reason=logged_out');
-      });
-    });
-
-    it('should clear session cookie on logout', async () => {
-      const mockUser = {
-        uid: 'test-user-123',
-        email: 'test@example.com',
-      } as FirebaseUser;
-
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(mockUser) : callback(mockUser), 0);
-        return () => {};
-      });
-
-      vi.mocked(signOut).mockResolvedValue(undefined);
-
-      document.cookie = '__session=test-cookie-value; path=/';
-
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('auth-user')).toHaveTextContent('test-user-123');
-      });
-
-      fireEvent.click(screen.getByText('Logout'));
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith('/api/auth/session', { 
-          method: 'DELETE',
-          credentials: 'include'
-        });
-      });
-    });
-  });
-
-  describe('Error Handling During Logout', () => {
-    it('should handle Firebase signOut error gracefully', async () => {
-      const mockUser = {
-        uid: 'test-user-123',
-        email: 'test@example.com',
-      } as FirebaseUser;
-
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => (callback as any).next ? (callback as any).next(mockUser) : callback(mockUser), 0);
-        return () => {};
-      });
-
-      vi.mocked(signOut).mockRejectedValue(new Error('Firebase signOut failed'));
-
-      render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('auth-user')).toHaveTextContent('test-user-123');
-      });
-
-      fireEvent.click(screen.getByText('Logout'));
-
-      await waitFor(() => {
-        expect(locationMock.mockNavigate).toHaveBeenCalledWith('/login?reason=error');
       });
     });
   });

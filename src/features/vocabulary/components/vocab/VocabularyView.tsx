@@ -278,7 +278,7 @@ export default function VocabularyView({ hook }: VocabularyViewProps) {
             {vocabulary.map(item => (
                 <VocabularyItemCard
                     key={item.id}
-                    item={item}
+                    item={item as VocabItemType}
                     onPronounce={handlePronounce}
                     onEdit={setItemToEdit}
                     onDelete={setItemToDelete}
@@ -287,7 +287,7 @@ export default function VocabularyView({ hook }: VocabularyViewProps) {
           </div>
         ) : (
           <VocabularyTable
-            items={vocabulary}
+            items={vocabulary as VocabItemType[]}
             onPronounce={handlePronounce}
             onEdit={setItemToEdit}
             onDelete={setItemToDelete}
@@ -322,7 +322,7 @@ export default function VocabularyView({ hook }: VocabularyViewProps) {
         <div className="flex justify-between items-center">
           <h3 className="text-xl font-headline font-semibold">{t('foldersTitle')}</h3>
           <Button asChild variant="outline" size="sm">
-            <Link href="/library/vocabulary/flashcard-dashboard">
+            <Link href="/library/vocabulary/study">
               {t('flashcardsButton')} <Icon name="ChevronRight" className="ml-2 h-4 w-4" />
             </Link>
           </Button>
@@ -336,7 +336,7 @@ export default function VocabularyView({ hook }: VocabularyViewProps) {
             onDirectPlay={() => audioPlayer.playVocabFolder(FOLDER_CONSTANTS.UNORGANIZED, t('common:unorganized'))}
             onPlaylistAdd={() => audioPlayer.addVocabFolderToPlaylist(FOLDER_CONSTANTS.UNORGANIZED, t('common:unorganized'))}
             isSelected={folderFilter === FOLDER_CONSTANTS.UNORGANIZED && !searchTerm}
-            isPlaying={audioPlayer.currentPlayingItem?.itemId === FOLDER_CONSTANTS.UNORGANIZED && audioPlayer.isPlaying}
+            isPlaying={audioPlayer.currentPlayingItem?.id === FOLDER_CONSTANTS.UNORGANIZED && audioPlayer.isPlaying}
             isUncategorized={true}
           />
           
@@ -356,7 +356,7 @@ export default function VocabularyView({ hook }: VocabularyViewProps) {
                   onDirectPlay={() => audioPlayer.playVocabFolder(folder, folder)}
                   onPlaylistAdd={() => audioPlayer.addVocabFolderToPlaylist(folder, folder)}
                   isSelected={folderFilter === folder && !searchTerm}
-                  isPlaying={audioPlayer.currentPlayingItem?.itemId === folder && audioPlayer.isPlaying}
+                  isPlaying={audioPlayer.currentPlayingItem?.id === folder && audioPlayer.isPlaying}
                 />
               ))}
             </div>

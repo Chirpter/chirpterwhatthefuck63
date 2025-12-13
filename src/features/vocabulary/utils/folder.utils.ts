@@ -1,4 +1,3 @@
-
 // src/features/vocabulary/utils/folder.utils.ts
 
 import { FOLDER_CONSTANTS } from '../constants';

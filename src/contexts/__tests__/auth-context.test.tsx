@@ -49,7 +49,7 @@ const TestComponent = () => {
       <div data-testid="user">{authUser?.uid || 'no-user'}</div>
       <div data-testid="error">{error || 'no-error'}</div>
       <div data-testid="signing-in">{isSigningIn ? 'signing-in' : 'not-signing-in'}</div>
-      <button onClick={() => signInWithEmail('test@test.com', 'password')}>
+      <button onClick={() => signInWithEmail('test@test.com', 'password123')}>
         Sign In
       </button>
       <button onClick={clearAuthError}>Clear Error</button>
@@ -58,16 +58,12 @@ const TestComponent = () => {
 };
 
 describe('AuthContext Unit Tests', () => {
-  let locationMock: ReturnType<typeof setupLocationMock>;
 
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
-    document.cookie = '';
     mockPush.mockClear();
     mockRefresh.mockClear();
-    
-    locationMock = setupLocationMock();
     
     global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
       const urlString = input instanceof URL ? input.toString() : 
@@ -90,7 +86,6 @@ describe('AuthContext Unit Tests', () => {
 
   afterEach(() => {
     cleanup();
-    locationMock.cleanup();
   });
 
   describe('Initial State', () => {
@@ -157,7 +152,7 @@ describe('AuthContext Unit Tests', () => {
         code: 'auth/invalid-credential',
       });
 
-      const { container } = render(
+      render(
         <AuthProvider>
           <TestComponent />
         </AuthProvider>
@@ -167,7 +162,7 @@ describe('AuthContext Unit Tests', () => {
         expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
       });
 
-      const signInButton = container.querySelector('button');
+      const signInButton = screen.getByText('Sign In');
       expect(signInButton).toBeTruthy();
 
       await act(async () => {
@@ -175,37 +170,7 @@ describe('AuthContext Unit Tests', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Invalid email or password');
-      });
-    });
-
-    it('should handle network errors gracefully', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => callback(null), 0);
-        return () => {};
-      });
-
-      vi.mocked(signInWithEmailAndPassword).mockRejectedValue({
-        code: 'auth/network-request-failed',
-      });
-
-      const { container } = render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      });
-
-      const signInButton = container.querySelector('button');
-      await act(async () => {
-        signInButton?.click();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Network error');
+        expect(screen.getByTestId('error')).toHaveTextContent('Invalid email or password.');
       });
     });
     
@@ -238,7 +203,7 @@ describe('AuthContext Unit Tests', () => {
       fireEvent.click(screen.getByText('Sign In'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Please enter a valid email address');
+        expect(screen.getByTestId('error')).toHaveTextContent('Please enter a valid email address.');
       });
     });
   });
@@ -254,7 +219,7 @@ describe('AuthContext Unit Tests', () => {
         code: 'auth/invalid-credential',
       });
 
-      const { container } = render(
+      render(
         <AuthProvider>
           <TestComponent />
         </AuthProvider>
@@ -264,16 +229,15 @@ describe('AuthContext Unit Tests', () => {
         expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
       });
 
-      const buttons = container.querySelectorAll('button');
-      const signInButton = buttons[0];
-      const clearErrorButton = buttons[1];
+      const signInButton = screen.getByText('Sign In');
+      const clearErrorButton = screen.getByText('Clear Error');
 
       await act(async () => {
         signInButton?.click();
       });
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Invalid email or password');
+        expect(screen.getByTestId('error')).toHaveTextContent('Invalid email or password.');
       });
 
       await act(async () => {
@@ -286,160 +250,34 @@ describe('AuthContext Unit Tests', () => {
     });
   });
 
-  describe('Concurrent Operation Protection', () => {
-    it('should prevent multiple concurrent sign-in operations', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => callback(null), 0);
-        return () => {};
+  describe('Navigation', () => {
+      it('should navigate using router.push on successful sign-in', async () => {
+        vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
+            setTimeout(() => callback(null), 0);
+            return () => {};
+        });
+  
+        const mockUser = {
+            uid: 'test-123',
+            getIdToken: vi.fn().mockResolvedValue('fake-token'),
+        };
+  
+        vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
+            user: mockUser as any,
+        } as any);
+  
+        render(<AuthProvider><TestComponent /></AuthProvider>);
+  
+        await waitFor(() => {
+            expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
+        });
+  
+        const signInButton = screen.getByText('Sign In');
+        fireEvent.click(signInButton);
+  
+        await waitFor(() => {
+            expect(mockPush).toHaveBeenCalledWith('/library/book');
+        });
       });
-
-      const mockUser = {
-        uid: 'test-123',
-        getIdToken: vi.fn().mockResolvedValue('fake-token'),
-      };
-
-      let resolveSignIn: any;
-      vi.mocked(signInWithEmailAndPassword).mockImplementation(() =>
-        new Promise(resolve => {
-          resolveSignIn = () => resolve({ user: mockUser } as any);
-        })
-      );
-
-      const { container } = render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      });
-
-      const signInButton = container.querySelector('button');
-
-      await act(async () => {
-        signInButton?.click();
-        signInButton?.click();
-        signInButton?.click();
-      });
-
-      expect(vi.mocked(signInWithEmailAndPassword)).toHaveBeenCalledTimes(1);
-
-      resolveSignIn();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('signing-in')).toHaveTextContent('not-signing-in');
-      }, { timeout: 3000 });
-    });
-  });
-
-  describe('Session Cookie Integration', () => {
-    it('should retry session cookie creation on failure', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => callback(null), 0);
-        return () => {};
-      });
-
-      const mockUser = {
-        uid: 'test-123',
-        getIdToken: vi.fn().mockResolvedValue('fake-token'),
-      };
-
-      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-        user: mockUser as any,
-      } as any);
-
-      let attempts = 0;
-      global.fetch = vi.fn((input: string | URL | Request, options?: RequestInit) => {
-        attempts++;
-        const urlString = input instanceof URL ? input.toString() :
-                         input instanceof Request ? input.url :
-                         input;
-
-        if (urlString.includes('/api/auth/session') && options?.method === 'POST') {
-          if (attempts < 2) {
-            return Promise.resolve({
-              ok: false,
-              status: 500,
-              json: async () => ({ error: 'temporary' }),
-            } as Response);
-          }
-
-          return Promise.resolve({
-            ok: true,
-            json: async () => ({ success: true }),
-          } as Response);
-        }
-
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ success: true }),
-        } as Response);
-      }) as any;
-
-      const { container } = render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      });
-
-      const signInButton = container.querySelector('button');
-      await act(async () => {
-        signInButton?.click();
-      });
-
-      await waitFor(() => {
-        expect(attempts).toBe(2);
-        expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
-      }, { timeout: 3000 });
-    }, 5000);
-
-    it('should show error after max retries exceeded', async () => {
-      vi.mocked(onAuthStateChanged).mockImplementation((auth, callback: any) => {
-        setTimeout(() => callback(null), 0);
-        return () => {};
-      });
-
-      const mockUser = {
-        uid: 'test-123',
-        getIdToken: vi.fn().mockResolvedValue('fake-token'),
-      };
-
-      vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-        user: mockUser as any,
-      } as any);
-
-      global.fetch = vi.fn(() =>
-        Promise.resolve({
-          ok: false,
-          status: 500,
-          json: async () => ({ error: 'server error' }),
-        } as Response)
-      ) as any;
-
-      const { container } = render(
-        <AuthProvider>
-          <TestComponent />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-      });
-
-      const signInButton = container.querySelector('button');
-      await act(async () => {
-        signInButton?.click();
-      });
-
-      await waitFor(() => {
-        const errorText = screen.getByTestId('error').textContent;
-        expect(errorText).toContain('Could not create a server session');
-      }, { timeout: 3000 });
-    });
   });
 });

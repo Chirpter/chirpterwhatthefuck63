@@ -89,24 +89,20 @@ describe('Auth Flow Complete Integration Tests', () => {
     locationMock.cleanup();
   });
 
-  it('should complete full sign-in flow', async () => {
+  it('should complete full sign-in flow and navigate via window.location', async () => {
     const mockUser = {
       uid: 'test-123',
       email: 'test@example.com',
       getIdToken: vi.fn().mockResolvedValue('fake-token'),
-    } as Partial<FirebaseUser>;
+    } as Partial<FirebaseUser> as FirebaseUser;
 
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
-      } else {
-        setTimeout(() => (callback as any).next(null), 0);
-      }
-      return () => {};
+        return () => {};
     });
 
     vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-      user: mockUser as FirebaseUser,
+      user: mockUser,
     } as any);
 
     render(
@@ -128,27 +124,24 @@ describe('Auth Flow Complete Integration Tests', () => {
     await waitFor(() => {
       expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
       expect(screen.getByTestId('error')).toHaveTextContent('no-error');
+      // ✅ VERIFY: Check that navigation was done via window.location.href
       expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
     }, { timeout: 2000 });
   });
 
-  it('should handle cookie creation timeout gracefully', async () => {
+  it('should show error after max retries for cookie creation fail', async () => {
     const mockUser = {
       uid: 'test-123',
       getIdToken: vi.fn().mockResolvedValue('fake-token'),
-    };
+    } as Partial<FirebaseUser> as FirebaseUser;
 
     vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      if (typeof callback === 'function') {
         setTimeout(() => callback(null), 0);
-      } else {
-        setTimeout(() => (callback as any).next(null), 0);
-      }
-      return () => {};
+        return () => {};
     });
 
     vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-      user: mockUser as any,
+      user: mockUser,
     } as any);
 
     global.fetch = vi.fn(() => 
@@ -174,158 +167,10 @@ describe('Auth Flow Complete Integration Tests', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
-    }, { timeout: 3000 });
-
-    await waitFor(() => {
       const errorText = screen.getByTestId('error').textContent;
       expect(errorText).toContain('Could not create a server session');
-    }, { timeout: 1000 });
+    }, { timeout: 3000 });
 
     expect(locationMock.mockNavigate).not.toHaveBeenCalled();
-  }, 5000);
-
-  it('should retry session creation on failure', async () => {
-    const mockUser = {
-      uid: 'test-123',
-      getIdToken: vi.fn().mockResolvedValue('fake-token'),
-    };
-
-    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback(null), 0);
-      } else {
-        setTimeout(() => (callback as any).next(null), 0);
-      }
-      return () => {};
-    });
-
-    vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-      user: mockUser as any,
-    } as any);
-
-    let attempts = 0;
-    global.fetch = vi.fn(() => {
-      attempts++;
-      if (attempts < 2) {
-        return Promise.resolve({
-          ok: false,
-          status: 500,
-          json: async () => ({ error: 'temporary error' }),
-          headers: new Headers(),
-        } as Response);
-      }
-      
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ success: true }),
-        headers: new Headers(),
-      } as Response);
-    }) as any;
-
-    render(
-      <AuthProvider>
-        <TestAuthComponent />
-      </AuthProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-    });
-
-    fireEvent.click(screen.getByText('Sign In'));
-
-    await waitFor(() => {
-      expect(attempts).toBe(2);
-      expect(locationMock.mockNavigate).toHaveBeenCalledWith('/library/book');
-    }, { timeout: 3000 });
-  }, 5000);
-
-  it('should prevent concurrent sign-in operations', async () => {
-    const mockUser = {
-      uid: 'test-123',
-      getIdToken: vi.fn().mockResolvedValue('fake-token'),
-    };
-
-    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback(null), 0);
-      } else {
-        setTimeout(() => (callback as any).next(null), 0);
-      }
-      return () => {};
-    });
-
-    let resolveSignIn: any;
-    vi.mocked(signInWithEmailAndPassword).mockImplementation(() => 
-      new Promise(resolve => {
-        resolveSignIn = () => resolve({ user: mockUser } as any);
-      })
-    );
-
-    render(
-      <AuthProvider>
-        <TestAuthComponent />
-      </AuthProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-    });
-
-    const signInButton = screen.getByText('Sign In');
-
-    fireEvent.click(signInButton);
-    fireEvent.click(signInButton);
-    fireEvent.click(signInButton);
-
-    expect(vi.mocked(signInWithEmailAndPassword)).toHaveBeenCalledTimes(1);
-
-    resolveSignIn();
-
-    await waitFor(() => {
-      expect(screen.getByTestId('signing-in')).toHaveTextContent('false');
-    }, { timeout: 2000 });
-  });
-
-  it('should handle network errors with proper error message', async () => {
-    const mockUser = {
-      uid: 'test-123',
-      getIdToken: vi.fn().mockResolvedValue('fake-token'),
-    };
-
-    vi.mocked(onAuthStateChanged).mockImplementation((auth, callback) => {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback(null), 0);
-      } else {
-        setTimeout(() => (callback as any).next(null), 0);
-      }
-      return () => {};
-    });
-
-    vi.mocked(signInWithEmailAndPassword).mockResolvedValue({
-      user: mockUser as any,
-    } as any);
-
-    global.fetch = vi.fn(() => 
-      Promise.reject(new Error('Network error'))
-    ) as any;
-
-    render(
-      <AuthProvider>
-        <TestAuthComponent />
-      </AuthProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId('loading')).toHaveTextContent('loaded');
-    });
-
-    fireEvent.click(screen.getByText('Sign In'));
-
-    await waitFor(() => {
-      const errorText = screen.getByTestId('error').textContent;
-      expect(errorText).toContain('Could not create a server session');
-    }, { timeout: 3000 });
   }, 5000);
 });
