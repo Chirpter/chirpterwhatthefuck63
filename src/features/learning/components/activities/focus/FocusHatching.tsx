@@ -1,10 +1,11 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/useToast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -585,7 +586,7 @@ export default function FocusHatching() {
           variant="ghost" 
           size="icon" 
           className="absolute -bottom-4 right-0 h-6 w-6 text-muted-foreground" 
-          onClick={() => setShowCollection(s => !s)}
+          onClick={()={() => setShowCollection(s => !s)}}
         >
           <Icon name={showCollection ? 'ChevronLeft' : 'ChevronRight'} className="h-4 w-4" />
         </Button>
@@ -606,3 +607,5 @@ export default function FocusHatching() {
     </div>
   );
 }
+
+    
