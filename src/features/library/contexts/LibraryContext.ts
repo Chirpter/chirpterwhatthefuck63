@@ -3,7 +3,7 @@
 
 import { createContext } from 'react';
 import type { LibraryItem, BookmarkType } from '@/lib/types';
-import type { CombinedBookmark } from '../hooks/useLibrary';
+import type { CombinedBookmark } from '@/lib/types';
 
 export interface LibraryContextType {
   availableBookmarks: CombinedBookmark[];
