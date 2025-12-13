@@ -37,12 +37,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      const { user: userProfile, leveledUpInfo: levelUpData } = await createOrFetchUserProfile(firebaseUser.uid);
+      const { user: userProfile, leveledUpInfo } = await createOrFetchUserProfile(firebaseUser.uid);
       
       if (state.currentUserId === firebaseUser.uid) {
         setUser(userProfile);
-        if (levelUpData) {
-          setLevelUpInfo(levelUpData);
+        if (leveledUpInfo) {
+          setLevelUpInfo(leveledUpInfo);
         }
       }
     } catch (err) {

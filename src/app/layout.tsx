@@ -4,7 +4,6 @@ import { Noto_Serif, Inter } from "next/font/google";
 import "./globals.css";
 import { getSystemBookmarks, getBookmarkMetadata } from '@/services/server/bookmark.service';
 import { ClientProviders } from '@/providers/client-providers';
-import { ThemeProvider } from "@/providers/theme-provider";
 
 const notoSerif = Noto_Serif({ 
   subsets: ["latin", "vietnamese"],
@@ -50,17 +49,10 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="https://firebaseinstallations.googleapis.com" />
       </head>
       <body className={`${notoSerif.variable} ${inter.variable} font-body antialiased`}>
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-        >
           {/* Pass server-fetched data to the client-side provider */}
           <ClientProviders initialBookmarks={combinedBookmarks}>
             {children}
           </ClientProviders>
-        </ThemeProvider>
       </body>
     </html>
   );

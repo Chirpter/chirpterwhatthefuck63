@@ -15,6 +15,7 @@ import { AudioPlayer } from '@/features/player/components/AudioPlayer';
 import type { CombinedBookmark } from '@/lib/types';
 import { Toaster } from '@/components/ui/toaster';
 import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
+import { ThemeProvider } from '@/providers/theme-provider';
 
 import { initializeAchievementListener, cleanupAchievementListener } from '@/features/vocabulary/listeners/achievement-listener';
 
@@ -33,24 +34,31 @@ export const ClientProviders = ({ initialBookmarks, children }: { initialBookmar
 
     return (
         <I18nextProvider i18n={i18n}>
-            <AuthProvider>
-                <UserProvider>
-                    <SettingsProvider>
-                        <BookmarkProvider initialBookmarks={initialBookmarks}>
-                            <AudioPlayerProvider>
-                                <VocabVideosProvider>
-                                    {children}
-                                    <Suspense fallback={null}>
-                                        <AudioPlayer />
-                                    </Suspense>
-                                    <Toaster />
-                                    {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
-                                </VocabVideosProvider>
-                            </AudioPlayerProvider>
-                        </BookmarkProvider>
-                    </SettingsProvider>
-                </UserProvider>
-            </AuthProvider>
+            <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+            >
+                <AuthProvider>
+                    <UserProvider>
+                        <SettingsProvider>
+                            <BookmarkProvider initialBookmarks={initialBookmarks}>
+                                <AudioPlayerProvider>
+                                    <VocabVideosProvider>
+                                        {children}
+                                        <Suspense fallback={null}>
+                                            <AudioPlayer />
+                                        </Suspense>
+                                        <Toaster />
+                                        {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
+                                    </VocabVideosProvider>
+                                </AudioPlayerProvider>
+                            </BookmarkProvider>
+                        </SettingsProvider>
+                    </UserProvider>
+                </AuthProvider>
+            </ThemeProvider>
         </I18nextProvider>
     );
 };
