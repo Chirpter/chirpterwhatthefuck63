@@ -3,7 +3,7 @@
 
 import { useCallback } from 'react';
 import { useUser } from '@/contexts/user-context';
-import * as vocabService from "@/services/vocabulary-service";
+import * as vocabService from "@/services/client/vocabulary-service";
 import type { VocabularyItem, SrsState } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
 import { useLiveQuery } from 'dexie-react-hooks';
