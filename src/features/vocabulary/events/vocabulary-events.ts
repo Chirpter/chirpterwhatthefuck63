@@ -1,4 +1,3 @@
-
 // src/features/vocabulary/events/vocabulary-events.ts
 // ============================================================================
 // EVENT BUS FOR VOCABULARY FEATURE

@@ -1,5 +1,6 @@
 
-"use server";
+
+'use server';
 
 import type { FoundClip } from '@/lib/types';
 import { supabase } from '@/lib/supabase';

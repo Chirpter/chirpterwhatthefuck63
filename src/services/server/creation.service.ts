@@ -1,4 +1,5 @@
-// src/services/creation-service.ts - PRODUCTION READY
+
+// src/services/server/creation.service.ts
 'use server';
 
 import { cookies } from 'next/headers';
@@ -121,5 +122,3 @@ export async function createLibraryItem(formData: CreationFormValues): Promise<s
     );
   }
 }
-
-    

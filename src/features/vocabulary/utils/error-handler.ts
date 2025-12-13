@@ -1,4 +1,3 @@
-
 // src/features/vocabulary/utils/error-handler.ts
 // ============================================================================
 // CENTRALIZED ERROR HANDLING FOR VOCABULARY FEATURE

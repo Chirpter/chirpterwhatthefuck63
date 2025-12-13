@@ -1,4 +1,4 @@
-// src/services/sync-service.ts
+// src/services/client/sync.service.ts
 'use client';
 
 /**
@@ -7,7 +7,7 @@
  */
 
 import { getLocalDbForUser, type SyncAction } from './local-database';
-import { syncVocabularyBatch, fetchAllVocabularyFromFirestore } from '@/services/vocabulary-service';
+import { syncVocabularyBatch, fetchAllVocabularyFromFirestore } from '../server/vocabulary.service';
 import { ApiServiceError } from '@/lib/errors';
 
 const BATCH_DELAY = 10000; // 10 seconds
@@ -152,5 +152,3 @@ export async function performInitialSync(userId: string): Promise<boolean> {
         return false;
     }
 }
-
-    

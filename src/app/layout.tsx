@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Serif, Inter } from "next/font/google";
 import "./globals.css";
-import { getSystemBookmarks, getBookmarkMetadata } from '@/services/bookmark-service';
+import { getSystemBookmarks, getBookmarkMetadata } from '@/services/server/bookmark.service';
 import { ClientProviders } from '@/providers/client-providers';
 
 const notoSerif = Noto_Serif({ 

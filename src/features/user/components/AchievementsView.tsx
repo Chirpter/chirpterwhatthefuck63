@@ -5,7 +5,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useUser } from '@/contexts/user-context';
 import { useToast } from '@/hooks/useToast';
-import { claimAchievement } from '@/services/user-service';
+import { claimAchievement } from '@/services/server/user.service';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/ui/icons';
 import { AchievementCard } from '@/features/user/components/AchievementCard';

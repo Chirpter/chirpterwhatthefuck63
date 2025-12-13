@@ -24,8 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-// 3. Import các hàm server actions trực tiếp từ service của chúng
-import { regenerateBookContent, editBookCover } from "@/services/book-creation.service";
+import { regenerateBookContent, editBookCover } from "@/services/server/book-creation.service";
 import { useToast } from '@/hooks/useToast';
 import { DynamicBookmark } from "./DynamicBookmark";
 import { BookmarkCard } from "@/features/user/components/BookmarkCard";

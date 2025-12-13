@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Book, CombinedBookmark } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
-import { getGlobalBooks } from '@/services/library-service';
+import { getGlobalBooks } from '@/services/server/library.service';
 import type { DocumentData } from 'firebase/firestore';
 import { ApiServiceError } from '@/lib/errors';
 import { useBookmarks } from '@/contexts/bookmark-context'; // Use centralized bookmarks

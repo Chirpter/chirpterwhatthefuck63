@@ -1,4 +1,5 @@
 
+
 // src/services/book-creation.service.ts
 
 'use server';
@@ -6,14 +7,14 @@
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, ContentUnit } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
-import { checkAndUnlockAchievements } from './achievement-service';
-import { ApiServiceError } from "../lib/errors";
-import { parseBookMarkdown } from './MarkdownParser';
+import { checkAndUnlockAchievements } from './achievement.service';
+import { ApiServiceError } from "@/lib/errors";
+import { parseBookMarkdown } from '../shared/MarkdownParser';
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 import { getStorage } from 'firebase-admin/storage';
-import { updateLibraryItem } from "./library-service";
+import { updateLibraryItem } from "./library.service";
 
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;

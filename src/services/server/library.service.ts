@@ -1,4 +1,5 @@
-// src/services/library-service.ts
+
+// src/services/server/library.service.ts
 'use server';
 
 import type { DocumentData, QueryConstraint } from 'firebase-admin/firestore';

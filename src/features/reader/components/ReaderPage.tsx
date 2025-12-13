@@ -25,12 +25,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { PageCalculator } from '@/lib/pagination/PageCalculator';
 import { SegmentCalibrator } from '@/lib/pagination/SegmentCalibrator';
-import { getItemSegments } from '@/services/MarkdownParser';
+import { getItemSegments } from '@/services/shared/MarkdownParser';
 import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { getLibraryItemById } from '@/services/client/library-service';
-import { regenerateBookContent } from '@/services/book-creation.service';
+import { regenerateBookContent } from '@/services/server/book-creation.service';
 import { PageContentRenderer } from './PageContentRenderer';
 
 

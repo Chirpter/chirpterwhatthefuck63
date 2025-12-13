@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { PageContentRenderer } from '@/features/reader/components/PageContentRenderer';
 import type { LibraryItem } from '@/lib/types';
-import { getItemSegments } from '@/services/MarkdownParser';
+import { getItemSegments } from '@/services/shared/MarkdownParser';
 import { Icon } from '@/components/ui/icons';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';

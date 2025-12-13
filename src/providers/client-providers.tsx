@@ -1,3 +1,4 @@
+
 // src/providers/client-providers.tsx
 'use client';
 
@@ -16,7 +17,6 @@ import { ThemeProvider } from '@/providers/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
 
-// ✅ FIX: Directly import the client-side listener logic
 import { initializeAchievementListener, cleanupAchievementListener } from '@/features/vocabulary/listeners/achievement-listener';
 
 /**
@@ -26,7 +26,6 @@ import { initializeAchievementListener, cleanupAchievementListener } from '@/fea
 export const ClientProviders = ({ initialBookmarks, children }: { initialBookmarks: CombinedBookmark[], children: React.ReactNode }) => {
     // This effect initializes and cleans up listeners that need the client environment.
     React.useEffect(() => {
-        // ✅ FIX: Call the listener initialization directly here
         initializeAchievementListener();
         return () => {
             cleanupAchievementListener();

@@ -1,4 +1,5 @@
-// src/services/MarkdownParser.ts
+
+// src/services/shared/MarkdownParser.ts
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';

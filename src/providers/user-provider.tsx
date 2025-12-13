@@ -7,7 +7,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { User } from '@/lib/types';
-import { createOrFetchUserProfile } from '@/services/user-service';
+import { createOrFetchUserProfile } from '@/services/server/user.service';
 import { UserContext, type UserContextType, type LevelUpInfo } from '@/contexts/user-context';
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

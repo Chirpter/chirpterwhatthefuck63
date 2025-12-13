@@ -20,7 +20,7 @@ import {
 import { Icon, type IconName } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { purchaseGlobalItem } from '@/services/user-service';
+import { purchaseGlobalItem } from '@/services/server/user.service';
 import type { Book, CombinedBookmark } from '@/lib/types';
 import { useShop } from '@/features/shop/hooks/useShop';
 import { BookItemCard } from '@/features/library/components/BookItemCard';
@@ -28,7 +28,7 @@ import { BookmarkCard } from '@/features/user/components/BookmarkCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CreditIcon } from '@/components/ui/CreditIcon';
+import { CreditIcon } from "@/components/ui/CreditIcon";
 
 type PurchasableItem = (Book & { itemType: 'book' }) | (CombinedBookmark & { itemType: 'bookmark' });
 
@@ -231,5 +231,3 @@ export default function ShopView() {
     </div>
   );
 }
-
-  

@@ -6,13 +6,12 @@
  * All functions in this file run exclusively in the browser.
  */
 
-import { getLocalDbForUser } from '@/services/local-database';
-import { enqueueSync } from '@/services/sync-service';
+import { getLocalDbForUser } from '@/services/client/local-database';
+import { enqueueSync } from '@/services/client/sync.service';
 import type { VocabularyItem, SrsState, VocabularyFilters, PaginationState, User } from '@/lib/types';
 import { VOCAB_VALIDATION, FOLDER_CONSTANTS } from '@/features/vocabulary/constants';
 import { removeUndefinedProps } from '@/lib/utils';
 import type { Collection } from 'dexie';
-import { checkAndUnlockAchievements } from '@/services/achievement-service';
 import { vocabularyEvents, VocabularyEventType } from '@/features/vocabulary/events/vocabulary-events';
 import { handleVocabularyError, createVocabularyError, VocabularyErrorCode } from '@/features/vocabulary/utils/error-handler';
 import { validateVocabFields } from '@/features/vocabulary/utils/validation.utils';
@@ -29,7 +28,7 @@ const generateSearchTerms = (term: string, meaning: string, example?: string): s
         if (!text) return;
         text.toLowerCase()
           .split(/[\s,.;:!?()]+/)
-          .filter(word => word.length >= VOCAB_VALIDATION.MIN_QUERY_LENGTH)
+          .filter(word => word.length >= VOCAB_VALIDATION.MIN_SEARCH_QUERY_LENGTH)
           .forEach(t => terms.add(t));
     };
 
@@ -80,7 +79,7 @@ export async function addVocabularyItem(
       await enqueueSync(user.uid, { type: 'create', table: 'vocabulary', key: id, payload });
     }
 
-    vocabularyEvents.emit('vocabulary:item:added', { userId: user.uid, item: newItem, source: 'manual' });
+    vocabularyEvents.emit(VocabularyEventType.ITEM_ADDED, { userId: user.uid, item: newItem, source: 'manual' });
     
     return newItem;
   } catch (error) {
@@ -116,7 +115,7 @@ export async function updateVocabularyItem(
         await enqueueSync(user.uid, { type: 'update', table: 'vocabulary', key: itemId, payload: updates });
     }
     
-    vocabularyEvents.emit('vocabulary:item:updated', { userId: user.uid, itemId, updates, previousState: await localDb.vocabulary.get(itemId) });
+    vocabularyEvents.emit(VocabularyEventType.ITEM_UPDATED, { userId: user.uid, itemId, updates, previousState: await localDb.vocabulary.get(itemId) });
 
     return updatedItem;
   } catch (error) {
@@ -137,7 +136,7 @@ export async function deleteVocabularyItem(user: User, itemId: string): Promise<
         await enqueueSync(user.uid, { type: 'delete', table: 'vocabulary', key: itemId });
     }
     
-    vocabularyEvents.emit('vocabulary:item:deleted', { userId: user.uid, itemId, deletedItem: itemToDelete });
+    vocabularyEvents.emit(VocabularyEventType.ITEM_DELETED, { userId: user.uid, itemId, deletedItem: itemToDelete });
 
   } catch (error) {
     handleVocabularyError(error, 'deleteVocabularyItem');
@@ -164,16 +163,12 @@ export async function getVocabularyItemsPaginated(
     context,
   } = options;
 
-  console.log('[DEBUG] Entering getVocabularyItemsPaginated with options:', { userId, folder, searchTerm, limit, offset, sortBy, sortOrder, context });
-
   try {
     // 1. Start with the base query for the user
     let baseQuery: Collection<VocabularyItem, string> = localDb.vocabulary.where({ userId });
-    console.log('[DEBUG] Initial query created for userId:', userId);
 
     // 2. Fetch all matching items first (we will filter in-memory)
     const allMatchingItems = await baseQuery.toArray();
-    console.log(`[DEBUG] Fetched ${allMatchingItems.length} total items for user to filter.`);
 
     // 3. Apply filters in-memory
     const filteredItems = allMatchingItems.filter(item => {
@@ -188,13 +183,12 @@ export async function getVocabularyItemsPaginated(
           passes = item.folder === folder;
         }
       }
-      if (passes && searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_QUERY_LENGTH) {
+      if (passes && searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_SEARCH_QUERY_LENGTH) {
         const searchLower = searchTerm.toLowerCase();
         passes = (item.searchTerms || []).some(st => st.includes(searchLower));
       }
       return passes;
     });
-    console.log(`[DEBUG] Found ${filteredItems.length} items after filtering.`);
 
     // 4. Sort the filtered results
     filteredItems.sort((a, b) => {
@@ -204,12 +198,10 @@ export async function getVocabularyItemsPaginated(
       if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
-    console.log('[DEBUG] Sorting applied.');
 
     // 5. Paginate the final, sorted array
     const paginatedItems = filteredItems.slice(offset, offset + limit);
     const hasMore = filteredItems.length > offset + limit;
-    console.log('[DEBUG] Pagination result:', { hasMore, returnedItems: paginatedItems.length });
 
     return { items: paginatedItems, hasMore };
 

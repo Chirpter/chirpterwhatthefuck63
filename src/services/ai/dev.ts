@@ -1,8 +1,8 @@
-
+'use server';
 import { config } from 'dotenv';
 config();
 
-import '@/services/ai/flows/translate-text.flow';
+import './flows/translate-text.flow';
 import '@/features/learning/services/ai/analyze-shadowing.flow';
 
 // The generate-cover-image-flow is now implicitly used by the book creation service

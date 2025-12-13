@@ -1,10 +1,10 @@
-// src/services/vocabulary-service.ts
+// src/services/server/vocabulary.service.ts
 'use server'; // This directive applies to all functions in this file.
 
 import { collection, writeBatch, query, getDocs, orderBy, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase'; // This should be the client-side db instance
 import { convertTimestamps, removeUndefinedProps } from '@/lib/utils';
-import type { SyncAction } from '@/services/local-database';
+import type { SyncAction } from '@/services/client/local-database';
 import { handleVocabularyError, VocabularyErrorCode } from '@/features/vocabulary/utils/error-handler';
 import type { VocabularyItem } from '@/lib/types';
 

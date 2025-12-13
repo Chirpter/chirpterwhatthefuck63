@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Spaced Repetition System (SRS) Service.
  *
@@ -15,10 +16,10 @@
 import { getLocalDbForUser } from './local-database';
 import type { VocabularyItem, SrsState, User } from '@/lib/types';
 import { POINT_THRESHOLDS, POINT_VALUES, STREAK_BONUSES } from '@/lib/constants';
-import { removeUndefinedProps } from '../lib/utils';
+import { removeUndefinedProps } from '../../lib/utils';
 import { doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { checkAndUnlockAchievements } from './achievement-service';
+import { checkAndUnlockAchievements } from '../server/achievement.service';
 
 // --- NEW SRS Algorithm Constants (Point-based) ---
 const MIN_POINTS = 0; // Start at 0 points

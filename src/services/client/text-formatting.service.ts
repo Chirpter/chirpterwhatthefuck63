@@ -1,5 +1,6 @@
 
-// src/services/text-formatting.service.ts
+
+// src/services/client/text-formatting.service.ts
 
 /**
  * @fileoverview Service for applying simple markdown-like auto-formatting to HTML content.

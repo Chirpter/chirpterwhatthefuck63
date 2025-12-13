@@ -1,4 +1,3 @@
-
 // src/features/vocabulary/utils/validation.utils.ts
 
 import { VOCABULARY_CONSTANTS } from '@/lib/constants';

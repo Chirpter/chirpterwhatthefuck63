@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback } from 'react';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 import { getVocabularyItemsByFolderAndSrsState } from '@/services/client/vocabulary-service';
 import type { VocabularyItem, SrsState } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';

@@ -1,4 +1,3 @@
-
 // src/features/vocabulary/constants/index.ts
 // ============================================================================
 // CENTRALIZED CONSTANTS FOR VOCABULARY FEATURE
@@ -62,7 +61,6 @@ export const FOLDER_CONSTANTS = {
   
   /**
    * Validation constants for vocabulary fields
-   * These should match VOCABULARY_CONSTANTS.VALIDATION in lib/constants
    */
   export const VOCAB_VALIDATION = {
     MAX_TERM_LENGTH: 100,

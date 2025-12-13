@@ -1,10 +1,11 @@
+
 // src/features/library/hooks/useLibraryItems.ts
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from '@/contexts/user-context';
 import type { LibraryItem, OverallStatus, VocabularyItem, VocabularyFilters } from '@/lib/types';
-import { getLibraryItems as serviceGetLibraryItems } from '@/services/library-service';
+import { getLibraryItems as serviceGetLibraryItems } from '@/services/server/library.service';
 import { getVocabularyItemsPaginated } from '@/services/client/vocabulary-service';
 import type { DocumentData } from 'firebase/firestore';
 

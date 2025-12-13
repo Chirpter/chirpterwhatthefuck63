@@ -1,5 +1,4 @@
-
-// src/services/error-manager.ts
+// src/services/client/error-manager.service.ts
 
 import { ApiServiceError } from '@/lib/errors';
 
