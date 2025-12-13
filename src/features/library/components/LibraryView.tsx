@@ -218,9 +218,9 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
     
     const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && hasMoreLibrary;
 
-    const bookItems = filteredItems.filter(item => item.type === 'book') as Book[];
-    const pieceItems = filteredItems.filter(item => item.type === 'piece') as Piece[];
-
+    const bookItems = useMemo(() => filteredItems.filter((item): item is Book => item.type === 'book'), [filteredItems]);
+    const pieceItems = useMemo(() => filteredItems.filter((item): item is Piece => item.type === 'piece'), [filteredItems]);
+    
     return (
       <>
         {contentType === 'book' && (
@@ -369,7 +369,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
 
 export default function LibraryView(props: LibraryViewProps) {
   const { availableBookmarks, isLoading: bookmarksLoading } = useBookmarks();
-  const libraryHook = useLibrary({ contentType: props.contentType, enabled: false });
+  const libraryHook = useLibrary({ contentType: props.contentType === 'vocabulary' ? undefined : props.contentType, enabled: false });
 
   const libraryContextValue = useMemo(() => ({
     availableBookmarks,

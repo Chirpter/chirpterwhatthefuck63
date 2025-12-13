@@ -1,4 +1,3 @@
-
 // src/features/library/hooks/useLibrary.ts
 
 import { useState, useMemo, useCallback } from 'react';
@@ -11,9 +10,10 @@ import { useLibraryItems } from './useLibraryItems';
 
 interface UseLibraryProps {
   contentType?: "book" | "piece";
+  enabled?: boolean; // Add enabled prop
 }
 
-export const useLibrary = ({ contentType }: UseLibraryProps) => {
+export const useLibrary = ({ contentType, enabled = true }: UseLibraryProps) => {
   const { t } = useTranslation(['common', 'libraryPage', 'toast']);
   const { toast } = useToast();
   const { user } = useUser();
@@ -31,13 +31,13 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
     hasMore,
     loadMoreItems,
     mutate, // Function to update local state
-  } = useLibraryItems({ contentType, status: 'all', limit: 100 });
+  } = useLibraryItems({ contentType, status: 'all', limit: 100, enabled });
 
   const filteredItems = useMemo(() => {
     let itemsToFilter = allItems;
     
     if (statusFilter !== 'all') {
-      itemsToFilter = itemsToFilter.filter(item => item.status === statusFilter);
+      itemsToFilter = itemsToFilter.filter(item => (item as LibraryItem).status === statusFilter);
     }
     
     if (searchTerm) {
@@ -50,7 +50,7 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
       });
     }
     
-    return itemsToFilter;
+    return itemsToFilter as LibraryItem[];
   }, [allItems, searchTerm, statusFilter]);
 
   const confirmDelete = useCallback((item: LibraryItem) => {
@@ -94,7 +94,7 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
     mutate(prevItems => {
         if (!prevItems) return [];
         return prevItems.map(item => 
-          item.id === itemId && item.type === 'book' 
+          item.id === itemId && (item as LibraryItem).type === 'book' 
             ? { ...item, selectedBookmark: newBookmarkId } 
             : item
         );
@@ -114,7 +114,7 @@ export const useLibrary = ({ contentType }: UseLibraryProps) => {
         if (!prevItems) return [];
         return prevItems.map(item =>
           item.id === itemId
-            ? { ...item, selectedBookmark: allItems.find(i => i.id === itemId)?.selectedBookmark || 'default' }
+            ? { ...item, selectedBookmark: (allItems.find(i => i.id === itemId) as LibraryItem)?.selectedBookmark || 'default' }
             : item
         );
       });
