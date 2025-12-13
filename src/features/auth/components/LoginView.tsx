@@ -177,22 +177,16 @@ export default function LoginView() {
         </CardContent>
       </Card>
 
-      {/* Enhanced loading overlay with progress indicator */}
+      {/* Simplified loading overlay */}
       {isSigningIn && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <Card className="w-full max-w-sm mx-4">
             <CardContent className="pt-6 pb-6">
               <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  <Logo className="h-12 w-12 text-primary animate-pulse" />
-                  <div className="absolute inset-0 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                </div>
-                <div className="text-center space-y-2">
+                <Logo className="h-12 w-12 text-primary animate-pulse" />
+                <div className="text-center space-y-1">
                   <p className="font-semibold">Signing you in...</p>
                   <p className="text-sm text-muted-foreground">Creating secure session</p>
-                </div>
-                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                  <div className="h-full bg-primary rounded-full animate-progress" />
                 </div>
               </div>
             </CardContent>
