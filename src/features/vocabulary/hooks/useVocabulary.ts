@@ -15,6 +15,7 @@ import {
 } from '@/services/client/vocabulary-service';
 import { useDebounce } from "@/hooks/useDebounce";
 import { useLibraryItems } from "@/features/library/hooks/useLibraryItems";
+import { FOLDER_CONSTANTS } from "../constants";
 
 const PAGE_SIZE = 25;
 
@@ -27,7 +28,7 @@ interface UseVocabularyProps {
 
 export function useVocabulary({ 
     enabled = true, 
-    initialFolder = 'unorganized',
+    initialFolder = FOLDER_CONSTANTS.UNORGANIZED,
     scope = 'global',
     context,
 }: UseVocabularyProps) {
@@ -39,7 +40,7 @@ export function useVocabulary({
   // Centralized data fetching hook for folder information
   const folderData = useLiveQuery(
     async () => {
-        if (!user?.uid || !enabled) return { folders: [], folderCounts: { unorganized: 0 } };
+        if (!user?.uid || !enabled) return { folders: [], folderCounts: { [FOLDER_CONSTANTS.UNORGANIZED]: 0 } };
         try {
             const [folders, folderCounts] = await Promise.all([
                 getUniqueFolders(user.uid),
@@ -48,11 +49,11 @@ export function useVocabulary({
             return { folders, folderCounts };
         } catch (err: any) {
             console.error(err);
-            return { folders: [], folderCounts: { unorganized: 0 } };
+            return { folders: [], folderCounts: { [FOLDER_CONSTANTS.UNORGANIZED]: 0 } };
         }
     },
     [user?.uid, enabled],
-    { folders: [], folderCounts: { unorganized: 0 } }
+    { folders: [], folderCounts: { [FOLDER_CONSTANTS.UNORGANIZED]: 0 } }
   );
   
   // Centralized data fetching for vocabulary items, now using the shared hook
@@ -76,7 +77,7 @@ export function useVocabulary({
     }
   }, [combinedFolders]);
 
-  const addItem = useCallback(async (newItemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memStrength' | 'streak' | 'attempts' | 'lastReview' | 'dueDate'>) => {
+  const addItem = useCallback(async (newItemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memoryStrength' | 'streak' | 'attempts' | 'lastReviewed' | 'dueDate'>) => {
     if (!user) throw new Error("User not authenticated");
     const itemWithContext = {
       ...newItemData,
@@ -119,7 +120,7 @@ export function useVocabulary({
     setFolderFilter,
     folderFilter,
     folders: combinedFolders,
-    folderCounts: folderData?.folderCounts || { unorganized: 0 },
+    folderCounts: folderData?.folderCounts || { [FOLDER_CONSTANTS.UNORGANIZED]: 0 },
     addItem,
     updateItem,
     deleteItem,

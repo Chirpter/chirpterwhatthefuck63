@@ -20,11 +20,12 @@ import { VocabularyFolderCard } from '@/features/vocabulary/components/vocab/Voc
 import { Separator } from '@/components/ui/separator';
 import { Flashcard } from '@/features/vocabulary/components/flashcards/Flashcard';
 import { AnimatePresence } from 'framer-motion';
-import * as srsService from "@/services/srs-service";
+import * as srsService from "@/services/client/srs-service";
 import AddVocabDialog from '@/features/vocabulary/components/dialogs/AddVocabDialog';
 import AddFolderDialog from '@/features/vocabulary/components/dialogs/AddFolderDialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FOLDER_CONSTANTS } from '@/features/vocabulary/constants';
 
 const trackDailyProgress = (itemId: string) => {
     const today = new Date().toISOString().split('T')[0];
@@ -78,7 +79,7 @@ export const MiniVocabView: React.FC = () => {
         addTransientFolder,
     } = useVocabulary({ 
         enabled: true, 
-        initialFolder: 'unorganized',
+        initialFolder: FOLDER_CONSTANTS.UNORGANIZED,
         scope: 'local',
         context: 'vocab-videos',
     });
@@ -228,8 +229,8 @@ export const MiniVocabView: React.FC = () => {
     
     const foldersToDisplay = useMemo(() => {
         const folderSet = new Set(folders);
-        if (!folderSet.has('unorganized')) {
-            return ['unorganized', ...folders];
+        if (!folderSet.has(FOLDER_CONSTANTS.UNORGANIZED)) {
+            return [FOLDER_CONSTANTS.UNORGANIZED, ...folders];
         }
         return folders;
     }, [folders]);
@@ -253,7 +254,7 @@ export const MiniVocabView: React.FC = () => {
                 {vocabulary.map(item => (
                     <VocabularyItemCard 
                         key={item.id}
-                        item={item} 
+                        item={item as VocabularyItem} 
                         onPronounce={handlePronounce} 
                         onEdit={setItemToEdit} 
                         onDelete={setItemToDelete} 
@@ -288,7 +289,7 @@ export const MiniVocabView: React.FC = () => {
                                 onPlaylistAdd={() => audioPlayer.addVocabFolderToPlaylist(folder, folder)}
                                 isSelected={folderFilter === folder}
                                 isPlaying={audioPlayer.currentPlayingItem?.itemId === folder && audioPlayer.isPlaying}
-                                isUncategorized={folder === 'unorganized'}
+                                isUncategorized={folder === FOLDER_CONSTANTS.UNORGANIZED}
                                 className="origin-left scale-[0.9]"
                             />
                         ))}
@@ -402,7 +403,7 @@ export const MiniVocabView: React.FC = () => {
                 onOpenChange={setIsAddVocabOpen}
                 onSuccess={handleAddVocabSuccess}
                 allFolders={folders}
-                initialFolder={folderFilter !== 'unorganized' ? folderFilter : undefined}
+                initialFolder={folderFilter !== FOLDER_CONSTANTS.UNORGANIZED ? folderFilter : undefined}
                 context="vocab-videos" // Always 'vocab-videos' for this view
             />
 
