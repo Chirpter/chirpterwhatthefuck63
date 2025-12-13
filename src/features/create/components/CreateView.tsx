@@ -26,6 +26,7 @@ export default function CreateView() {
 
   const [activeTab, setActiveTab] = useState<'book' | 'piece'>('book');
   
+  // The single, unified hook that manages the "Creation Job"
   const job = useCreationJob({
     type: activeTab,
   });
@@ -33,17 +34,18 @@ export default function CreateView() {
   const handleTabChange = useCallback((newTab: string) => {
     const tabValue = newTab as 'book' | 'piece';
     setActiveTab(tabValue);
-    job.reset(tabValue); // Pass new type to reset function
+    // Reset the job state for the new type
+    job.reset(tabValue); 
   }, [job]);
 
   const pageTitle = t('createContentTitle');
   
   const { isBusy, validationMessage, canGenerate, creditCost, finalizedId, isRateLimited } = job;
 
+  // A stable ID for the form
   const formId = "creation-form";
   
   const submitButtonText = isRateLimited ? t('common:pleaseWait') : t('generateButton.default');
-
   const showCreditBadge = !isBusy && !finalizedId && !isRateLimited;
   const isSubmitDisabled = isBusy || !!validationMessage || !canGenerate || isRateLimited;
   
@@ -64,11 +66,10 @@ export default function CreateView() {
             />
         );
     }
-    // Correctly render the Piece preview component for the 'piece' tab
     return (
         <PieceItemCardRenderer
           item={job.jobData}
-          isPreview={false} // isPreview=false to show loading/final state
+          isPreview={false}
         />
     );
   };
@@ -82,6 +83,8 @@ export default function CreateView() {
         <div className="p-3 border-b">
            <h2 className="text-xl md:text-2xl font-headline font-semibold text-center md:text-left">{pageTitle}</h2>
         </div>
+        
+        {/* The Tabs component now only controls the active tab state */}
         <Tabs
           onValueChange={handleTabChange}
           value={activeTab}
@@ -95,14 +98,13 @@ export default function CreateView() {
           </div>
 
           <ScrollArea className="flex-grow">
-            <div className="p-4"> 
-              <TabsContent value="book" className="m-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0">
-                <CreationForm job={job} formId={formId} type="book"/>
-              </TabsContent>
-
-              <TabsContent value="piece" className="m-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0">
-                <CreationForm job={job} formId={formId} type="piece"/>
-              </TabsContent>
+            <div className="p-4">
+              {/* A single CreationForm handles rendering for both tabs */}
+              <CreationForm 
+                job={job} 
+                formId={formId} 
+                type={activeTab}
+              />
             </div>
           </ScrollArea>
         </Tabs>
