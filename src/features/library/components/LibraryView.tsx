@@ -107,7 +107,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   const handleAddVocabSuccess = useCallback(async (newItemData: Omit<VocabularyItem, 'id' | 'userId' | 'createdAt' | 'srsState' | 'memoryStrength' | 'streak' | 'attempts' | 'lastReviewed' | 'dueDate'>) => {
     try {
       await vocabularyHook.addItem(newItemData);
-      setIsAddVocabDialogOpen(false);
+      setIsAddDialogOpen(false);
       toast({ title: t('toast:addSuccessTitle'), description: t('toast:addSuccessDesc', { term: newItemData.term }) });
     } catch (error: any) {
       toast({
@@ -171,7 +171,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setIsAddVocabDialogOpen(true)}>
+                    <DropdownMenuItem onSelect={() => setIsAddDialogOpen(true)}>
                         <Icon name="ListChecks" className="mr-2 h-4 w-4" />
                         {t('vocabularyPage:addVocabDialog.title')}
                     </DropdownMenuItem>
@@ -268,7 +268,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
     <LibraryContext.Provider value={libraryContextValue}>
       <AddVocabDialog
         isOpen={isAddVocabDialogOpen}
-        onOpenChange={setIsAddVocabDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
         onSuccess={handleAddVocabSuccess}
         allFolders={vocabularyHook.folders}
         initialFolder={vocabularyHook.folderFilter !== 'unorganized' ? vocabularyHook.folderFilter : undefined}
