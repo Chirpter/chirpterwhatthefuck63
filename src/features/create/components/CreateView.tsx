@@ -16,6 +16,7 @@ import { CreationForm } from './CreationForm';
 import { BookGenerationAnimation } from '@/features/create/components/BookGenerationAnimation';
 import { useCreationJob } from '@/features/create/hooks/useCreationJob';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
+import type { Piece } from '@/lib/types';
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
@@ -66,11 +67,22 @@ export default function CreateView() {
             />
         );
     }
-    // For 'piece' tab
+    // For 'piece' tab, construct a preview item from form data
+    const previewItem: Partial<Piece> = {
+      ...job.jobData, // Use jobData as base in case it exists
+      display: job.formData.display,
+      aspectRatio: job.formData.aspectRatio,
+      // If there's no real data yet, provide a placeholder title.
+      // The renderer will know how to handle this.
+      title: job.jobData?.title || { primary: t('previewArea.pieceTitleDesktop') },
+      generatedContent: job.jobData?.generatedContent || [],
+      contentState: job.isBusy ? 'processing' : (job.jobData ? job.jobData.contentState : 'pending'),
+    };
+    
     return (
         <PieceItemCardRenderer
-          item={job.jobData}
-          isPreview={false} // Use the non-preview mode for the creation screen
+          item={previewItem as Piece}
+          isPreview={!job.jobData} // It's a preview until the final data arrives
         />
     );
   };
