@@ -193,7 +193,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
 
     if (isUiLoading || bookmarksLoading) {
       return (
-        <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 2xl:columns-6 gap-6 space-y-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-6">
           {[...Array(6)].map((_, i) => (
              <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse h-64 w-full break-inside-avoid">
                 <Skeleton className="h-48 bg-muted rounded-md mb-4" />
@@ -218,7 +218,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
       );
     }
     
-    const gridLayoutClasses = "columns-2 sm:columns-3 md:columns-4 lg:columns-4 xl:columns-5 2xl:columns-6 gap-6 space-y-6";
+    const gridLayoutClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6";
     const shouldShowLoadMore = filteredItems.length >= INITIAL_LOAD_THRESHOLD && libraryHook.hasMore;
 
     return (
