@@ -1,4 +1,3 @@
-
 // src/features/reader/components/PageContentRenderer.tsx
 
 "use client";
@@ -13,7 +12,7 @@ import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface PageContentRendererProps {
   page: Page;
-  presentationStyle: 'book' | 'card';
+  presentationStyle: 'document' | 'card';
   editorSettings: EditorSettings;
   itemData: LibraryItem | null;
   displayLang1: string;
@@ -86,7 +85,7 @@ export function PageContentRenderer({
   const currentSpokenLang = currentSegmentLanguage;
 
   const proseThemeClass = useMemo(() => {
-    if (presentationStyle === 'book') return 'prose dark:prose-invert';
+    if (presentationStyle === 'document') return 'prose dark:prose-invert';
     if (presentationStyle === 'card') {
         switch (editorSettings.background) {
             case 'bg-reader-sepia': return 'prose-on-sepia prose-dynamic';

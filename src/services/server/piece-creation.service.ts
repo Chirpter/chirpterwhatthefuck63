@@ -1,5 +1,3 @@
-
-
 // src/services/server/piece-creation.service.ts
 
 'use server';
@@ -170,7 +168,7 @@ CRITICAL RULES:
         const { output: aiOutput } = await pieceContentGenerationPrompt({ fullInstruction });
 
         if (!aiOutput || !aiOutput.markdownContent) {
-            throw new ApiServiceError('AI returned empty or invalid content for the piece.', "UNKNOWN");
+            throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
 
         const lines = aiOutput.markdownContent.trim().split('\n');

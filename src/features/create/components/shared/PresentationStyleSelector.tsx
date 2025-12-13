@@ -1,7 +1,7 @@
 // src/features/create/components/shared/PresentationStyleSelector.tsx
 
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Label } from '@/components/ui/label';
 import { Icon, type IconName } from '@/components/ui/icons';
@@ -21,9 +21,9 @@ const aspectRatioIcons: Record<'1:1' | '3:4' | '4:3', IconName> = {
 };
 
 interface PresentationStyleSelectorProps {
-  display: 'book' | 'card';
+  display: 'document' | 'card';
   aspectRatio: '1:1' | '3:4' | '4:3';
-  onDisplayChange: (display: 'book' | 'card') => void;
+  onDisplayChange: (display: 'document' | 'card') => void;
   onAspectRatioChange: (aspectRatio: '1:1' | '3:4' | '4:3') => void;
   disabled?: boolean;
 }

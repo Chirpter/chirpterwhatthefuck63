@@ -1,6 +1,6 @@
 // src/lib/types.ts
 
-import { VOCABULARY_CONSTANTS, BOOK_LENGTH_OPTIONS } from "./constants";
+import { BOOK_LENGTH_OPTIONS } from "./constants";
 import { z } from 'zod';
 
 // Custom error class for better error handling in vocab-videos service
@@ -178,7 +178,7 @@ interface BaseLibraryItem extends BaseDocument {
   price?: number;
   originId?: string;
   prompt?: string;
-  display: 'book' | 'card';
+  display: 'document' | 'card';
   tags?: string[];
   labels?: string[]; // Added for consistency with Firestore data model
   unit: ContentUnit;
@@ -238,7 +238,7 @@ export interface CreationFormValues {
   aiPrompt: string;
   tags: string[];
   title: MultilingualContent;
-  display: 'book' | 'card';
+  display: 'document' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
   origin: string;
   unit: ContentUnit; // Add unit to form values
