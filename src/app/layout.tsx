@@ -26,9 +26,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Fetch initial global data on the server
-  const systemBookmarks = await getSystemBookmarks();
-  const bookmarkMetadata = await getBookmarkMetadata();
+  // Fetch initial global data on the server in parallel
+  const [systemBookmarks, bookmarkMetadata] = await Promise.all([
+    getSystemBookmarks(),
+    getBookmarkMetadata()
+  ]);
 
   // Combine the data on the server before passing it down
   const combinedBookmarks = systemBookmarks.map(bookmark => ({
