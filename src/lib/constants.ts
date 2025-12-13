@@ -55,32 +55,6 @@ export const BOOK_LENGTH_OPTIONS = [
   { value: 'long-book', labelKey: 'bookLength.long-book', descriptionKey: 'bookLength.long-bookDescription', defaultChapters: 12, minChapters: 4, disabled: true },
 ] as const;
 
-export const VOCABULARY_CONSTANTS = {
-  CACHE: {
-    FOLDER_TTL: 30000,
-    MAX_SIZE: 100,
-  },
-  VALIDATION: {
-    MAX_TERM_LENGTH: 200,
-    MAX_MEANING_LENGTH: 500,
-    MAX_EXAMPLE_LENGTH: 1000,
-    MIN_SEARCH_QUERY_LENGTH: 2,
-    MAX_FOLDER_NAME_LENGTH: 50,
-  },
-  PAGINATION: {
-    DEFAULT_PAGE_SIZE: 20,
-  },
-  SEARCH: {
-    DEBOUNCE_MS: 300,
-    MIN_QUERY_LENGTH: 2,
-    STOP_WORDS: new Set(['the', 'a', 'an', 'and', 'or', 'but', 'is', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']),
-  },
-  FOLDER: {
-    MAX_ITEMS_PER_FOLDER: 200,
-  },
-} as const;
-
-
 export const AVG_TTS_SEGMENTS_PER_CHAPTER_HEURISTIC = 20;
 
 export const MAX_PROMPT_LENGTH = 500;

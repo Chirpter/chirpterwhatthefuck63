@@ -1,7 +1,6 @@
 // src/features/vocabulary/utils/validation.utils.ts
 
-import { VOCABULARY_CONSTANTS } from '@/lib/constants';
-import { FOLDER_CONSTANTS } from '../constants';
+import { VOCABULARY_CONSTANTS, FOLDER_CONSTANTS } from '../constants';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -39,7 +38,7 @@ export function validateFolderName(
   
   // Allow Unicode (for international names) but prevent dangerous file system characters
   // Blocked: < > : " / \ | ? * and control characters
-  if (/[<>:"\/\\|?*\x00-\x1F]/.test(trimmed)) {
+  if (/[<>:"/\\|?*\x00-\x1F]/.test(trimmed)) {
     return { isValid: false, error: 'Invalid characters in folder name' };
   }
   

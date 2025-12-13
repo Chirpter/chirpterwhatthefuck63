@@ -9,7 +9,7 @@
 import { getLocalDbForUser } from '@/services/client/local-database';
 import { enqueueSync } from '@/services/client/sync.service';
 import type { VocabularyItem, SrsState, VocabularyFilters, PaginationState, User } from '@/lib/types';
-import { VOCAB_VALIDATION, FOLDER_CONSTANTS } from '@/features/vocabulary/constants';
+import { VOCABULARY_CONSTANTS, FOLDER_CONSTANTS } from '@/features/vocabulary/constants';
 import { removeUndefinedProps } from '@/lib/utils';
 import type { Collection } from 'dexie';
 import { vocabularyEvents, VocabularyEventType } from '@/features/vocabulary/events/vocabulary-events';
@@ -28,7 +28,7 @@ const generateSearchTerms = (term: string, meaning: string, example?: string): s
         if (!text) return;
         text.toLowerCase()
           .split(/[\s,.;:!?()]+/)
-          .filter(word => word.length >= VOCAB_VALIDATION.MIN_SEARCH_QUERY_LENGTH)
+          .filter(word => word.length >= VOCABULARY_CONSTANTS.VALIDATION.MIN_SEARCH_QUERY_LENGTH)
           .forEach(t => terms.add(t));
     };
 
@@ -183,7 +183,7 @@ export async function getVocabularyItemsPaginated(
           passes = item.folder === folder;
         }
       }
-      if (passes && searchTerm && searchTerm.length >= VOCAB_VALIDATION.MIN_SEARCH_QUERY_LENGTH) {
+      if (passes && searchTerm && searchTerm.length >= VOCABULARY_CONSTANTS.VALIDATION.MIN_SEARCH_QUERY_LENGTH) {
         const searchLower = searchTerm.toLowerCase();
         passes = (item.searchTerms || []).some(st => st.includes(searchLower));
       }

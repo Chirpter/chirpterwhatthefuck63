@@ -62,12 +62,17 @@ export const FOLDER_CONSTANTS = {
   /**
    * Validation constants for vocabulary fields
    */
-  export const VOCAB_VALIDATION = {
-    MAX_TERM_LENGTH: 100,
-    MAX_MEANING_LENGTH: 500,
-    MAX_EXAMPLE_LENGTH: 500,
-    MAX_FOLDER_NAME_LENGTH: 50,
-    MIN_SEARCH_QUERY_LENGTH: 2,
+  export const VOCABULARY_CONSTANTS = {
+    VALIDATION: {
+      MAX_TERM_LENGTH: 100,
+      MAX_MEANING_LENGTH: 500,
+      MAX_EXAMPLE_LENGTH: 500,
+      MAX_FOLDER_NAME_LENGTH: 50,
+      MIN_SEARCH_QUERY_LENGTH: 2,
+    },
+    SEARCH: {
+      DEBOUNCE_MS: 300,
+    }
   } as const;
   
   /**
@@ -76,7 +81,6 @@ export const FOLDER_CONSTANTS = {
   export const VOCAB_UI = {
     DEFAULT_PAGE_SIZE: 25,
     SCROLL_DEBOUNCE_MS: 300,
-    SEARCH_DEBOUNCE_MS: 300,
   } as const;
   
   /**
@@ -98,3 +102,4 @@ export const FOLDER_CONSTANTS = {
   export function isReservedFolderName(name: string): boolean {
     return RESERVED_FOLDER_NAMES.includes(name.toLowerCase() as any);
   }
+  

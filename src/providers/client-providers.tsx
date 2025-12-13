@@ -13,7 +13,6 @@ import { AudioPlayerProvider } from '@/contexts/audio-player-context';
 import { VocabVideosProvider } from '@/features/learning/contexts/VocabVideosContext';
 import { AudioPlayer } from '@/features/player/components/AudioPlayer';
 import type { CombinedBookmark } from '@/lib/types';
-import { ThemeProvider } from '@/providers/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
 
@@ -33,32 +32,25 @@ export const ClientProviders = ({ initialBookmarks, children }: { initialBookmar
     }, []);
 
     return (
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-        >
-            <I18nextProvider i18n={i18n}>
-                <AuthProvider>
-                    <UserProvider>
-                        <SettingsProvider>
-                            <BookmarkProvider initialBookmarks={initialBookmarks}>
-                                <AudioPlayerProvider>
-                                    <VocabVideosProvider>
-                                        {children}
-                                        <Suspense fallback={null}>
-                                            <AudioPlayer />
-                                        </Suspense>
-                                        <Toaster />
-                                        {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
-                                    </VocabVideosProvider>
-                                </AudioPlayerProvider>
-                            </BookmarkProvider>
-                        </SettingsProvider>
-                    </UserProvider>
-                </AuthProvider>
-            </I18nextProvider>
-        </ThemeProvider>
+        <I18nextProvider i18n={i18n}>
+            <AuthProvider>
+                <UserProvider>
+                    <SettingsProvider>
+                        <BookmarkProvider initialBookmarks={initialBookmarks}>
+                            <AudioPlayerProvider>
+                                <VocabVideosProvider>
+                                    {children}
+                                    <Suspense fallback={null}>
+                                        <AudioPlayer />
+                                    </Suspense>
+                                    <Toaster />
+                                    {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
+                                </VocabVideosProvider>
+                            </AudioPlayerProvider>
+                        </BookmarkProvider>
+                    </SettingsProvider>
+                </UserProvider>
+            </AuthProvider>
+        </I18nextProvider>
     );
 };
