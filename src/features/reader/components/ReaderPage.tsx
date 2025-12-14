@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import type { Book, Piece, LibraryItem, Page, Segment, PresentationMode, Chapter, BilingualFormat } from '@/lib/types';
+import type { Book, Piece, LibraryItem, Page, PresentationMode, Chapter, BilingualFormat } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
@@ -21,7 +21,6 @@ import { db } from '@/lib/firebase';
 import { ReaderToolbar } from '@/features/reader/components/ReaderToolbar';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { PageCalculator } from '@/lib/pagination/PageCalculator';
 import { SegmentCalibrator } from '@/lib/pagination/SegmentCalibrator';
 import { getItemSegments } from '@/services/shared/MarkdownParser';
@@ -30,8 +29,8 @@ import { useMobile } from '@/hooks/useMobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { getLibraryItemById } from '@/services/client/library-service';
 import { regenerateBookContent } from '@/services/server/book-creation.service';
-import { PageContentRenderer } from './PageContentRenderer';
-
+import { BookRenderer } from './BookRenderer';
+import { PieceRenderer } from './PieceRenderer';
 
 const LookupPopover = dynamic(() => import('@/features/reader/components/LookupPopover'), { ssr: false });
 const AudioSettingsPopover = dynamic(() => import('@/features/player/components/AudioSettingsPopover').then(mod => mod.AudioSettingsPopover), { ssr: false });
@@ -87,7 +86,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const [item, setItem] = useState<LibraryItem | null>(null);
   const id = useMemo(() => item?.id || idFromUrl, [item, idFromUrl]);
   const [isLoadingItem, setIsLoadingItem] = useState(true);
-  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', sourceItem: null, sentenceContext: '' });
+  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', sourceItem: null, sentenceContext: '', context: 'reader' });
   
   const [isEditing, setIsEditing] = useState(false);
   const [editorSettings, setEditorSettings] = useEditorSettings(id);
@@ -214,6 +213,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         const book = item as Book;
         return (book.chapters || []).flatMap((chapter, index) => getItemSegments(item, index));
     }
+    // For Pieces, all segments are in generatedContent
     return getItemSegments(item);
   }, [item]);
 
@@ -248,15 +248,25 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     }
   }, [allBookSegments, pageCalculator]);
 
+  // Determine pagination mode based on presentation style
+  const needsPagination = useMemo(() => 
+    !isPreview && item && (item.presentationStyle === 'book' || item.presentationStyle === 'doc')
+  , [isPreview, item]);
+
   useEffect(() => {
-    // Only calculate pages for book and doc styles
-    if (!isPreview && item && (item.presentationStyle === 'book' || item.presentationStyle === 'doc')) {
-        calculatePages();
+    if (needsPagination) {
+      calculatePages();
+    } else if (item && item.presentationStyle === 'card') {
+      // For 'card' mode, create a single page with all segments
+      setPages([{ pageIndex: 0, items: allBookSegments, estimatedHeight: 0 }]);
+      setChapterStartPages([]);
+      setIsCalculatingPages(false);
     } else {
-        setIsCalculatingPages(false);
-        setPages([]); // No pages for 'card' style
+      setIsCalculatingPages(false);
+      setPages([]);
     }
-  }, [calculatePages, editorSettings, isPreview, item]);
+  }, [calculatePages, needsPagination, item, allBookSegments]);
+
 
   const currentChapterIndex = useMemo(() => {
     if (!item || item.type !== 'book' || chapterStartPages.length === 0) return 0;
@@ -313,6 +323,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
             chapterId: currentChapterData?.id,
             segmentId,
             sentenceContext,
+            context: 'reader',
         });
     } else if (lookupState.isOpen) {
       setLookupState(s => ({...s, isOpen: false}));
@@ -436,9 +447,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
             .map(c => `# ${'${c.title.en}'}\n...`) // Simple summary
             .join('\n');
             
-        // We call the same function, but the prompt will now include the summary
         await regenerateBookContent(user.uid, book.id, `Continue the story from this summary: ${'${existingContentSummary}'}`);
-        // The onSnapshot listener will automatically update the UI with new chapters
     } catch (error) {
         toast({
             title: t('common:error'),
@@ -461,7 +470,6 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
      <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 text-center bg-background">
       <h2 className="text-xl font-semibold">{t('common:error')}</h2>
       <p className="text-muted-foreground">{t('failedToLoadContent')}</p>
-
       <Button asChild className="mt-4"><Link href="/library/book">{t('common:backToLibrary')}</Link></Button>
     </div>
   );
@@ -477,10 +485,10 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   const currentPageData = pages[currentPageIndex];
   
   const renderContent = () => {
-    const presentationStyle = item.presentationStyle;
+    const { presentationStyle } = item;
 
     const pageContent = (
-        <PageContentRenderer
+        <BookRenderer
             page={currentPageData}
             presentationStyle={presentationStyle}
             editorSettings={editorSettings}
@@ -489,22 +497,22 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
             displayLang2={displayLang2}
         />
     );
-
+    
+    // For 'card' and 'doc', we wrap the content in the PieceRenderer frame
     if (presentationStyle === 'doc' || presentationStyle === 'card') {
-        const piece = item as Piece;
-        // The Renderer is just a frame now, the content is passed as children
         return (
-            <PieceItemCardRenderer item={piece} className={editorSettings.background}>
+            <PieceRenderer item={item as Piece} className={editorSettings.background}>
                 {isCalculatingPages ? (
                     <div className="flex items-center justify-center h-full"><Icon name="Loader2" className="h-8 w-8 animate-spin"/></div>
                 ) : (
-                    pageContent
+                  // 'card' scrolls, 'doc' shows paginated content
+                  presentationStyle === 'card' ? <ScrollArea className="h-full">{pageContent}</ScrollArea> : pageContent
                 )}
-            </PieceItemCardRenderer>
+            </PieceRenderer>
         );
     }
     
-    // Default to book style
+    // Default 'book' style
     return (
         <motion.div
             ref={contentContainerRef}
@@ -553,10 +561,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         {lookupState.isOpen && lookupState.rect && (
           <LookupPopover 
             {...lookupState}
-            sourceItem={item}
-            targetLanguage={i18n.language}
             onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
-            context="reader"
           />
         )}
       </Suspense>
@@ -630,7 +635,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                     </div>
                   )}
 
-                  {item.type === 'book' && (
+                  {needsPagination && (
                     <>
                       <Button variant="outline" size="icon" className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full z-20 opacity-0 group-hover/reader:opacity-100 transition-opacity disabled:opacity-0" disabled={currentPageIndex === 0} onClick={() => goToPage(currentPageIndex - 1)}>
                         <Icon name="ChevronLeft" className="h-5 w-5" />
@@ -659,3 +664,4 @@ export const ReaderPage = (props: { isPreview?: boolean }) => {
       <ReaderView {...props} />
   );
 }
+```
