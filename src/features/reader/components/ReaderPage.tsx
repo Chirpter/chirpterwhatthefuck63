@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import type { Book, Piece, LibraryItem, BookProgress, Page, Segment, PresentationMode, Chapter, BilingualFormat } from '@/lib/types';
+import type { Book, Piece, LibraryItem, Page, Segment, PresentationMode, Chapter, BilingualFormat } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
@@ -47,7 +47,7 @@ interface LookupState {
   sentenceContext: string;
 }
 
-const getStorageKey = (itemId: string) => `chirpter_reader_prefs_${itemId}`;
+const getStorageKey = (itemId: string) => `chirpter_reader_prefs_${'${itemId}'}`;
 
 const getStoredPresentationIntent = (itemId: string): string | null => {
     try {
@@ -132,7 +132,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 
     let newIntent: string;
     if (newDisplayLang2 !== 'none') {
-        newIntent = `${newDisplayLang1}-${newDisplayLang2}`;
+        newIntent = `${'${newDisplayLang1}'}-${'${newDisplayLang2}'}`;
     } else {
         newIntent = newDisplayLang1;
     }
@@ -186,7 +186,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
             }
         }
 
-        const docRef = doc(db, `users/${user.uid}/libraryItems`, idFromUrl);
+        const docRef = doc(db, `users/${'${user.uid}'}/libraryItems`, idFromUrl);
         unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const serverItem = { id: docSnap.id, ...docSnap.data() } as LibraryItem;
@@ -249,10 +249,14 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   }, [allBookSegments, pageCalculator]);
 
   useEffect(() => {
-    if (!isPreview) {
+    // Only calculate pages for book and doc styles
+    if (!isPreview && item && (item.presentationStyle === 'book' || item.presentationStyle === 'doc')) {
         calculatePages();
+    } else {
+        setIsCalculatingPages(false);
+        setPages([]); // No pages for 'card' style
     }
-  }, [calculatePages, editorSettings, isPreview]);
+  }, [calculatePages, editorSettings, isPreview, item]);
 
   const currentChapterIndex = useMemo(() => {
     if (!item || item.type !== 'book' || chapterStartPages.length === 0) return 0;
@@ -276,7 +280,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
 
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
@@ -429,11 +433,11 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     try {
         const book = item as Book;
         const existingContentSummary = book.chapters
-            .map(c => `# ${c.title.en}\n...`) // Simple summary
+            .map(c => `# ${'${c.title.en}'}\n...`) // Simple summary
             .join('\n');
             
         // We call the same function, but the prompt will now include the summary
-        await regenerateBookContent(user.uid, book.id, `Continue the story from this summary: ${existingContentSummary}`);
+        await regenerateBookContent(user.uid, book.id, `Continue the story from this summary: ${'${existingContentSummary}'}`);
         // The onSnapshot listener will automatically update the UI with new chapters
     } catch (error) {
         toast({
@@ -472,6 +476,73 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
   
   const currentPageData = pages[currentPageIndex];
   
+  const renderContent = () => {
+    const presentationStyle = item.presentationStyle;
+
+    const pageContent = (
+        <PageContentRenderer
+            page={currentPageData}
+            presentationStyle={presentationStyle}
+            editorSettings={editorSettings}
+            itemData={item}
+            displayLang1={displayLang1}
+            displayLang2={displayLang2}
+        />
+    );
+
+    if (presentationStyle === 'doc' || presentationStyle === 'card') {
+        const piece = item as Piece;
+        // The Renderer is just a frame now, the content is passed as children
+        return (
+            <PieceItemCardRenderer item={piece} className={editorSettings.background}>
+                {isCalculatingPages ? (
+                    <div className="flex items-center justify-center h-full"><Icon name="Loader2" className="h-8 w-8 animate-spin"/></div>
+                ) : (
+                    pageContent
+                )}
+            </PieceItemCardRenderer>
+        );
+    }
+    
+    // Default to book style
+    return (
+        <motion.div
+            ref={contentContainerRef}
+            className={cn("w-full max-w-3xl h-full shadow-xl overflow-hidden", editorSettings.background)}
+            drag={isMobile ? 'x' : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={handleDragEnd}
+        >
+            { isCalculatingPages ? (
+                <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
+                   <div>
+                        <Icon name="BookOpen" className="h-10 w-10 animate-pulse text-primary mx-auto" />
+                        <p className="mt-2">{t('paginating')}</p>
+                   </div>
+                </div>
+            ) : currentPageData ? (
+                pageContent
+            ) : (
+                <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
+                   {canGenerateNextChapters ? (
+                        <div className="space-y-4">
+                            <p>{t('generateMoreChaptersPrompt')}</p>
+                            <Button onClick={handleGenerateNextChapters} disabled={isGeneratingChapters}>
+                                {isGeneratingChapters && <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" />}
+                                {t('generateMoreChaptersButton')}
+                            </Button>
+                        </div>
+                   ) : (
+                        <p>No content to display.</p>
+                   )}
+                </div>
+            )}
+        </motion.div>
+    );
+  };
+
+
   return (
     <div 
       id="reader-veil"
@@ -531,11 +602,9 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                     <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm" onClick={handlePlayPause}>
                         <Icon name={playButtonIcon} className="h-4 w-4" />
                     </Button>
-                    {item.presentationStyle !== 'book' && (
-                        <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm" onClick={() => setIsEditing(true)}>
-                            <Icon name="PenLine" className="h-4 w-4" />
-                        </Button>
-                    )}
+                    <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm" onClick={() => setIsEditing(true)}>
+                        <Icon name="PenLine" className="h-4 w-4" />
+                    </Button>
                     <Suspense fallback={null}>
                         <AudioSettingsPopover item={item}>
                           <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm">
@@ -578,51 +647,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                   )}
                 </>
               )}
-
-            {item.type === 'piece' ? (
-                <PieceItemCardRenderer item={item} isPreview={isPreview} chapterIndex={0} />
-            ) : (
-                <motion.div
-                    ref={contentContainerRef}
-                    className="w-full max-w-3xl h-full shadow-xl bg-background overflow-hidden"
-                    drag={isMobile ? 'x' : false}
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.2}
-                    onDragEnd={handleDragEnd}
-                >
-                    { isCalculatingPages ? (
-                        <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
-                           <div>
-                                <Icon name="BookOpen" className="h-10 w-10 animate-pulse text-primary mx-auto" />
-                                <p className="mt-2">{t('paginating')}</p>
-                           </div>
-                        </div>
-                    ) : currentPageData ? (
-                        <PageContentRenderer 
-                                page={currentPageData}
-                                presentationStyle='book'
-                                editorSettings={editorSettings}
-                                itemData={item}
-                                displayLang1={displayLang1}
-                                displayLang2={displayLang2}
-                        />
-                    ) : (
-                        <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
-                           {canGenerateNextChapters ? (
-                                <div className="space-y-4">
-                                    <p>{t('generateMoreChaptersPrompt')}</p>
-                                    <Button onClick={handleGenerateNextChapters} disabled={isGeneratingChapters}>
-                                        {isGeneratingChapters && <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" />}
-                                        {t('generateMoreChaptersButton')}
-                                    </Button>
-                                </div>
-                           ) : (
-                                <p>No content to display.</p>
-                           )}
-                        </div>
-                    )}
-                </motion.div>
-            )}
+              {renderContent()}
           </div>
       </div>
     </div>

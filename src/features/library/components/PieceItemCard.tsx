@@ -33,8 +33,12 @@ export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
   // For now, we keep it as a direct link.
 
   return (
-    <Link href={`/read/${work.id}`} className="block break-inside-avoid">
-        <PieceItemCardRenderer item={work} isPreview={true} />
+    <Link href={`/read/${'${work.id}'}`} className="block break-inside-avoid">
+        <PieceItemCardRenderer item={work}>
+            {/* The actual content is rendered on the reader page. 
+                This preview could show a snippet or a placeholder. 
+                For now, it's handled by the renderer's logic. */}
+        </PieceItemCardRenderer>
     </Link>
   );
 }

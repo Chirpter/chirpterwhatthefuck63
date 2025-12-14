@@ -16,6 +16,7 @@ import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
+import type { Piece } from '@/lib/types';
 
 interface CreationFormProps {
   job: any; // The entire hook result
@@ -33,7 +34,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
     handleFileChange,
     handleChapterCountBlur,
     handlePromptFocus,
-    handleDisplayChange,
+    handlePresentationStyleChange,
     handleAspectRatioChange,
     isPromptDefault,
     isBusy,
@@ -62,9 +63,10 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
             />
         ) : (
            <PieceItemCardRenderer
-              item={jobData}
-              isPreview={false}
-           />
+              item={jobData as Piece | null}
+           >
+              {/* Content is rendered by ReaderPage for pieces, preview shows placeholder */}
+           </PieceItemCardRenderer>
         )}
     </div>
   ) : null;
@@ -100,7 +102,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
             maxLength={MAX_PROMPT_LENGTH}
           />
           <div className="text-right text-xs text-muted-foreground pt-1">
-            {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`}
+            {`${'${formData.aiPrompt.length}'} / ${'${MAX_PROMPT_LENGTH}'}`}
           </div>
           {promptError === 'empty' && (
             <p className="text-xs text-destructive">{t('formErrors.prompt.empty')}</p>
@@ -136,9 +138,9 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
         
         {type === 'piece' && (
             <PresentationStyleSelector
-                display={formData.display}
-                aspectRatio={formData.aspectRatio}
-                onDisplayChange={handleDisplayChange}
+                presentationStyle={formData.presentationStyle as 'doc' | 'card'}
+                aspectRatio={formData.aspectRatio!}
+                onPresentationStyleChange={handlePresentationStyleChange}
                 onAspectRatioChange={handleAspectRatioChange}
                 disabled={isBusy}
             />

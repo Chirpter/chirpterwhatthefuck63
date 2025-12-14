@@ -44,14 +44,14 @@ const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string):
   if (type === 'piece') {
     return {
       ...baseData,
-      display: 'doc' as const,
+      presentationStyle: 'doc' as const,
       aspectRatio: '3:4' as const,
     };
   }
   
   return {
     ...baseData,
-    display: 'doc' as const,
+    presentationStyle: 'book' as const,
   };
 };
 
@@ -73,7 +73,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
-    return sessionStorage.getItem(`activeJobId_${user.uid}`) || null;
+    return sessionStorage.getItem(`activeJobId_${'${user.uid}'}`) || null;
   });
   
   const [jobData, setJobData] = useState<LibraryItem | null>(null);
@@ -199,7 +199,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
         const [primary, secondary] = newFormData.availableLanguages;
         let newOrigin = primary;
-        if (secondary) newOrigin += `-${secondary}`;
+        if (secondary) newOrigin += `-${'${secondary}'}`;
         if (newFormData.unit === 'phrase' && secondary) newOrigin += '-ph';
         newFormData.origin = newOrigin;
 
@@ -226,8 +226,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     }
   }, [isPromptDefault]);
   
-  const handleDisplayChange = useCallback((display: 'doc' | 'card') => {
-    setFormData(prev => ({ ...prev, display }));
+  const handlePresentationStyleChange = useCallback((style: 'doc' | 'card') => {
+    setFormData(prev => ({ ...prev, presentationStyle: style }));
   }, []);
 
   const handleAspectRatioChange = useCallback((aspectRatio: '1:1' | '3:4' | '4:3') => {
@@ -243,7 +243,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+    if(user?.uid) sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
   }, [user?.uid, t]);
 
   useEffect(() => {
@@ -275,7 +275,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     try {
       const jobId = await createLibraryItem(formData);
       setActiveId(jobId);
-      sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
+      sessionStorage.setItem(`activeJobId_${'${user.uid}'}`, jobId);
       
       toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {
@@ -287,7 +287,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   useEffect(() => {
     if (!activeId || !user) return;
 
-    const docRef = doc(db, `users/${user.uid}/libraryItems/${activeId}`);
+    const docRef = doc(db, `users/${'${user.uid}'}/libraryItems`, activeId);
     unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
       if (!snapshot.exists()) return;
       
@@ -308,7 +308,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         setFinalizedId(activeId);
         setIsBusy(false);
         setActiveId(null);
-        if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+        if(user?.uid) sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
       }
     });
     
@@ -316,8 +316,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, [activeId, user]);
 
   const handleViewResult = useCallback(() => {
-    if (finalizedId) router.push(`/library/${type}/${finalizedId}`);
-  }, [finalizedId, type, router]);
+    if (finalizedId) router.push(`/read/${'${finalizedId}'}`);
+  }, [finalizedId, router]);
 
   useEffect(() => {
     return () => {
@@ -329,7 +329,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     formData, isPromptDefault, promptError, isBusy, activeId, jobData, finalizedId, creditCost,
     validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
     handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
-    handleDisplayChange, handleAspectRatioChange, handleSubmit, handleViewResult, reset,
+    handlePresentationStyleChange, handleAspectRatioChange, handleSubmit, handleViewResult, reset,
     isRateLimited, 
   };
 }

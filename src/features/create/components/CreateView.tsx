@@ -17,6 +17,9 @@ import { BookGenerationAnimation } from '@/features/create/components/BookGenera
 import { useCreationJob } from '@/features/create/hooks/useCreationJob';
 import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import type { Piece } from '@/lib/types';
+import { PageContentRenderer } from '@/features/reader/components/PageContentRenderer';
+import { useEditorSettings } from '@/hooks/useEditorSettings';
+import { getItemSegments } from '@/services/shared/MarkdownParser';
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
@@ -31,6 +34,8 @@ export default function CreateView() {
   const job = useCreationJob({
     type: activeTab,
   });
+  
+  const [editorSettings] = useEditorSettings(null); // Settings for preview
 
   const handleTabChange = useCallback((newTab: string) => {
     const tabValue = newTab as 'book' | 'piece';
@@ -68,26 +73,35 @@ export default function CreateView() {
         );
     }
     
-    // ✅ UNIFIED PREVIEW LOGIC:
-    // The preview's appearance is ALWAYS driven by `formData`.
-    // The content is filled in by `jobData` when available.
-    const previewItem: Partial<Piece> = {
-        // Core data from the job result (if it exists)
-        ...job.jobData,
-        // Visual properties ALWAYS come from the form for instant feedback
-        display: job.formData.display,
-        aspectRatio: job.formData.aspectRatio,
-        // Content properties fall back to placeholders
-        title: job.jobData?.title || { primary: t('previewArea.pieceTitleDesktop') },
-        generatedContent: job.jobData?.generatedContent || [],
-        contentState: job.isBusy ? 'processing' : (job.jobData ? job.jobData.contentState : 'pending'),
-    };
+    // For pieces, we construct a temporary item for rendering
+    const tempPiece = {
+      ...job.jobData,
+      presentationStyle: job.formData.presentationStyle,
+      aspectRatio: job.formData.aspectRatio,
+      title: job.jobData?.title || { primary: t('previewArea.pieceTitleDesktop') },
+      generatedContent: job.jobData?.generatedContent || [],
+      contentState: job.isBusy ? 'processing' : (job.jobData ? job.jobData.contentState : 'pending'),
+    } as Piece;
     
+    const segments = getItemSegments(tempPiece, 0);
+
     return (
-        <PieceItemCardRenderer
-          item={previewItem as Piece}
-          isPreview={!job.jobData}
-        />
+        <PieceItemCardRenderer item={tempPiece} className={editorSettings.background}>
+             {job.isBusy ? (
+                <div className="flex h-full w-full items-center justify-center">
+                    <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" />
+                </div>
+            ) : (
+                <PageContentRenderer
+                    page={{ pageIndex: 0, items: segments.slice(0, 10), estimatedHeight: 0 }}
+                    presentationStyle={tempPiece.presentationStyle}
+                    editorSettings={editorSettings}
+                    itemData={tempPiece}
+                    displayLang1={job.formData.primaryLanguage}
+                    displayLang2={job.formData.availableLanguages[1] || 'none'}
+                />
+            )}
+        </PieceItemCardRenderer>
     );
   };
 

@@ -22,17 +22,17 @@ const aspectRatioIcons: Record<'1:1' | '3:4' | '4:3', IconName> = {
 };
 
 interface PresentationStyleSelectorProps {
-  display: 'doc' | 'card';
+  presentationStyle: 'doc' | 'card';
   aspectRatio: '1:1' | '3:4' | '4:3';
-  onDisplayChange: (display: 'doc' | 'card') => void;
+  onPresentationStyleChange: (style: 'doc' | 'card') => void;
   onAspectRatioChange: (aspectRatio: '1:1' | '3:4' | '4:3') => void;
   disabled?: boolean;
 }
 
 export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps> = ({
-  display,
+  presentationStyle,
   aspectRatio,
-  onDisplayChange,
+  onPresentationStyleChange,
   onAspectRatioChange,
   disabled,
 }) => {
@@ -52,10 +52,10 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
         {mainOptions.map(option => (
           <div
             key={option.value}
-            onClick={() => !disabled && onDisplayChange(option.value)}
+            onClick={() => !disabled && onPresentationStyleChange(option.value)}
             className={cn(
               "border rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all min-h-[90px]",
-              display === option.value
+              presentationStyle === option.value
                 ? "ring-2 ring-primary border-primary bg-primary/10"
                 : "border-border",
               !disabled
@@ -69,7 +69,7 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
         ))}
       </div>
 
-      {display === 'card' && (
+      {presentationStyle === 'card' && (
         <div className="pt-3 border-t">
           <Label className="text-xs text-muted-foreground">{t('presentationStyle.aspectRatio')}</Label>
           <div className="grid grid-cols-3 gap-2 mt-2">
