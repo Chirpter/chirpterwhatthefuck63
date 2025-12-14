@@ -27,6 +27,39 @@ const BookPromptInputSchema = z.object({
 });
 
 /**
+ * NEW: A modular function to build language-specific instructions for prompts.
+ * This centralizes the logic for both monolingual and bilingual content.
+ */
+function buildLanguageInstructions(
+  primaryLanguage: string,
+  secondaryLanguage: string | undefined,
+  contentType: 'book' | 'piece'
+): string[] {
+  const instructions: string[] = [];
+  
+  if (secondaryLanguage) {
+    const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
+    const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
+    
+    instructions.push(`- Bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}.`);
+    instructions.push("- The title is heading 1: eg # My Book Title {Tiêu đề của tôi}");
+    if (contentType === 'book') {
+      instructions.push("- Each chapter must begin with a Level 2 Markdown heading. Eg: ## Chapter 1: The Beginning {Chương 1: Sự Khởi Đầu}");
+    }
+  } else {
+    const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
+    instructions.push(`- Write in ${langLabel}.`);
+    instructions.push("- The title is heading 1: eg # My Book Title");
+    if (contentType === 'book') {
+      instructions.push("- Each chapter must begin with a Level 2 Markdown heading. Eg: ## Chapter 1: The Beginning");
+    }
+  }
+  
+  return instructions;
+}
+
+
+/**
  * The main background pipeline for processing all book generation tasks.
  * This function is not exported and is only called internally by this service.
  */
@@ -186,21 +219,9 @@ async function processContentGenerationForBook(
     const wordsPerChapter = Math.round(((bookLengthOption?.defaultChapters || 3) * 200) / (chaptersToGenerate || 3));
     const [primaryLanguage, secondaryLanguage] = origin.split('-');
 
-    const systemInstructions: string[] = ['- Use Markdown format.'];
-
-    // Language instructions
-    if (secondaryLanguage) {
-        const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
-        const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
-        systemInstructions.push(`- Bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}.`);
-        systemInstructions.push("- The title MUST be a Level 1 Markdown heading: eg. # My Book Title {Tiêu đề của tôi}");
-        systemInstructions.push("- Each chapter must begin with a Level 2 Markdown heading: eg. ## Chapter 1: The Beginning {Chương 1: Sự Khởi Đầu}");
-    } else {
-        const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
-        systemInstructions.push(`- Write all content and titles in ${langLabel}.`);
-        systemInstructions.push("- The title MUST be a Level 1 Markdown heading: eg. # My Book Title");
-        systemInstructions.push("- Each chapter must begin with a Level 2 Markdown heading: eg. ## Chapter 1: The Beginning");
-    }
+    const systemInstructions = [
+        ...buildLanguageInstructions(primaryLanguage, secondaryLanguage, 'book'),
+    ];
 
     // Structure instructions
     if (generationScope === 'partial-book' && totalChapterOutlineCount) {
