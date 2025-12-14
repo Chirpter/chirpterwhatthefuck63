@@ -61,6 +61,9 @@ export interface Chapter {
   title: ChapterTitle;
   segments: Segment[]; // Uses the updated Segment type
   stats: ChapterStats;
+  metadata: {
+    primaryLanguage: string;
+  };
 }
 
 
@@ -416,3 +419,10 @@ export type Tier = {
 export type TierTask = 
 | { type: 'ref'; id: string; goal: number }
 | { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
+
+// This type was moved here from `piece-creation.service.ts` to be shared
+// between both creation services. It represents the input for a Genkit prompt.
+export const UnifiedContentGenPromptInputSchema = z.object({
+    userPrompt: z.string(),
+    systemPrompt: z.string(),
+});

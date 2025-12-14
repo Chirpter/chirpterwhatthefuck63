@@ -19,6 +19,7 @@ import type { Piece } from '@/lib/types';
 import { BookRenderer } from '@/features/reader/components/BookRenderer';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { getItemSegments } from '@/services/shared/MarkdownParser';
+import { useCreationJob } from '../hooks/useCreationJob';
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
@@ -63,7 +64,7 @@ export default function CreateView() {
         return (
             <BookGenerationAnimation
                 isFormBusy={job.isBusy}
-                bookJobData={job.jobData as any}
+                bookJobData={job.jobData}
                 finalizedBookId={finalizedId}
                 bookFormData={job.formData}
                 onViewBook={job.handleViewResult}

@@ -17,9 +17,10 @@ import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
 import type { Piece } from '@/lib/types';
+import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
 
 interface CreationFormProps {
-  job: any; // The entire hook result
+  job: ReturnType<typeof useCreationJob>; // Use the imported type
   formId: string;
 }
 
@@ -64,8 +65,9 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
         ) : (
            <PieceRenderer
               item={jobData as Piece | null}
+              className={cn(isBusy && "animate-pulse")}
            >
-              {/* Content is rendered by ReaderPage for pieces, preview shows placeholder */}
+              {/* The content is now managed inside PieceRenderer */}
            </PieceRenderer>
         )}
     </div>
@@ -102,7 +104,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
             maxLength={MAX_PROMPT_LENGTH}
           />
           <div className="text-right text-xs text-muted-foreground pt-1">
-            {`${'${formData.aiPrompt.length}'} / ${'${MAX_PROMPT_LENGTH}'}`}
+            {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`}
           </div>
           {promptError === 'empty' && (
             <p className="text-xs text-destructive">{t('formErrors.prompt.empty')}</p>

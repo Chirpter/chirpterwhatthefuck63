@@ -5,10 +5,14 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { Piece } from '@/lib/types';
+import { useEditorSettings } from '@/hooks/useEditorSettings';
+import { BookRenderer } from './BookRenderer';
+import { getItemSegments } from '@/services/shared/MarkdownParser';
+import { Icon } from '@/components/ui/icons';
 
 interface PieceRendererProps {
-  item: Piece;
-  children: React.ReactNode;
+  item: Piece | null; // Allow null
+  children?: React.ReactNode;
   className?: string;
 }
 
@@ -33,6 +37,8 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
   children,
   className,
 }) => {
+  const [editorSettings] = useEditorSettings(item?.id || null);
+  
   const aspectRatioClass = useMemo(() => {
     if (item?.presentationStyle === 'card') {
       return getAspectRatioClass(item.aspectRatio);
@@ -45,7 +51,7 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
     return cn(
       "w-full shadow-xl overflow-hidden rounded-lg bg-background/95",
       aspectRatioClass,
-      item?.presentationStyle === 'doc' ? 'max-w-3xl' : 'max-w-md',
+      item?.presentationStyle === 'doc' ? 'max-w-3xl mx-auto' : 'max-w-md',
       className,
     );
   }, [item?.presentationStyle, aspectRatioClass, className]);
