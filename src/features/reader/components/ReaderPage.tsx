@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import type { Book, Piece, LibraryItem, Page, PresentationMode, Chapter, BilingualFormat } from '@/lib/types';
+import type { Book, Piece, LibraryItem, Page, PresentationMode, Chapter, BilingualFormat, Segment, VocabContext } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
@@ -44,6 +44,7 @@ interface LookupState {
   chapterId?: string;
   segmentId?: string;
   sentenceContext: string;
+  context: VocabContext;
 }
 
 const getStorageKey = (itemId: string) => `chirpter_reader_prefs_${'${itemId}'}`;
@@ -207,7 +208,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
 }, [idFromUrl, user, toast, t]);
 
 
-  const allBookSegments = useMemo((): Segment[] => {
+  const allBookSegments: Segment[] = useMemo(() => {
     if (!item) return [];
     if (item.type === 'book') {
         const book = item as Book;
@@ -562,6 +563,8 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         {lookupState.isOpen && lookupState.rect && (
           <LookupPopover 
             {...lookupState}
+            sourceLanguage={lookupState.sourceLang}
+            targetLanguage={i18n.language}
             onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
           />
         )}
@@ -583,7 +586,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                         {item.type === 'book' && (
                             <SheetContent side={isMobile ? "bottom" : "left"} className="w-full max-w-xs p-0 flex flex-col">
                                 <SheetHeader className="p-4 border-b">
-                                    <SheetTitle className="font-headline text-lg text-primary truncate">{item.title[displayLang1]}</SheetTitle>
+                                    <SheetTitle className="font-headline text-lg text-primary truncate">{item.title[displayLang1] as string}</SheetTitle>
                                 </SheetHeader>
                                 <ScrollArea className="flex-1">
                                     <div className="p-2 font-body">
@@ -597,7 +600,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                                                 )}
                                                 onClick={() => handleChapterSelect(index)}
                                             >
-                                                <span className="truncate">{chapter.title[displayLang1]}</span>
+                                                <span className="truncate">{chapter.title[displayLang1] as string}</span>
                                             </Button>
                                         ))}
                                     </div>
@@ -626,7 +629,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                           settings={editorSettings}
                           onSettingsChange={setEditorSettings}
                           onClose={() => setIsEditing(false)}
-                          bookTitle={item.title[displayLang1]}
+                          bookTitle={item.title[displayLang1] as string}
                           availableLanguages={availableLanguages}
                           displayLang1={displayLang1}
                           displayLang2={displayLang2}

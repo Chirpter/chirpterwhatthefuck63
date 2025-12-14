@@ -1,17 +1,17 @@
-// src/features/library/components/PieceItemCardRenderer.tsx
+// src/features/library/components/PieceRenderer.tsx
 
 "use client";
 
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
-import { PageContentRenderer } from '@/features/reader/components/PageContentRenderer';
+import { BookRenderer } from '@/features/reader/components/BookRenderer';
 import type { LibraryItem, Piece, Segment } from '@/lib/types';
 import { getItemSegments } from '@/services/shared/MarkdownParser';
 import { Icon } from '@/components/ui/icons';
 import { useTranslation } from 'react-i18next';
 
-interface PieceItemCardRendererProps {
+interface PieceRendererProps {
   item: LibraryItem | null;
   isPreview?: boolean;
   chapterIndex?: number;
@@ -35,7 +35,7 @@ const MAX_PREVIEW_SEGMENTS = 10;
  * both in the library (as a preview) and potentially in other places.
  * It is NOT a full page reader.
  */
-export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ item, isPreview, chapterIndex = 0 }) => {
+export const PieceRenderer: React.FC<PieceRendererProps> = ({ item, isPreview, chapterIndex = 0 }) => {
   const { t } = useTranslation(['createPage']);
   const [editorSettings] = useEditorSettings(item?.id || null);
   const pieceItem = item as Piece | null;
@@ -94,7 +94,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ it
                           <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" />
                       </div>
                   ) : (
-                      <PageContentRenderer
+                      <BookRenderer
                           page={{ pageIndex: 0, items: segmentsToRender, estimatedHeight: 0 }}
                           presentationStyle={pieceItem?.display || 'card'}
                           editorSettings={editorSettings}
