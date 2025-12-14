@@ -15,9 +15,9 @@ import { cn } from '@/lib/utils';
 import { CreationForm } from './CreationForm';
 import { BookGenerationAnimation } from '@/features/create/components/BookGenerationAnimation';
 import { useCreationJob } from '@/features/create/hooks/useCreationJob';
-import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 import type { Piece } from '@/lib/types';
-import { PageContentRenderer } from '@/features/reader/components/PageContentRenderer';
+import { BookRenderer } from '@/features/reader/components/BookRenderer';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { getItemSegments } from '@/services/shared/MarkdownParser';
 
@@ -86,13 +86,13 @@ export default function CreateView() {
     const segments = getItemSegments(tempPiece, 0);
 
     return (
-        <PieceItemCardRenderer item={tempPiece} className={editorSettings.background}>
+        <PieceRenderer item={tempPiece} className={editorSettings.background}>
              {job.isBusy ? (
                 <div className="flex h-full w-full items-center justify-center">
                     <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" />
                 </div>
             ) : (
-                <PageContentRenderer
+                <BookRenderer
                     page={{ pageIndex: 0, items: segments.slice(0, 10), estimatedHeight: 0 }}
                     presentationStyle={tempPiece.presentationStyle}
                     editorSettings={editorSettings}
@@ -101,7 +101,7 @@ export default function CreateView() {
                     displayLang2={job.formData.availableLanguages[1] || 'none'}
                 />
             )}
-        </PieceItemCardRenderer>
+        </PieceRenderer>
     );
   };
 

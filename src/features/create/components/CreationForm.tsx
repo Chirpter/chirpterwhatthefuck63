@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { CoverImageSettings } from './shared/CoverImageSettings';
 import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
-import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
 import type { Piece } from '@/lib/types';
@@ -62,11 +62,11 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
               onCreateAnother={() => reset(type)}
             />
         ) : (
-           <PieceItemCardRenderer
+           <PieceRenderer
               item={jobData as Piece | null}
            >
               {/* Content is rendered by ReaderPage for pieces, preview shows placeholder */}
-           </PieceItemCardRenderer>
+           </PieceRenderer>
         )}
     </div>
   ) : null;

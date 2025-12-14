@@ -1,4 +1,4 @@
-// src/features/reader/components/PageContentRenderer.tsx
+// src/features/reader/components/BookRenderer.tsx
 
 "use client";
 
@@ -10,7 +10,7 @@ import { SegmentRenderer } from './SegmentRenderer';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 
-interface PageContentRendererProps {
+interface BookRendererProps {
   page: Page;
   presentationStyle: 'book' | 'doc' | 'card';
   editorSettings: EditorSettings;
@@ -51,14 +51,14 @@ const groupSegmentsIntoParagraphs = (segments: Segment[]): Segment[][] => {
 };
 
 
-export function PageContentRenderer({ 
+export function BookRenderer({ 
     page, 
     presentationStyle, 
     editorSettings, 
     itemData,
     displayLang1 = 'en',
     displayLang2 = 'none',
-}: PageContentRendererProps) {
+}: BookRendererProps) {
   const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary, currentSegmentLanguage } = useAudioPlayer();
   const segments = page.items;
   

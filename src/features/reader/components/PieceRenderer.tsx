@@ -1,15 +1,13 @@
-// src/features/library/components/PieceItemCardRenderer.tsx
+// src/features/reader/components/PieceRenderer.tsx
 
 "use client";
 
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import type { LibraryItem, Piece, Segment } from '@/lib/types';
-import { Icon } from '@/components/ui/icons';
-import { useTranslation } from 'react-i18next';
+import type { Piece } from '@/lib/types';
 
-interface PieceItemCardRendererProps {
-  item: Piece | null;
+interface PieceRendererProps {
+  item: Piece;
   children: React.ReactNode;
   className?: string;
 }
@@ -25,18 +23,16 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 };
 
 /**
- * REFACTORED: This component is now ONLY a "frame" or "Lego block for ratio".
+ * The PieceRenderer acts as a 'frame' for Piece content.
  * It is responsible for creating a container with the correct presentation style
- * and aspect ratio for 'doc' and 'card' types.
- * It renders any children passed into it, which will typically be the PageContentRenderer.
+ * ('doc' or 'card') and aspect ratio.
+ * It renders any children passed into it, which will typically be a BookRenderer component.
  */
-export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({ 
+export const PieceRenderer: React.FC<PieceRendererProps> = ({ 
   item,
   children,
   className,
 }) => {
-  const { t } = useTranslation(['createPage']);
-
   const aspectRatioClass = useMemo(() => {
     if (item?.presentationStyle === 'card') {
       return getAspectRatioClass(item.aspectRatio);
@@ -48,9 +44,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({
   const cardClassName = useMemo(() => {
     return cn(
       "w-full shadow-xl overflow-hidden rounded-lg bg-background/95",
-      // Set aspect ratio for the card itself.
       aspectRatioClass,
-      // For a 'doc', it will have max-width, for 'card' it might be smaller.
       item?.presentationStyle === 'doc' ? 'max-w-3xl' : 'max-w-md',
       className,
     );
