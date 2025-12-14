@@ -531,7 +531,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                     <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm" onClick={handlePlayPause}>
                         <Icon name={playButtonIcon} className="h-4 w-4" />
                     </Button>
-                    {item.display !== 'book' && (
+                    {item.presentationStyle !== 'book' && (
                         <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm" onClick={() => setIsEditing(true)}>
                             <Icon name="PenLine" className="h-4 w-4" />
                         </Button>
@@ -600,7 +600,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                     ) : currentPageData ? (
                         <PageContentRenderer 
                                 page={currentPageData}
-                                presentationStyle='doc'
+                                presentationStyle='book'
                                 editorSettings={editorSettings}
                                 itemData={item}
                                 displayLang1={displayLang1}

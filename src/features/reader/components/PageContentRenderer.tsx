@@ -12,11 +12,11 @@ import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface PageContentRendererProps {
   page: Page;
-  presentationStyle: 'doc' | 'card';
+  presentationStyle: 'book' | 'doc' | 'card';
   editorSettings: EditorSettings;
   itemData: LibraryItem | null;
-  displayLang1: string;
-  displayLang2: string; // 'none' or language code
+  displayLang1?: string;
+  displayLang2?: string; // 'none' or language code
 }
 
 // Function to group segments into paragraphs
@@ -56,8 +56,8 @@ export function PageContentRenderer({
     presentationStyle, 
     editorSettings, 
     itemData,
-    displayLang1,
-    displayLang2,
+    displayLang1 = 'en',
+    displayLang2 = 'none',
 }: PageContentRendererProps) {
   const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary, currentSegmentLanguage } = useAudioPlayer();
   const segments = page.items;
@@ -104,7 +104,7 @@ export function PageContentRenderer({
             editorSettings.textAlign
         );
     }
-    // For 'doc' style
+    // For 'doc' or 'book' style
     return 'p-8 md:p-12';
   }, [presentationStyle, editorSettings]);
   

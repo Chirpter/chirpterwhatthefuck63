@@ -178,7 +178,7 @@ interface BaseLibraryItem extends BaseDocument {
   price?: number;
   originId?: string;
   prompt?: string;
-  display: 'doc' | 'card';
+  presentationStyle: string; // RENAMED from 'display'
   tags?: string[];
   labels?: string[]; // Added for consistency with Firestore data model
   unit: ContentUnit;
@@ -192,6 +192,7 @@ export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
  */
 export interface Book extends BaseLibraryItem {
   type: 'book';
+  presentationStyle: 'book'; // OVERRIDE for clarity
   author?: string;
   contentState: JobStatus;
   contentError?: string;
@@ -219,6 +220,7 @@ export interface EditorSettings {
  */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
+  presentationStyle: 'doc' | 'card'; // OVERRIDE for clarity
   generatedContent: Segment[];
   contentState: JobStatus;
   contentError?: string;
