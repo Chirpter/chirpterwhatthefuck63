@@ -500,8 +500,9 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     
     // For 'card' and 'doc', we wrap the content in the PieceRenderer frame
     if (presentationStyle === 'doc' || presentationStyle === 'card') {
+        const pieceItem = item as Piece;
         return (
-            <PieceRenderer item={item as Piece} className={editorSettings.background}>
+            <PieceRenderer item={pieceItem} className={editorSettings.background}>
                 {isCalculatingPages ? (
                     <div className="flex items-center justify-center h-full"><Icon name="Loader2" className="h-8 w-8 animate-spin"/></div>
                 ) : (
@@ -664,4 +665,3 @@ export const ReaderPage = (props: { isPreview?: boolean }) => {
       <ReaderView {...props} />
   );
 }
-```

@@ -14,7 +14,6 @@ import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { cn } from '@/lib/utils';
 import { CreationForm } from './CreationForm';
 import { BookGenerationAnimation } from '@/features/create/components/BookGenerationAnimation';
-import { useCreationJob } from '@/features/create/hooks/useCreationJob';
 import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 import type { Piece } from '@/lib/types';
 import { BookRenderer } from '@/features/reader/components/BookRenderer';
