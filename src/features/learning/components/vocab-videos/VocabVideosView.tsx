@@ -1,6 +1,7 @@
 
 
 
+
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -17,7 +18,7 @@ import { ControlBar } from './ControlBar';
 import { ContextSentences } from './ContextSentences';
 import { MiniVocabView } from '@/features/learning/components/vocab-videos/MiniVocabView';
 import { useVocabVideosContext } from '../../contexts/VocabVideosContext';
-import LookupPopover from '@/features/reader/components/LookupPopover';
+import LookupPopover from '@/features/lookup/components/LookupPopover';
 import { VocabVideoPlayer, type VocabVideoPlayerHandle } from './VocabVideoPlayer';
 import type { Piece } from '@/lib/types';
 import { useUser } from '@/contexts/user-context';
@@ -180,7 +181,7 @@ function VocabVideosView() {
         targetLanguage={i18n.language}
         sourceItem={lookupState.sourceItem}
         sentenceContext={lookupState.sentenceContext}
-        context="vocab-videos"
+        context={lookupState.context}
       />
       
       <h2 className="text-xl md:text-2xl font-headline font-semibold">

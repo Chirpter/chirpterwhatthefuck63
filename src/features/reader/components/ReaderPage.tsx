@@ -32,7 +32,7 @@ import { regenerateBookContent } from '@/services/server/book-creation.service';
 import { BookRenderer } from './BookRenderer';
 import { PieceRenderer } from './PieceRenderer';
 
-const LookupPopover = dynamic(() => import('@/features/reader/components/LookupPopover'), { ssr: false });
+const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 const AudioSettingsPopover = dynamic(() => import('@/features/player/components/AudioSettingsPopover').then(mod => mod.AudioSettingsPopover), { ssr: false });
 
 interface LookupState {
@@ -249,7 +249,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
     }
   }, [allBookSegments, pageCalculator]);
 
-  // Determine pagination mode based on presentation style
+  // Determine pagination mode based on presentationStyle
   const needsPagination = useMemo(() => 
     !isPreview && item && (item.presentationStyle === 'book' || item.presentationStyle === 'doc')
   , [isPreview, item]);
@@ -320,6 +320,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
             text: selectedText, 
             rect, 
             sourceLang,
+            targetLanguage: i18n.language,
             sourceItem: item,
             chapterId: currentChapterData?.id,
             segmentId,
@@ -563,8 +564,6 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         {lookupState.isOpen && lookupState.rect && (
           <LookupPopover 
             {...lookupState}
-            sourceLanguage={lookupState.sourceLang}
-            targetLanguage={i18n.language}
             onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
           />
         )}
@@ -586,7 +585,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                         {item.type === 'book' && (
                             <SheetContent side={isMobile ? "bottom" : "left"} className="w-full max-w-xs p-0 flex flex-col">
                                 <SheetHeader className="p-4 border-b">
-                                    <SheetTitle className="font-headline text-lg text-primary truncate">{item.title[displayLang1] as string}</SheetTitle>
+                                    <SheetTitle className="font-headline text-lg text-primary truncate">{(item.title as any)[displayLang1]}</SheetTitle>
                                 </SheetHeader>
                                 <ScrollArea className="flex-1">
                                     <div className="p-2 font-body">
@@ -600,7 +599,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                                                 )}
                                                 onClick={() => handleChapterSelect(index)}
                                             >
-                                                <span className="truncate">{chapter.title[displayLang1] as string}</span>
+                                                <span className="truncate">{(chapter.title as any)[displayLang1]}</span>
                                             </Button>
                                         ))}
                                     </div>
@@ -629,7 +628,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                           settings={editorSettings}
                           onSettingsChange={setEditorSettings}
                           onClose={() => setIsEditing(false)}
-                          bookTitle={item.title[displayLang1] as string}
+                          bookTitle={(item.title as any)[displayLang1]}
                           availableLanguages={availableLanguages}
                           displayLang1={displayLang1}
                           displayLang2={displayLang2}

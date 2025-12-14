@@ -25,7 +25,7 @@ import {
 import { VideoSnippetPopover } from '@/features/learning/components/vocab-videos/VideoSnippetPopover';
 
 
-interface LookupPopoverProps {
+export interface LookupPopoverProps {
   text: string;
   sourceLanguage: string;
   targetLanguage: string;
@@ -98,9 +98,7 @@ const LookupPopoverContent: React.FC<Omit<LookupPopoverProps, 'isOpen' | 'onOpen
         exampleLanguage: getBcp47LangCode(sourceLanguage),
         chapterId,
         segmentId,
-        // ✅ CONTEXT ASSIGNMENT: This is where we "stamp" the origin of the saved word.
-        // The `context` prop is passed down from the parent component (`ReaderPage` or `VocabVideosView`).
-        context,
+        context: context,
         contextData: sourceItem.type === 'piece' ? (sourceItem as Piece).contextData : undefined,
       });
       toast({ title: 'Saved!', description: `"${text}" was added to your vocabulary.` });
@@ -150,7 +148,7 @@ const LookupPopoverContent: React.FC<Omit<LookupPopoverProps, 'isOpen' | 'onOpen
 };
 
 
-export const LookupPopover: React.FC<LookupPopoverProps> = ({ isOpen, onOpenChange, rect, ...props }) => {
+const LookupPopover: React.FC<LookupPopoverProps> = ({ isOpen, onOpenChange, rect, ...props }) => {
     return (
         <Popover open={isOpen} onOpenChange={onOpenChange}>
             <PopoverTrigger asChild>
