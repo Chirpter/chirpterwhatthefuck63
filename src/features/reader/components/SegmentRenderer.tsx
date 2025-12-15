@@ -3,6 +3,8 @@
 'use client';
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import type { Segment, ContentUnit } from '@/lib/types';
 
@@ -17,75 +19,35 @@ interface SegmentRendererProps {
   unit: ContentUnit;
 }
 
-/**
- * Parses a string with simple markdown (bold, italic, strikethrough, headings) and returns an array of React nodes.
- * This is a client-side component responsible for rendering raw markdown.
- * @param text The string to parse.
- * @returns A React fragment containing the parsed elements.
- */
-const parseSimpleMarkdown = (text: string): React.ReactNode => {
-    if (!text) return null;
-    
-    // Split by newlines to handle paragraphs and headings line by line
-    const lines = text.split('\n');
-
-    return (
-        <>
-            {lines.map((line, lineIndex) => {
-                // Check for headings
-                if (line.startsWith('### ')) {
-                    return <h3 key={lineIndex} className="font-headline font-semibold text-lg mt-4">{line.substring(4)}</h3>;
-                }
-                if (line.startsWith('## ')) {
-                    return <h2 key={lineIndex} className="font-headline font-bold text-xl mt-6 border-b pb-1">{line.substring(3)}</h2>;
-                }
-                
-                // Regex to capture **bold**, *italic*, or ~~strikethrough~~ text
-                const regex = /(\*\*.*?\*\*|\*.*?\*|~~.*?~~)/g;
-                const parts = line.split(regex);
-                
-                // Render line as a paragraph if it's not a heading
-                return (
-                    <span key={lineIndex}>
-                        {parts.map((part, partIndex) => {
-                            if (part.startsWith('**') && part.endsWith('**')) {
-                                return <strong key={partIndex}>{part.slice(2, -2)}</strong>;
-                            }
-                            if (part.startsWith('*') && part.endsWith('*')) {
-                                return <em key={partIndex}>{part.slice(1, -1)}</em>;
-                            }
-                            if (part.startsWith('~~') && part.endsWith('~~')) {
-                                return <s key={partIndex}>{part.slice(2, -2)}</s>;
-                            }
-                            return part;
-                        })}
-                        <br/>
-                    </span>
-                );
-            })}
-        </>
-    );
-};
-
-const getWordHighlightContent = (text: string, boundary: { charIndex: number, charLength: number } | null): React.ReactNode => {
+const WordHighlight: React.FC<{ text: string; boundary: { charIndex: number, charLength: number } | null }> = ({ text, boundary }) => {
     if (boundary) {
-      const { charIndex, charLength } = boundary;
-      if (charIndex <= text.length) {
-        const pre = text.substring(0, charIndex);
-        const highlighted = text.substring(charIndex, charIndex + charLength);
-        const post = text.substring(charIndex + charLength);
-        
-        return (
-          <>
-            {parseSimpleMarkdown(pre)}
-            <span className="tts-word-highlight">{parseSimpleMarkdown(highlighted)}</span>
-            {parseSimpleMarkdown(post)}
-          </>
-        );
-      }
+        const { charIndex, charLength } = boundary;
+        if (charIndex <= text.length) {
+            const pre = text.substring(0, charIndex);
+            const highlighted = text.substring(charIndex, charIndex + charLength);
+            const post = text.substring(charIndex + charLength);
+            
+            return (
+                <>
+                    {pre}
+                    <span className="tts-word-highlight">{highlighted}</span>
+                    {post}
+                </>
+            );
+        }
     }
-    return parseSimpleMarkdown(text);
+    return <>{text}</>;
 };
+
+const MarkdownContent: React.FC<{ text: string; boundary?: { charIndex: number, charLength: number } | null }> = ({ text, boundary }) => {
+    if (boundary) {
+        return <WordHighlight text={text} boundary={boundary} />;
+    }
+    
+    // The `prose` classes are now applied in BookRenderer, so we don't need them here.
+    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
+};
+
 
 const renderSegmentContent = (
   segment: Segment,
@@ -99,24 +61,21 @@ const renderSegmentContent = (
 ) => {
   const { content } = segment;
 
-  // --- NEW: BI-PHRASE MODE RENDERING ---
   if (isBilingualMode && unit === 'phrase') {
       const primaryPhrases = content[displayLang1];
       const secondaryPhrases = content[displayLang2];
       
       if (!Array.isArray(primaryPhrases)) {
-          // Fallback for non-array phrase content
           const primaryText = content[displayLang1] as string || '';
           const secondaryText = content[displayLang2] as string || '';
           const isThisLangPlaying = isSegmentPlaying && spokenLang === displayLang1;
-          const contentToRender = isThisLangPlaying ? getWordHighlightContent(primaryText, speechBoundary) : parseSimpleMarkdown(primaryText);
           
           return (
              <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
-                {contentToRender}
+                <MarkdownContent text={primaryText} boundary={isThisLangPlaying ? speechBoundary : null} />
                 {secondaryText && (
                   <span className="text-muted-foreground italic text-[0.9em] ml-1">
-                      ({parseSimpleMarkdown(secondaryText)})
+                      (<MarkdownContent text={secondaryText} />)
                   </span>
                 )}
              </span>
@@ -129,10 +88,10 @@ const renderSegmentContent = (
                 const secondaryPhrase = Array.isArray(secondaryPhrases) ? secondaryPhrases[index] : '';
                 return (
                     <span key={index} className="inline mr-1">
-                        {parseSimpleMarkdown(phrase)}
+                        <MarkdownContent text={phrase} />
                         {secondaryPhrase && (
                             <span className="text-muted-foreground italic text-[0.9em] ml-1">
-                                ({parseSimpleMarkdown(secondaryPhrase)})
+                                (<MarkdownContent text={secondaryPhrase} />)
                             </span>
                         )}
                         {' '}
@@ -143,7 +102,6 @@ const renderSegmentContent = (
       );
   }
 
-  // --- EXISTING SENTENCE/MONOLINGUAL MODE RENDERING ---
   const renderContentForLang = (lang: string) => {
       const langContent = content[lang];
       if (!langContent || Array.isArray(langContent)) return null;
@@ -152,7 +110,7 @@ const renderSegmentContent = (
       
       return (
           <span className={cn(!isBilingualMode && isSegmentPlaying && "tts-highlight")}>
-              {isThisLangPlaying ? getWordHighlightContent(langContent, speechBoundary) : parseSimpleMarkdown(langContent)}
+              <MarkdownContent text={langContent} boundary={isThisLangPlaying ? speechBoundary : null} />
           </span>
       );
   };
