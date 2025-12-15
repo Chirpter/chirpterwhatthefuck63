@@ -7,15 +7,15 @@ import { useTranslation } from 'react-i18next';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Icon } from '@/components/ui/icons';
-import { AdvancedSettings } from './shared/AdvancedSettings';
+import { AdvancedSettings } from './book/AdvancedSettings';
 import { CreationLanguageSettings } from './shared/CreationLanguageSettings';
 import { cn } from '@/lib/utils';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
-import { CoverImageSettings } from './shared/CoverImageSettings';
-import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
+import { CoverImageSettings } from './book/CoverImageSettings';
+import { BookGenerationAnimation } from './book/BookGenerationAnimation';
+import { PieceRenderer } from './piece/PieceRenderer';
 import { useMobile } from '@/hooks/useMobile';
-import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
+import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
 import type { Piece, Book } from '@/lib/types';
 import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
 
