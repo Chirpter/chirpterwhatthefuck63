@@ -100,18 +100,14 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
     if (secondaryLang) {
         // --- BILINGUAL LOGIC ---
         const pairs: Array<MultilingualContent> = [];
-        // This regex finds all occurrences of `text {translation}`.
         const regex = /([^{}]+)\s*\{(.*?)\}/g;
         let lastIndex = 0;
         let match;
 
         while ((match = regex.exec(text)) !== null) {
-            // Capture any text between the last match and this one as monolingual primary
             if (match.index > lastIndex) {
                 const orphanText = cleanText(text.substring(lastIndex, match.index));
-                if (orphanText) {
-                    pairs.push({ [primaryLang]: orphanText });
-                }
+                if (orphanText) pairs.push({ [primaryLang]: orphanText });
             }
 
             const primaryText = cleanText(match[1]);
@@ -126,26 +122,17 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
             lastIndex = match.index + match[0].length;
         }
         
-        // Capture any remaining text at the end of the string
         if (lastIndex < text.length) {
             const remainingText = cleanText(text.substring(lastIndex));
-            if (remainingText) {
-                pairs.push({ [primaryLang]: remainingText });
-            }
+            if (remainingText) pairs.push({ [primaryLang]: remainingText });
         }
         return pairs;
     } else {
         // --- MONOLINGUAL LOGIC ---
-        const mappedItems = splitIntoSentences(text).map(sentence => {
-            const cleaned = cleanText(sentence);
-            return cleaned ? { [primaryLang]: cleaned } : null;
-        });
-        
-        // Use a type guard to filter out nulls and satisfy TypeScript
-        function isNotNullOrUndefined<T>(value: T | null | undefined): value is T {
-          return value !== null && value !== undefined;
-        }
-        return mappedItems.filter(isNotNullOrUndefined);
+        return splitIntoSentences(text)
+            .map(s => cleanText(s))
+            .filter(Boolean)
+            .map(s => ({ [primaryLang]: s }));
     }
 }
 
@@ -182,8 +169,6 @@ function processParagraphIntoSegments(
                 finalContent[secondaryLang] = []; // Ensure it's an array even if empty
             }
         } else {
-            // For 'sentence' unit, the content is already a string.
-            // We just need to make sure both languages are strings if they exist.
             finalContent[primaryLang] = Array.isArray(sentencePair[primaryLang]) ? (sentencePair[primaryLang] as string[]).join(' ') : sentencePair[primaryLang];
             if (secondaryLang && sentencePair[secondaryLang]) {
                 finalContent[secondaryLang] = Array.isArray(sentencePair[secondaryLang]) ? (sentencePair[secondaryLang] as string[]).join(' ') : sentencePair[secondaryLang];
@@ -210,15 +195,12 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
     const segments: Segment[] = [];
     let order = 0;
 
-    // Use a regex to split by \n\n OR by a markdown heading
     const blocks = markdown.split(/(\n\s*\n|(?=^##\s+)|(?=^###\s+))/g).filter(p => p && p.trim() !== '');
 
     for (const block of blocks) {
         const trimmedBlock = block.trim();
         if (!trimmedBlock) continue;
 
-        // If it's a Piece, we preserve headings as their own segment.
-        // If it's a Book, headings are already handled, so we just process content.
         if (isPiece && trimmedBlock.startsWith('#')) {
              segments.push({
                 id: generateLocalUniqueId(),
@@ -226,7 +208,6 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
                 content: { [origin.split('-')[0]]: trimmedBlock },
             });
         } else {
-            // Process the block into sentence/phrase segments
             const blockSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
             blockSegments.forEach((seg) => {
                 seg.order = order++;
@@ -254,34 +235,57 @@ export function parseBookMarkdown(
 
     let title: MultilingualContent = { [primaryLang]: 'Untitled' };
     let contentAfterTitle = markdown;
-
     const lines = markdown.split('\n');
-    const firstH1Index = lines.findIndex(line => line.trim().startsWith('# '));
 
+    // 1. Extract book title (#)
+    const firstH1Index = lines.findIndex(line => line.trim().startsWith('# '));
     if (firstH1Index !== -1) {
         const titleLine = lines[firstH1Index].trim().substring(2).trim();
         const extractedTitle = extractBilingualTextPairs(titleLine, primaryLang, secondaryLang)[0];
         if (extractedTitle) {
-          title = extractedTitle;
+            title = extractedTitle;
         }
-        // Remove the title from the content to be processed
         contentAfterTitle = lines.slice(firstH1Index + 1).join('\n');
     }
 
-    const chapters: Chapter[] = [];
-    // Split by '## ' but keep the delimiter in the next chunk, so we know it's a chapter
-    const chapterSplitRegex = /(?=##\s)/g;
-    const chapterContents = contentAfterTitle.split(chapterSplitRegex).filter(c => c.trim() !== '');
+    // 2. Find all chapter heading (##) locations
+    const chapterIndices: number[] = [];
+    const contentLines = contentAfterTitle.split('\n');
+    contentLines.forEach((line, index) => {
+        if (line.trim().startsWith('## ')) {
+            chapterIndices.push(index);
+        }
+    });
 
-    const processChapter = (chapterText: string) => {
+    // 3. Create blocks of text for each chapter
+    const chapterBlocks: string[] = [];
+    if (chapterIndices.length === 0) {
+        // If no chapters found, treat the whole content as the first chapter
+        if (contentAfterTitle.trim()) {
+            chapterBlocks.push(`## Chapter 1\n${contentAfterTitle}`);
+        }
+    } else {
+        for (let i = 0; i < chapterIndices.length; i++) {
+            const start = chapterIndices[i];
+            const end = i + 1 < chapterIndices.length ? chapterIndices[i + 1] : undefined;
+            const chapterBlock = contentLines.slice(start, end).join('\n');
+            chapterBlocks.push(chapterBlock);
+        }
+    }
+
+    // 4. Process each chapter block
+    const chapters: Chapter[] = [];
+    chapterBlocks.forEach((chapterText) => {
         const chapterLines = chapterText.trim().split('\n');
-        const chapterTitleLine = chapterLines[0] || `Chapter ${'${chapters.length + 1}'}`;
-        // The rest of the lines are the content, now that the title line is removed
+        if (chapterLines.length === 0) return;
+
+        const chapterTitleLine = chapterLines[0] || '';
         const chapterContent = chapterLines.slice(1).join('\n');
         
-        const chapterTitle = extractBilingualTextPairs(chapterTitleLine.replace(/^##\s*/, ''), primaryLang, secondaryLang)[0] || { [primaryLang]: chapterTitleLine };
+        const chapterTitle = extractBilingualTextPairs(chapterTitleLine.replace(/^##\s*/, ''), primaryLang, secondaryLang)[0] || { [primaryLang]: `Chapter ${chapters.length + 1}` };
         const segments = parseMarkdownToSegments(chapterContent, origin, unit, false); // isPiece is false
 
+        // Only add chapter if it has content
         if (segments.length > 0) {
             chapters.push({
                 id: generateLocalUniqueId(),
@@ -291,23 +295,7 @@ export function parseBookMarkdown(
                 stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang), estimatedReadingTime: 1 },
             });
         }
-    };
-    
-    // If there are no '##' headings, treat the entire content as a single chapter
-    if (chapterContents.length === 0 && contentAfterTitle.trim()) {
-        const segments = parseMarkdownToSegments(contentAfterTitle, origin, unit, false); // isPiece is false
-        if (segments.length > 0) {
-            chapters.push({
-                id: generateLocalUniqueId(),
-                order: 0,
-                title: { [primaryLang]: `Chapter 1` },
-                segments,
-                stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang), estimatedReadingTime: 1 },
-            });
-        }
-    } else {
-        chapterContents.forEach(text => processChapter(text));
-    }
+    });
     
     return { title, chapters, unit };
 }
