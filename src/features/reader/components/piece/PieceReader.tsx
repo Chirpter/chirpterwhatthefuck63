@@ -1,10 +1,9 @@
 // src/features/reader/components/piece/PieceReader.tsx
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslation } from 'react-i18next';
-import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { useSettings } from '@/contexts/settings-context';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { cn } from '@/lib/utils';
@@ -21,6 +20,7 @@ interface LookupState {
   text: string;
   rect: DOMRect | null;
   sourceLang: string;
+  targetLanguage: string; // FIX: Added missing property
   sourceItem: LibraryItem | null;
   sentenceContext: string;
   context: VocabContext;
@@ -50,7 +50,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
   const [displayLang1, setDisplayLang1] = useState(piece.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(piece.langs[1] || 'none');
 
-  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', sourceItem: null, sentenceContext: '', context: 'reader' });
+  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
   const allSegments = useMemo(() => getItemSegments(piece), [piece]);
   
   const singlePage: Page = useMemo(() => ({
@@ -90,7 +90,8 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
 
         setLookupState({ 
             isOpen: true, text: selectedText, rect, sourceLang,
-            targetLanguage: i18n.language, sourceItem: piece, sentenceContext, context: 'reader',
+            targetLanguage: i18n.language, // FIX: Added targetLanguage
+            sourceItem: piece, sentenceContext, context: 'reader',
         });
     } else if (lookupState.isOpen) {
       setLookupState(s => ({...s, isOpen: false}));
@@ -129,14 +130,16 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
 
   return (
     <div id="reader-veil" className="w-full h-full fixed inset-0 z-40" onMouseUp={handleTextSelection}>
-        <Suspense>
-            {lookupState.isOpen && lookupState.rect && (
-            <LookupPopover 
-                {...lookupState}
-                onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
-            />
-            )}
-        </Suspense>
+      <Suspense>
+        {lookupState.isOpen && lookupState.rect && (
+          <LookupPopover 
+            {...lookupState}
+            sourceLanguage={lookupState.sourceLang} // FIX: Pass correct props
+            targetLanguage={lookupState.targetLanguage} // FIX: Pass correct props
+            onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
+          />
+        )}
+      </Suspense>
 
       <div id="reader-studio-container" className={mainContainerClasses}>
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
