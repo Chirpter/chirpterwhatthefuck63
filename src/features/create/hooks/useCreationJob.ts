@@ -73,7 +73,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
-    return sessionStorage.getItem(`activeJobId_${'${user.uid}'}`) || null;
+    return sessionStorage.getItem(`activeJobId_${user.uid}`) || null;
   });
   
   const [jobData, setJobData] = useState<LibraryItem | null>(null);
@@ -107,7 +107,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     if (!user) return ''; 
     if (promptError === 'too_long') return 'formErrors.prompt.tooLong';
     
-    // ✅ FIX: Only check for empty prompt if the user has interacted with it.
     if (!isPromptDefault && formData.aiPrompt.trim() === '') {
         return 'formErrors.prompt.empty';
     }
@@ -128,8 +127,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, [formData, promptError, user, isPromptDefault]);
 
   const canGenerate = useMemo(() => {
-    // ✅ FIX: Do not block generation if the prompt is default.
-    // Block only if there's an actual validation message.
     if (validationMessage) return false;
     
     return user && user.credits >= creditCost;
@@ -199,7 +196,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
         const [primary, secondary] = newFormData.availableLanguages;
         let newOrigin = primary;
-        if (secondary) newOrigin += `-${'${secondary}'}`;
+        if (secondary) newOrigin += `-${secondary}`;
         if (newFormData.unit === 'phrase' && secondary) newOrigin += '-ph';
         newFormData.origin = newOrigin;
 
@@ -243,7 +240,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    if(user?.uid) sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
+    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
   }, [user?.uid, t]);
 
   useEffect(() => {
@@ -252,7 +249,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    // ✅ FIX: Check the validation message directly, which now correctly handles the default prompt state.
     if (!user || validationMessage || isRateLimited) {
         if (!isPromptDefault && formData.aiPrompt.trim() === '') {
             setPromptError('empty');
@@ -275,7 +271,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     try {
       const jobId = await createLibraryItem(formData);
       setActiveId(jobId);
-      sessionStorage.setItem(`activeJobId_${'${user.uid}'}`, jobId);
+      sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       
       toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {
@@ -287,14 +283,13 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   useEffect(() => {
     if (!activeId || !user) return;
 
-    const docRef = doc(db, `users/${'${user.uid}'}/libraryItems`, activeId);
+    const docRef = doc(db, `users/${user.uid}/libraryItems`, activeId);
     unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
       if (!snapshot.exists()) return;
       
       const data = snapshot.data() as LibraryItem;
       setJobData(data);
       
-      // Determine completion based on item type
       let isComplete = false;
       if (data.type === 'book') {
           const bookData = data as Book;
@@ -308,7 +303,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         setFinalizedId(activeId);
         setIsBusy(false);
         setActiveId(null);
-        if(user?.uid) sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
+        if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
       }
     });
     
@@ -316,7 +311,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, [activeId, user]);
 
   const handleViewResult = useCallback(() => {
-    if (finalizedId) router.push(`/read/${'${finalizedId}'}`);
+    if (finalizedId) router.push(`/read/${finalizedId}`);
   }, [finalizedId, router]);
 
   useEffect(() => {
