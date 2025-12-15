@@ -71,17 +71,15 @@ export default function CreateView() {
         );
     }
     
-    if (job.jobData) {
-      return <PieceItemCardRenderer item={job.jobData as Piece} />;
-    }
-    
-    // Placeholder for piece preview
+    // For pieces, we now use the centralized renderer
     return (
-      <div className="w-full h-full flex items-center justify-center p-4">
-        <div className="w-full max-w-md aspect-[3/4] bg-background/50 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground p-8 text-center">
-            {isBusy ? <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" /> : <p>{t('previewArea.piecePlaceholder')}</p>}
+        <div className="w-full h-full flex items-center justify-center p-4">
+            <PieceItemCardRenderer 
+              item={job.jobData as Piece | null}
+              isBusy={job.isBusy}
+              formData={job.formData}
+            />
         </div>
-      </div>
     );
   };
 
