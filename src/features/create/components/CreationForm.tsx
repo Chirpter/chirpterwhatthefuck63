@@ -16,7 +16,7 @@ import { BookGenerationAnimation } from '../components/BookGenerationAnimation';
 import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
-import type { Piece } from '@/lib/types';
+import type { Piece, Book } from '@/lib/types';
 import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
 
 interface CreationFormProps {
@@ -56,7 +56,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
         {type === 'book' ? (
             <BookGenerationAnimation
               isFormBusy={isBusy}
-              bookJobData={jobData}
+              bookJobData={jobData as Book | null}
               finalizedBookId={finalizedId}
               bookFormData={formData}
               onViewBook={handleViewResult}
