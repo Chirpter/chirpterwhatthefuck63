@@ -13,11 +13,11 @@ import { cn } from '@/lib/utils';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { CoverImageSettings } from './book/CoverImageSettings';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
-import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
 import type { Piece, Book } from '@/lib/types';
 import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
+import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 
 interface CreationFormProps {
   job: ReturnType<typeof useCreationJob>; // Use the imported type

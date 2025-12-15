@@ -15,9 +15,9 @@ import { cn } from '@/lib/utils';
 import { CreationForm } from './CreationForm';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
 import type { Piece, Book } from '@/lib/types';
-import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { useCreationJob } from '../hooks/useCreationJob';
+import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);

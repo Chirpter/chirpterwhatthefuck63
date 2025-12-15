@@ -5,7 +5,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Piece, LibraryItem } from "@/lib/types";
-import { PieceItemCardRenderer } from './PieceItemCardRenderer'; // UPDATED IMPORT
+import { PieceItemCardRenderer } from './PieceItemCardRenderer'; 
 
 interface PieceItemCardProps {
     work: Piece;
