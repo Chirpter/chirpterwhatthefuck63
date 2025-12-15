@@ -214,6 +214,7 @@ export interface EditorSettings {
   textAlign: 'text-left' | 'text-center' | 'text-right' | 'text-justify';
   verticalAlign: 'justify-start' | 'justify-center' | 'justify-end';
   background: string;
+  fontSize: 'sm' | 'base' | 'lg';
 }
 
 /**

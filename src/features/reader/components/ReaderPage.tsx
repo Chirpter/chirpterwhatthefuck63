@@ -23,7 +23,7 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PageCalculator } from '@/lib/pagination/PageCalculator';
 import { SegmentCalibrator } from '@/lib/pagination/SegmentCalibrator';
-import { getItemSegments } from '@/services/shared/MarkdownParser';
+import { getItemSegments } from '@/services/shared/SegmentParser';
 import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -500,16 +500,28 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
         />
     );
     
-    // For 'card' and 'doc', we wrap the content in the PieceRenderer frame
-    if (presentationStyle === 'doc' || presentationStyle === 'card') {
+    // For 'doc', we wrap the content in a div with the aspect ratio.
+    if (presentationStyle === 'doc') {
+      return (
+        <div className={cn("bg-card aspect-[1/1] w-full max-w-3xl", editorSettings.background)}>
+          {isCalculatingPages ? (
+            <div className="flex items-center justify-center h-full"><Icon name="Loader2" className="h-8 w-8 animate-spin"/></div>
+          ) : (
+            pageContent
+          )}
+        </div>
+      );
+    }
+
+    // For 'card', we use PieceRenderer which handles its own aspect ratio.
+    if (presentationStyle === 'card') {
         const pieceItem = item as Piece;
         return (
             <PieceRenderer item={pieceItem} className={editorSettings.background}>
                 {isCalculatingPages ? (
                     <div className="flex items-center justify-center h-full"><Icon name="Loader2" className="h-8 w-8 animate-spin"/></div>
                 ) : (
-                  // 'card' scrolls, 'doc' shows paginated content
-                  presentationStyle === 'card' ? <ScrollArea className="h-full">{pageContent}</ScrollArea> : pageContent
+                  <ScrollArea className="h-full">{pageContent}</ScrollArea>
                 )}
             </PieceRenderer>
         );
@@ -634,6 +646,7 @@ function ReaderView({ isPreview = false }: { isPreview?: boolean }) {
                           displayLang2={displayLang2}
                           onDisplayLang1Change={handleDisplayLang1Change}
                           onDisplayLang2Change={handleDisplayLang2Change}
+                          presentationStyle={item.presentationStyle}
                       />
                     </div>
                   )}

@@ -10,6 +10,7 @@ const defaultEditorSettings: EditorSettings = {
   textAlign: 'text-justify',
   verticalAlign: 'justify-start',
   background: 'bg-background/95',
+  fontSize: 'base',
 };
 
 // Helper function to get all settings from localStorage

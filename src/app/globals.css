@@ -346,6 +346,9 @@
     }
 
     .prose-dynamic {
+        container-type: inline-size;
+    }
+    .prose-dynamic {
         font-size: 4.5cqi; /* cqi: container query inline-size unit */
         line-height: 1.6;
     }
@@ -826,6 +829,7 @@
     
 
     
+
 
 
 

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React from 'react';
@@ -40,6 +39,7 @@ interface ReaderToolbarProps {
   onDisplayLang1Change: (langCode: string) => void;
   onDisplayLang2Change: (langCode: string) => void;
   onTranslateRequest?: (targetLang: string) => void;
+  presentationStyle: 'book' | 'doc' | 'card';
 }
 
 export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({ 
@@ -53,6 +53,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
   onDisplayLang1Change,
   onDisplayLang2Change,
   onTranslateRequest,
+  presentationStyle,
 }) => {
   const { t } = useTranslation('readerPage');
   
@@ -86,17 +87,29 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     { value: 'justify-end', icon: 'AlignVerticalJustifyEnd' },
   ];
 
+  const fontSizeOptions: EditorSettings['fontSize'][] = ['sm', 'base', 'lg'];
+  const currentFontSizeIndex = fontSizeOptions.indexOf(settings.fontSize);
+
+  const handleFontSizeChange = (direction: 'increase' | 'decrease' | 'reset') => {
+    if (direction === 'reset') {
+        updateSetting('fontSize', 'base');
+        return;
+    }
+    const nextIndex = direction === 'increase' ? currentFontSizeIndex + 1 : currentFontSizeIndex - 1;
+    if (nextIndex >= 0 && nextIndex < fontSizeOptions.length) {
+        updateSetting('fontSize', fontSizeOptions[nextIndex]);
+    }
+  };
+
   const getLanguageLabel = (code: string | undefined): string => {
     if (!code || code === 'none') return t('viewModes.none');
     return LANGUAGES.find(l => l.value === code)?.label || code;
   };
 
   const handleSecondaryLanguageSelect = (langCode: string) => {
-    // If user selects a language not currently in the book's data, trigger the translate request
     if (langCode !== 'none' && !availableLanguages.includes(langCode) && onTranslateRequest) {
       onTranslateRequest(langCode);
     } else {
-      // Otherwise, just change the display language
       onDisplayLang2Change(langCode);
     }
   };
@@ -112,7 +125,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
         <div className="flex items-center justify-center gap-1 md:gap-2">
            {availableLanguages.length > 0 && (
             <>
-              {/* --- PRIMARY LANGUAGE DROPDOWN --- */}
+              {/* --- LANGUAGE DROPDOWNs --- */}
               <DropdownMenu>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -135,7 +148,6 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* --- SECONDARY LANGUAGE DROPDOWN / TRANSLATION TRIGGER --- */}
                <DropdownMenu>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -156,7 +168,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                         <DropdownMenuRadioItem value="none">{t('viewModes.none')}</DropdownMenuRadioItem>
                         <DropdownMenuSeparator />
                         {LANGUAGES.map(lang => {
-                            if (lang.value === displayLang1) return null; // Can't select the same lang twice
+                            if (lang.value === displayLang1) return null;
                             const isAlreadyAvailable = availableLanguages.includes(lang.value);
                             return (
                                 <DropdownMenuRadioItem key={`l2-${lang.value}`} value={lang.value}>
@@ -184,6 +196,39 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
 
               <Separator orientation="vertical" className="h-6" />
             </>
+           )}
+
+           {/* --- FONT SIZE (Book Only) --- */}
+           {presentationStyle === 'book' && (
+             <>
+              <div className="flex items-center">
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFontSizeChange('decrease')} disabled={currentFontSizeIndex <= 0}>
+                               <Icon name="Minus" className="h-4 w-4" />
+                           </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Decrease font size</p></TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFontSizeChange('reset')} disabled={settings.fontSize === 'base'}>
+                                A
+                           </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Reset font size</p></TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFontSizeChange('increase')} disabled={currentFontSizeIndex >= fontSizeOptions.length - 1}>
+                               <Icon name="Plus" className="h-4 w-4" />
+                           </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Increase font size</p></TooltipContent>
+                  </Tooltip>
+              </div>
+              <Separator orientation="vertical" className="h-6" />
+             </>
            )}
           
            {/* Text Align */}

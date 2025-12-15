@@ -37,11 +37,9 @@ export function BookRenderer({
     }
     
     const allSegments = getItemSegments(itemData, position.chapterIndex ?? 0);
-    // The spoken segment is determined by the engine's internal queue
     const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
     if (!spokenSegmentFromEngine) return null;
     
-    // Find the original segment data using the ID
     return allSegments.find(s => s.id === spokenSegmentFromEngine.originalSegmentId) || null;
 
   }, [currentPlayingItem, itemData, position]);
@@ -51,24 +49,35 @@ export function BookRenderer({
 
   const proseThemeClass = useMemo(() => {
     switch (editorSettings.background) {
-        case 'bg-reader-sepia': return 'prose-on-sepia prose-dynamic';
-        case 'bg-reader-slate': return 'prose-on-slate dark prose-dynamic';
-        case 'bg-reader-lined': return 'prose-on-lined-paper prose-dynamic';
-        case 'bg-reader-grid': return 'prose-on-grid prose-dynamic';
-        case 'bg-reader-crumbled': return 'prose-on-crumbled prose-dynamic';
-        default: return 'prose dark:prose-invert prose-dynamic';
+        case 'bg-reader-sepia': return 'prose-on-sepia';
+        case 'bg-reader-slate': return 'prose-on-slate dark';
+        case 'bg-reader-lined': return 'prose-on-lined-paper';
+        case 'bg-reader-grid': return 'prose-on-grid';
+        case 'bg-reader-crumbled': return 'prose-on-crumbled';
+        default: return 'prose dark:prose-invert';
     }
   }, [editorSettings.background]);
   
+  const proseSizeClass = useMemo(() => {
+    if (presentationStyle === 'book') {
+        switch(editorSettings.fontSize) {
+            case 'sm': return 'prose-sm';
+            case 'lg': return 'prose-lg';
+            default: return 'prose-base';
+        }
+    }
+    return 'prose-dynamic'; // For 'doc' and 'card'
+  }, [presentationStyle, editorSettings.fontSize]);
+
   const layoutClasses = useMemo(() => {
-    if (presentationStyle === 'card') {
+    if (presentationStyle === 'card' || presentationStyle === 'doc') {
         return cn(
             'flex flex-col h-full p-6 md:p-8',
             editorSettings.verticalAlign,
             editorSettings.textAlign
         );
     }
-    // For 'doc' or 'book' style
+    // For 'book' style
     return 'p-8 md:p-12';
   }, [presentationStyle, editorSettings]);
   
@@ -77,6 +86,7 @@ export function BookRenderer({
   const contentContainerClasses = cn(
     "max-w-none font-serif w-full h-full",
     proseThemeClass,
+    proseSizeClass,
     layoutClasses,
     "overflow-hidden"
   );
@@ -85,8 +95,6 @@ export function BookRenderer({
   return (
     <div className={contentContainerClasses}>
       {segments.map((segment) => (
-        // ✅ FIX: Replaced <p> with <div> to prevent nesting <p> tags.
-        // react-markdown, used inside SegmentRenderer, generates its own <p> tags.
         <div key={segment.id}>
             <SegmentRenderer 
                 segment={segment} 
