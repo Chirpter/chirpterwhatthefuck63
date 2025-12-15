@@ -45,7 +45,7 @@ const MarkdownContent: React.FC<{ text: string; boundary?: { charIndex: number, 
     }
     
     // The `prose` classes are now applied in BookRenderer, so we don't need them here.
-    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
+    return <ReactMarkdown remarkGfm={remarkGfm}>{text}</ReactMarkdown>;
 };
 
 
@@ -83,7 +83,7 @@ const renderSegmentContent = (
       }
 
       return (
-        <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
+        <div className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
             {primaryPhrases.map((phrase, index) => {
                 const secondaryPhrase = Array.isArray(secondaryPhrases) ? secondaryPhrases[index] : '';
                 return (
@@ -98,7 +98,7 @@ const renderSegmentContent = (
                     </span>
                 );
             })}
-        </span>
+        </div>
       );
   }
 
@@ -121,18 +121,18 @@ const renderSegmentContent = (
   if (isBilingualMode) {
       const secondaryContent = renderContentForLang(displayLang2);
       return (
-        <span className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
+        <div className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
             <span className="block" lang={displayLang1}>{primaryContent}</span>
             {secondaryContent && <span className="block text-muted-foreground italic text-[0.9em] mt-1" lang={displayLang2}>{secondaryContent}</span>}
-        </span>
+        </div>
       );
   }
 
   // Monolingual
   return (
-    <span className={cn(isSegmentPlaying && 'tts-highlight')}>
+    <div className={cn(isSegmentPlaying && 'tts-highlight')}>
       {primaryContent}
-    </span>
+    </div>
   );
 };
 

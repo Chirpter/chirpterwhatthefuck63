@@ -67,7 +67,7 @@ const FinalStateDisplay: React.FC<{ book: Book }> = ({ book }) => {
     // Handle error cases
     let title: string;
     let description: string;
-    let icon: React.ReactNode;
+    let icon: React.ReactNode = null;
     let errorDetails: React.ReactNode = null;
 
     if (contentSuccess && !coverSuccess) {

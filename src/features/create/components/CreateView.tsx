@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { CreationForm } from './CreationForm';
 import { BookGenerationAnimation } from '@/features/create/components/BookGenerationAnimation';
 import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
-import type { Piece } from '@/lib/types';
+import type { Piece, Book } from '@/lib/types';
 import { BookRenderer } from '@/features/reader/components/BookRenderer';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { getItemSegments } from '@/services/shared/SegmentParser';
@@ -64,7 +64,7 @@ export default function CreateView() {
         return (
             <BookGenerationAnimation
                 isFormBusy={job.isBusy}
-                bookJobData={job.jobData}
+                bookJobData={job.jobData as Book | null}
                 finalizedBookId={finalizedId}
                 bookFormData={job.formData}
                 onViewBook={job.handleViewResult}
@@ -79,7 +79,7 @@ export default function CreateView() {
       presentationStyle: job.formData.presentationStyle,
       aspectRatio: job.formData.aspectRatio,
       title: job.jobData?.title || { primary: t('previewArea.pieceTitleDesktop') },
-      generatedContent: job.jobData?.generatedContent || [],
+      generatedContent: (job.jobData as Piece)?.generatedContent || [],
       contentState: job.isBusy ? 'processing' : (job.jobData ? job.jobData.contentState : 'pending'),
     } as Piece;
     

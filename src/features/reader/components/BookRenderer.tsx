@@ -21,9 +21,7 @@ interface BookRendererProps {
 
 // Function to group segments into paragraphs
 const groupSegmentsIntoParagraphs = (segments: Segment[]): Segment[] => {
-    // With the new parsing logic, each segment effectively represents
-    // a block of markdown content that could be a paragraph or contain multiple.
-    // The grouping logic is now simplified, as the markdown itself dictates paragraphs.
+    // This logic is now greatly simplified as markdown parsing handles paragraphs.
     return segments || [];
 };
 
@@ -45,7 +43,7 @@ export function BookRenderer({
     }
 
     if (itemData.type === 'book') {
-        const chapter = itemData.chapters?.[position.chapterIndex];
+        const chapter = (itemData as Book).chapters?.[position.chapterIndex];
         if (chapter && chapter.segments) {
             // The spoken segment is determined by the engine's internal queue
             const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
