@@ -148,7 +148,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
 
   return (
     <Wrapper data-segment-id={segment.id}>
-      {renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang || null, speechBoundary, unit)}
+      {renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang || null, speechBoundary || null, unit)}
     </Wrapper>
   );
 };
