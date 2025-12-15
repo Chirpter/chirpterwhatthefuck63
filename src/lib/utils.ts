@@ -20,12 +20,22 @@ export function getBcp47LangCode(shortCode: string | undefined): string | undefi
   }
 }
 
-let idCounter = 0;
-
+/**
+ * Generates a unique client-side ID.
+ * Uses the modern `crypto.randomUUID()` if available, otherwise falls back to a combination
+ * of timestamp and random numbers for broader compatibility.
+ * @returns A unique string identifier.
+ */
 export const generateLocalUniqueId = (): string => {
-  idCounter = (idCounter + 1) % Number.MAX_SAFE_INTEGER;
-  return Date.now().toString(36) + idCounter.toString(36) + Math.random().toString(36).substring(2, 7);
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  // Fallback for older browsers or non-secure contexts
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 9);
+  return `${timestamp}-${randomPart}`;
 };
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const removeUndefinedProps = (obj: any): any => {
