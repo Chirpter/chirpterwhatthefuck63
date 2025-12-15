@@ -26,7 +26,7 @@ export const usePagination = ({ segments, containerRef, isEnabled }: UsePaginati
   const segmentCalibrator = useMemo(() => {
     if (!containerRef.current) return null;
     return new SegmentCalibrator(containerRef.current);
-  }, [containerRef.current]);
+  }, [containerRef]);
 
   const pageCalculator = useMemo(() => {
     if (!segmentCalibrator) return null;

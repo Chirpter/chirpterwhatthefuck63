@@ -1,7 +1,7 @@
 // src/features/reader/components/piece/PieceReader.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslation } from 'react-i18next';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
@@ -37,7 +37,6 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 
 export default function PieceReader({ piece }: { piece: Piece }) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
-  const audioPlayer = useAudioPlayer();
   const { wordLookupEnabled } = useSettings();
 
   const [editorSettings, setEditorSettings] = useEditorSettings(piece.id);
@@ -137,12 +136,67 @@ export default function PieceReader({ piece }: { piece: Piece }) {
               presentationStyle={piece.presentationStyle}
               editorSettings={editorSettings}
               itemData={piece}
-              displayLang1={displayLang1}
-              displayLang2={displayLang2}
-            />
-          </div>
-        </div>
+              displayLang1={displayLang" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p>{opt.value.replace('justify-', '')}</p></TooltipContent>
+          </Tooltip>
+        ))}
       </div>
-    </div>
-  );
-}
+      <Separator orientation="vertical" className="h-6" />
+    </>
+  )}
+
+  <DropdownMenu>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Icon name="Palette" className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>Change Background</p>
+      </TooltipContent>
+    </Tooltip>
+    <DropdownMenuContent>
+      <DropdownMenuLabel>Background Color</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      {colorOptions.map(opt => (
+        <DropdownMenuItem key={opt.value} onSelect={() => updateSetting('background', opt.value)}>
+          <div className={cn("w-4 h-4 rounded-full mr-2", opt.swatchClass)} />
+          <span>{opt.label}</span>
+          {settings.background === opt.value && <Icon name="Check" className="ml-auto h-4 w-4" />}
+        </DropdownMenuItem>
+      ))}
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Paper Style</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      {textureOptions.map(opt => (
+        <DropdownMenuItem key={opt.value} onSelect={() => updateSetting('background', opt.value)}>
+          <Icon name={opt.icon} className="mr-2 h-4 w-4" />
+          <span>{opt.label}</span>
+          {settings.background === opt.value && <Icon name="Check" className="ml-auto h-4 w-4" />}
+        </DropdownMenuItem>
+      ))}
+    </DropdownMenuContent>
+  </DropdownMenu>
+
+  <Separator orientation="vertical" className="h-6" />
+
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+        <Icon name="X" className="h-4 w-4" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>Close Toolbar</p>
+    </TooltipContent>
+  </Tooltip>
+</div>
+</TooltipProvider>
+</div>
+);
+};

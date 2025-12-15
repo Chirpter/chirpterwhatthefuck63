@@ -59,7 +59,7 @@ export function BookRenderer({
   }, [editorSettings.background]);
   
   const proseSizeClass = useMemo(() => {
-    // Only apply user-configurable font size for 'book' presentation style
+    // ONLY apply user-configurable font size for 'book' presentation style
     if (presentationStyle === 'book') {
         switch(editorSettings.fontSize) {
             case 'sm': return 'prose-sm';
@@ -67,7 +67,7 @@ export function BookRenderer({
             default: return 'prose-base';
         }
     }
-    // For 'doc' and 'card', always use the dynamic CQI-based font size
+    // For 'doc' and 'card', ALWAYS use the dynamic CQI-based font size
     return 'prose-dynamic';
   }, [presentationStyle, editorSettings.fontSize]);
 

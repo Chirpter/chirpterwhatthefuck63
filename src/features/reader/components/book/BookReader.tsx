@@ -19,7 +19,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
-import { ReaderToolbar } from '../shared/ReaderToolbar';
 import { BookRenderer } from '../shared/BookRenderer';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
@@ -43,12 +42,11 @@ export default function BookReader({ book }: { book: Book }) {
   const { wordLookupEnabled } = useSettings();
   const isMobile = useMobile();
 
-  const [editorSettings, setEditorSettings] = useEditorSettings(book.id);
-  const [isToolbarOpen, setIsToolbarOpen] = useState(false);
+  const [editorSettings] = useEditorSettings(book.id);
   const [isTocOpen, setIsTocOpen] = useState(false);
   
-  const [displayLang1, setDisplayLang1] = useState(book.langs[0] || 'en');
-  const [displayLang2, setDisplayLang2] = useState(book.langs[1] || 'none');
+  const [displayLang1] = useState(book.langs[0] || 'en');
+  const [displayLang2] = useState(book.langs[1] || 'none');
 
   const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', sourceItem: null, sentenceContext: '', context: 'reader' });
   const contentContainerRef = useRef<HTMLDivElement>(null);
