@@ -1,5 +1,5 @@
 // src/features/library/components/PieceItemCardRenderer.tsx
-// UPDATED: This is now the single source of truth for rendering a Piece "card" or "preview".
+// This is now the single source of truth for rendering a Piece "card" or "preview".
 
 "use client";
 
@@ -70,9 +70,7 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({
         );
     }
     
-    // ✅ FIX: Simulate a "first page" by taking only the first few segments.
-    // This is a simple heuristic to prevent overflow without full pagination logic.
-    // A more advanced version could calculate height, but this is sufficient for a preview card.
+    // Create a "first page" by taking only the first few segments for the preview.
     const firstPageSegments = allSegments.slice(0, 5);
     const firstPage = { pageIndex: 0, items: firstPageSegments, estimatedHeight: 0 };
     

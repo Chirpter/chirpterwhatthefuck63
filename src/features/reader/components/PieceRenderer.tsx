@@ -5,10 +5,6 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { Piece } from '@/lib/types';
-import { useEditorSettings } from '@/hooks/useEditorSettings';
-import { BookRenderer } from './BookRenderer';
-import { getItemSegments } from '@/services/shared/SegmentParser';
-import { Icon } from '@/components/ui/icons';
 
 interface PieceRendererProps {
   item: Piece | null; // Allow null
@@ -36,7 +32,6 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
   children,
   className,
 }) => {
-  const [editorSettings] = useEditorSettings(item?.id || null);
   
   const aspectRatioClass = useMemo(() => {
     if (item?.presentationStyle === 'card') {
@@ -48,7 +43,7 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
 
   const cardClassName = useMemo(() => {
     return cn(
-      "w-full shadow-xl rounded-lg bg-background/95", // Removed overflow-hidden from the main container
+      "w-full shadow-xl rounded-lg bg-background/95",
       aspectRatioClass,
       item?.presentationStyle === 'doc' ? 'max-w-3xl mx-auto' : 'max-w-md',
       className,
@@ -57,9 +52,6 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
 
   return (
       <div className={cardClassName}>
-          {/* ✅ FIX: Moved overflow-hidden to an inner div. 
-              This clips the content inside the card but allows the card itself to have shadows etc.
-              Removed overflow-y-auto to make it a static preview. */}
           <div className="h-full w-full overflow-hidden">
               {children}
           </div>

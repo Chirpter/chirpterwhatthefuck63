@@ -5,9 +5,10 @@
 import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, LibraryItem, EditorSettings, Page } from '@/lib/types';
+import type { Segment, LibraryItem, EditorSettings, Page, Book } from '@/lib/types';
 import { SegmentRenderer } from './SegmentRenderer';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
+import { getItemSegments } from '@/services/shared/SegmentParser';
 
 
 interface BookRendererProps {
@@ -38,22 +39,18 @@ export function BookRenderer({
   const segments = page.items;
   
   const currentSpokenSegment = useMemo(() => {
-    if (!itemData || !currentPlayingItem || currentPlayingItem.id !== itemData.id || !position || position.chapterIndex === null) {
+    if (!itemData || !currentPlayingItem || currentPlayingItem.id !== itemData.id || !position) {
       return null;
     }
-
-    if (itemData.type === 'book') {
-        const chapter = (itemData as Book).chapters?.[position.chapterIndex];
-        if (chapter && chapter.segments) {
-            // The spoken segment is determined by the engine's internal queue
-            const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
-            if (!spokenSegmentFromEngine) return null;
-            // Find the original segment data using the ID
-            return chapter.segments.find(s => s.id === spokenSegmentFromEngine.originalSegmentId) || null;
-        }
-    }
     
-    return null;
+    const allSegments = getItemSegments(itemData, position.chapterIndex ?? 0);
+    // The spoken segment is determined by the engine's internal queue
+    const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
+    if (!spokenSegmentFromEngine) return null;
+    
+    // Find the original segment data using the ID
+    return allSegments.find(s => s.id === spokenSegmentFromEngine.originalSegmentId) || null;
+
   }, [currentPlayingItem, itemData, position]);
 
   const currentPlayingSegmentId = currentSpokenSegment?.id || null;
