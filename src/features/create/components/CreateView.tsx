@@ -109,6 +109,7 @@ export default function CreateView() {
               <CreationForm 
                 job={job} 
                 formId={formId} 
+                type={activeTab}
               />
             </div>
           </ScrollArea>

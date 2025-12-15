@@ -22,9 +22,10 @@ import PieceReader from '@/features/reader/components/piece/PieceReader';
 interface CreationFormProps {
   job: ReturnType<typeof useCreationJob>; // Use the imported type
   formId: string;
+  type: 'book' | 'piece'; // Explicitly pass the type
 }
 
-export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
+export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type }) => {
   const { t } = useTranslation(['createPage', 'presets']);
   const isMobile = useMobile();
 
@@ -48,8 +49,6 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
     reset,
     isProUser,
   } = job;
-  
-  const type = formData.type;
   
   const mobilePreview = isMobile ? (
     <div className="my-4 min-h-[357px] flex items-center justify-center border-2 border-dashed border-border bg-background/50 p-4 rounded-lg">
