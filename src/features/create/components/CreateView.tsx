@@ -17,7 +17,7 @@ import { BookGenerationAnimation } from './book/BookGenerationAnimation';
 import type { Piece, Book } from '@/lib/types';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { useCreationJob } from '../hooks/useCreationJob';
-import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED: Use the central PieceRenderer
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
@@ -71,15 +71,15 @@ export default function CreateView() {
         );
     }
     
-    // For pieces, we now use the centralized renderer
+    // For pieces, we now use the centralized renderer.
     return (
-        <div className="w-full h-full flex items-center justify-center p-4">
-            <PieceItemCardRenderer 
-              item={job.jobData as Piece | null}
-              isBusy={job.isBusy}
-              formData={job.formData}
-            />
-        </div>
+      <div className="w-full h-full flex items-center justify-center p-4">
+          <PieceRenderer 
+            item={job.jobData as Piece | null}
+            isBusy={job.isBusy}
+            formData={job.formData}
+          />
+      </div>
     );
   };
 

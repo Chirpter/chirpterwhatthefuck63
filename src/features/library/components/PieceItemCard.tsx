@@ -5,7 +5,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Piece, LibraryItem } from "@/lib/types";
-import { PieceItemCardRenderer } from './PieceItemCardRenderer'; 
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED: Path to the new central renderer
 
 interface PieceItemCardProps {
     work: Piece;
@@ -14,7 +14,7 @@ interface PieceItemCardProps {
 
 /**
  * A simple, static "thumbnail" of a Piece item for the library view.
- * It renders the centralized PieceItemCardRenderer component and wraps it in a link.
+ * It wraps the centralized PieceRenderer component in a link.
  */
 export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
   if (!work) return null;
@@ -22,16 +22,13 @@ export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
   const isReadable = work.contentState === 'ready';
 
   if (!isReadable) {
-    // For now, we don't render processing/error cards for pieces in the library
-    // as they are generated quickly. This can be expanded later if needed.
     return null;
   }
   
-  // This component acts as a linkable card for the library.
-  // The actual visual representation is handled by PieceItemCardRenderer.
   return (
-    <Link href={`/read/${work.id}`} className="block break-inside-avoid">
-        <PieceItemCardRenderer item={work} />
+    <Link href={`/read/${'${work.id}'}`} className="block break-inside-avoid">
+        {/* The actual rendering is now fully delegated */}
+        <PieceRenderer item={work} />
     </Link>
   );
 }

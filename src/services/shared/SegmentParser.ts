@@ -223,12 +223,14 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
                 id: generateLocalUniqueId(),
                 order: order++,
                 content: { [origin.split('-')[0]]: trimmedBlock },
-            });
+                type: 'heading',
+            } as any);
         } else {
             // Process the block into sentence/phrase segments
             const blockSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
-            blockSegments.forEach(seg => {
+            blockSegments.forEach((seg, index) => {
                 seg.order = order++;
+                (seg as any).type = index === 0 ? 'start_para' : 'text'; // Simplified type
                 segments.push(seg);
             });
         }

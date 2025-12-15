@@ -44,10 +44,8 @@ const MarkdownContent: React.FC<{ text: string; boundary?: { charIndex: number, 
         return <WordHighlight text={text} boundary={boundary} />;
     }
     
-    // The `prose` classes are now applied in BookRenderer, so we don't need them here.
     return <ReactMarkdown remarkGfm={remarkGfm}>{text}</ReactMarkdown>;
 };
-
 
 const renderSegmentContent = (
   segment: Segment,
@@ -83,7 +81,7 @@ const renderSegmentContent = (
       }
 
       return (
-        <div className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
+        <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
             {primaryPhrases.map((phrase, index) => {
                 const secondaryPhrase = Array.isArray(secondaryPhrases) ? secondaryPhrases[index] : '';
                 return (
@@ -98,7 +96,7 @@ const renderSegmentContent = (
                     </span>
                 );
             })}
-        </div>
+        </span>
       );
   }
 
@@ -121,18 +119,20 @@ const renderSegmentContent = (
   if (isBilingualMode) {
       const secondaryContent = renderContentForLang(displayLang2);
       return (
-        <div className={cn('inline-block w-full', isSegmentPlaying && 'tts-highlight')}>
-            <span className="block" lang={displayLang1}>{primaryContent}</span>
-            {secondaryContent && <span className="block text-muted-foreground italic text-[0.9em] mt-1" lang={displayLang2}>{secondaryContent}</span>}
-        </div>
+        <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
+            <span lang={displayLang1}>{primaryContent}</span>
+            {secondaryContent && <span className="text-muted-foreground italic text-[0.9em] ml-1" lang={displayLang2}>({secondaryContent})</span>}
+            {' '}
+        </span>
       );
   }
 
   // Monolingual
   return (
-    <div className={cn(isSegmentPlaying && 'tts-highlight')}>
+    <span className={cn(isSegmentPlaying && 'tts-highlight')}>
       {primaryContent}
-    </div>
+      {' '}
+    </span>
   );
 };
 
@@ -152,5 +152,5 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
 
   const renderMainContent = () => renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, unit);
   
-  return <div data-segment-id={segment.id}>{renderMainContent()}</div>;
+  return <span data-segment-id={segment.id}>{renderMainContent()}</span>;
 };

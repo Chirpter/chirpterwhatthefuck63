@@ -1,60 +1,140 @@
 // src/features/reader/components/PieceRenderer.tsx
+// This is now the CENTRAL component for rendering a "Piece" in a card/preview format.
 
 "use client";
 
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-import type { Piece } from '@/lib/types';
+import type { Piece, EditorSettings, CreationFormValues } from '@/lib/types';
+import { BookRenderer } from '@/features/reader/components/BookRenderer';
+import { getItemSegments } from '@/services/shared/SegmentParser';
+import { Icon } from '@/components/ui/icons';
+import { useEditorSettings } from '@/hooks/useEditorSettings';
 
-interface PieceRendererProps {
-  item: Piece | null; // Allow null
-  children?: React.ReactNode;
-  className?: string;
+interface PieceRendererFrameProps {
+  item: Piece | null;
+  children: React.ReactNode;
 }
 
 const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
-    switch (ratio) {
-        case '1:1': return 'aspect-square';
-        case '4:3': return 'aspect-[4/3]';
-        case '3:4':
-        default:
-            return 'aspect-[3/4]';
-    }
+  switch (ratio) {
+    case '1:1': return 'aspect-square';
+    case '4:3': return 'aspect-[4/3]';
+    case '3:4':
+    default:
+      return 'aspect-[3/4]';
+  }
 };
 
 /**
- * The PieceRenderer acts as a 'frame' for Piece content.
+ * The PieceRendererFrame acts as a 'frame' for Piece content.
  * It is responsible for creating a container with the correct presentation style
  * and aspect ratio. It renders children passed into it.
  */
-export const PieceRenderer: React.FC<PieceRendererProps> = ({ 
+const PieceRendererFrame: React.FC<PieceRendererFrameProps> = ({ 
   item,
   children,
-  className,
 }) => {
-  
   const aspectRatioClass = useMemo(() => {
     if (item?.presentationStyle === 'card') {
       return getAspectRatioClass(item.aspectRatio);
     }
-    // 'doc' style always defaults to 3:4 portrait.
     return getAspectRatioClass('3:4');
   }, [item]);
 
   const cardClassName = useMemo(() => {
     return cn(
-      "w-full shadow-xl rounded-lg bg-background/95",
+      "w-full shadow-xl rounded-lg bg-background/95 overflow-hidden",
       aspectRatioClass,
       item?.presentationStyle === 'doc' ? 'max-w-3xl mx-auto' : 'max-w-md',
-      className,
     );
-  }, [item?.presentationStyle, aspectRatioClass, className]);
+  }, [item?.presentationStyle, aspectRatioClass]);
 
   return (
       <div className={cardClassName}>
-          <div className="h-full w-full overflow-hidden">
-              {children}
-          </div>
+          {children}
       </div>
+  );
+};
+
+
+interface PieceRendererProps {
+  item: Piece | null;
+  isBusy?: boolean;
+  formData?: Partial<CreationFormValues>;
+}
+
+/**
+ * The main component for rendering a Piece, used for both library cards and creation previews.
+ * It constructs a temporary Piece object, calculates the first page of segments,
+ * and renders it using BookRenderer inside a styled frame.
+ */
+export const PieceRenderer: React.FC<PieceRendererProps> = ({
+  item,
+  isBusy = false,
+  formData = {},
+}) => {
+  const { t } = useTranslation(['createPage']);
+  const [editorSettings] = useEditorSettings(item?.id || null);
+
+  const constructedItem: Piece = useMemo(() => {
+    return {
+      ...(item || {}),
+      presentationStyle: formData?.presentationStyle || item?.presentationStyle || 'card',
+      aspectRatio: formData?.aspectRatio || item?.aspectRatio || '3:4',
+      title: item?.title || { primary: t('previewArea.pieceTitleDesktop') },
+      generatedContent: item?.generatedContent || [],
+      contentState: isBusy ? 'processing' : (item ? item.contentState : 'pending'),
+      id: item?.id || 'preview',
+      userId: item?.userId || '',
+      type: 'piece',
+      origin: item?.origin || formData?.origin || 'en',
+      langs: item?.langs || formData?.availableLanguages || ['en'],
+      status: item?.status || 'draft',
+      unit: item?.unit || formData?.unit || 'sentence',
+    } as Piece;
+  }, [item, isBusy, formData, t]);
+  
+  const allSegments = useMemo(() => getItemSegments(constructedItem, 0), [constructedItem]);
+
+  const renderInnerContent = () => {
+    if (isBusy) {
+      return (
+        <div className="flex h-full w-full items-center justify-center">
+            <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" />
+        </div>
+      );
+    }
+    
+    if (!item || allSegments.length === 0) {
+        return (
+             <div className="flex h-full w-full items-center justify-center p-8 text-center text-muted-foreground">
+                <p>{t('previewArea.piecePlaceholder')}</p>
+            </div>
+        );
+    }
+    
+    const firstPageSegments = allSegments.slice(0, 5);
+    const firstPage = { pageIndex: 0, items: firstPageSegments, estimatedHeight: 0 };
+    
+    return (
+        <BookRenderer
+            page={firstPage}
+            presentationStyle={constructedItem.presentationStyle}
+            editorSettings={editorSettings}
+            itemData={constructedItem}
+            displayLang1={formData?.primaryLanguage || constructedItem.langs[0] || 'en'}
+            displayLang2={formData?.availableLanguages?.[1] || constructedItem.langs[1] || 'none'}
+        />
+    );
+  };
+  
+  return (
+    <PieceRendererFrame item={constructedItem}>
+      <div className={cn("w-full h-full", editorSettings.background)}>
+        {renderInnerContent()}
+      </div>
+    </PieceRendererFrame>
   );
 };
