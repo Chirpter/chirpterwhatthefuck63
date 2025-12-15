@@ -15,7 +15,7 @@ import { CoverImageSettings } from './book/CoverImageSettings';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
-import type { Piece, Book } from '@/lib/types';
+import type { Piece, Book, CreationFormValues } from '@/lib/types';
 import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
 import PieceReader from '@/features/reader/components/piece/PieceReader';
 
@@ -57,7 +57,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
               isFormBusy={isBusy}
               bookJobData={jobData as Book | null}
               finalizedBookId={finalizedId}
-              bookFormData={formData}
+              bookFormData={formData as CreationFormValues}
               onViewBook={handleViewResult}
               onCreateAnother={() => reset(type)}
             />

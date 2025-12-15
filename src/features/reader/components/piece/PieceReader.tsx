@@ -91,7 +91,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
         const rect = range.getBoundingClientRect();
         
         let sourceLang = displayLang1;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
@@ -153,6 +153,8 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
         {lookupState.isOpen && lookupState.rect && (
           <LookupPopover 
             {...lookupState}
+            sourceLanguage={lookupState.sourceLang}
+            targetLanguage={lookupState.targetLanguage}
             onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
           />
         )}

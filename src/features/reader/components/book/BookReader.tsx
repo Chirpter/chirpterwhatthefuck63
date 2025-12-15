@@ -20,6 +20,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
+import { ReaderToolbar } from '../shared/ReaderToolbar';
+
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
@@ -43,11 +45,11 @@ export default function BookReader({ book }: { book: Book }) {
   const { wordLookupEnabled } = useSettings();
   const isMobile = useMobile();
 
-  const [editorSettings] = useEditorSettings(book.id);
-  const [isTocOpen, setIsTocOpen] = useState(false);
+  const [editorSettings, setEditorSettings] = useEditorSettings(book.id);
+  const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   
-  const [displayLang1] = useState(book.langs[0] || 'en');
-  const [displayLang2] = useState(book.langs[1] || 'none');
+  const [displayLang1, setDisplayLang1] = useState(book.langs[0] || 'en');
+  const [displayLang2, setDisplayLang2] = useState(book.langs[1] || 'none');
 
   const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
   const contentContainerRef = useRef<HTMLDivElement>(null);
@@ -137,7 +139,7 @@ export default function BookReader({ book }: { book: Book }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
@@ -187,11 +189,34 @@ export default function BookReader({ book }: { book: Book }) {
 
   return (
     <div id="reader-veil" className="w-full h-full fixed inset-0 z-40" onMouseUp={handleTextSelection}>
-      <Suspense>{lookupState.isOpen && lookupState.rect && <LookupPopover {...lookupState} onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))} />}</Suspense>
+       <Suspense fallback={null}>
+        {lookupState.isOpen && lookupState.rect && (
+          <LookupPopover
+            {...lookupState}
+            sourceLanguage={lookupState.sourceLang}
+            targetLanguage={lookupState.targetLanguage}
+            onOpenChange={(open) => setLookupState((s) => ({ ...s, isOpen: open }))}
+          />
+        )}
+      </Suspense>
 
       <div id="reader-studio-container" className="w-full h-full flex flex-col items-center justify-center">
         <div id="reader-content-wrapper" className="relative w-full h-full flex items-center justify-center min-h-0 p-1 group/reader">
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1">
+             <ReaderToolbar
+              settings={editorSettings}
+              onSettingsChange={setEditorSettings}
+              onClose={() => setIsToolbarOpen(false)}
+              isToolbarOpen={isToolbarOpen}
+              onToggleToolbar={() => setIsToolbarOpen(p => !p)}
+              bookTitle={(book.title as any)[displayLang1]}
+              availableLanguages={book.langs}
+              displayLang1={displayLang1}
+              displayLang2={displayLang2}
+              onDisplayLang1Change={setDisplayLang1}
+              onDisplayLang2Change={setDisplayLang2}
+              presentationStyle='book'
+            />
             <Sheet open={isTocOpen} onOpenChange={setIsTocOpen}>
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm">

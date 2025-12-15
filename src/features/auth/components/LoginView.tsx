@@ -10,6 +10,31 @@ import { Icon } from '@/components/ui/icons';
 import { useToast } from '@/hooks/useToast';
 import { AuthForm } from '@/features/auth/components/AuthForm';
 import { Logo } from '@/components/ui/Logo';
+import { auth } from '@/lib/firebase';
+import { ApiServiceError } from '@/lib/errors';
+
+// Helper to navigate using a full page reload for a clean state.
+function navigateTo(path: string) {
+    if (typeof window !== 'undefined') {
+        window.location.href = path;
+    }
+}
+
+// Helper to create the session cookie.
+async function createSession(idToken: string): Promise<boolean> {
+    try {
+        const response = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+        });
+        return response.ok;
+    } catch (error) {
+        console.error("Failed to create session:", error);
+        return false;
+    }
+}
+
 
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px">
@@ -17,8 +42,7 @@ const GoogleIcon = () => (
     <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
     <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
     <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C39.99,34.556,44,29.865,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
-  </svg>
-);
+g);
 
 export default function LoginView() {
   const searchParams = useSearchParams();
@@ -37,24 +61,44 @@ export default function LoginView() {
   
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [hasShownToast, setHasShownToast] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
-  // Warm up session API connection on mount
-  useEffect(() => {
-    // This creates a connection to the session API endpoint
-    // so it's ready when user actually signs in
-    const warmConnection = async () => {
-      try {
-        await fetch('/api/auth/session', { 
-          method: 'HEAD',
-          cache: 'no-store'
-        });
-      } catch (error) {
-        // Silently ignore - this is just warming up the connection
-      }
-    };
+  // Function to handle the complete auth flow after Firebase sign-in
+  const handleAuthSuccess = async () => {
+    setIsCreatingSession(true);
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        toast({ title: "Authentication Error", description: "User object not found after sign-in.", variant: "destructive" });
+        setIsCreatingSession(false);
+        return;
+    }
     
-    warmConnection();
-  }, []);
+    const idToken = await currentUser.getIdToken(true);
+    const cookieSet = await createSession(idToken);
+    
+    if (cookieSet) {
+        navigateTo('/library/book');
+    } else {
+        toast({ title: "Session Error", description: "Could not create a secure session. Please try again.", variant: "destructive" });
+        setIsCreatingSession(false);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
+    e.preventDefault();
+    const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
+    const success = await authOperation(email, pass);
+    if (success) {
+      await handleAuthSuccess();
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    const success = await signInWithGoogle();
+    if (success) {
+      await handleAuthSuccess();
+    }
+  };
 
   useEffect(() => {
     if (hasShownToast) return;
@@ -71,22 +115,11 @@ export default function LoginView() {
     }
   }, [searchParams, toast, router, hasShownToast]);
   
-  const handleEmailAuth = async (e: React.FormEvent, email: string, pass: string) => {
-    e.preventDefault();
-    const authOperation = authMode === 'signup' ? signUpWithEmail : signInWithEmail;
-    await authOperation(email, pass);
-  };
-
-  const handleGoogleSignIn = async () => {
-    await signInWithGoogle();
-  };
-
   const toggleAuthMode = () => {
     clearAuthError();
     setAuthMode(prev => prev === 'signin' ? 'signup' : 'signin');
   };
 
-  // ✅ UNIFIED: Use the standard InitialLoader style for auth checks
   if (isAuthLoading || authUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -97,6 +130,8 @@ export default function LoginView() {
       </div>
     );
   }
+
+  const isOverallBusy = isSigningIn || isCreatingSession;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-blue-50 to-blue-100 dark:from-background dark:via-blue-900/20 dark:to-blue-900/30 p-4">
@@ -113,7 +148,7 @@ export default function LoginView() {
               <AuthForm 
                 isSignUp={false}
                 onSubmit={handleEmailAuth}
-                isSigningIn={isSigningIn}
+                isSigningIn={isOverallBusy}
                 error={authError}
               />
               <p className="mt-4 text-center text-sm text-muted-foreground">
@@ -121,7 +156,7 @@ export default function LoginView() {
                 <button 
                   onClick={toggleAuthMode} 
                   className="font-semibold text-primary hover:underline focus:outline-none"
-                  disabled={isSigningIn}
+                  disabled={isOverallBusy}
                 >
                   Sign Up
                 </button>
@@ -132,7 +167,7 @@ export default function LoginView() {
               <AuthForm 
                 isSignUp={true}
                 onSubmit={handleEmailAuth}
-                isSigningIn={isSigningIn}
+                isSigningIn={isOverallBusy}
                 error={authError}
               />
               <p className="mt-4 text-center text-sm text-muted-foreground">
@@ -140,7 +175,7 @@ export default function LoginView() {
                 <button 
                   onClick={toggleAuthMode} 
                   className="font-semibold text-primary hover:underline focus:outline-none"
-                  disabled={isSigningIn}
+                  disabled={isOverallBusy}
                 >
                   Sign In
                 </button>
@@ -164,9 +199,9 @@ export default function LoginView() {
               onClick={handleGoogleSignIn} 
               className="w-full font-body gap-2" 
               variant="outline" 
-              disabled={isSigningIn}
+              disabled={isOverallBusy}
             >
-              {isSigningIn ? (
+              {isOverallBusy ? (
                 <Icon name="Loader2" className="animate-spin h-4 w-4" />
               ) : (
                 <GoogleIcon />
@@ -177,16 +212,17 @@ export default function LoginView() {
         </CardContent>
       </Card>
 
-      {/* Simplified loading overlay */}
-      {isSigningIn && (
+      {isOverallBusy && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <Card className="w-full max-w-sm mx-4">
             <CardContent className="pt-6 pb-6">
               <div className="flex flex-col items-center gap-4">
                 <Logo className="h-12 w-12 text-primary animate-pulse" />
                 <div className="text-center space-y-1">
-                  <p className="font-semibold">Signing you in...</p>
-                  <p className="text-sm text-muted-foreground">Creating secure session</p>
+                  <p className="font-semibold">
+                    {isCreatingSession ? "Creating secure session..." : "Signing you in..."}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Please wait a moment.</p>
                 </div>
               </div>
             </CardContent>

@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import {
   onAuthStateChanged,
@@ -14,54 +13,10 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth';
 import { AuthContext, type AuthContextType } from '@/contexts/auth-context';
-import { ApiServiceError } from '@/lib/errors';
 import { useTranslation } from 'react-i18next';
-
+import { ApiServiceError } from '@/lib/errors'; // Ensure this is imported
 
 // --- Helper Functions ---
-
-const perfLog = (label: string, startTime: number) => {
-  const duration = performance.now() - startTime;
-  const color = duration < 100 ? '🟢' : duration < 300 ? '🟡' : '🔴';
-  console.log(`${color} [PERF] ${label}: ${duration.toFixed(2)}ms`);
-  return duration;
-};
-
-async function setSessionCookieWithRetry(idToken: string): Promise<boolean> {
-  const MAX_SESSION_RETRIES = 2;
-  const SESSION_RETRY_DELAY = 500;
-
-  for (let i = 0; i < MAX_SESSION_RETRIES; i++) {
-    try {
-      const response = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ idToken }),
-      });
-      if (response.ok) return true;
-      if (response.status >= 400 && response.status < 500) return false;
-    } catch (error) {
-      // Network error
-    }
-    if (i < MAX_SESSION_RETRIES - 1) {
-      await new Promise(res => setTimeout(res, SESSION_RETRY_DELAY * (i + 1)));
-    }
-  }
-  return false;
-}
-
-
-async function clearSessionCookie(): Promise<void> {
-  try {
-    await fetch('/api/auth/session', { 
-      method: 'DELETE',
-      credentials: 'include',
-    });
-  } catch (error) {
-    console.error('❌ Failed to clear session cookie:', error);
-  }
-}
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -72,12 +27,13 @@ function isValidPassword(password: string): boolean {
 }
 
 function navigateTo(path: string) {
-  if (typeof window === 'undefined') return;
-  window.location.href = path;
+    if (typeof window === 'undefined') return;
+    // Use window.location.href for a full page reload, which is cleaner after auth state changes.
+    window.location.href = path;
 }
 
-// --- AuthProvider Component ---
 
+// --- AuthProvider Component ---
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,7 +48,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthUser(user);
       setLoading(false);
     });
-    
     return () => unsubscribe();
   }, []);
 
@@ -129,6 +84,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return message;
   }, [t]);
 
+  // ✅ REFACTORED: This function now ONLY handles the Firebase auth operation.
+  // It returns true/false to signal success/failure to the caller (LoginView).
+  // No more cookie setting or navigation.
   const performAuthOperation = useCallback(async (
     operation: () => Promise<FirebaseUser | null>,
     validateInputs?: () => string | null
@@ -152,16 +110,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const user = await operation();
         if (!user) throw new Error("Authentication failed: No user returned.");
         
-        const idToken = await user.getIdToken(true);
-        const cookieSet = await setSessionCookieWithRetry(idToken);
+        // Wait for the auth state to propagate before returning success
+        await new Promise<void>(resolve => {
+            const unsub = onAuthStateChanged(auth, (u) => {
+                if (u?.uid === user.uid) {
+                    unsub();
+                    resolve();
+                }
+            });
+        });
         
-        if (!cookieSet) throw new ApiServiceError("Could not create a server session. Please try again.", 'UNAVAILABLE');
-        
-        navigateTo('/library/book');
-        return true;
+        return true; // SUCCESS! Signal to the caller.
       } catch (err: any) {
         handleAuthError(err);
-        return false;
+        return false; // FAILURE! Signal to the caller.
       } finally {
         setIsSigningIn(false);
         authOperationLock.current = null;
@@ -199,17 +161,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     performAuthOperation(() => signInWithPopup(auth, new GoogleAuthProvider()).then(c => c.user)),
     [performAuthOperation]
   );
-
+  
   const logout = useCallback(async (): Promise<void> => {
-    if (authOperationLock.current) await authOperationLock.current;
-    try {
-      await signOut(auth);
-      await clearSessionCookie();
-      navigateTo('/login?reason=logged_out');
-    } catch (error) {
-      console.error('❌ [AUTH] Logout error:', error);
-      navigateTo('/login?reason=error');
-    }
+      if (authOperationLock.current) await authOperationLock.current;
+      
+      // Post to the logout API endpoint first to clear server session
+      try {
+        await fetch('/api/auth/session', { 
+          method: 'DELETE',
+          credentials: 'include',
+        });
+      } catch (error) {
+        console.warn('❌ [AUTH] Failed to clear session cookie via API, continuing with client logout.', error);
+      }
+      
+      // Then sign out from Firebase client
+      try {
+        await signOut(auth);
+        navigateTo('/login?reason=logged_out');
+      } catch (error) {
+        console.error('❌ [AUTH] Client logout error:', error);
+        // Force navigation even if client logout fails, as server session is gone.
+        navigateTo('/login?reason=error');
+      }
   }, []);
 
   const clearAuthError = useCallback(() => setError(null), []);

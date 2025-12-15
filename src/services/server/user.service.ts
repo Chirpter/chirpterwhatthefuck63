@@ -11,38 +11,21 @@ import { convertTimestamps } from '@/lib/utils';
 
 const USERS_COLLECTION = 'users';
 
-// ⏱️ PERFORMANCE LOGGER
-const perfLog = (label: string, startTime: number) => {
-  const duration = performance.now() - startTime;
-  const color = duration < 100 ? '🟢' : duration < 300 ? '🟡' : '🔴';
-  console.log(`${color} [USER SERVICE PERF] ${label}: ${duration.toFixed(2)}ms`);
-  return duration;
-};
-
 export async function createOrFetchUserProfile(userId: string): Promise<{ user: User, leveledUpInfo: { newLevel: number, oldLevel: number } | null }> {
-    const startTime = performance.now();
-    console.log('👤 [USER SERVICE] createOrFetchUserProfile for:', userId);
-    
     const adminDb = getAdminDb();
     const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
 
     return await adminDb.runTransaction(async (transaction) => {
-        // Step 1: Get user document
-        const getDocStart = performance.now();
         const userDoc = await transaction.get(userDocRef);
-        perfLog('Get user document', getDocStart);
 
         if (userDoc.exists) {
             const existingUser = userDoc.data() as User;
             const todayUtcString = new Date().toISOString().split('T')[0];
 
             if (existingUser.lastLoginDate === todayUtcString) {
-                perfLog('✅ User exists, same day login', startTime);
                 return { user: convertTimestamps(existingUser), leveledUpInfo: null };
             }
 
-            // Step 2: Calculate daily rewards
-            const rewardCalcStart = performance.now();
             const oldLevel = existingUser.level || 0;
             const newLevel = oldLevel + 1;
             
@@ -61,28 +44,20 @@ export async function createOrFetchUserProfile(userId: string): Promise<{ user: 
                     reward += tier.proBonus;
                 }
             }
-            perfLog('Calculate daily rewards', rewardCalcStart);
 
-            // Step 3: Update user
-            const updateStart = performance.now();
             transaction.update(userDocRef, {
                 lastLoginDate: todayUtcString,
                 level: newLevel,
                 'stats.level': newLevel,
                 credits: FieldValue.increment(reward),
             });
-            perfLog('Update user document', updateStart);
             
             const updatedUser = { ...existingUser, level: newLevel, lastLoginDate: todayUtcString, credits: existingUser.credits + reward };
-            perfLog('✅ TOTAL - Existing user daily login', startTime);
             return { user: convertTimestamps(updatedUser), leveledUpInfo: { newLevel, oldLevel } };
             
         } else {
-            // Step 4: Create new user
-            const createStart = performance.now();
             const { getAuth } = await import('firebase-admin/auth');
             const authUser = await getAuth().getUser(userId);
-            perfLog('Get Firebase Auth user', createStart);
 
             const todayUtcString = new Date().toISOString().split('T')[0];
             const sanitizedDisplayName = authUser.displayName 
@@ -107,25 +82,16 @@ export async function createOrFetchUserProfile(userId: string): Promise<{ user: 
                 ownedBookmarkIds: [],
             };
 
-            const setDocStart = performance.now();
             transaction.set(userDocRef, newUser);
-            perfLog('Set new user document', setDocStart);
-            
-            perfLog('✅ TOTAL - New user creation', startTime);
             return { user: convertTimestamps(newUser), leveledUpInfo: { oldLevel: 0, newLevel: 1 } };
         }
     });
 }
 
 export async function getUserProfile(userId: string): Promise<User | null> {
-  const startTime = performance.now();
-  console.log('👤 [USER SERVICE] getUserProfile for:', userId);
-  
   const adminDb = getAdminDb();
   const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
   const docSnap = await userDocRef.get();
-
-  perfLog('Get user profile', startTime);
 
   if (docSnap.exists) {
     return convertTimestamps(docSnap.data() as User);
@@ -170,9 +136,6 @@ export async function purchaseGlobalItem(
   itemId: string, 
   itemType: 'book' | 'bookmark'
 ) {
-  const startTime = performance.now();
-  console.log(`🛒 [USER SERVICE] Purchase ${itemType}:`, itemId);
-  
   const adminDb = getAdminDb();
   const result = await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
@@ -220,7 +183,6 @@ export async function purchaseGlobalItem(
     });
   });
   
-  perfLog(`Purchase ${itemType}`, startTime);
   return result;
 }
 
@@ -229,9 +191,6 @@ export async function claimAchievement(
   achievementId: string, 
   tierLevel: number
 ) {
-  const startTime = performance.now();
-  console.log('🏆 [USER SERVICE] Claim achievement:', achievementId, 'tier:', tierLevel);
-  
   const adminDb = getAdminDb();
   const userDocRef = adminDb.collection('users').doc(userId);
 
@@ -304,12 +263,10 @@ export async function claimAchievement(
     return { reward: totalReward, newLevel: tierLevel };
   });
   
-  perfLog('Claim achievement', startTime);
   return result;
 }
 
 export async function recordPlaylistAdd(userId: string): Promise<void> {
-  const startTime = performance.now();
   const adminDb = getAdminDb();
   const userDocRef = adminDb.collection('users').doc(userId);
   
@@ -317,8 +274,6 @@ export async function recordPlaylistAdd(userId: string): Promise<void> {
     await userDocRef.update({
       'stats.vocabAddedToPlaylist': FieldValue.increment(1)
     });
-    
-    perfLog('Record playlist add', startTime);
     
     checkAndUnlockAchievements(userId).catch(err => {
       console.error("Failed to check achievements:", err);

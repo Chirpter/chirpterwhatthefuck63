@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/ui/icons';
-import type { Book, User, JobStatus } from '@/lib/types';
+import type { Book, User, JobStatus, CreationFormValues } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { BookPreview } from './BookPreview';
@@ -110,7 +110,7 @@ interface BookGenerationAnimationProps {
   isFormBusy: boolean;
   bookJobData: Book | null;
   finalizedBookId: string | null;
-  bookFormData: any; // Simplified for this component
+  bookFormData: CreationFormValues;
   onViewBook: () => void;
   onCreateAnother: () => void;
 }

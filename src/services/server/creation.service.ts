@@ -9,10 +9,10 @@ import { createPieceAndStartGeneration } from './piece-creation.service';
 import { ApiServiceError } from '@/lib/errors';
 
 /**
- * ✅ FIX DEV-002: Extract userId from session cookie instead of using .limit(1)
+ * Extracts userId from session cookie.
  */
 async function getUserIdFromSession(): Promise<string> {
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const sessionCookie = cookieStore.get('__session')?.value;
   
   if (!sessionCookie) {
@@ -30,7 +30,7 @@ async function getUserIdFromSession(): Promise<string> {
 }
 
 /**
- * ✅ VALIDATION: Ensure origin format matches spec requirements
+ * Validates the origin format against other form data.
  */
 function validateOriginFormat(formData: CreationFormValues): void {
   const { origin, primaryLanguage, availableLanguages, unit } = formData;
@@ -39,51 +39,27 @@ function validateOriginFormat(formData: CreationFormValues): void {
   const [primary, secondary, format] = parts;
   
   if (primary !== primaryLanguage) {
-    throw new ApiServiceError(
-      `Origin primary language (${primary}) doesn't match selected primary language (${primaryLanguage})`,
-      'VALIDATION'
-    );
+    throw new ApiServiceError(`Origin primary language (${primary}) doesn't match selected primary language (${primaryLanguage})`, 'VALIDATION');
   }
   
   if (availableLanguages.length > 1) {
-    if (!secondary) {
-      throw new ApiServiceError(
-        'Bilingual mode selected but origin format is monolingual',
-        'VALIDATION'
-      );
-    }
-    if (!availableLanguages.includes(secondary)) {
-      throw new ApiServiceError(
-        `Origin secondary language (${secondary}) not in available languages`,
-        'VALIDATION'
-      );
-    }
+    if (!secondary) throw new ApiServiceError('Bilingual mode selected but origin format is monolingual', 'VALIDATION');
+    if (!availableLanguages.includes(secondary)) throw new ApiServiceError(`Origin secondary language (${secondary}) not in available languages`, 'VALIDATION');
   } else {
-    if (secondary) {
-      throw new ApiServiceError(
-        'Monolingual mode selected but origin format is bilingual',
-        'VALIDATION'
-      );
-    }
+    if (secondary) throw new ApiServiceError('Monolingual mode selected but origin format is bilingual', 'VALIDATION');
   }
   
   if (format && format !== 'ph') {
-    throw new ApiServiceError(
-      `Invalid format flag in origin: ${format}. Only 'ph' is allowed.`,
-      'VALIDATION'
-    );
+    throw new ApiServiceError(`Invalid format flag in origin: ${format}. Only 'ph' is allowed.`, 'VALIDATION');
   }
-
-  if (format === 'ph' && unit !== 'phrase') {
-      throw new ApiServiceError(`Origin format mismatch: origin has '-ph' but unit is '${unit}'`, 'VALIDATION');
-  }
-  if (format !== 'ph' && unit === 'phrase') {
-      throw new ApiServiceError(`Origin format mismatch: unit is 'phrase' but origin is missing '-ph'`, 'VALIDATION');
+  
+  if ((unit === 'phrase' && format !== 'ph') || (unit !== 'phrase' && format === 'ph')) {
+    throw new ApiServiceError(`Origin format mismatch: unit is '${unit}' and origin format flag is '${format || 'none'}'.`, 'VALIDATION');
   }
 }
 
 /**
- * ✅ MAIN FACADE: Route creation requests to appropriate service
+ * ✅ MAIN FACADE: Routes creation requests to the appropriate service.
  */
 export async function createLibraryItem(type: 'book' | 'piece', formData: CreationFormValues): Promise<string> {
   console.log('📝 [Creation Service] Starting creation for type:', type);
@@ -98,14 +74,11 @@ export async function createLibraryItem(type: 'book' | 'piece', formData: Creati
       console.log('✅ [Creation Service] Book created:', bookId);
       return bookId;
     } else if (type === 'piece') {
-      const pieceId = await createPieceAndStartGeneration(userId, formData as any);
+      const pieceId = await createPieceAndStartGeneration(userId, formData);
       console.log('✅ [Creation Service] Piece created:', pieceId);
       return pieceId;
     } else {
-      throw new ApiServiceError(
-        `Unknown content type: ${type}`,
-        'VALIDATION'
-      );
+      throw new ApiServiceError(`Unknown content type: ${type}`, 'VALIDATION');
     }
   } catch (error: any) {
     console.error('❌ [Creation Service] Failed:', error.message);
@@ -114,10 +87,6 @@ export async function createLibraryItem(type: 'book' | 'piece', formData: Creati
       throw error;
     }
     
-    throw new ApiServiceError(
-      error.message || 'Creation failed unexpectedly',
-      'UNKNOWN',
-      error
-    );
+    throw new ApiServiceError(error.message || 'Creation failed unexpectedly', 'UNKNOWN', error);
   }
 }

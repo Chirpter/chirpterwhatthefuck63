@@ -11,7 +11,7 @@ import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
-const getInitialFormData = (t: (key: string) => string): Omit<CreationFormValues, 'type'> => {
+const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
   const primaryLang = 'en';
 
   const suggestions = [
@@ -24,6 +24,7 @@ const getInitialFormData = (t: (key: string) => string): Omit<CreationFormValues
   const defaultPrompt = suggestions[Math.floor(Math.random() * suggestions.length)];
   
   return {
+    type: 'book', // Default type
     primaryLanguage: primaryLang,
     availableLanguages: [primaryLang],
     aiPrompt: defaultPrompt,
@@ -52,7 +53,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const { user } = useUser();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<Omit<CreationFormValues, 'type'>>(() => getInitialFormData(t));
+  const [formData, setFormData] = useState<CreationFormValues>(() => getInitialFormData(t));
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -258,6 +259,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     try {
       const fullFormData: CreationFormValues = {
         ...formData,
+        type: type, // Ensure type is correctly set
         presentationStyle: type === 'book' ? 'book' : formData.presentationStyle || 'card',
       };
       const jobId = await createLibraryItem(type, fullFormData);
