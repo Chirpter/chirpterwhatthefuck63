@@ -44,7 +44,12 @@ const MarkdownContent: React.FC<{ text: string; boundary?: { charIndex: number, 
         return <WordHighlight text={text} boundary={boundary} />;
     }
     
-    return <ReactMarkdown remarkGfm={remarkGfm}>{text}</ReactMarkdown>;
+    // Using a simple regex to avoid ReactMarkdown for simple text, improving performance.
+    // This regex checks if the text contains markdown-like patterns.
+    if (/[*_~`#]/.test(text)) {
+      return <ReactMarkdown remarkGfm={remarkGfm}>{text}</ReactMarkdown>;
+    }
+    return <>{text}</>;
 };
 
 const renderSegmentContent = (
@@ -59,18 +64,39 @@ const renderSegmentContent = (
 ) => {
   const { content } = segment;
 
+  // --- NEW: Bilingual Sentence (Block) Mode ---
+  if (isBilingualMode && unit === 'sentence') {
+    const primaryText = content[displayLang1] as string || '';
+    const secondaryText = content[displayLang2] as string || '';
+    
+    return (
+      <div className={cn('bilingual-sentence-block mb-2', isSegmentPlaying && 'tts-highlight')}>
+        {primaryText && (
+          <div lang={displayLang1}>
+            <MarkdownContent text={primaryText} boundary={isSegmentPlaying && spokenLang === displayLang1 ? speechBoundary : null} />
+          </div>
+        )}
+        {secondaryText && (
+          <div lang={displayLang2} className="text-muted-foreground italic text-[0.9em]">
+            <MarkdownContent text={secondaryText} boundary={isSegmentPlaying && spokenLang === displayLang2 ? speechBoundary : null} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- Bilingual Phrase (Inline) Mode ---
   if (isBilingualMode && unit === 'phrase') {
       const primaryPhrases = content[displayLang1];
       const secondaryPhrases = content[displayLang2];
       
       if (!Array.isArray(primaryPhrases)) {
+          // Fallback for mis-formatted phrase data
           const primaryText = content[displayLang1] as string || '';
           const secondaryText = content[displayLang2] as string || '';
-          const isThisLangPlaying = isSegmentPlaying && spokenLang === displayLang1;
-          
           return (
              <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
-                <MarkdownContent text={primaryText} boundary={isThisLangPlaying ? speechBoundary : null} />
+                <MarkdownContent text={primaryText} boundary={isSegmentPlaying && spokenLang === displayLang1 ? speechBoundary : null} />
                 {secondaryText && (
                   <span className="text-muted-foreground italic text-[0.9em] ml-1">
                       (<MarkdownContent text={secondaryText} />)
@@ -100,42 +126,17 @@ const renderSegmentContent = (
       );
   }
 
-  const renderContentForLang = (lang: string) => {
-      const langContent = content[lang];
-      if (!langContent || Array.isArray(langContent)) return null;
-
-      const isThisLangPlaying = isSegmentPlaying && spokenLang === lang;
-      
-      return (
-          <span className={cn(!isBilingualMode && isSegmentPlaying && "tts-highlight")}>
-              <MarkdownContent text={langContent} boundary={isThisLangPlaying ? speechBoundary : null} />
-          </span>
-      );
-  };
-
-  const primaryContent = renderContentForLang(displayLang1);
-  if (!primaryContent) return null;
-
-  if (isBilingualMode) {
-      const secondaryContent = renderContentForLang(displayLang2);
-      return (
-        <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
-            <span lang={displayLang1}>{primaryContent}</span>
-            {secondaryContent && <span className="text-muted-foreground italic text-[0.9em] ml-1" lang={displayLang2}>({secondaryContent})</span>}
-            {' '}
-        </span>
-      );
-  }
-
-  // Monolingual
+  // --- Monolingual Mode (Default) ---
+  const monolingualText = content[displayLang1] as string || '';
+  if (!monolingualText) return null;
+  
   return (
-    <span className={cn(isSegmentPlaying && 'tts-highlight')}>
-      {primaryContent}
+    <span className={cn('inline', isSegmentPlaying && 'tts-highlight')} lang={displayLang1}>
+      <MarkdownContent text={monolingualText} boundary={isSegmentPlaying ? speechBoundary : null} />
       {' '}
     </span>
   );
 };
-
 
 export const SegmentRenderer: React.FC<SegmentRendererProps> = ({ 
     segment, 
@@ -150,7 +151,10 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
   
   const isSegmentPlaying = isPlaying;
 
-  const renderMainContent = () => renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, unit);
-  
-  return <span data-segment-id={segment.id}>{renderMainContent()}</span>;
+  // No wrapper needed here, the function returns the correct block or inline elements.
+  return (
+    <span data-segment-id={segment.id}>
+      {renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, unit)}
+    </span>
+  );
 };
