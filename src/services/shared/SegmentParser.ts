@@ -243,7 +243,7 @@ export function parseBookMarkdown(
         const titleLine = lines[firstH1Index].trim().substring(2).trim();
         const extractedTitle = extractBilingualTextPairs(titleLine, primaryLang, secondaryLang)[0];
         if (extractedTitle) {
-            title = extractedTitle;
+          title = extractedTitle;
         }
         contentAfterTitle = lines.slice(firstH1Index + 1).join('\n');
     }

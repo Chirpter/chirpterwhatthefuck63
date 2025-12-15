@@ -58,7 +58,7 @@ export interface Chapter {
   id: string;
   order: number;
   title: ChapterTitle;
-  segments: Segment[]; // Uses the updated Segment type
+  segments: Segment[];
   stats: ChapterStats;
 }
 
@@ -179,7 +179,7 @@ interface BaseLibraryItem extends BaseDocument {
   price?: number;
   originId?: string;
   prompt?: string;
-  presentationStyle: string;
+  presentationStyle: 'book' | 'doc' | 'card'; // More specific
   tags?: string[];
   labels?: string[];
   unit: ContentUnit;

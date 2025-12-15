@@ -1,3 +1,4 @@
+// src/hooks/useEditorSettings.ts
 
 "use client";
 
@@ -13,7 +14,6 @@ const defaultEditorSettings: EditorSettings = {
   fontSize: 'base',
 };
 
-// Helper function to get all settings from localStorage
 const getAllStoredSettings = (): Record<string, EditorSettings> => {
     try {
         const storedValue = localStorage.getItem(LOCALSTORAGE_KEY);
@@ -24,7 +24,6 @@ const getAllStoredSettings = (): Record<string, EditorSettings> => {
     }
 };
 
-// Helper function to save all settings to localStorage
 const saveAllStoredSettings = (allSettings: Record<string, EditorSettings>) => {
     try {
         localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allSettings));
@@ -41,14 +40,12 @@ export const useEditorSettings = (itemId: string | null): [EditorSettings, (upda
             const allSettings = getAllStoredSettings();
             setSettings(allSettings[itemId] || defaultEditorSettings);
         } else {
-            // When no item is selected (like in the creation preview), use defaults.
             setSettings(defaultEditorSettings);
         }
     }, [itemId]);
 
     const updateSettings = useCallback((updates: Partial<EditorSettings>) => {
         if (itemId) {
-            // Use a function form of setSettings to ensure we have the latest state
             setSettings(currentSettings => {
                 const newSettings = { ...currentSettings, ...updates };
                 const allSettings = getAllStoredSettings();
