@@ -1,3 +1,4 @@
+
 // src/features/reader/components/PieceRenderer.tsx
 
 "use client";
@@ -6,7 +7,7 @@ import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { Piece } from '@/lib/types';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
-import { BookRenderer } from './BookRenderer';
+import { BookRenderer } from '@/features/reader/components/BookRenderer';
 import { getItemSegments } from '@/services/shared/SegmentParser';
 import { Icon } from '@/components/ui/icons';
 
