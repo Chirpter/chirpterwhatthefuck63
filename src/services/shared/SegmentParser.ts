@@ -183,6 +183,7 @@ function processParagraphIntoSegments(
             }
         } else {
             // For 'sentence' unit, the content is already a string.
+            // We just need to make sure both languages are strings if they exist.
             finalContent[primaryLang] = Array.isArray(sentencePair[primaryLang]) ? (sentencePair[primaryLang] as string[]).join(' ') : sentencePair[primaryLang];
             if (secondaryLang && sentencePair[secondaryLang]) {
                 finalContent[secondaryLang] = Array.isArray(sentencePair[secondaryLang]) ? (sentencePair[secondaryLang] as string[]).join(' ') : sentencePair[secondaryLang];
@@ -223,14 +224,12 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
                 id: generateLocalUniqueId(),
                 order: order++,
                 content: { [origin.split('-')[0]]: trimmedBlock },
-                type: 'heading',
-            } as any);
+            });
         } else {
             // Process the block into sentence/phrase segments
             const blockSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
-            blockSegments.forEach((seg, index) => {
+            blockSegments.forEach((seg) => {
                 seg.order = order++;
-                (seg as any).type = index === 0 ? 'start_para' : 'text'; // Simplified type
                 segments.push(seg);
             });
         }

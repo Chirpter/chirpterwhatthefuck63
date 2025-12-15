@@ -20,28 +20,6 @@ interface BookRendererProps {
   displayLang2?: string; // 'none' or language code
 }
 
-// Function to group segments into paragraphs
-const groupSegmentsIntoParagraphs = (segments: Segment[]): Segment[][] => {
-    if (!segments || segments.length === 0) return [];
-    
-    const paragraphs: Segment[][] = [];
-    let currentParagraph: Segment[] = [];
-
-    segments.forEach((segment, index) => {
-        currentParagraph.push(segment);
-        // This is a simplified logic. A paragraph ends when the NEXT segment is a start_para.
-        const nextIsNewPara = segments[index + 1]?.type === 'start_para';
-
-        if (nextIsNewPara || index === segments.length - 1) {
-            paragraphs.push(currentParagraph);
-            currentParagraph = [];
-        }
-    });
-
-    return paragraphs;
-};
-
-
 export function BookRenderer({ 
     page, 
     presentationStyle, 
@@ -103,25 +81,21 @@ export function BookRenderer({
     "overflow-hidden"
   );
   
-  const paragraphs = useMemo(() => groupSegmentsIntoParagraphs(segments), [segments]);
 
   return (
     <div className={contentContainerClasses}>
-      {paragraphs.map((paraSegments, paraIndex) => (
-        <p key={paraIndex}>
-          {paraSegments.map((segment) => (
-              <SegmentRenderer 
-                  key={segment.id} 
-                  segment={segment} 
-                  isPlaying={currentPlayingSegmentId === segment.id}
-                  speechBoundary={speechBoundary}
-                  spokenLang={currentSpokenLang}
-                  isBilingualMode={isBilingualMode}
-                  displayLang1={displayLang1}
-                  displayLang2={displayLang2}
-                  unit={itemData?.unit || 'sentence'}
-              />
-          ))}
+      {segments.map((segment) => (
+        <p key={segment.id}>
+            <SegmentRenderer 
+                segment={segment} 
+                isPlaying={currentPlayingSegmentId === segment.id}
+                speechBoundary={speechBoundary}
+                spokenLang={currentSpokenLang}
+                isBilingualMode={isBilingualMode}
+                displayLang1={displayLang1}
+                displayLang2={displayLang2}
+                unit={itemData?.unit || 'sentence'}
+            />
         </p>
       ))}
     </div>

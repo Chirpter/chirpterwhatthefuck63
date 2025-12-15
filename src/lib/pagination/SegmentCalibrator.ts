@@ -105,7 +105,7 @@ export class SegmentCalibrator {
       measurements.push({
         segmentIndex: i,
         height: height,
-        charCount: (sampleItems[i].content.primary?.length || 0) + (sampleItems[i].content.secondary?.length || 0),
+        charCount: ((sampleItems[i].content.primary as string) || (sampleItems[i].content.en as string) || '').length,
       });
     }
 
@@ -119,7 +119,9 @@ export class SegmentCalibrator {
    */
   public measureItem(segment: Segment): Promise<number> {
     return new Promise((resolve) => {
-      const textContent = `${segment.content.primary || ''} ${segment.content.secondary || ''}`.trim();
+      const content = segment.content.primary || segment.content.en;
+      const textContent = (Array.isArray(content) ? content.join(' ') : content)?.trim();
+
       if (!textContent) {
         resolve(0);
         return;
@@ -139,8 +141,11 @@ export class SegmentCalibrator {
       `;
       
       let elementToMeasure;
-      // Since type is removed, default to a <p> tag for measurement
-      elementToMeasure = document.createElement('p');
+      if (textContent.startsWith('##')) {
+          elementToMeasure = document.createElement('h2');
+      } else {
+          elementToMeasure = document.createElement('p');
+      }
 
       elementToMeasure.innerText = textContent;
       measurer.appendChild(elementToMeasure);

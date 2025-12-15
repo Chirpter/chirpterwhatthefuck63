@@ -33,17 +33,17 @@ export class PageCalculator {
         const currentItem = allBookSegments[i];
         
         // --- Chapter Handling Logic ---
-        // Since type is removed, this logic needs adjustment. For now, assume chapters start with a new page.
-        // A more robust solution might involve markers in the segment data.
         // This is a placeholder for future chapter detection.
-        // if (currentItem.type === 'heading') {
-        //     if (currentPageItems.length > 0) {
-        //         pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
-        //         currentPageItems = [];
-        //         currentHeight = 0;
-        //     }
-        //     chapterStartPages.push(pages.length);
-        // }
+        // For now, we assume chapters start with a new page if they contain a heading.
+        const content = (currentItem.content.primary || currentItem.content.en || '') as string;
+        if (typeof content === 'string' && content.startsWith('##')) {
+            if (currentPageItems.length > 0) {
+                pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
+                currentPageItems = [];
+                currentHeight = 0;
+            }
+            chapterStartPages.push(pages.length);
+        }
 
         // --- Height Calculation Logic ---
         const itemHeight = this.estimateItemHeight(currentItem, baseline);
@@ -87,9 +87,11 @@ export class PageCalculator {
     const totalTextLength = primaryTextLength + secondaryTextLength;
     
     let typeMultiplier = 1.0;
-    // Type specific logic removed as type field is deleted.
-    // if (item.type === 'heading') typeMultiplier = 1.8;
-    // if (item.type === 'blockquote') typeMultiplier = 1.2;
+    
+    const content = (item.content.primary || item.content.en || '') as string;
+    if (typeof content === 'string' && content.startsWith('##')) {
+        typeMultiplier = 1.8;
+    }
 
     if (baseline.avgCharHeight > 0) {
       return totalTextLength * baseline.avgCharHeight * typeMultiplier;

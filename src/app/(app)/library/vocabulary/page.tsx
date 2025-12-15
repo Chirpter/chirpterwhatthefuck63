@@ -1,7 +1,9 @@
-
+// src/app/(app)/library/vocabulary/page.tsx
 "use client";
-import LibraryPageComponent from "../library-page-component";
 
-export default function LibraryVocabularyPage() {
-  return <LibraryPageComponent contentType="vocabulary" />;
+import LibraryView from "@/features/library/components/LibraryView";
+
+// This page is now a client component and directly renders LibraryView
+export default function VocabularyLibraryPage() {
+  return <LibraryView contentType="vocabulary" />;
 }

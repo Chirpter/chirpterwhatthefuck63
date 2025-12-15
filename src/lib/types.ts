@@ -33,6 +33,8 @@ export type ContentUnit = 'sentence' | 'phrase';
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
+ * ✅ REFACTORED: The 'type' property has been removed as it was redundant.
+ * Paragraphs are now handled by the renderer based on segment order and content.
  */
 export interface Segment {
   id: string;
@@ -236,16 +238,14 @@ export interface Piece extends BaseLibraryItem {
 }
 
 export interface CreationFormValues {
-  type: 'book' | 'piece'; // Add type property
   primaryLanguage: string;
   availableLanguages: string[];
   aiPrompt: string;
-  tags: string[];
   title: MultilingualContent;
   presentationStyle: 'doc' | 'card' | 'book';
   aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
   origin: string;
-  unit: ContentUnit; // Add unit to form values
+  unit: ContentUnit;
   // Book specific fields
   coverImageOption: 'none' | 'upload' | 'ai';
   coverImageAiPrompt: string;

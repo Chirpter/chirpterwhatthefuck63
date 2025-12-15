@@ -1,8 +1,9 @@
+// src/app/(app)/library/book/page.tsx
+"use client";
 
-import LibraryPageComponent from "../library-page-component";
+import LibraryView from "@/features/library/components/LibraryView";
 
-// This component now simply renders the client-side page component,
-// which will handle its own data fetching.
+// This page is now a client component and directly renders LibraryView
 export default function BookLibraryPage() {
-  return <LibraryPageComponent contentType="book" />;
+  return <LibraryView contentType="book" />;
 }
