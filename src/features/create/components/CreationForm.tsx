@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Icon } from '@/components/ui/icons';
-import { AdvancedSettings } from './book/AdvancedSettings';
+import { BookAdvanceSelector } from './book/BookAdvanceSelector';
 import { CreationLanguageSettings } from './shared/CreationLanguageSettings';
 import { cn } from '@/lib/utils';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
@@ -149,7 +149,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
         )}
 
         {type === 'book' && (
-          <AdvancedSettings
+          <BookAdvanceSelector
             bookLength={formData.bookLength}
             onBookLengthChange={(value) => handleValueChange('bookLength', value)}
             targetChapterCount={formData.targetChapterCount}

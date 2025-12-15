@@ -1,4 +1,4 @@
-// src/features/create/components/book/AdvancedSettings.tsx
+// src/features/create/components/book/BookAdvanceSelector.tsx
 
 "use client";
 
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CreditIcon } from "@/components/ui/CreditIcon";
 
-interface AdvancedSettingsProps {
+interface BookAdvanceSelectorProps {
   bookLength: BookLengthOptionValue;
   onBookLengthChange: (value: BookLengthOptionValue) => void;
   targetChapterCount: number;
@@ -97,7 +97,7 @@ const BookLengthSelectionButton: React.FC<{
 };
 
 
-export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
+export const BookAdvanceSelector: React.FC<BookAdvanceSelectorProps> = ({
   bookLength,
   onBookLengthChange,
   targetChapterCount,
