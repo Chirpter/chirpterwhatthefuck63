@@ -35,7 +35,12 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
     }
 };
 
-export default function PieceReader({ piece }: { piece: Piece }) {
+interface PieceReaderProps {
+  piece: Piece;
+  isPreview?: boolean;
+}
+
+export default function PieceReader({ piece, isPreview = false }: PieceReaderProps) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   const { wordLookupEnabled } = useSettings();
 
@@ -55,7 +60,7 @@ export default function PieceReader({ piece }: { piece: Piece }) {
   }), [allSegments]);
 
   const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!wordLookupEnabled) return;
+    if (!wordLookupEnabled || isPreview) return;
     if (lookupState.isOpen) {
       setLookupState(s => ({...s, isOpen: false}));
     }
@@ -90,7 +95,7 @@ export default function PieceReader({ piece }: { piece: Piece }) {
     } else if (lookupState.isOpen) {
       setLookupState(s => ({...s, isOpen: false}));
     }
-  }, [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1]);
+  }, [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1, isPreview]);
 
   const cardClassName = cn(
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
@@ -98,6 +103,29 @@ export default function PieceReader({ piece }: { piece: Piece }) {
     piece.presentationStyle === 'doc' ? 'max-w-3xl aspect-[1/1]' : 'max-w-md',
     editorSettings.background
   );
+
+  const mainContainerClasses = isPreview 
+    ? cardClassName // For previews, the main container IS the card
+    : "w-full h-full flex flex-col items-center justify-center p-4"; // For full view
+
+  const contentWrapper = (
+    <div className={isPreview ? 'w-full h-full' : cardClassName}>
+      <div className="w-full h-full overflow-y-auto">
+        <ContentPageRenderer
+          page={singlePage}
+          presentationStyle={piece.presentationStyle}
+          editorSettings={editorSettings}
+          itemData={piece}
+          displayLang1={displayLang1}
+          displayLang2={displayLang2}
+        />
+      </div>
+    </div>
+  );
+  
+  if (isPreview) {
+    return contentWrapper;
+  }
 
   return (
     <div id="reader-veil" className="w-full h-full fixed inset-0 z-40" onMouseUp={handleTextSelection}>
@@ -110,7 +138,7 @@ export default function PieceReader({ piece }: { piece: Piece }) {
             )}
         </Suspense>
 
-      <div id="reader-studio-container" className="w-full h-full flex flex-col items-center justify-center p-4">
+      <div id="reader-studio-container" className={mainContainerClasses}>
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
           <ReaderToolbar
             settings={editorSettings}
@@ -127,19 +155,7 @@ export default function PieceReader({ piece }: { piece: Piece }) {
             presentationStyle={piece.presentationStyle}
           />
         </div>
-
-        <div className={cardClassName}>
-          <div className="w-full h-full overflow-y-auto">
-            <ContentPageRenderer
-              page={singlePage}
-              presentationStyle={piece.presentationStyle}
-              editorSettings={editorSettings}
-              itemData={piece}
-              displayLang1={displayLang1}
-              displayLang2={displayLang2}
-            />
-          </div>
-        </div>
+        {contentWrapper}
       </div>
     </div>
   );
