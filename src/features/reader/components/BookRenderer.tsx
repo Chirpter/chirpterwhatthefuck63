@@ -20,25 +20,11 @@ interface BookRendererProps {
 }
 
 // Function to group segments into paragraphs
-const groupSegmentsIntoParagraphs = (segments: Segment[]): Segment[][] => {
-    if (!segments || segments.length === 0) return [];
-  
-    const paragraphs: Segment[][] = [];
-    let currentParagraph: Segment[] = [];
-  
-    segments.forEach(segment => {
-      // Each segment is now essentially a paragraph block
-      if (currentParagraph.length > 0) {
-        paragraphs.push(currentParagraph);
-      }
-      currentParagraph = [segment];
-    });
-  
-    if (currentParagraph.length > 0) {
-      paragraphs.push(currentParagraph);
-    }
-  
-    return paragraphs;
+const groupSegmentsIntoParagraphs = (segments: Segment[]): Segment[] => {
+    // With the new parsing logic, each segment effectively represents
+    // a block of markdown content that could be a paragraph or contain multiple.
+    // The grouping logic is now simplified, as the markdown itself dictates paragraphs.
+    return segments || [];
 };
 
 
@@ -112,31 +98,19 @@ export function BookRenderer({
 
   return (
     <div className={contentContainerClasses}>
-        {paragraphs.map((paragraph, pIndex) => {
-            const firstSegment = paragraph[0];
-            const applyDropCap = pIndex === 0 && page.pageIndex === 0;
-
-            return (
-                <p key={pIndex} className={cn(
-                    "mt-4 first:mt-0",
-                    applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary"
-                )}>
-                    {paragraph.map((segment) => (
-                        <SegmentRenderer 
-                            key={segment.id} 
-                            segment={segment} 
-                            isPlaying={currentPlayingSegmentId === segment.id}
-                            speechBoundary={speechBoundary}
-                            spokenLang={currentSpokenLang}
-                            isBilingualMode={isBilingualMode}
-                            displayLang1={displayLang1}
-                            displayLang2={displayLang2}
-                            unit={itemData?.unit || 'sentence'}
-                        />
-                    ))}
-                </p>
-            );
-        })}
+        {paragraphs.map((segment) => (
+            <SegmentRenderer 
+                key={segment.id} 
+                segment={segment} 
+                isPlaying={currentPlayingSegmentId === segment.id}
+                speechBoundary={speechBoundary}
+                spokenLang={currentSpokenLang}
+                isBilingualMode={isBilingualMode}
+                displayLang1={displayLang1}
+                displayLang2={displayLang2}
+                unit={itemData?.unit || 'sentence'}
+            />
+        ))}
     </div>
   );
 }

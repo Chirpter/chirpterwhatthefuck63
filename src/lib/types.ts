@@ -45,6 +45,7 @@ export interface Segment {
 export interface ChapterStats {
   totalSegments: number;
   totalWords: number;
+  estimatedReadingTime: number; // Added field for estimated reading time
 }
 
 export type ChapterTitle = MultilingualContent;

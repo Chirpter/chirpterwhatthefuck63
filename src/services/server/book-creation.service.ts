@@ -37,21 +37,21 @@ function buildLangInstructions(
 ): string[] {
   const instructions: string[] = [];
   
+  const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
+
   if (secondaryLanguage) {
-    const primaryLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
     const secondaryLabel = LANGUAGES.find(l => l.value === secondaryLanguage)?.label || secondaryLanguage;
     
     instructions.push(`- Bilingual ${primaryLabel} and ${secondaryLabel}, with sentences paired using {} as {translation of that sentence}.`);
-    instructions.push("- The title is heading 1: eg # My Book Title {Tiêu đề của tôi}");
+    instructions.push("- The title must be a Level 1 Markdown heading, like: # Book Title {Tiêu đề sách}");
     if (contentType === 'book') {
-      instructions.push("- Each chapter must begin with a Level 2 Markdown heading. Eg: ## Chapter 1: The Beginning {Chương 1: Sự Khởi Đầu}");
+      instructions.push("- Each chapter must begin with a Level 2 Markdown heading, like: ## Chapter 1 {Chương 1}");
     }
   } else {
-    const langLabel = LANGUAGES.find(l => l.value === primaryLanguage)?.label || primaryLanguage;
-    instructions.push(`- Write in ${langLabel}.`);
-    instructions.push("- The title is heading 1: eg # My Book Title");
+    instructions.push(`- Write in ${primaryLabel}.`);
+    instructions.push("- The title must be a Level 1 Markdown heading, like: # My Book Title");
     if (contentType === 'book') {
-      instructions.push("- Each chapter must begin with a Level 2 Markdown heading. Eg: ## Chapter 1: The Beginning");
+      instructions.push("- Each chapter must begin with a Level 2 Markdown heading, like: ## Chapter 1: The Beginning");
     }
   }
   
