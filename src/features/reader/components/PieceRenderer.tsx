@@ -11,11 +11,7 @@ import { getItemSegments } from '@/services/shared/SegmentParser';
 import { Icon } from '@/components/ui/icons';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 
-interface PieceRendererFrameProps {
-  item: Piece | null;
-  children: React.ReactNode;
-  className?: string;
-}
+const PREVIEW_SEGMENT_LIMIT = 5;
 
 const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
   switch (ratio) {
@@ -27,40 +23,6 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
   }
 };
 
-/**
- * The PieceRendererFrame acts as a 'frame' for Piece content.
- * It is responsible for creating a container with the correct presentation style
- * and aspect ratio. It renders children passed into it.
- */
-const PieceRendererFrame: React.FC<PieceRendererFrameProps> = ({ 
-  item,
-  children,
-  className
-}) => {
-  const aspectRatioClass = useMemo(() => {
-    if (item?.presentationStyle === 'card') {
-      return getAspectRatioClass(item.aspectRatio);
-    }
-    return getAspectRatioClass('3:4');
-  }, [item]);
-
-  const cardClassName = useMemo(() => {
-    return cn(
-      "w-full shadow-xl rounded-lg bg-background/95 overflow-hidden",
-      aspectRatioClass,
-      item?.presentationStyle === 'doc' ? 'max-w-3xl mx-auto' : 'max-w-md',
-      className
-    );
-  }, [item?.presentationStyle, aspectRatioClass, className]);
-
-  return (
-      <div className={cardClassName}>
-          {children}
-      </div>
-  );
-};
-
-
 interface PieceRendererProps {
   item: Piece | null;
   isBusy?: boolean;
@@ -70,15 +32,17 @@ interface PieceRendererProps {
 }
 
 /**
- * The main component for rendering a Piece, used for previews, cards, and full reading.
- * It constructs a temporary Piece object, calculates the segments to display based on the mode,
- * and renders it using BookRenderer inside a styled frame.
+ * This is the CENTRALIZED component for rendering a "Piece".
+ * It can render in two modes:
+ * - 'full': For the reader page, displays all content and scrolls.
+ * - 'preview': For library cards and the create page preview, displays only the first
+ *   few segments and does not scroll, acting as a static thumbnail.
  */
 export const PieceRenderer: React.FC<PieceRendererProps> = ({
   item,
   isBusy = false,
   formData = {},
-  mode = 'full', // Default to full view
+  mode = 'full',
   className,
 }) => {
   const { t } = useTranslation(['createPage']);
@@ -103,6 +67,19 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
   }, [item, isBusy, formData, t]);
   
   const allSegments = useMemo(() => getItemSegments(constructedItem, 0), [constructedItem]);
+  const aspectRatioClass = useMemo(() => getAspectRatioClass(constructedItem.aspectRatio), [constructedItem.aspectRatio]);
+
+  const cardClassName = useMemo(() => {
+    return cn(
+      "w-full shadow-xl rounded-lg overflow-hidden",
+      "transition-all duration-300",
+      aspectRatioClass,
+      mode === 'preview' ? 'bg-card' : editorSettings.background,
+      item?.presentationStyle === 'doc' ? 'max-w-3xl mx-auto' : 'max-w-md',
+      className
+    );
+  }, [item?.presentationStyle, aspectRatioClass, className, mode, editorSettings.background]);
+
 
   const renderInnerContent = () => {
     if (isBusy) {
@@ -121,8 +98,7 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
         );
     }
     
-    // In preview mode, only show a limited number of segments. In full mode, show all.
-    const segmentsToRender = mode === 'preview' ? allSegments.slice(0, 5) : allSegments;
+    const segmentsToRender = mode === 'preview' ? allSegments.slice(0, PREVIEW_SEGMENT_LIMIT) : allSegments;
     const pageToRender = { pageIndex: 0, items: segmentsToRender, estimatedHeight: 0 };
     
     return (
@@ -138,10 +114,10 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
   };
   
   return (
-    <PieceRendererFrame item={constructedItem} className={className}>
-      <div className={cn("w-full h-full", editorSettings.background, mode === 'full' && 'overflow-y-auto')}>
+    <div className={cardClassName}>
+      <div className={cn("w-full h-full", mode === 'full' && 'overflow-y-auto')}>
         {renderInnerContent()}
       </div>
-    </PieceRendererFrame>
+    </div>
   );
 };

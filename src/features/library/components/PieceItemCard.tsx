@@ -13,22 +13,20 @@ interface PieceItemCardProps {
 }
 
 /**
- * A simple, static "thumbnail" of a Piece item for the library view.
- * It wraps the centralized PieceRenderer component in a link.
+ * The PieceItemCard component is now a simple wrapper.
+ * Its sole responsibility is to provide the Link to the full reader view.
+ * The actual visual representation is handled by the centralized PieceRenderer
+ * in "preview" mode.
  */
 export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
-  if (!work) return null;
-
-  const isReadable = work.contentState === 'ready';
-
-  if (!isReadable) {
-    return null;
-  }
+  if (!work || work.contentState !== 'ready') return null;
   
   return (
     <Link href={`/read/${work.id}`} className="block break-inside-avoid">
-        {/* The actual rendering is now fully delegated */}
-        <PieceRenderer item={work} mode="preview" />
+        <PieceRenderer 
+          item={work} 
+          mode="preview" 
+        />
     </Link>
   );
 }
