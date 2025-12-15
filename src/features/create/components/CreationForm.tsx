@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { CoverImageSettings } from './book/CoverImageSettings';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED IMPORT
+import { PiecePreview } from './piece/PiecePreview';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
 import type { Piece, Book } from '@/lib/types';
@@ -63,12 +63,10 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
               onCreateAnother={() => reset(type)}
             />
         ) : (
-           <PieceRenderer
+           <PiecePreview
               item={jobData as Piece | null}
-              className={cn(isBusy && "animate-pulse")}
-           >
-              {/* The content is now managed inside PieceRenderer */}
-           </PieceRenderer>
+              isBusy={isBusy}
+           />
         )}
     </div>
   ) : null;

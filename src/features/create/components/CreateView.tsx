@@ -14,12 +14,12 @@ import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { cn } from '@/lib/utils';
 import { CreationForm } from './CreationForm';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED IMPORT
 import type { Piece, Book } from '@/lib/types';
 import { BookRenderer } from '@/features/reader/components/BookRenderer';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { getItemSegments } from '@/services/shared/SegmentParser';
 import { useCreationJob } from '../hooks/useCreationJob';
+import { PiecePreview } from './piece/PiecePreview';
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
@@ -73,35 +73,14 @@ export default function CreateView() {
         );
     }
     
-    // For pieces, we construct a temporary item for rendering
-    const tempPiece = {
-      ...job.jobData,
-      presentationStyle: job.formData.presentationStyle,
-      aspectRatio: job.formData.aspectRatio,
-      title: job.jobData?.title || { primary: t('previewArea.pieceTitleDesktop') },
-      generatedContent: (job.jobData as Piece)?.generatedContent || [],
-      contentState: job.isBusy ? 'processing' : (job.jobData ? job.jobData.contentState : 'pending'),
-    } as Piece;
-    
-    const segments = getItemSegments(tempPiece, 0);
-
+    // For pieces, we use the new PiecePreview component
     return (
-        <PieceRenderer item={tempPiece} className={editorSettings.background}>
-             {job.isBusy ? (
-                <div className="flex h-full w-full items-center justify-center">
-                    <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" />
-                </div>
-            ) : (
-                <BookRenderer
-                    page={{ pageIndex: 0, items: segments.slice(0, 10), estimatedHeight: 0 }}
-                    presentationStyle={tempPiece.presentationStyle}
-                    editorSettings={editorSettings}
-                    itemData={tempPiece}
-                    displayLang1={job.formData.primaryLanguage}
-                    displayLang2={job.formData.availableLanguages[1] || 'none'}
-                />
-            )}
-        </PieceRenderer>
+      <PiecePreview
+        item={job.jobData as Piece | null}
+        isBusy={job.isBusy}
+        editorSettings={editorSettings}
+        formData={job.formData}
+      />
     );
   };
 
