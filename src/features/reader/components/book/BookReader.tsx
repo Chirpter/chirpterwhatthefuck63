@@ -1,7 +1,7 @@
 // src/features/reader/components/book/BookReader.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +28,7 @@ interface LookupState {
   text: string;
   rect: DOMRect | null;
   sourceLang: string;
+  targetLanguage: string;
   sourceItem: LibraryItem | null;
   chapterId?: string;
   segmentId?: string;
@@ -48,7 +49,7 @@ export default function BookReader({ book }: { book: Book }) {
   const [displayLang1] = useState(book.langs[0] || 'en');
   const [displayLang2] = useState(book.langs[1] || 'none');
 
-  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', sourceItem: null, sentenceContext: '', context: 'reader' });
+  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const readerInitializedRef = useRef(false);
 
@@ -136,7 +137,7 @@ export default function BookReader({ book }: { book: Book }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${'${selectedText}'}...`;
+        let sentenceContext = `...${selectedText}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
@@ -186,7 +187,7 @@ export default function BookReader({ book }: { book: Book }) {
 
   return (
     <div id="reader-veil" className="w-full h-full fixed inset-0 z-40" onMouseUp={handleTextSelection}>
-      <Suspense>{lookupState.isOpen && lookupState.rect && <LookupPopover {...lookupState} onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))} />}</Suspense>
+      <Suspense>{lookupState.isOpen && lookupState.rect && <LookupPopover {...lookupState} onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))} sourceLanguage={lookupState.sourceLang} targetLanguage={lookupState.targetLanguage} />}</Suspense>
 
       <div id="reader-studio-container" className="w-full h-full flex flex-col items-center justify-center">
         <div id="reader-content-wrapper" className="relative w-full h-full flex items-center justify-center min-h-0 p-1 group/reader">
