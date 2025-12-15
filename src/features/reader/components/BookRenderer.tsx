@@ -128,7 +128,7 @@ export function BookRenderer({
 
             return (
                 <ParagraphWrapper key={pIndex} className={cn(
-                    (firstSegment.type === 'start_para' || firstSegment.type === 'text') && "mt-4 first:mt-0",
+                    (firstSegment.type === 'start_para') && "mt-4 first:mt-0",
                     applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary"
                 )}>
                     {paragraph.map((segment) => (

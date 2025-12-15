@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Page, Segment } from '@/lib/types';
@@ -76,16 +75,12 @@ export class PageCalculator {
 
   /**
    * Estimates the height of a single item based on its character count and type.
-   * Now handles the 'paragraph_break' type.
+   * This method is a placeholder and should be replaced with logic from SegmentCalibrator.
    * @returns The estimated height in pixels.
    */
   private estimateItemHeight(item: Segment, baseline: CalibrationBaseline): number {
-    if (item.type === 'paragraph_break') {
-      return PARAGRAPH_SPACING_HEURISTIC;
-    }
-    
-    const primaryTextLength = item.content.primary?.length || 0;
-    const secondaryTextLength = item.content.secondary?.length || 0;
+    const primaryTextLength = (Array.isArray(item.content.primary) ? item.content.primary.join(' ') : item.content.primary)?.length || 0;
+    const secondaryTextLength = (Array.isArray(item.content.secondary) ? item.content.secondary.join(' ') : item.content.secondary)?.length || 0;
     const totalTextLength = primaryTextLength + secondaryTextLength;
     
     let typeMultiplier = 1.0;

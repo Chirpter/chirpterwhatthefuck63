@@ -1,4 +1,3 @@
-
 // src/services/shared/MarkdownParser.ts
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
@@ -167,7 +166,7 @@ function processParagraphIntoSegments(
 
     const sentencePairs = extractBilingualTextPairs(paragraphText, primaryLang, secondaryLang);
 
-    sentencePairs.forEach((sentencePair, index) => {
+    sentencePairs.forEach((sentencePair) => {
         const primarySentence = sentencePair[primaryLang];
         if (!primarySentence || typeof primarySentence !== 'string') return;
         
@@ -193,7 +192,7 @@ function processParagraphIntoSegments(
         segments.push({
             id: generateLocalUniqueId(),
             order: segmentOrder++,
-            type: (index === 0) ? 'start_para' : 'text',
+            type: 'start_para', // All text-based segments are now 'start_para'
             content: finalContent,
         });
     });
@@ -291,6 +290,7 @@ export function parseBookMarkdown(
                 title: chapterTitle,
                 segments,
                 stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang) },
+                metadata: { primaryLanguage: primaryLang }
             });
         }
     };
@@ -304,6 +304,7 @@ export function parseBookMarkdown(
                 title: { [primaryLang]: `Chapter 1` },
                 segments,
                 stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang) },
+                metadata: { primaryLanguage: primaryLang }
             });
         }
     } else {

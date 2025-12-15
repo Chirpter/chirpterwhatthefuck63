@@ -38,7 +38,7 @@ export type ContentUnit = 'sentence' | 'phrase';
 export interface Segment {
   id: string;
   order: number;
-  type: 'text' | 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image' | 'start_para';
+  type: 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image' | 'start_para';
   content: MultilingualContent;
 }
 
@@ -61,7 +61,7 @@ export interface Chapter {
   title: ChapterTitle;
   segments: Segment[]; // Uses the updated Segment type
   stats: ChapterStats;
-  metadata: {
+  metadata?: {
     primaryLanguage: string;
   };
 }

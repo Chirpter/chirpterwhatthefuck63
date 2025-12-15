@@ -205,7 +205,6 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
       );
 
     case 'start_para':
-    case 'text':
         return <span data-segment-id={segment.id}>{renderMainContent()}</span>;
     
     default:
