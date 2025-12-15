@@ -5,7 +5,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Piece, LibraryItem } from "@/lib/types";
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED IMPORT
 
 interface PieceItemCardProps {
     work: Piece;
@@ -33,7 +33,7 @@ export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
   // For now, we keep it as a direct link.
 
   return (
-    <Link href={`/read/${'${work.id}'}`} className="block break-inside-avoid">
+    <Link href={`/read/${work.id}`} className="block break-inside-avoid">
         <PieceRenderer item={work}>
             {/* The actual content is rendered on the reader page. 
                 This preview could show a snippet or a placeholder. 

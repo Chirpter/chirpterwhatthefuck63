@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { CoverImageSettings } from './book/CoverImageSettings';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
-import { PieceRenderer } from './piece/PieceRenderer';
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED IMPORT
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
 import type { Piece, Book } from '@/lib/types';
