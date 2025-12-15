@@ -501,6 +501,20 @@
             linear-gradient(to bottom right, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.4));
         background-size: 20px 20px, 20px 20px, 100% 100%;
     }
+
+    /* Aspect Ratio utilities */
+    .aspect-square {
+        aspect-ratio: 1 / 1;
+    }
+    .aspect-video {
+        aspect-ratio: 16 / 9;
+    }
+    .aspect-\[3\/4\] {
+        aspect-ratio: 3 / 4;
+    }
+    .aspect-\[4\/3\] {
+        aspect-ratio: 4 / 3;
+    }
 }
 
 @layer components {
@@ -823,19 +837,3 @@
       --input: 210 15% 88%;
     }
 }
-
-  
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
