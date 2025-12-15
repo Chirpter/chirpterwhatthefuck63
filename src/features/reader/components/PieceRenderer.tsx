@@ -29,8 +29,7 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 /**
  * The PieceRenderer acts as a 'frame' for Piece content.
  * It is responsible for creating a container with the correct presentation style
- * ('doc' or 'card') and aspect ratio.
- * It renders any children passed into it, which will typically be a BookRenderer component.
+ * and aspect ratio. It renders children passed into it.
  */
 export const PieceRenderer: React.FC<PieceRendererProps> = ({ 
   item,
@@ -49,7 +48,7 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
 
   const cardClassName = useMemo(() => {
     return cn(
-      "w-full shadow-xl overflow-hidden rounded-lg bg-background/95",
+      "w-full shadow-xl rounded-lg bg-background/95", // Removed overflow-hidden from the main container
       aspectRatioClass,
       item?.presentationStyle === 'doc' ? 'max-w-3xl mx-auto' : 'max-w-md',
       className,
@@ -58,7 +57,10 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
 
   return (
       <div className={cardClassName}>
-          <div className="h-full w-full overflow-y-auto @container/content-card">
+          {/* ✅ FIX: Moved overflow-hidden to an inner div. 
+              This clips the content inside the card but allows the card itself to have shadows etc.
+              Removed overflow-y-auto to make it a static preview. */}
+          <div className="h-full w-full overflow-hidden">
               {children}
           </div>
       </div>

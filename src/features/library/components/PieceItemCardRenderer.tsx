@@ -20,8 +20,7 @@ interface PieceItemCardRendererProps {
 
 /**
  * A component that acts as a preview or card for a 'Piece'.
- * It can be used in the library, on the create page, or anywhere a snapshot of the piece is needed.
- * It handles its own data construction and rendering logic internally.
+ * It is responsible for rendering a static, non-scrollable view of the first part of a piece.
  */
 export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({
   item,
@@ -51,7 +50,8 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({
     } as Piece;
   }, [item, isBusy, formData, t]);
   
-  const segments = useMemo(() => getItemSegments(constructedItem, 0), [constructedItem]);
+  // Get all segments for the item.
+  const allSegments = useMemo(() => getItemSegments(constructedItem, 0), [constructedItem]);
 
   const renderInnerContent = () => {
     if (isBusy) {
@@ -62,15 +62,19 @@ export const PieceItemCardRenderer: React.FC<PieceItemCardRendererProps> = ({
       );
     }
     
-    if (!item || segments.length === 0) {
+    if (!item || allSegments.length === 0) {
         return (
              <div className="flex h-full w-full items-center justify-center p-8 text-center text-muted-foreground">
                 <p>{t('previewArea.piecePlaceholder')}</p>
             </div>
         );
     }
-
-    const firstPage = { pageIndex: 0, items: segments, estimatedHeight: 0 };
+    
+    // ✅ FIX: Simulate a "first page" by taking only the first few segments.
+    // This is a simple heuristic to prevent overflow without full pagination logic.
+    // A more advanced version could calculate height, but this is sufficient for a preview card.
+    const firstPageSegments = allSegments.slice(0, 5);
+    const firstPage = { pageIndex: 0, items: firstPageSegments, estimatedHeight: 0 };
     
     return (
         <BookRenderer
