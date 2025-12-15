@@ -5,7 +5,7 @@
 
 import React from 'react';
 import type { Piece, CreationFormValues } from '@/lib/types';
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
+import PieceReader from '@/features/reader/components/piece/PieceReader';
 
 interface PiecePreviewProps {
   item: Piece | null;
@@ -15,7 +15,7 @@ interface PiecePreviewProps {
 
 /**
  * A simple wrapper component for the create page.
- * It passes all necessary data down to the centralized PieceRenderer
+ * It passes all necessary data down to the centralized PieceReader
  * configured for "preview" mode.
  */
 export const PiecePreview: React.FC<PiecePreviewProps> = ({
@@ -24,11 +24,9 @@ export const PiecePreview: React.FC<PiecePreviewProps> = ({
   formData
 }) => {
   return (
-    <PieceRenderer
-      item={item}
-      isBusy={isBusy}
-      formData={formData}
-      mode="preview"
+    <PieceReader
+      piece={item as Piece}
+      isPreview
     />
   );
 };

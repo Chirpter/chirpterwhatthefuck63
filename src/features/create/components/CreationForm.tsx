@@ -17,7 +17,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
 import type { Piece, Book } from '@/lib/types';
 import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
+import PieceReader from '@/features/reader/components/piece/PieceReader';
 
 interface CreationFormProps {
   job: ReturnType<typeof useCreationJob>; // Use the imported type
@@ -63,11 +63,9 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
               onCreateAnother={() => reset(type)}
             />
         ) : (
-           <PieceRenderer
-              item={jobData as Piece | null}
-              isBusy={isBusy}
-              formData={formData}
-              mode="preview"
+           <PieceReader
+              piece={jobData as Piece}
+              isPreview
             />
         )}
     </div>
