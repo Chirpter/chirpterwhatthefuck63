@@ -1,3 +1,4 @@
+
 // src/features/library/components/LibraryView.tsx
 "use client";
 
@@ -232,7 +233,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
                       <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
                           {item.status === 'processing' 
                             ? <ProcessingBookItemCard book={item} onDelete={confirmDelete}/>
-                            : <BookItemCard book={item} />
+                            : <BookItemCard book={item} onDelete={confirmDelete} />
                           }
                       </motion.div>
                   ))}
@@ -246,7 +247,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
               <AnimatePresence>
                 {pieceItems.map((item) => (
                     <motion.div key={item.id} layout animate={{ opacity: 1 }} initial={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                        <PieceItemCard work={item} />
+                        <PieceItemCard work={item} onDelete={confirmDelete} />
                     </motion.div>
                 ))}
               </AnimatePresence>

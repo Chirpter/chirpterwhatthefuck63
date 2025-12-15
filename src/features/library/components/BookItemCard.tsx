@@ -1,6 +1,6 @@
 
 
-'use client';
+"use client";
 
 import type { Book, LibraryItem, BookmarkType, SystemBookmark } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { regenerateBookContent, editBookCover } from "@/services/server/book-creation.service";
+import { regenerateBookContent, editBookCover } from '@/services/server/book-creation.service';
 import { useToast } from '@/hooks/useToast';
 import { DynamicBookmark } from "./DynamicBookmark";
 import { BookmarkCard } from "@/features/user/components/BookmarkCard";
@@ -42,6 +42,7 @@ const RegeneratePromptDialog = lazy(() => import('./RegeneratePromptDialog'));
 interface BookItemCardProps {
     book: Book;
     onPurchase?: (item: Book) => void;
+    onDelete?: (item: Book) => void;
 }
 
 // Internal component for handling the new cover generation UI inside the dropdown
@@ -76,13 +77,13 @@ const GenerateCoverUI: React.FC<{
 };
 
 
-export function BookItemCard({ book, onPurchase }: BookItemCardProps) {
+export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) {
   const { t } = useTranslation(['bookCard', 'presets', 'common', 'toast']);
   const { user } = useUser();
   const { toast } = useToast();
   const { startPlayback, isPlaying, currentPlayingItem, overallProgressPercentage, addBookToPlaylist, pauseAudio, resumeAudio } = useAudioPlayer();
   const audioProgress = useItemCardProgress(book.id, book);
-  const { availableBookmarks, onBookmarkChange, onDelete } = useContext(LibraryContext);
+  const { availableBookmarks, onBookmarkChange } = useContext(LibraryContext);
   const [isBookmarkSelectorOpen, setIsBookmarkSelectorOpen] = useState(false);
 
   const [itemToRegenerateContent, setItemToRegenerateContent] = useState<Book | null>(null);
