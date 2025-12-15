@@ -27,10 +27,10 @@ function getLibraryCollectionPath(userId: string): string {
 }
 
 /**
- * NEW: A modular function to build language-specific instructions for prompts.
+ * A modular function to build language-specific instructions for prompts.
  * This centralizes the logic for both monolingual and bilingual content.
  */
-function buildLanguageInstructions(
+function buildLangInstructions(
   primaryLanguage: string,
   secondaryLanguage: string | undefined,
   contentType: 'book' | 'piece'
@@ -170,7 +170,7 @@ async function generateSinglePieceContent(pieceFormData: PieceFormValues): Promi
     
     const systemInstructions = [
         '- Markdown format.',
-        ...buildLanguageInstructions(primaryLanguage, secondaryLanguage, 'piece'),
+        ...buildLangInstructions(primaryLanguage, secondaryLanguage, 'piece'),
         '- The content must be lesser than 500 words.',
     ];
     

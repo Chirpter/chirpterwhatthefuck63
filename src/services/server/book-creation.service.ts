@@ -27,10 +27,10 @@ const BookPromptInputSchema = z.object({
 });
 
 /**
- * NEW: A modular function to build language-specific instructions for prompts.
+ * A modular function to build language-specific instructions for prompts.
  * This centralizes the logic for both monolingual and bilingual content.
  */
-function buildLanguageInstructions(
+function buildLangInstructions(
   primaryLanguage: string,
   secondaryLanguage: string | undefined,
   contentType: 'book' | 'piece'
@@ -220,7 +220,7 @@ async function processContentGenerationForBook(
     const [primaryLanguage, secondaryLanguage] = origin.split('-');
 
     const systemInstructions = [
-        ...buildLanguageInstructions(primaryLanguage, secondaryLanguage, 'book'),
+        ...buildLangInstructions(primaryLanguage, secondaryLanguage, 'book'),
     ];
 
     // Structure instructions
