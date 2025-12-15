@@ -289,7 +289,6 @@ export function parseBookMarkdown(
                 title: chapterTitle,
                 segments,
                 stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang), estimatedReadingTime: 1 },
-                metadata: { primaryLanguage: primaryLang }
             });
         }
     };
@@ -304,7 +303,6 @@ export function parseBookMarkdown(
                 title: { [primaryLang]: `Chapter 1` },
                 segments,
                 stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang), estimatedReadingTime: 1 },
-                metadata: { primaryLanguage: primaryLang }
             });
         }
     } else {

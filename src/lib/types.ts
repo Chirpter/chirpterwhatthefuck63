@@ -33,7 +33,6 @@ export type ContentUnit = 'sentence' | 'phrase';
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
- * The 'type' property has been removed. Paragraphs are handled by rendering logic.
  */
 export interface Segment {
   id: string;
@@ -61,9 +60,6 @@ export interface Chapter {
   title: ChapterTitle;
   segments: Segment[]; // Uses the updated Segment type
   stats: ChapterStats;
-  metadata?: {
-    primaryLanguage: string;
-  };
 }
 
 
