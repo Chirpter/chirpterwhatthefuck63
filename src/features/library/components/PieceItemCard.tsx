@@ -5,7 +5,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Piece, LibraryItem } from "@/lib/types";
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED: Path to the new central renderer
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 
 interface PieceItemCardProps {
     work: Piece;
@@ -26,9 +26,9 @@ export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
   }
   
   return (
-    <Link href={`/read/${'${work.id}'}`} className="block break-inside-avoid">
+    <Link href={`/read/${work.id}`} className="block break-inside-avoid">
         {/* The actual rendering is now fully delegated */}
-        <PieceRenderer item={work} />
+        <PieceRenderer item={work} mode="preview" />
     </Link>
   );
 }

@@ -17,7 +17,7 @@ import { BookGenerationAnimation } from './book/BookGenerationAnimation';
 import type { Piece, Book } from '@/lib/types';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { useCreationJob } from '../hooks/useCreationJob';
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED: Use the central PieceRenderer
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
@@ -78,6 +78,7 @@ export default function CreateView() {
             item={job.jobData as Piece | null}
             isBusy={job.isBusy}
             formData={job.formData}
+            mode="preview"
           />
       </div>
     );

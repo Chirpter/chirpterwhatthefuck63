@@ -1,5 +1,4 @@
 // src/features/reader/components/PieceRenderer.tsx
-// This is now the CENTRAL component for rendering a "Piece" in a card/preview format.
 
 "use client";
 
@@ -15,6 +14,7 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 interface PieceRendererFrameProps {
   item: Piece | null;
   children: React.ReactNode;
+  className?: string;
 }
 
 const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
@@ -35,6 +35,7 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 const PieceRendererFrame: React.FC<PieceRendererFrameProps> = ({ 
   item,
   children,
+  className
 }) => {
   const aspectRatioClass = useMemo(() => {
     if (item?.presentationStyle === 'card') {
@@ -48,8 +49,9 @@ const PieceRendererFrame: React.FC<PieceRendererFrameProps> = ({
       "w-full shadow-xl rounded-lg bg-background/95 overflow-hidden",
       aspectRatioClass,
       item?.presentationStyle === 'doc' ? 'max-w-3xl mx-auto' : 'max-w-md',
+      className
     );
-  }, [item?.presentationStyle, aspectRatioClass]);
+  }, [item?.presentationStyle, aspectRatioClass, className]);
 
   return (
       <div className={cardClassName}>
@@ -63,17 +65,21 @@ interface PieceRendererProps {
   item: Piece | null;
   isBusy?: boolean;
   formData?: Partial<CreationFormValues>;
+  mode?: 'full' | 'preview';
+  className?: string;
 }
 
 /**
- * The main component for rendering a Piece, used for both library cards and creation previews.
- * It constructs a temporary Piece object, calculates the first page of segments,
+ * The main component for rendering a Piece, used for previews, cards, and full reading.
+ * It constructs a temporary Piece object, calculates the segments to display based on the mode,
  * and renders it using BookRenderer inside a styled frame.
  */
 export const PieceRenderer: React.FC<PieceRendererProps> = ({
   item,
   isBusy = false,
   formData = {},
+  mode = 'full', // Default to full view
+  className,
 }) => {
   const { t } = useTranslation(['createPage']);
   const [editorSettings] = useEditorSettings(item?.id || null);
@@ -115,12 +121,13 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
         );
     }
     
-    const firstPageSegments = allSegments.slice(0, 5);
-    const firstPage = { pageIndex: 0, items: firstPageSegments, estimatedHeight: 0 };
+    // In preview mode, only show a limited number of segments. In full mode, show all.
+    const segmentsToRender = mode === 'preview' ? allSegments.slice(0, 5) : allSegments;
+    const pageToRender = { pageIndex: 0, items: segmentsToRender, estimatedHeight: 0 };
     
     return (
         <BookRenderer
-            page={firstPage}
+            page={pageToRender}
             presentationStyle={constructedItem.presentationStyle}
             editorSettings={editorSettings}
             itemData={constructedItem}
@@ -131,8 +138,8 @@ export const PieceRenderer: React.FC<PieceRendererProps> = ({
   };
   
   return (
-    <PieceRendererFrame item={constructedItem}>
-      <div className={cn("w-full h-full", editorSettings.background)}>
+    <PieceRendererFrame item={constructedItem} className={className}>
+      <div className={cn("w-full h-full", editorSettings.background, mode === 'full' && 'overflow-y-auto')}>
         {renderInnerContent()}
       </div>
     </PieceRendererFrame>
