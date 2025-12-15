@@ -66,7 +66,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
     let finalUpdate: Partial<Piece>;
 
     try {
-        const contentResult = await generateSinglePieceContent(pieceFormData);
+        const contentResult = await generatePieceContent(pieceFormData);
         if (!contentResult || !contentResult.generatedContent) {
             throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
@@ -158,7 +158,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 /**
  * Generates content for a "piece" using a unified Markdown approach.
  */
-async function generateSinglePieceContent(pieceFormData: PieceFormValues): Promise<Partial<Piece>> {
+async function generatePieceContent(pieceFormData: PieceFormValues): Promise<Partial<Piece>> {
     const promptInput = (pieceFormData.aiPrompt || '').slice(0, MAX_PROMPT_LENGTH);
     if (!promptInput) {
       throw new Error("A user prompt is required.");
