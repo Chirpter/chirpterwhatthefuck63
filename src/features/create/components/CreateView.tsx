@@ -15,11 +15,9 @@ import { cn } from '@/lib/utils';
 import { CreationForm } from './CreationForm';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
 import type { Piece, Book } from '@/lib/types';
-import { BookRenderer } from '@/features/reader/components/BookRenderer';
+import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
-import { getItemSegments } from '@/services/shared/SegmentParser';
 import { useCreationJob } from '../hooks/useCreationJob';
-import { PiecePreview } from './piece/PiecePreview';
 
 export default function CreateView() {
   const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
@@ -73,14 +71,17 @@ export default function CreateView() {
         );
     }
     
-    // For pieces, we use the new PiecePreview component
+    if (job.jobData) {
+      return <PieceItemCardRenderer item={job.jobData as Piece} />;
+    }
+    
+    // Placeholder for piece preview
     return (
-      <PiecePreview
-        item={job.jobData as Piece | null}
-        isBusy={job.isBusy}
-        editorSettings={editorSettings}
-        formData={job.formData}
-      />
+      <div className="w-full h-full flex items-center justify-center p-4">
+        <div className="w-full max-w-md aspect-[3/4] bg-background/50 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground p-8 text-center">
+            {isBusy ? <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" /> : <p>{t('previewArea.piecePlaceholder')}</p>}
+        </div>
+      </div>
     );
   };
 

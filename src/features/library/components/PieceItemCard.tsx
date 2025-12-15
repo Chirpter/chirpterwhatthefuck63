@@ -5,7 +5,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Piece, LibraryItem } from "@/lib/types";
-import { PieceRenderer } from '@/features/reader/components/PieceRenderer'; // UPDATED IMPORT
+import { PieceItemCardRenderer } from './PieceItemCardRenderer'; // UPDATED IMPORT
 
 interface PieceItemCardProps {
     work: Piece;
@@ -14,7 +14,7 @@ interface PieceItemCardProps {
 
 /**
  * A simple, static "thumbnail" of a Piece item for the library view.
- * It renders the new lightweight PieceRenderer component, ensuring visual consistency.
+ * It renders the new centralized PieceItemCardRenderer component.
  * It acts as a link to the full reader view.
  */
 export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
@@ -34,11 +34,7 @@ export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
 
   return (
     <Link href={`/read/${work.id}`} className="block break-inside-avoid">
-        <PieceRenderer item={work}>
-            {/* The actual content is rendered on the reader page. 
-                This preview could show a snippet or a placeholder. 
-                For now, it's handled by the renderer's logic. */}
-        </PieceRenderer>
+        <PieceItemCardRenderer item={work} />
     </Link>
   );
 }

@@ -7,15 +7,15 @@ import { useTranslation } from 'react-i18next';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Icon } from '@/components/ui/icons';
-import { AdvancedSettings } from './book/AdvancedSettings';
+import { AdvancedSettings } from './shared/AdvancedSettings';
 import { CreationLanguageSettings } from './shared/CreationLanguageSettings';
 import { cn } from '@/lib/utils';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
-import { CoverImageSettings } from './book/CoverImageSettings';
+import { CoverImageSettings } from './shared/CoverImageSettings';
 import { BookGenerationAnimation } from './book/BookGenerationAnimation';
-import { PiecePreview } from './piece/PiecePreview';
+import { PieceItemCardRenderer } from '@/features/library/components/PieceItemCardRenderer';
 import { useMobile } from '@/hooks/useMobile';
-import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
+import { PresentationStyleSelector } from './shared/PresentationStyleSelector';
 import type { Piece, Book } from '@/lib/types';
 import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
 
@@ -62,11 +62,12 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
               onViewBook={handleViewResult}
               onCreateAnother={() => reset(type)}
             />
+        ) : jobData ? (
+           <PieceItemCardRenderer item={jobData as Piece} />
         ) : (
-           <PiecePreview
-              item={jobData as Piece | null}
-              isBusy={isBusy}
-           />
+           <div className="flex h-full w-full items-center justify-center p-8 text-center text-muted-foreground">
+               {isBusy ? <Icon name="Wand2" className="h-16 w-16 text-primary/80 animate-pulse" /> : <p>{t('previewArea.piecePlaceholder')}</p>}
+           </div>
         )}
     </div>
   ) : null;
