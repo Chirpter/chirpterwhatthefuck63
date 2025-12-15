@@ -1,188 +1,168 @@
-// src/features/create/components/shared/AdvancedSettings.tsx
+// src/features/create/components/CreationForm.tsx
 
 "use client";
 
-import React from "react";
-import { useTranslation } from "react-i18next";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Label } from "@/components/ui/label";
-import { Icon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
-import { BOOK_LENGTH_OPTIONS } from "@/lib/constants";
-import type { BookLengthOptionValue } from "@/lib/types";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { CreditIcon } from "@/components/ui/CreditIcon";
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Icon } from '@/components/ui/icons';
+import { AdvancedSettings } from './book/AdvancedSettings';
+import { CreationLanguageSettings } from './shared/CreationLanguageSettings';
+import { cn } from '@/lib/utils';
+import { MAX_PROMPT_LENGTH } from '@/lib/constants';
+import { CoverImageSettings } from './book/CoverImageSettings';
+import { BookGenerationAnimation } from './book/BookGenerationAnimation';
+import { useMobile } from '@/hooks/useMobile';
+import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
+import type { Piece, Book } from '@/lib/types';
+import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
+import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 
-interface AdvancedSettingsProps {
-  bookLength: BookLengthOptionValue;
-  onBookLengthChange: (value: BookLengthOptionValue) => void;
-  targetChapterCount: number;
-  onTargetChapterCountChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onTargetChapterCountBlur: (event: React.FocusEvent<HTMLInputElement>) => void;
-  generationScope: 'firstFew' | 'full';
-  onGenerationScopeChange: (value: 'firstFew' | 'full') => void;
-  isDisabled: boolean;
-  minChapters: number;
-  maxChapters: number;
+interface CreationFormProps {
+  job: ReturnType<typeof useCreationJob>; // Use the imported type
+  formId: string;
 }
 
-const ScopeSelectionButton: React.FC<{
-  value: 'firstFew' | 'full';
-  title: string;
-  description: string;
-  isSelected: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  creditCost: number;
-}> = ({ value, title, description, isSelected, onClick, disabled, creditCost }) => (
-    <div
-        onClick={disabled ? undefined : onClick}
-        className={cn(
-            "p-3 border rounded-lg transition-all relative",
-            isSelected
-                ? "ring-2 ring-primary border-primary bg-primary/10"
-                : "border-border",
-            !disabled
-                ? "cursor-pointer hover:border-primary/50 hover:bg-muted"
-                : "cursor-not-allowed opacity-70"
-        )}
-    >
-        <Badge className="absolute -top-2 -right-2 bg-secondary text-secondary-foreground">
-            {creditCost} <CreditIcon className="ml-1 h-3 w-3 text-primary" />
-        </Badge>
-        <div className="font-medium font-body">{title}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
-    </div>
-);
+export const CreationForm: React.FC<CreationFormProps> = ({ job, formId }) => {
+  const { t } = useTranslation(['createPage', 'presets']);
+  const isMobile = useMobile();
 
-const BookLengthSelectionButton: React.FC<{
-  option: typeof BOOK_LENGTH_OPTIONS[number];
-  isSelected: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  t: (key: string) => string;
-}> = ({ option, isSelected, onClick, disabled, t }) => {
-    
-    const getCreditCostText = () => {
-        switch(option.value) {
-            case 'short-story': return "1";
-            case 'mini-book': return "2";
-            case 'standard-book': return "2/8";
-            case 'long-book': return "15";
-            default: return "0";
-        }
-    }
-
-    return (
-        <div
-            onClick={disabled ? undefined : onClick}
-            className={cn(
-                "p-3 border rounded-lg transition-all relative",
-                isSelected
-                    ? "ring-2 ring-primary border-primary bg-primary/10"
-                    : "border-border",
-                !disabled
-                    ? "cursor-pointer hover:border-primary/50 hover:bg-muted"
-                    : "cursor-not-allowed opacity-70"
-            )}
-        >
-             <Badge className="absolute -top-2 -right-2 bg-secondary text-secondary-foreground">
-                {getCreditCostText()} <CreditIcon className="ml-1 h-3 w-3 text-primary" />
-            </Badge>
-            <div className="font-medium font-body">{t(`advancedSettings.bookLength.${option.value}`)} {option.disabled ? `(${t('common:comingSoon')})` : ''}</div>
-            <p className="text-xs text-muted-foreground mt-1">{t(`advancedSettings.bookLength.${option.value}Description`)}</p>
-        </div>
-    )
-};
-
-
-export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
-  bookLength,
-  onBookLengthChange,
-  targetChapterCount,
-  onTargetChapterCountChange,
-  onTargetChapterCountBlur,
-  generationScope,
-  onGenerationScopeChange,
-  isDisabled,
-  minChapters,
-  maxChapters,
-}) => {
-  const { t } = useTranslation(['createPage', 'common']);
+  const {
+    formData,
+    handleInputChange,
+    handleValueChange,
+    handleFileChange,
+    handleChapterCountBlur,
+    handlePromptFocus,
+    handlePresentationStyleChange,
+    handleAspectRatioChange,
+    isPromptDefault,
+    isBusy,
+    promptError,
+    jobData,
+    finalizedId,
+    handleViewResult,
+    minChaptersForCurrentLength,
+    maxChapters,
+    reset,
+    isProUser,
+  } = job;
   
-  const isStandardBook = bookLength === 'standard-book' || bookLength === 'long-book';
+  const type = formData.type;
+  
+  const mobilePreview = isMobile ? (
+    <div className="my-4 min-h-[357px] flex items-center justify-center border-2 border-dashed border-border bg-background/50 p-4 rounded-lg">
+        {type === 'book' ? (
+            <BookGenerationAnimation
+              isFormBusy={isBusy}
+              bookJobData={jobData as Book | null}
+              finalizedBookId={finalizedId}
+              bookFormData={formData}
+              onViewBook={handleViewResult}
+              onCreateAnother={() => reset(type)}
+            />
+        ) : (
+           <PieceRenderer
+              item={jobData as Piece | null}
+              isBusy={isBusy}
+              formData={formData}
+              mode="preview"
+            />
+        )}
+    </div>
+  ) : null;
+  
+  const isBilingual = formData.availableLanguages.length > 1;
+  const isPhraseMode = formData.unit === 'phrase';
 
   return (
-    <Accordion type="single" collapsible className="w-full border rounded-lg p-0">
-      <AccordionItem value="advanced-settings" className="border-b-0">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline text-base font-medium">
-          <div className="flex items-center">
-            <Icon name="Settings" className="h-5 w-5 mr-2 text-primary" />
-            {t('advancedSettings.title')}
-          </div>
-        </AccordionTrigger>
-        <AccordionContent className="px-4 pt-2 pb-4 space-y-6">
-          <div className="space-y-4">
-            <Label className="font-body text-base font-medium">{t('advancedSettings.bookLengthTitle')}</Label>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {BOOK_LENGTH_OPTIONS.map((option) => (
-                    <BookLengthSelectionButton
-                        key={option.value}
-                        option={option}
-                        isSelected={bookLength === option.value}
-                        onClick={() => onBookLengthChange(option.value)}
-                        disabled={isDisabled || option.disabled}
-                        t={t}
-                    />
-                ))}
-            </div>
-          </div>
-          
-          <div className="space-y-2 pt-4 border-t">
-              <Label htmlFor="targetChapterCount" className="font-body text-base font-medium">{t('advancedSettings.chapterCountLabel')}</Label>
-              <Input
-                id="targetChapterCount"
-                name="targetChapterCount"
-                type="number"
-                value={targetChapterCount === 0 ? '' : targetChapterCount} // Show empty string if 0
-                onChange={onTargetChapterCountChange}
-                onBlur={onTargetChapterCountBlur}
-                disabled={isDisabled}
-                min={minChapters}
-                max={maxChapters}
-                placeholder={BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookLength)?.defaultChapters.toString()}
-              />
-          </div>
+    <>
+      <form id={formId} onSubmit={job.handleSubmit} className="space-y-6">
 
-          {(bookLength === 'standard-book' || bookLength === 'long-book') && (
-            <div className="space-y-3 pt-4 border-t">
-                <Label className="font-body text-base font-medium">{t('advancedSettings.generationScopeTitle')}</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <ScopeSelectionButton
-                        value="firstFew"
-                        title={t('advancedSettings.scopeFirstFew')}
-                        description={t('advancedSettings.scopeFirstFewDesc')}
-                        isSelected={generationScope === 'firstFew'}
-                        onClick={() => onGenerationScopeChange('firstFew')}
-                        disabled={isDisabled}
-                        creditCost={2}
-                    />
-                    <ScopeSelectionButton
-                        value="full"
-                        title={t('advancedSettings.scopeFull')}
-                        description={t('advancedSettings.scopeFullDesc')}
-                        isSelected={generationScope === 'full'}
-                        onClick={() => onGenerationScopeChange('full')}
-                        disabled={isDisabled}
-                        creditCost={8}
-                    />
-                </div>
-            </div>
+        {mobilePreview}
+
+        <div className="space-y-2 p-4 border rounded-lg bg-muted/50">
+          <Label htmlFor="aiPrompt" className="font-body text-base font-medium flex items-center">
+            <Icon name="Sparkles" className="h-5 w-5 mr-2 text-primary" />
+            {type === 'book' ? t('aiPrompt.bookLabel') : t('aiPrompt.pieceLabel')}
+            <span className="text-destructive ml-1">*</span>
+          </Label>
+          <Textarea
+            id="aiPrompt"
+            name="aiPrompt"
+            value={formData.aiPrompt}
+            onChange={handleInputChange}
+            onFocus={handlePromptFocus}
+            className={cn(
+              "font-body", 
+              promptError && "border-destructive focus-visible:ring-destructive",
+              isPromptDefault && "text-muted-foreground italic"
+            )}
+            rows={5}
+            disabled={isBusy}
+            maxLength={MAX_PROMPT_LENGTH}
+          />
+          <div className="text-right text-xs text-muted-foreground pt-1">
+            {`${formData.aiPrompt.length} / ${MAX_PROMPT_LENGTH}`}
+          </div>
+          {promptError === 'empty' && (
+            <p className="text-xs text-destructive">{t('formErrors.prompt.empty')}</p>
           )}
+        </div>
+        
+        <CreationLanguageSettings
+          isBilingual={isBilingual}
+          onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
+          isPhraseMode={isPhraseMode}
+          onIsPhraseModeChange={(checked) => handleValueChange('isPhraseMode', checked)}
+          primaryLanguage={formData.primaryLanguage}
+          onPrimaryLangChange={(value) => handleValueChange('primaryLanguage', value)}
+          secondaryLanguage={formData.availableLanguages[1]}
+          onSecondaryLangChange={(value) => handleValueChange('secondaryLanguage', value)}
+          availableLanguages={job.availableLanguages}
+          isDisabled={isBusy}
+          idPrefix={type}
+        />
 
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+        {type === 'book' && (
+          <CoverImageSettings
+              coverImageOption={formData.coverImageOption}
+              onCoverOptionChange={(value) => handleValueChange('coverImageOption', value)}
+              coverImageFile={formData.coverImageFile}
+              onCoverFileChange={handleFileChange}
+              coverImageAiPrompt={formData.coverImageAiPrompt}
+              onCoverAiPromptChange={handleInputChange}
+              isDisabled={isBusy}
+              isProUser={isProUser}
+          />
+        )}
+        
+        {type === 'piece' && (
+            <PresentationStyleSelector
+                presentationStyle={formData.presentationStyle as 'doc' | 'card'}
+                aspectRatio={formData.aspectRatio!}
+                onPresentationStyleChange={handlePresentationStyleChange}
+                onAspectRatioChange={handleAspectRatioChange}
+                disabled={isBusy}
+            />
+        )}
+
+        {type === 'book' && (
+          <AdvancedSettings
+            bookLength={formData.bookLength}
+            onBookLengthChange={(value) => handleValueChange('bookLength', value)}
+            targetChapterCount={formData.targetChapterCount}
+            onTargetChapterCountChange={handleInputChange}
+            onTargetChapterCountBlur={handleChapterCountBlur}
+            generationScope={formData.generationScope}
+            onGenerationScopeChange={(value) => handleValueChange('generationScope', value)}
+            isDisabled={isBusy}
+            minChapters={minChaptersForCurrentLength}
+            maxChapters={maxChapters}
+          />
+        )}
+      </form>
+    </>
   );
 };
