@@ -85,7 +85,9 @@ export function BookRenderer({
   return (
     <div className={contentContainerClasses}>
       {segments.map((segment) => (
-        <p key={segment.id}>
+        // ✅ FIX: Replaced <p> with <div> to prevent nesting <p> tags.
+        // react-markdown, used inside SegmentRenderer, generates its own <p> tags.
+        <div key={segment.id}>
             <SegmentRenderer 
                 segment={segment} 
                 isPlaying={currentPlayingSegmentId === segment.id}
@@ -96,7 +98,7 @@ export function BookRenderer({
                 displayLang2={displayLang2}
                 unit={itemData?.unit || 'sentence'}
             />
-        </p>
+        </div>
       ))}
     </div>
   );
