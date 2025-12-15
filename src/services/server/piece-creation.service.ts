@@ -3,7 +3,7 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Piece, PieceFormValues, GeneratePieceInput, ContentUnit } from "@/lib/types";
+import type { Piece, CreationFormValues, GeneratePieceInput, ContentUnit } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { checkAndUnlockAchievements } from './achievement.service';
 import { updateLibraryItem } from "./library.service";
@@ -62,7 +62,7 @@ function buildLangInstructions(
 /**
  * The main background pipeline for processing "piece" generation.
  */
-async function processPieceGenerationPipeline(userId: string, pieceId: string, pieceFormData: PieceFormValues): Promise<void> {
+async function processPieceGenerationPipeline(userId: string, pieceId: string, pieceFormData: CreationFormValues): Promise<void> {
     let finalUpdate: Partial<Piece>;
 
     try {
@@ -99,7 +99,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
 }
 
 
-export async function createPieceAndStartGeneration(userId: string, pieceFormData: PieceFormValues): Promise<string> {
+export async function createPieceAndStartGeneration(userId: string, pieceFormData: CreationFormValues): Promise<string> {
     const adminDb = getAdminDb();
     let pieceId = '';
     
@@ -131,7 +131,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             langs: pieceFormData.availableLanguages,
             unit: pieceFormData.unit,
             prompt: pieceFormData.aiPrompt,
-            tags: pieceFormData.tags || [],
+            tags: [],
             presentationStyle: pieceFormData.presentationStyle || 'card',
             aspectRatio: pieceFormData.aspectRatio,
             generatedContent: [],
@@ -158,7 +158,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 /**
  * Generates content for a "piece" using a unified Markdown approach.
  */
-async function generatePieceContent(pieceFormData: PieceFormValues): Promise<Partial<Piece>> {
+async function generatePieceContent(pieceFormData: CreationFormValues): Promise<Partial<Piece>> {
     const promptInput = (pieceFormData.aiPrompt || '').slice(0, MAX_PROMPT_LENGTH);
     if (!promptInput) {
       throw new Error("A user prompt is required.");
@@ -201,7 +201,7 @@ async function generatePieceContent(pieceFormData: PieceFormValues): Promise<Par
         }
         
         const finalTitle = parseBilingualText(titleText, primaryLanguage, secondaryLanguage);
-        const segments = parseMarkdownToSegments(contentMarkdown, pieceFormData.origin, pieceFormData.unit);
+        const segments = parseMarkdownToSegments(contentMarkdown, pieceFormData.origin, pieceFormData.unit, true);
         
         return {
           title: finalTitle,
@@ -261,16 +261,21 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         return;
     }
     
-    const pieceFormData: PieceFormValues = {
-        type: 'piece',
+    const pieceFormData: CreationFormValues = {
         aiPrompt: promptToUse,
         origin: workData.origin,
         unit: workData.unit,
         primaryLanguage: workData.langs[0],
         availableLanguages: workData.langs,
-        tags: workData.tags || [],
+        tags: [],
         presentationStyle: workData.presentationStyle,
         aspectRatio: workData.aspectRatio,
+        bookLength: 'short-story', // Not used for pieces
+        targetChapterCount: 1, // Not used for pieces
+        generationScope: 'full', // Not used for pieces
+        coverImageOption: 'none', // Not used for pieces
+        coverImageAiPrompt: '', // Not used for pieces
+        coverImageFile: null, // Not used for pieces
     };
     
     processPieceGenerationPipeline(userId, workId, pieceFormData)
