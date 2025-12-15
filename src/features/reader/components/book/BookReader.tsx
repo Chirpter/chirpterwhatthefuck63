@@ -187,7 +187,7 @@ export default function BookReader({ book }: { book: Book }) {
 
   return (
     <div id="reader-veil" className="w-full h-full fixed inset-0 z-40" onMouseUp={handleTextSelection}>
-      <Suspense>{lookupState.isOpen && lookupState.rect && <LookupPopover {...lookupState} onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))} sourceLanguage={lookupState.sourceLang} targetLanguage={lookupState.targetLanguage} />}</Suspense>
+      <Suspense>{lookupState.isOpen && lookupState.rect && <LookupPopover {...lookupState} onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))} />}</Suspense>
 
       <div id="reader-studio-container" className="w-full h-full flex flex-col items-center justify-center">
         <div id="reader-content-wrapper" className="relative w-full h-full flex items-center justify-center min-h-0 p-1 group/reader">

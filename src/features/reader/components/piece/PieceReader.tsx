@@ -44,9 +44,7 @@ interface PieceReaderProps {
 export default function PieceReader({ piece, isPreview = false }: PieceReaderProps) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   
-  // ✅ FIX: Add a guard clause to handle null piece prop.
   if (!piece || piece.contentState !== 'ready') {
-    // In preview mode (like on the create page), show a placeholder.
     if (isPreview) {
       return (
         <div className={cn(
@@ -61,7 +59,6 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
         </div>
       );
     }
-    // In a full reader view, this would ideally show a not found or error page.
     return null; 
   }
 
@@ -94,7 +91,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
         const rect = range.getBoundingClientRect();
         
         let sourceLang = displayLang1;
-        let sentenceContext = `...${'${selectedText}'}...`;
+        let sentenceContext = `...${selectedText}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
