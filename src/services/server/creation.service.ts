@@ -1,4 +1,3 @@
-
 // src/services/server/creation.service.ts
 'use server';
 
@@ -86,25 +85,25 @@ function validateOriginFormat(formData: CreationFormValues): void {
 /**
  * ✅ MAIN FACADE: Route creation requests to appropriate service
  */
-export async function createLibraryItem(formData: CreationFormValues): Promise<string> {
-  console.log('📝 [Creation Service] Starting creation for type:', formData.type);
+export async function createLibraryItem(type: 'book' | 'piece', formData: CreationFormValues): Promise<string> {
+  console.log('📝 [Creation Service] Starting creation for type:', type);
   
   const userId = await getUserIdFromSession();
   
   validateOriginFormat(formData);
   
   try {
-    if (formData.type === 'book') {
+    if (type === 'book') {
       const bookId = await createBookAndStartGeneration(userId, formData);
       console.log('✅ [Creation Service] Book created:', bookId);
       return bookId;
-    } else if (formData.type === 'piece') {
+    } else if (type === 'piece') {
       const pieceId = await createPieceAndStartGeneration(userId, formData as any);
       console.log('✅ [Creation Service] Piece created:', pieceId);
       return pieceId;
     } else {
       throw new ApiServiceError(
-        `Unknown content type: ${(formData as any).type}`,
+        `Unknown content type: ${type}`,
         'VALIDATION'
       );
     }

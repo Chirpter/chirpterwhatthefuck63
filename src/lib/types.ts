@@ -33,8 +33,7 @@ export type ContentUnit = 'sentence' | 'phrase';
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
- * ✅ REFACTORED: The 'type' property has been removed as it was redundant.
- * Paragraphs are now handled by the renderer based on segment order and content.
+ * The 'type' property has been removed. Paragraphs are handled by rendering logic.
  */
 export interface Segment {
   id: string;
@@ -170,9 +169,11 @@ export interface BaseDocument {
     completedAt?: any;
 }
 
+// ✅ NEW: Base interface for all items in the user's library.
 interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
+  type: 'book' | 'piece'; // The critical discriminator field
   title: MultilingualContent;
   origin: string;
   langs: string[];
@@ -184,15 +185,16 @@ interface BaseLibraryItem extends BaseDocument {
   prompt?: string;
   presentationStyle: string;
   tags?: string[];
-  labels?: string[]; // Added for consistency with Firestore data model
+  labels?: string[];
   unit: ContentUnit;
 }
+
 
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
 
 /**
  * @interface Book
- * @description Represents a full book, composed of multiple chapters.
+ * @description Represents a full book, composed of multiple chapters. Inherits from BaseLibraryItem.
  */
 export interface Book extends BaseLibraryItem {
   type: 'book';
@@ -220,7 +222,7 @@ export interface EditorSettings {
 
 /**
  * @interface Piece
- * @description Represents a shorter, single-part work like an article, poem, or dialogue.
+ * @description Represents a shorter, single-part work like an article or poem. Inherits from BaseLibraryItem.
  */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
@@ -237,26 +239,30 @@ export interface Piece extends BaseLibraryItem {
   isBilingual?: boolean;
 }
 
+// ✅ UPDATED: LibraryItem is now a union of the specific types.
+export type LibraryItem = Book | Piece;
+
+
 export interface CreationFormValues {
   primaryLanguage: string;
   availableLanguages: string[];
   aiPrompt: string;
-  title: MultilingualContent;
-  presentationStyle: 'doc' | 'card' | 'book';
-  aspectRatio?: '1:1' | '3:4' | '4:3' | undefined;
-  origin: string;
-  unit: ContentUnit;
+  tags: string[];
   // Book specific fields
+  bookLength: BookLengthOptionValue;
+  targetChapterCount: number;
+  generationScope: 'full' | 'firstFew';
   coverImageOption: 'none' | 'upload' | 'ai';
   coverImageAiPrompt: string;
   coverImageFile: File | null;
-  previousContentSummary: string;
-  targetChapterCount: number;
-  bookLength: BookLengthOptionValue;
-  generationScope: 'full' | 'firstFew';
+  // Piece specific fields
+  presentationStyle: 'doc' | 'card' | 'book';
+  aspectRatio?: '1:1' | '3:4' | '4:3';
+  unit: ContentUnit;
+  origin: string;
 }
 
-export type PieceFormValues = Omit<CreationFormValues, 'coverImageOption' | 'coverImageAiPrompt' | 'coverImageFile' | 'previousContentSummary' | 'targetChapterCount' | 'bookLength' | 'generationScope'>;
+export type PieceFormValues = Omit<CreationFormValues, 'coverImageOption' | 'coverImageAiPrompt' | 'coverImageFile' | 'targetChapterCount' | 'bookLength' | 'generationScope'>;
 
 export type SrsState = 'new' | 'learning' | 'short-term' | 'long-term';
 export type VocabContext = 'reader' | 'vocab-videos' | 'manual';
@@ -294,7 +300,6 @@ export interface VocabularyItem extends BaseDocument {
   };
 }
 
-export type LibraryItem = Book | Piece;
 
 export interface PlaylistItem {
   type: 'book' | 'vocab';

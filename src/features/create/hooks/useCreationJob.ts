@@ -11,7 +11,7 @@ import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
-const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string): CreationFormValues => {
+const getInitialFormData = (t: (key: string) => string): Omit<CreationFormValues, 'type'> => {
   const primaryLang = 'en';
 
   const suggestions = [
@@ -23,13 +23,12 @@ const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string):
   ];
   const defaultPrompt = suggestions[Math.floor(Math.random() * suggestions.length)];
   
-  const baseData = {
-    type,
+  return {
     primaryLanguage: primaryLang,
     availableLanguages: [primaryLang],
     aiPrompt: defaultPrompt,
     tags: [],
-    title: { en: '' },
+    presentationStyle: 'book',
     origin: primaryLang,
     unit: 'sentence' as ContentUnit,
     coverImageOption: 'none' as const,
@@ -39,19 +38,7 @@ const getInitialFormData = (type: 'book' | 'piece', t: (key: string) => string):
     targetChapterCount: 3,
     bookLength: 'short-story' as const,
     generationScope: 'full' as const,
-  };
-  
-  if (type === 'piece') {
-    return {
-      ...baseData,
-      presentationStyle: 'doc' as const,
-      aspectRatio: '3:4' as const,
-    };
-  }
-  
-  return {
-    ...baseData,
-    presentationStyle: 'book' as const,
+    aspectRatio: '3:4' as const,
   };
 };
 
@@ -65,7 +52,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const { user } = useUser();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<CreationFormValues>(() => getInitialFormData(type, t));
+  const [formData, setFormData] = useState<Omit<CreationFormValues, 'type'>>(() => getInitialFormData(t));
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -85,7 +72,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const processingJobsCount = processingItems.length;
 
   const creditCost = useMemo(() => {
-    if (formData.type === 'piece') return 1;
+    if (type === 'piece') return 1;
     
     let cost = 0;
     const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
@@ -101,7 +88,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       cost += 1;
     }
     return cost;
-  }, [formData.type, formData.bookLength, formData.generationScope, formData.coverImageOption]);
+  }, [type, formData.bookLength, formData.generationScope, formData.coverImageOption]);
 
   const validationMessage = useMemo(() => {
     if (!user) return ''; 
@@ -111,7 +98,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         return 'formErrors.prompt.empty';
     }
     
-    if (formData.type === 'book') {
+    if (type === 'book') {
       const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
       const min = bookLengthOption?.minChapters || 1;
       if (formData.targetChapterCount < min || formData.targetChapterCount > 15) {
@@ -124,7 +111,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     }
 
     return '';
-  }, [formData, promptError, user, isPromptDefault]);
+  }, [formData, promptError, user, isPromptDefault, type]);
 
   const canGenerate = useMemo(() => {
     if (validationMessage) return false;
@@ -233,7 +220,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
 
   const reset = useCallback((newType: 'book' | 'piece') => {
-    setFormData(getInitialFormData(newType, t));
+    setFormData(getInitialFormData(t));
     setIsPromptDefault(true);
     setPromptError(null);
     setIsBusy(false);
@@ -269,7 +256,11 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
     setIsBusy(true);
     try {
-      const jobId = await createLibraryItem(formData);
+      const fullFormData: CreationFormValues = {
+        ...formData,
+        presentationStyle: type === 'book' ? 'book' : formData.presentationStyle || 'card',
+      };
+      const jobId = await createLibraryItem(type, fullFormData);
       setActiveId(jobId);
       sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       
@@ -278,7 +269,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       toast({ title: t('toast:error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
     }
-  }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited, isPromptDefault]);
+  }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited, isPromptDefault, type]);
 
   useEffect(() => {
     if (!activeId || !user) return;
