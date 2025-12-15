@@ -12,6 +12,7 @@ import type { Piece, LibraryItem, Page, VocabContext } from '@/lib/types';
 import { ReaderToolbar } from '../shared/ReaderToolbar';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
 import { getItemSegments } from '@/services/shared/SegmentParser';
+import { Icon } from '@/components/ui/icons';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
@@ -20,7 +21,7 @@ interface LookupState {
   text: string;
   rect: DOMRect | null;
   sourceLang: string;
-  targetLanguage: string; // FIX: Added missing property
+  targetLanguage: string;
   sourceItem: LibraryItem | null;
   sentenceContext: string;
   context: VocabContext;
@@ -36,14 +37,35 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 };
 
 interface PieceReaderProps {
-  piece: Piece;
+  piece: Piece | null; // Allow piece to be null
   isPreview?: boolean;
 }
 
 export default function PieceReader({ piece, isPreview = false }: PieceReaderProps) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
-  const { wordLookupEnabled } = useSettings();
+  
+  // ✅ FIX: Add a guard clause to handle null piece prop.
+  if (!piece || piece.contentState !== 'ready') {
+    // In preview mode (like on the create page), show a placeholder.
+    if (isPreview) {
+      return (
+        <div className={cn(
+          "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300 flex items-center justify-center p-4 text-center text-muted-foreground",
+          'aspect-[3/4] max-w-md',
+          'bg-muted/30 border-2 border-dashed'
+        )}>
+          <div>
+            <Icon name="FileText" className="h-10 w-10 mx-auto mb-2 opacity-50"/>
+            <p>Your content will appear here.</p>
+          </div>
+        </div>
+      );
+    }
+    // In a full reader view, this would ideally show a not found or error page.
+    return null; 
+  }
 
+  const { wordLookupEnabled } = useSettings();
   const [editorSettings, setEditorSettings] = useEditorSettings(piece.id);
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   
@@ -90,7 +112,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
 
         setLookupState({ 
             isOpen: true, text: selectedText, rect, sourceLang,
-            targetLanguage: i18n.language, // FIX: Added targetLanguage
+            targetLanguage: i18n.language,
             sourceItem: piece, sentenceContext, context: 'reader',
         });
     } else if (lookupState.isOpen) {
@@ -134,8 +156,6 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
         {lookupState.isOpen && lookupState.rect && (
           <LookupPopover 
             {...lookupState}
-            sourceLanguage={lookupState.sourceLang} // FIX: Pass correct props
-            targetLanguage={lookupState.targetLanguage} // FIX: Pass correct props
             onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
           />
         )}
