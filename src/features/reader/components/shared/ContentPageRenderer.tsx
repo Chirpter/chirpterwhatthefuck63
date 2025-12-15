@@ -1,5 +1,4 @@
-// src/features/reader/components/shared/BookRenderer.tsx
-
+// src/features/reader/components/shared/ContentPageRenderer.tsx
 "use client";
 
 import React, { useMemo } from 'react';
@@ -10,7 +9,7 @@ import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { getItemSegments } from '@/services/shared/SegmentParser';
 
 
-interface BookRendererProps {
+interface ContentPageRendererProps {
   page: Page;
   presentationStyle: 'book' | 'doc' | 'card';
   editorSettings: EditorSettings;
@@ -19,14 +18,14 @@ interface BookRendererProps {
   displayLang2?: string; // 'none' or language code
 }
 
-export function BookRenderer({ 
+export function ContentPageRenderer({ 
     page, 
     presentationStyle, 
     editorSettings, 
     itemData,
     displayLang1 = 'en',
     displayLang2 = 'none',
-}: BookRendererProps) {
+}: ContentPageRendererProps) {
   const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary, currentSegmentLanguage } = useAudioPlayer();
   const segments = page?.items || [];
   
@@ -36,7 +35,6 @@ export function BookRenderer({
     }
     
     const allSegments = getItemSegments(itemData, position.chapterIndex ?? 0);
-    // This logic relies on an internal property of the audio engine, which should be improved later.
     const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
     if (!spokenSegmentFromEngine) return null;
     

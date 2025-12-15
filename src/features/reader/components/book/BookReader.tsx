@@ -19,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
-import { BookRenderer } from '../shared/BookRenderer';
+import { ContentPageRenderer } from '../shared/ContentPageRenderer';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
@@ -226,7 +226,7 @@ export default function BookReader({ book }: { book: Book }) {
             {isCalculating ? (
               <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8"><div><Icon name="BookOpen" className="h-10 w-10 animate-pulse text-primary mx-auto" /><p className="mt-2">{t('paginating')}</p></div></div>
             ) : currentPageData ? (
-              <BookRenderer page={currentPageData} presentationStyle="book" editorSettings={editorSettings} itemData={book} displayLang1={displayLang1} displayLang2={displayLang2} />
+              <ContentPageRenderer page={currentPageData} presentationStyle="book" editorSettings={editorSettings} itemData={book} displayLang1={displayLang1} displayLang2={displayLang2} />
             ) : (
               <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8"><p>No content to display.</p></div>
             )}

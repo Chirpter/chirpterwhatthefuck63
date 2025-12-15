@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import type { Piece, LibraryItem, Page, VocabContext } from '@/lib/types';
 
 import { ReaderToolbar } from '../shared/ReaderToolbar';
-import { BookRenderer } from '../shared/BookRenderer';
+import { ContentPageRenderer } from '../shared/ContentPageRenderer';
 import { getItemSegments } from '@/services/shared/SegmentParser';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
@@ -118,7 +118,6 @@ export default function PieceReader({ piece }: { piece: Piece }) {
             onClose={() => setIsToolbarOpen(false)}
             isToolbarOpen={isToolbarOpen}
             onToggleToolbar={() => setIsToolbarOpen(p => !p)}
-            // Language props
             bookTitle={(piece.title as any)[displayLang1]}
             availableLanguages={piece.langs}
             displayLang1={displayLang1}
@@ -131,72 +130,17 @@ export default function PieceReader({ piece }: { piece: Piece }) {
 
         <div className={cardClassName}>
           <div className="w-full h-full overflow-y-auto">
-            <BookRenderer
+            <ContentPageRenderer
               page={singlePage}
               presentationStyle={piece.presentationStyle}
               editorSettings={editorSettings}
               itemData={piece}
-              displayLang1={displayLang" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent><p>{opt.value.replace('justify-', '')}</p></TooltipContent>
-          </Tooltip>
-        ))}
+              displayLang1={displayLang1}
+              displayLang2={displayLang2}
+            />
+          </div>
+        </div>
       </div>
-      <Separator orientation="vertical" className="h-6" />
-    </>
-  )}
-
-  <DropdownMenu>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Icon name="Palette" className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Change Background</p>
-      </TooltipContent>
-    </Tooltip>
-    <DropdownMenuContent>
-      <DropdownMenuLabel>Background Color</DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      {colorOptions.map(opt => (
-        <DropdownMenuItem key={opt.value} onSelect={() => updateSetting('background', opt.value)}>
-          <div className={cn("w-4 h-4 rounded-full mr-2", opt.swatchClass)} />
-          <span>{opt.label}</span>
-          {settings.background === opt.value && <Icon name="Check" className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
-      ))}
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>Paper Style</DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      {textureOptions.map(opt => (
-        <DropdownMenuItem key={opt.value} onSelect={() => updateSetting('background', opt.value)}>
-          <Icon name={opt.icon} className="mr-2 h-4 w-4" />
-          <span>{opt.label}</span>
-          {settings.background === opt.value && <Icon name="Check" className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
-      ))}
-    </DropdownMenuContent>
-  </DropdownMenu>
-
-  <Separator orientation="vertical" className="h-6" />
-
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-        <Icon name="X" className="h-4 w-4" />
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>Close Toolbar</p>
-    </TooltipContent>
-  </Tooltip>
-</div>
-</TooltipProvider>
-</div>
-);
-};
+    </div>
+  );
+}
