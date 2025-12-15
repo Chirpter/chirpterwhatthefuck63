@@ -33,14 +33,17 @@ export class PageCalculator {
         const currentItem = allBookSegments[i];
         
         // --- Chapter Handling Logic ---
-        if (currentItem.type === 'heading') {
-            if (currentPageItems.length > 0) {
-                pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
-                currentPageItems = [];
-                currentHeight = 0;
-            }
-            chapterStartPages.push(pages.length);
-        }
+        // Since type is removed, this logic needs adjustment. For now, assume chapters start with a new page.
+        // A more robust solution might involve markers in the segment data.
+        // This is a placeholder for future chapter detection.
+        // if (currentItem.type === 'heading') {
+        //     if (currentPageItems.length > 0) {
+        //         pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
+        //         currentPageItems = [];
+        //         currentHeight = 0;
+        //     }
+        //     chapterStartPages.push(pages.length);
+        // }
 
         // --- Height Calculation Logic ---
         const itemHeight = this.estimateItemHeight(currentItem, baseline);
@@ -84,8 +87,9 @@ export class PageCalculator {
     const totalTextLength = primaryTextLength + secondaryTextLength;
     
     let typeMultiplier = 1.0;
-    if (item.type === 'heading') typeMultiplier = 1.8;
-    if (item.type === 'blockquote') typeMultiplier = 1.2;
+    // Type specific logic removed as type field is deleted.
+    // if (item.type === 'heading') typeMultiplier = 1.8;
+    // if (item.type === 'blockquote') typeMultiplier = 1.2;
 
     if (baseline.avgCharHeight > 0) {
       return totalTextLength * baseline.avgCharHeight * typeMultiplier;

@@ -27,20 +27,11 @@ const groupSegmentsIntoParagraphs = (segments: Segment[]): Segment[][] => {
     let currentParagraph: Segment[] = [];
   
     segments.forEach(segment => {
-      // Each 'start_para' or 'heading' begins a new paragraph block
-      if (segment.type === 'start_para' || segment.type === 'heading' || segment.type === 'blockquote') {
-        if (currentParagraph.length > 0) {
-          paragraphs.push(currentParagraph);
-        }
-        currentParagraph = [segment];
-      } else {
-        if (currentParagraph.length === 0) {
-          // Handle cases where the first segment isn't 'start_para'
-          currentParagraph.push(segment);
-        } else {
-          currentParagraph.push(segment);
-        }
+      // Each segment is now essentially a paragraph block
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph);
       }
+      currentParagraph = [segment];
     });
   
     if (currentParagraph.length > 0) {
@@ -123,12 +114,11 @@ export function BookRenderer({
     <div className={contentContainerClasses}>
         {paragraphs.map((paragraph, pIndex) => {
             const firstSegment = paragraph[0];
-            const ParagraphWrapper = firstSegment.type === 'blockquote' ? 'blockquote' : 'p';
-            const applyDropCap = firstSegment.type === 'start_para' && pIndex === 0 && page.pageIndex === 0;
+            const applyDropCap = pIndex === 0 && page.pageIndex === 0;
 
             return (
-                <ParagraphWrapper key={pIndex} className={cn(
-                    (firstSegment.type === 'start_para') && "mt-4 first:mt-0",
+                <p key={pIndex} className={cn(
+                    "mt-4 first:mt-0",
                     applyDropCap && "first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary"
                 )}>
                     {paragraph.map((segment) => (
@@ -144,7 +134,7 @@ export function BookRenderer({
                             unit={itemData?.unit || 'sentence'}
                         />
                     ))}
-                </ParagraphWrapper>
+                </p>
             );
         })}
     </div>

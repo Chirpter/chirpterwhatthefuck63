@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import type { Piece } from '@/lib/types';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { BookRenderer } from './BookRenderer';
-import { getItemSegments } from '@/services/shared/MarkdownParser';
+import { getItemSegments } from '@/services/shared/SegmentParser';
 import { Icon } from '@/components/ui/icons';
 
 interface PieceRendererProps {

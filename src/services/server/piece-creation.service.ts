@@ -8,7 +8,7 @@ import { removeUndefinedProps } from "@/lib/utils";
 import { checkAndUnlockAchievements } from './achievement.service';
 import { updateLibraryItem } from "./library.service";
 import { ApiServiceError } from "@/lib/errors";
-import { parseMarkdownToSegments } from '../shared/MarkdownParser';
+import { parseMarkdownToSegments } from '../shared/SegmentParser';
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';

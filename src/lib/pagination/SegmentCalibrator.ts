@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Segment } from '@/lib/types';
@@ -140,20 +139,9 @@ export class SegmentCalibrator {
       `;
       
       let elementToMeasure;
-      switch (segment.type) {
-          case 'heading':
-              elementToMeasure = document.createElement('h3');
-              break;
-          case 'blockquote':
-              elementToMeasure = document.createElement('blockquote');
-              break;
-          case 'list_item':
-              elementToMeasure = document.createElement('li');
-              break;
-          default:
-              elementToMeasure = document.createElement('p');
-              break;
-      }
+      // Since type is removed, default to a <p> tag for measurement
+      elementToMeasure = document.createElement('p');
+
       elementToMeasure.innerText = textContent;
       measurer.appendChild(elementToMeasure);
 

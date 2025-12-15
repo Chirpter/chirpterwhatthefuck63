@@ -3,10 +3,8 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import type { Segment, ContentUnit, MultilingualContent } from '@/lib/types';
-import { useAudioPlayer } from '@/contexts/audio-player-context';
+import type { Segment, ContentUnit } from '@/lib/types';
 
 interface SegmentRendererProps {
   segment: Segment;
@@ -161,53 +159,5 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
 
   const renderMainContent = () => renderSegmentContent(segment, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, unit);
   
-  const primaryText = Array.isArray(segment.content[displayLang1]) 
-    ? (segment.content[displayLang1] as string[]).join(' ') 
-    : (segment.content[displayLang1] as string) || '';
-
-
-  switch (segment.type) {
-    case 'heading':
-      return (
-        <h3 data-segment-id={segment.id} className={cn(
-          "text-2xl font-bold mt-2 mb-2 font-headline", 
-          "dark:text-gray-200"
-        )}>
-            {renderMainContent()}
-        </h3>
-      );
-    
-    case 'blockquote':
-        return (
-            <blockquote data-segment-id={segment.id} className={cn("my-4 w-full")}>
-                {renderMainContent()}
-            </blockquote>
-        );
-    
-    case 'list_item':
-        return (
-            <li data-segment-id={segment.id} className={cn('w-full')}>
-                {renderMainContent()}
-            </li>
-        );
-
-    case 'image':
-      return (
-        <div data-segment-id={segment.id} className="my-4 w-full">
-          <Image
-            src={primaryText}
-            alt={"content image"}
-            width={500}
-            height={300}
-            className="mx-auto rounded-md shadow-md"
-          />
-        </div>
-      );
-
-    case 'start_para':
-        return <span data-segment-id={segment.id}>{renderMainContent()}</span>;
-    
-    default:
-        return null;
-  }
+  return <span data-segment-id={segment.id}>{renderMainContent()}</span>;
 };

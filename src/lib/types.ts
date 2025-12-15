@@ -33,12 +33,11 @@ export type ContentUnit = 'sentence' | 'phrase';
 /**
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
- * A `start_para` type is used to explicitly mark the beginning of a new paragraph.
+ * The `type` field has been removed for simplification.
  */
 export interface Segment {
   id: string;
   order: number;
-  type: 'heading' | 'dialog' | 'blockquote' | 'list_item' | 'image' | 'start_para';
   content: MultilingualContent;
 }
 

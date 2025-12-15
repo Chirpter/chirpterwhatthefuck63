@@ -18,7 +18,7 @@ import { PieceRenderer } from '@/features/reader/components/PieceRenderer';
 import type { Piece } from '@/lib/types';
 import { BookRenderer } from '@/features/reader/components/BookRenderer';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
-import { getItemSegments } from '@/services/shared/MarkdownParser';
+import { getItemSegments } from '@/services/shared/SegmentParser';
 import { useCreationJob } from '../hooks/useCreationJob';
 
 export default function CreateView() {
