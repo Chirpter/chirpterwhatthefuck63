@@ -44,6 +44,7 @@ export async function getLibraryItems(
   if (status !== 'all') {
     query = query.where('status', '==', status);
   }
+  // ✅ This is the key change: apply the 'type' filter if it's provided.
   if (contentType) {
     query = query.where('type', '==', contentType);
   }

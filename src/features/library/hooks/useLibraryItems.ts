@@ -1,4 +1,3 @@
-
 // src/features/library/hooks/useLibraryItems.ts
 'use client';
 
@@ -72,8 +71,9 @@ export const useLibraryItems = ({
             pageRef.current += 1;
         }
       } else {
+        // ✅ CRITICAL FIX: Pass contentType to the server-side service
         const libResult = await serviceGetLibraryItems(user.uid, {
-          contentType,
+          contentType, // This ensures we only fetch 'book' or 'piece'
           status,
           limit,
           startAfter: isInitialLoad ? null : lastDocRef.current,

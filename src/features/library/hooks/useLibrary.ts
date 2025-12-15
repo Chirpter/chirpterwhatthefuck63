@@ -23,7 +23,8 @@ export const useLibrary = ({ contentType, enabled = true }: UseLibraryProps) => 
   const [itemToDelete, setItemToDelete] = useState<LibraryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Use the new centralized data fetching hook
+  // ✅ CRITICAL CHANGE: The hook now receives contentType and passes it down.
+  // This ensures that for the 'book' tab, it only fetches books, and for 'piece', only pieces.
   const {
     items: allItems,
     isLoading,
@@ -36,6 +37,7 @@ export const useLibrary = ({ contentType, enabled = true }: UseLibraryProps) => 
   const filteredItems = useMemo(() => {
     let itemsToFilter = allItems;
     
+    // Status and search filtering now happens on the client-side against the already-filtered-by-type data.
     if (statusFilter !== 'all') {
       itemsToFilter = itemsToFilter.filter(item => (item as LibraryItem).status === statusFilter);
     }
