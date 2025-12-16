@@ -70,8 +70,13 @@ async function processBookGenerationPipeline(
   coverJobType: CoverJobType,
   coverData?: File | string | null
 ) {
+  // Use a mock sessionStorage for server-side logging that can be checked in debug panels
+  const mockSessionStorage: { [key: string]: string } = {};
+  const setItem = (key: string, value: string) => mockSessionStorage[key] = value;
+  const getItem = (key: string) => mockSessionStorage[key] || null;
+
   const [contentResult, coverResult] = await Promise.allSettled([
-    processContentGenerationForBook(userId, bookId, contentInput),
+    processContentGenerationForBook(userId, bookId, contentInput, { setItem, getItem }),
     processCoverImageForBook(userId, bookId, coverJobType, coverData, contentInput.prompt)
   ]);
 
@@ -89,6 +94,19 @@ async function processBookGenerationPipeline(
   } else {
     finalUpdate.coverState = 'error';
     finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
+  }
+
+  // Include debug info if available
+  const aiDebugData = getItem('ai_debug_data');
+  if (aiDebugData) {
+      try {
+          const debugData = JSON.parse(aiDebugData);
+          if (debugData.error) {
+              finalUpdate.contentError = debugData.error;
+          }
+      } catch (e) {
+          // Ignore parsing errors
+      }
   }
 
   await updateLibraryItem(userId, bookId, finalUpdate);
@@ -212,7 +230,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 async function processContentGenerationForBook(
     userId: string, 
     bookId: string, 
-    contentInput: GenerateBookContentInput
+    contentInput: GenerateBookContentInput,
+    storage: { setItem: (key: string, value: string) => void; getItem: (key: string) => string | null }
 ): Promise<Partial<Book>> {
     
     // 1. Build User Prompt
@@ -262,7 +281,7 @@ async function processContentGenerationForBook(
     };
 
     try {
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+        storage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
 
         const { output: aiOutput } = await bookContentGenerationPrompt({ userPrompt, systemPrompt });
 
@@ -277,7 +296,7 @@ async function processContentGenerationForBook(
         
         // Log parsed data for debugging
         aiDebugData.parsedData = { title: parsedTitle, chapters: finalChapters, unit: parsedUnit };
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+        storage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
         
         return {
           title: parsedTitle,
@@ -291,7 +310,7 @@ async function processContentGenerationForBook(
         const errorMessage = (error as Error).message || 'Unknown AI error';
         aiDebugData.status = 'error';
         aiDebugData.error = errorMessage;
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+        storage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
 
         console.error(`Content generation failed for book ${bookId}:`, errorMessage);
         throw new Error(errorMessage);

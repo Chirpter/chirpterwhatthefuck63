@@ -63,10 +63,14 @@ function buildLangInstructions(
  * The main background pipeline for processing "piece" generation.
  */
 async function processPieceGenerationPipeline(userId: string, pieceId: string, pieceFormData: CreationFormValues): Promise<void> {
+    const mockSessionStorage: { [key: string]: string } = {};
+    const setItem = (key: string, value: string) => mockSessionStorage[key] = value;
+    const getItem = (key: string) => mockSessionStorage[key] || null;
+
     let finalUpdate: Partial<Piece>;
 
     try {
-        const contentResult = await generatePieceContent(pieceFormData);
+        const contentResult = await generatePieceContent(pieceFormData, { setItem, getItem });
         if (!contentResult || !contentResult.generatedContent) {
             throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
@@ -86,6 +90,18 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
             status: 'draft',
             contentError: errorMessage,
         };
+    }
+
+    const aiDebugData = getItem('ai_debug_data');
+    if (aiDebugData) {
+        try {
+            const debugData = JSON.parse(aiDebugData);
+            if (debugData.error) {
+                finalUpdate.contentError = debugData.error;
+            }
+        } catch (e) {
+            // Ignore parsing errors
+        }
     }
     
     await updateLibraryItem(userId, pieceId, finalUpdate);
@@ -158,7 +174,10 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 /**
  * Generates content for a "piece" using a unified Markdown approach.
  */
-async function generatePieceContent(pieceFormData: CreationFormValues): Promise<Partial<Piece>> {
+async function generatePieceContent(
+    pieceFormData: CreationFormValues,
+    storage: { setItem: (key: string, value: string) => void; getItem: (key: string) => string | null }
+): Promise<Partial<Piece>> {
     const promptInput = (pieceFormData.aiPrompt || '').slice(0, MAX_PROMPT_LENGTH);
     if (!promptInput) {
       throw new Error("A user prompt is required.");
@@ -195,7 +214,7 @@ async function generatePieceContent(pieceFormData: CreationFormValues): Promise<
     });
 
     try {
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+        storage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
 
         const { output: aiOutput } = await pieceContentGenerationPrompt({ userPrompt, systemPrompt });
 
@@ -219,7 +238,7 @@ async function generatePieceContent(pieceFormData: CreationFormValues): Promise<
         const segments = parseMarkdownToSegments(contentMarkdown, pieceFormData.origin, pieceFormData.unit, true);
         
         aiDebugData.parsedData = { title: finalTitle, generatedContent: segments };
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+        storage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
         
         return {
           title: finalTitle,
@@ -230,7 +249,7 @@ async function generatePieceContent(pieceFormData: CreationFormValues): Promise<
         const errorMessage = (error as Error).message || 'Unknown AI error';
         aiDebugData.status = 'error';
         aiDebugData.error = errorMessage;
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+        storage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
 
         console.error(`Piece content generation failed:`, errorMessage);
         throw new Error(errorMessage);
