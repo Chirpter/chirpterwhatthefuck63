@@ -1,8 +1,7 @@
-
 // src/features/reader/components/piece/PieceReader.tsx
 'use client';
 
-import React, { useState, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/contexts/settings-context';
@@ -38,15 +37,14 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 };
 
 interface PieceReaderProps {
-  piece: Piece | null; // Allow piece to be null
+  piece: Piece | null;
   isPreview?: boolean;
 }
 
 export default function PieceReader({ piece, isPreview = false }: PieceReaderProps) {
+  // --- HOOKS (Called unconditionally at the top) ---
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   const { wordLookupEnabled } = useSettings();
-  
-  // ✅ FIX: All hooks are now at the top level, before any conditions.
   const [editorSettings, setEditorSettings] = useEditorSettings(piece?.id ?? null);
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   
@@ -54,7 +52,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
   const [displayLang2, setDisplayLang2] = useState(piece?.langs[1] || 'none');
   const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
 
-  // Update display languages when the piece changes
+  // Update display languages when the piece prop changes
   useEffect(() => {
     setDisplayLang1(piece?.langs[0] || 'en');
     setDisplayLang2(piece?.langs[1] || 'none');
@@ -107,7 +105,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
     }
   }, [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1, isPreview]);
 
-  // ✅ FIX: Conditional return is now AFTER all hooks have been called.
+  // --- CONDITIONAL RETURN (After all hooks) ---
   if (!piece || piece.contentState !== 'ready') {
     if (isPreview) {
       return (
@@ -125,7 +123,8 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
     }
     return null; 
   }
-  
+
+  // --- RENDER LOGIC ---
   const cardClassName = cn(
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
     piece.presentationStyle === 'card' ? getAspectRatioClass(piece.aspectRatio) : '',
@@ -134,8 +133,8 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
   );
 
   const mainContainerClasses = isPreview 
-    ? cardClassName // For previews, the main container IS the card
-    : "w-full h-full flex flex-col items-center justify-center p-4"; // For full view
+    ? cardClassName
+    : "w-full h-full flex flex-col items-center justify-center p-4";
 
   const contentWrapper = (
     <div className={isPreview ? 'w-full h-full' : cardClassName}>

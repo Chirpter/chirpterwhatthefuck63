@@ -1,5 +1,4 @@
 // src/features/library/components/PieceItemCard.tsx
-
 "use client";
 
 import React from 'react';
@@ -13,17 +12,16 @@ interface PieceItemCardProps {
 }
 
 /**
- * The PieceItemCard component is now a simple wrapper.
- * Its sole responsibility is to provide the Link to the full reader view.
- * The actual visual representation is handled by the centralized PieceReader
- * in "preview" mode.
+ * REFACTORED: The PieceItemCard now renders a preview of the content
+ * using the centralized PieceReader in `isPreview` mode.
+ * It is wrapped in a Link to navigate to the full reader view.
  */
 export function PieceItemCard({ work, onDelete }: PieceItemCardProps) {
   if (!work || work.contentState !== 'ready') return null;
   
   return (
     <Link href={`/read/${work.id}`} className="block break-inside-avoid">
-        {/* We pass a simplified version of the Piece to the reader for preview */}
+        {/* We render the PieceReader directly here in preview mode */}
         <PieceReader piece={work} isPreview />
     </Link>
   );
