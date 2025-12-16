@@ -1,3 +1,4 @@
+
 // src/features/reader/components/piece/PieceReader.tsx
 'use client';
 
@@ -44,33 +45,20 @@ interface PieceReaderProps {
 export default function PieceReader({ piece, isPreview = false }: PieceReaderProps) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   const { wordLookupEnabled } = useSettings();
+  
+  // ✅ FIX: All hooks are now at the top level, before any conditions.
   const [editorSettings, setEditorSettings] = useEditorSettings(piece?.id ?? null);
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   
   const [displayLang1, setDisplayLang1] = useState(piece?.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(piece?.langs[1] || 'none');
-
   const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
-  
-  // ✅ FIX: All hooks are now at the top level. The conditional return is moved below.
-  
-  if (!piece || piece.contentState !== 'ready') {
-    if (isPreview) {
-      return (
-        <div className={cn(
-          "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300 flex items-center justify-center p-4 text-center text-muted-foreground",
-          'aspect-[3/4] max-w-md',
-          'bg-muted/30 border-2 border-dashed'
-        )}>
-          <div>
-            <Icon name="FileText" className="h-10 w-10 mx-auto mb-2 opacity-50"/>
-            <p>Your content will appear here.</p>
-          </div>
-        </div>
-      );
-    }
-    return null; 
-  }
+
+  // Update display languages when the piece changes
+  useEffect(() => {
+    setDisplayLang1(piece?.langs[0] || 'en');
+    setDisplayLang2(piece?.langs[1] || 'none');
+  }, [piece]);
 
   const allSegments = useMemo(() => getItemSegments(piece), [piece]);
   
@@ -81,7 +69,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
   }), [allSegments]);
 
   const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!wordLookupEnabled || isPreview) return;
+    if (!wordLookupEnabled || isPreview || !piece) return;
     if (lookupState.isOpen) {
       setLookupState(s => ({...s, isOpen: false}));
     }
@@ -119,6 +107,25 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
     }
   }, [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1, isPreview]);
 
+  // ✅ FIX: Conditional return is now AFTER all hooks have been called.
+  if (!piece || piece.contentState !== 'ready') {
+    if (isPreview) {
+      return (
+        <div className={cn(
+          "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300 flex items-center justify-center p-4 text-center text-muted-foreground",
+          'aspect-[3/4] max-w-md',
+          'bg-muted/30 border-2 border-dashed'
+        )}>
+          <div>
+            <Icon name="FileText" className="h-10 w-10 mx-auto mb-2 opacity-50"/>
+            <p>Your content will appear here.</p>
+          </div>
+        </div>
+      );
+    }
+    return null; 
+  }
+  
   const cardClassName = cn(
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
     piece.presentationStyle === 'card' ? getAspectRatioClass(piece.aspectRatio) : '',
@@ -154,10 +161,15 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
       <Suspense>
         {lookupState.isOpen && lookupState.rect && (
           <LookupPopover 
-            {...lookupState}
+            isOpen={lookupState.isOpen}
+            onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
+            rect={lookupState.rect}
+            text={lookupState.text}
             sourceLanguage={lookupState.sourceLang}
             targetLanguage={lookupState.targetLanguage}
-            onOpenChange={(open) => setLookupState(s => ({...s, isOpen: open}))}
+            sourceItem={lookupState.sourceItem}
+            sentenceContext={lookupState.sentenceContext}
+            context={lookupState.context}
           />
         )}
       </Suspense>
