@@ -31,12 +31,9 @@ export class PageCalculator {
 
     for (let i = 0; i < allBookSegments.length; i++) {
         const currentItem = allBookSegments[i];
-        
-        // --- Chapter Handling Logic ---
-        // This is a placeholder for future chapter detection.
-        // For now, we assume chapters start with a new page if they contain a heading.
-        const content = (currentItem.content.primary || currentItem.content.en || '') as string;
-        if (typeof content === 'string' && content.startsWith('##')) {
+        const isNewChapter = (currentItem.content.primary as string)?.startsWith('## ') || (currentItem.content.en as string)?.startsWith('## ');
+
+        if (isNewChapter) {
             if (currentPageItems.length > 0) {
                 pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
                 currentPageItems = [];
@@ -45,20 +42,22 @@ export class PageCalculator {
             chapterStartPages.push(pages.length);
         }
 
-        // --- Height Calculation Logic ---
-        const itemHeight = this.estimateItemHeight(currentItem, baseline);
-
-        // --- Page Breaking Logic ---
-        if (itemHeight > baseline.containerHeight && currentPageItems.length > 0) {
-            pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
+        const itemHeight = await this.calibrator.measureItem(currentItem);
+        
+        if (itemHeight >= baseline.containerHeight) {
+            if (currentPageItems.length > 0) {
+                pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
+            }
+            pages.push({ pageIndex: pages.length, items: [currentItem], estimatedHeight: itemHeight });
             currentPageItems = [];
             currentHeight = 0;
+            continue;
         }
-
-        if (currentHeight + itemHeight > baseline.containerHeight && currentPageItems.length > 0) {
+        
+        if (currentHeight + itemHeight > baseline.containerHeight) {
             pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
             currentPageItems = [currentItem];
-            currentHeight = this.estimateItemHeight(currentItem, baseline);
+            currentHeight = itemHeight;
         } else {
             currentPageItems.push(currentItem);
             currentHeight += itemHeight;
@@ -74,31 +73,5 @@ export class PageCalculator {
     }
     
     return { pages, chapterStartPages };
-  }
-
-  /**
-   * Estimates the height of a single item based on its character count and type.
-   * This method is a placeholder and should be replaced with logic from SegmentCalibrator.
-   * @returns The estimated height in pixels.
-   */
-  private estimateItemHeight(item: Segment, baseline: CalibrationBaseline): number {
-    const primaryTextLength = (Array.isArray(item.content.primary) ? item.content.primary.join(' ') : item.content.primary)?.length || 0;
-    const secondaryTextLength = (Array.isArray(item.content.secondary) ? item.content.secondary.join(' ') : item.content.secondary)?.length || 0;
-    const totalTextLength = primaryTextLength + secondaryTextLength;
-    
-    let typeMultiplier = 1.0;
-    
-    const content = (item.content.primary || item.content.en || '') as string;
-    if (typeof content === 'string' && content.startsWith('##')) {
-        typeMultiplier = 1.8;
-    }
-
-    if (baseline.avgCharHeight > 0) {
-      return totalTextLength * baseline.avgCharHeight * typeMultiplier;
-    }
-
-    const avgCharsPerSegment = 100;
-    const ratio = totalTextLength / (avgCharsPerSegment || 1);
-    return baseline.avgSegmentHeight * ratio * typeMultiplier;
   }
 }

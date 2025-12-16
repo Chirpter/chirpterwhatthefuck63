@@ -36,6 +36,8 @@ export const usePagination = ({ segments, containerRef, isEnabled }: UsePaginati
   const calculatePages = useCallback(async () => {
     if (!isEnabled || !pageCalculator || segments.length === 0) {
       setIsCalculating(false);
+      setPages([]);
+      setChapterStartPages([]);
       return;
     }
     
