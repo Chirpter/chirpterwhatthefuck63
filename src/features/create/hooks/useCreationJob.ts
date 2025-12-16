@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
-import type { CreationFormValues, LibraryItem, ContentUnit, Book, Piece } from '@/lib/types';
+import type { CreationFormValues, LibraryItem, ContentUnit, Book, Piece, PieceFormValues } from '@/lib/types';
 import { createLibraryItem } from '@/services/server/creation.service';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -39,7 +39,7 @@ const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
     targetChapterCount: 3,
     bookLength: 'short-story' as const,
     generationScope: 'full' as const,
-    aspectRatio: '3:4' as const, // Default to 3:4 for pieces
+    aspectRatio: '3:4' as const,
   };
 };
 
@@ -221,7 +221,14 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
 
   const reset = useCallback((newType: 'book' | 'piece') => {
-    setFormData(getInitialFormData(t));
+    const defaultData = getInitialFormData(t);
+    // Correctly set defaults for piece type
+    if (newType === 'piece') {
+        defaultData.presentationStyle = 'card';
+        defaultData.aspectRatio = '3:4';
+    }
+    setFormData(defaultData);
+    
     setIsPromptDefault(true);
     setPromptError(null);
     setIsBusy(false);
@@ -257,12 +264,13 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
     setIsBusy(true);
     try {
-      const fullFormData: CreationFormValues = {
+      const dataToSubmit: CreationFormValues = {
         ...formData,
         type: type, // Ensure type is correctly set
-        presentationStyle: type === 'book' ? 'book' : formData.presentationStyle,
+        presentationStyle: type === 'piece' ? formData.presentationStyle : 'book',
       };
-      const jobId = await createLibraryItem(type, fullFormData);
+
+      const jobId = await createLibraryItem(type, dataToSubmit);
       setActiveId(jobId);
       sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       

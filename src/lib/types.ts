@@ -261,7 +261,10 @@ export interface CreationFormValues {
   origin: string;
 }
 
-export type PieceFormValues = Omit<CreationFormValues, 'coverImageOption' | 'coverImageAiPrompt' | 'coverImageFile' | 'targetChapterCount' | 'bookLength' | 'generationScope'>;
+// A Piece should never have a 'book' presentationStyle
+export type PieceFormValues = Omit<CreationFormValues, 'coverImageOption' | 'coverImageAiPrompt' | 'coverImageFile' | 'targetChapterCount' | 'bookLength' | 'generationScope' | 'presentationStyle'> & {
+  presentationStyle: 'doc' | 'card';
+};
 
 export type SrsState = 'new' | 'learning' | 'short-term' | 'long-term';
 export type VocabContext = 'reader' | 'vocab-videos' | 'manual';
