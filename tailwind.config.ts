@@ -28,6 +28,10 @@ export default {
     'bg-gradient-pro-blue',
     'bg-gradient-pro-purple',
     'bg-gradient-pro-pink',
+    'aspect-square',
+    'aspect-video',
+    'aspect-[4/3]',
+    'aspect-[3/4]',
   ],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',

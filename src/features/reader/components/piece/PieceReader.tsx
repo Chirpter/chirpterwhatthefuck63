@@ -39,7 +39,6 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 interface PieceReaderProps {
   piece: Piece | null;
   isPreview?: boolean;
-  // ✅ NEW: Add props to control presentation style from outside
   presentationStyle?: 'doc' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3';
 }
@@ -47,7 +46,6 @@ interface PieceReaderProps {
 export default function PieceReader({
   piece,
   isPreview = false,
-  // ✅ NEW: Use passed-in style or fall back to piece's own style
   presentationStyle: externalPresentationStyle,
   aspectRatio: externalAspectRatio,
 }: PieceReaderProps) {
@@ -116,7 +114,6 @@ export default function PieceReader({
 
   // --- RENDER LOGIC ---
 
-  // ✅ NEW: Determine presentation style from props first, then from data
   const finalPresentationStyle = externalPresentationStyle || piece?.presentationStyle || 'card';
   const finalAspectRatio = externalAspectRatio || piece?.aspectRatio || '3:4';
   
