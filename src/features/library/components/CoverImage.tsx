@@ -87,9 +87,9 @@ export default function CoverImage({
       default:
         // Default title-based fallback that mimics the 3D book's front cover
         return (
-           <div className="front-cover w-full h-full">
+           <div className="front-cover w-full h-full prose-dynamic">
             <div className="text-center p-4">
-                <h2 className="font-headline title">{title}</h2>
+                <h3 className="font-headline title">{title}</h3>
                 {author && <p className="font-body author">{t('common:byAuthor', { author })}</p>}
                 <div className="emblem">✨</div>
             </div>
