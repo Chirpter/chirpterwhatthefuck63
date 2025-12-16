@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo, useCallback } from 'react';
@@ -83,7 +82,7 @@ export default function AchievementsView() {
     return (
         <div className="space-y-8">
             <h2 className="text-xl md:text-2xl font-headline font-semibold">{t('title')}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {[...Array(12)].map((_, i) => (
                     <Skeleton key={i} className="h-48 w-full rounded-lg" />
                 ))}
@@ -149,7 +148,7 @@ export default function AchievementsView() {
     });
 
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         {sortedList.map(achievement => (
             <AchievementCard 
                 key={achievement.id}
@@ -179,7 +178,7 @@ export default function AchievementsView() {
                     className={cn("lib-tab-button", activeTab === 'missions' && 'active')}
                 >
                     <div className="lib-tab-content">
-                        <div className="lib-tab-text"><p className="font-semibold">{t('tabs.missions')}</p></div>
+                        <div className="lib-tab-text"><p className="font-semibold text-sm md:text-base">{t('tabs.missions')}</p></div>
                         <div className="lib-tab-artifact-wrapper"><MissionIcon className="mission-artifact" /></div>
                     </div>
                 </button>
@@ -188,7 +187,7 @@ export default function AchievementsView() {
                     className={cn("lib-tab-button", activeTab === 'badges' && 'active')}
                 >
                     <div className="lib-tab-content">
-                        <div className="lib-tab-text"><p className="font-semibold">{t('tabs.superBadges')}</p></div>
+                        <div className="lib-tab-text"><p className="font-semibold text-sm md:text-base">{t('tabs.superBadges')}</p></div>
                         <div className="lib-tab-artifact-wrapper"><SuperBadgeTrophy className="super-badge-artifact" /></div>
                     </div>
                 </button>

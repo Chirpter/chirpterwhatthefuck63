@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React from 'react';
@@ -37,7 +36,7 @@ export default function ExploreView() {
   const renderBookContent = () => {
     if (isLoading && items.length === 0) {
       return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="bg-card p-4 rounded-lg shadow-md animate-pulse">
               <Skeleton className="h-48 bg-muted rounded-md mb-4" />
@@ -61,7 +60,7 @@ export default function ExploreView() {
     }
     
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
         {items.map((item) => (
             <BookItemCard
                 key={item.id}
@@ -75,7 +74,7 @@ export default function ExploreView() {
   const renderBookmarkContent = () => {
     if (isLoading && bookmarks.length === 0) {
        return (
-         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
          </div>
        );

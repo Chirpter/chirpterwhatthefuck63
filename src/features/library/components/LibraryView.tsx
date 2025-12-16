@@ -135,14 +135,14 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
             placeholder={isVocabActive ? t('vocabularyPage:searchPlaceholder') : t('searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="font-body pl-9 h-10"
+            className="font-body pl-9 h-9 md:h-10"
             aria-label={t('searchPlaceholderAria')}
           />
         </div>
         {!isVocabActive && (
              <div className="flex w-full md:w-auto items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-10 w-full" aria-label={t('statusFilters.all')}>
+                    <SelectTrigger className="h-9 md:h-10 w-full" aria-label={t('statusFilters.all')}>
                     <SelectValue placeholder={t('statusFilters.all')} />
                     </SelectTrigger>
                     <SelectContent>
@@ -156,18 +156,21 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
   };
   
   const renderCreateButton = () => {
+    const buttonProps = {
+      className: "font-body h-9 md:h-10 w-full md:w-auto",
+    };
     if (contentType === 'book') {
-        return <Button asChild className="font-body h-10 w-full md:w-auto"><Link href="/create?mode=book">{t('createNewContentButton')}</Link></Button>
+        return <Button {...buttonProps} asChild><Link href="/create?mode=book">{t('createNewContentButton')}</Link></Button>
     }
     if (contentType === 'piece') {
-        return <Button asChild className="font-body h-10 w-full md:w-auto"><Link href="/create?mode=piece">{t('createNewContentButton')}</Link></Button>
+        return <Button {...buttonProps} asChild><Link href="/create?mode=piece">{t('createNewContentButton')}</Link></Button>
     }
     if (contentType === 'vocabulary') {
         return (
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button className="font-body h-10 w-full md:w-auto">
-                        <Icon name="PlusSquare" className="mr-2 h-5 w-5" />
+                    <Button {...buttonProps}>
+                        <Icon name="PlusSquare" className="mr-2 h-4 w-4" />
                         {t('vocabularyPage:addNewTermButton')}
                     </Button>
                 </DropdownMenuTrigger>
@@ -292,15 +295,15 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
       />
       <div>
         <div className="flex justify-between items-center gap-4">
-            <div className="flex items-center gap-4">
-                <h2 className="text-xl md:text-2xl font-headline font-semibold">{t('library')}</h2>
-                <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 md:gap-4 overflow-x-auto">
+                <h2 className="text-lg md:text-2xl font-headline font-semibold hidden sm:block">{t('library')}</h2>
+                <div className="flex items-center gap-1 md:gap-2">
                     <button 
                       onClick={() => handleTabChange('book')} 
                       className={cn("lib-tab-button", contentType === 'book' && 'active')}
                     >
                       <div className="lib-tab-content">
-                          <div className="lib-tab-text"><p className="font-semibold">{t('libraryBookTitle')}</p></div>
+                          <div className="lib-tab-text"><p className="font-semibold text-sm md:text-base">{t('libraryBookTitle')}</p></div>
                           <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact book-artifact" /></div>
                       </div>
                     </button>
@@ -309,7 +312,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
                       className={cn("lib-tab-button", contentType === 'piece' && 'active')}
                     >
                       <div className="lib-tab-content">
-                          <div className="lib-tab-text"><p className="font-semibold">{t('libraryPieceTitle')}</p></div>
+                          <div className="lib-tab-text"><p className="font-semibold text-sm md:text-base">{t('libraryPieceTitle')}</p></div>
                           <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact piece-artifact" /></div>
                       </div>
                     </button>
@@ -318,16 +321,16 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
                       className={cn("lib-tab-button", contentType === 'vocabulary' && 'active')}
                     >
                        <div className="lib-tab-content">
-                          <div className="lib-tab-text"><p className="font-semibold">{t('vocabTabTitle', { ns: 'vocabularyPage' })}</p></div>
+                          <div className="lib-tab-text"><p className="font-semibold text-sm md:text-base">{t('vocabTabTitle', { ns: 'vocabularyPage' })}</p></div>
                           <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact vocab-artifact" /></div>
                       </div>
                     </button>
                 </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
               <Link href="/diary" className="diary-tab-button">
                 <div className="lib-tab-content">
-                    <div className="lib-tab-text"><p className="font-semibold">{t('diaryButton')}</p></div>
+                    <div className="lib-tab-text"><p className="font-semibold text-sm md:text-base">{t('diaryButton')}</p></div>
                     <div className="lib-tab-artifact-wrapper"><div className="lib-tab-artifact diary-artifact" /></div>
                 </div>
               </Link>

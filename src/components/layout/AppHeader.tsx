@@ -48,12 +48,12 @@ export default function AppHeader() {
   const levelStyles = getLevelStyles(user.level, user.plan);
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
+    <header className="sticky top-0 z-40 flex h-14 md:h-16 items-center justify-between border-b bg-background/80 px-2 sm:px-6 backdrop-blur-md">
       <div className="flex items-center gap-1">
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Icon name="Menu" className="h-6 w-6" />
+            <Button variant="ghost" size="icon" className="md:hidden h-9 w-9">
+              <Icon name="Menu" className="h-5 w-5" />
               <span className="sr-only">Open navigation menu</span>
             </Button>
           </SheetTrigger>
@@ -76,8 +76,8 @@ export default function AppHeader() {
             </div>
           </SheetContent>
         </Sheet>
-        <Link href="/library/book" className="flex items-center">
-          <Logo className="h-10 w-10 text-primary" />
+        <Link href="/library/book" className="flex items-center gap-1">
+          <Logo className="h-9 w-9 md:h-10 md:w-10 text-primary" />
           <h1 className="text-xl font-headline font-bold text-primary hidden md:block">
             {t('chirpter')}
           </h1>
@@ -88,16 +88,17 @@ export default function AppHeader() {
         <TopbarNav />
       </nav>
 
-      <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 text-sm font-medium p-2 rounded-lg bg-secondary/50">
+      <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-2 text-xs md:text-sm font-medium p-1.5 md:p-2 rounded-lg bg-secondary/50">
           <CreditIcon className="h-4 w-4 text-primary" />
-          <span>{creditsToShow} {t('credits', {ns: 'userMenu'})}</span>
+          <span>{creditsToShow}</span>
+          <span className="hidden sm:inline">{t('credits', {ns: 'userMenu'})}</span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
              <div className="relative cursor-pointer">
                 <div className={cn("rounded-full", levelStyles.frameClasses)}>
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="h-9 w-9 md:h-10 md:w-10">
                         <AvatarImage 
                         src={authUser?.photoURL || `https://placehold.co/100x100.png`} 
                         alt={authUser?.displayName || "User Avatar"} 
@@ -105,7 +106,7 @@ export default function AppHeader() {
                         <AvatarFallback>{authUser?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
                 </div>
-                <div className={cn("streaktag absolute -bottom-1 left-1/2 -translate-x-1/2 h-4 rounded-sm px-1.5 text-xs font-bold flex items-center justify-center", levelStyles.badgeClasses)}>
+                <div className={cn("streaktag absolute -bottom-1 left-1/2 -translate-x-1/2 h-4 rounded-sm px-1.5 text-[10px] md:text-xs font-bold flex items-center justify-center", levelStyles.badgeClasses)}>
                     {levelToShow}
                 </div>
             </div>

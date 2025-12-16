@@ -1,3 +1,4 @@
+
 // src/features/reader/components/shared/ReaderToolbar.tsx
 
 "use client";
@@ -135,15 +136,18 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
     )
   }
 
+  const buttonClass = "h-7 w-7 md:h-8 md:w-8";
+  const iconClass = "h-4 w-4";
+
   return (
-    <div className="bg-background/90 border shadow-lg p-2 animate-in fade-in-0 slide-in-from-top-2 duration-300 rounded-lg flex flex-col gap-2">
+    <div className="bg-background/90 border shadow-lg p-1.5 md:p-2 animate-in fade-in-0 slide-in-from-top-2 duration-300 rounded-lg flex flex-col gap-2">
       {bookTitle && (
         <div className="text-center font-headline text-sm font-semibold truncate px-2 text-primary">
           {bookTitle}
         </div>
       )}
       <TooltipProvider>
-        <div className="flex items-center justify-center gap-1 md:gap-2">
+        <div className="flex items-center justify-center gap-1">
            {availableLanguages.length > 1 && (
             <>
               {/* --- LANGUAGE DROPDOWNs --- */}
@@ -151,7 +155,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8">
+                            <Button variant="ghost" size="sm" className="h-8 text-xs md:text-sm">
                                 {getLanguageLabel(displayLang1)}
                             </Button>
                         </DropdownMenuTrigger>
@@ -173,7 +177,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8">
+                            <Button variant="ghost" size="sm" className="h-8 text-xs md:text-sm">
                                 {getLanguageLabel(displayLang2)}
                             </Button>
                         </DropdownMenuTrigger>
@@ -215,7 +219,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6 mx-1" />
             </>
            )}
 
@@ -225,15 +229,15 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
               <div className="flex items-center">
                   <Tooltip>
                       <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFontSizeChange('decrease')} disabled={currentFontSizeIndex <= 0}>
-                               <Icon name="Minus" className="h-4 w-4" />
+                           <Button variant="ghost" size="icon" className={buttonClass} onClick={() => handleFontSizeChange('decrease')} disabled={currentFontSizeIndex <= 0}>
+                               <Icon name="Minus" className={iconClass} />
                            </Button>
                       </TooltipTrigger>
                       <TooltipContent><p>Decrease font size</p></TooltipContent>
                   </Tooltip>
                   <Tooltip>
                       <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFontSizeChange('reset')} disabled={settings.fontSize === 'base'}>
+                           <Button variant="ghost" size="icon" className={buttonClass} onClick={() => handleFontSizeChange('reset')} disabled={settings.fontSize === 'base'}>
                                 A
                            </Button>
                       </TooltipTrigger>
@@ -241,14 +245,14 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                   </Tooltip>
                   <Tooltip>
                       <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleFontSizeChange('increase')} disabled={currentFontSizeIndex >= fontSizeOptions.length - 1}>
-                               <Icon name="Plus" className="h-4 w-4" />
+                           <Button variant="ghost" size="icon" className={buttonClass} onClick={() => handleFontSizeChange('increase')} disabled={currentFontSizeIndex >= fontSizeOptions.length - 1}>
+                               <Icon name="Plus" className={iconClass} />
                            </Button>
                       </TooltipTrigger>
                       <TooltipContent><p>Increase font size</p></TooltipContent>
                   </Tooltip>
               </div>
-              <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6 mx-1" />
              </>
            )}
           
@@ -257,8 +261,8 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
             {textAlignOptions.map(opt => (
                 <Tooltip key={opt.value}>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className={cn("h-8 w-8", settings.textAlign === opt.value && "bg-muted")} onClick={() => updateSetting('textAlign', opt.value)}>
-                            <Icon name={opt.icon} className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className={cn(buttonClass, settings.textAlign === opt.value && "bg-muted")} onClick={() => updateSetting('textAlign', opt.value)}>
+                            <Icon name={opt.icon} className={iconClass} />
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>{opt.value.replace('text-', '')}</p></TooltipContent>
@@ -266,7 +270,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
             ))}
           </div>
 
-          <Separator orientation="vertical" className="h-6" />
+          <Separator orientation="vertical" className="h-6 mx-1" />
 
            {/* Vertical Align (Only for Doc/Card) */}
           {(presentationStyle === 'doc' || presentationStyle === 'card') && (
@@ -275,15 +279,15 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
                     {verticalAlignOptions.map(opt => (
                         <Tooltip key={opt.value}>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className={cn("h-8 w-8", settings.verticalAlign === opt.value && "bg-muted")} onClick={() => updateSetting('verticalAlign', opt.value)}>
-                                    <Icon name={opt.icon} className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" className={cn(buttonClass, settings.verticalAlign === opt.value && "bg-muted")} onClick={() => updateSetting('verticalAlign', opt.value)}>
+                                    <Icon name={opt.icon} className={iconClass} />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent><p>{opt.value.replace('justify-', '')}</p></TooltipContent>
                         </Tooltip>
                     ))}
                 </div>
-                <Separator orientation="vertical" className="h-6" />
+                <Separator orientation="vertical" className="h-6 mx-1" />
             </>
           )}
 
@@ -293,8 +297,8 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
             <Tooltip>
                 <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Icon name="Palette" className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className={buttonClass}>
+                            <Icon name="Palette" className={iconClass} />
                         </Button>
                     </DropdownMenuTrigger>
                 </TooltipTrigger>
@@ -325,12 +329,12 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-           <Separator orientation="vertical" className="h-6" />
+           <Separator orientation="vertical" className="h-6 mx-1" />
             
             <Tooltip>
                 <TooltipTrigger asChild>
-                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-                        <Icon name="X" className="h-4 w-4" />
+                     <Button variant="ghost" size="icon" className={buttonClass} onClick={onClose}>
+                        <Icon name="X" className={iconClass} />
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>

@@ -1,3 +1,4 @@
+
 // src/app/(app)/create/page.tsx
 "use client";
 
@@ -76,36 +77,36 @@ export default function CreatePage() {
     return (
         <div className="md:pl-96">
             <div className={cn(
-                "w-full md:w-96 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col md:fixed md:top-16 md:left-0 transition-[bottom] duration-300 ease-in-out",
+                "w-full md:w-96 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col md:fixed md:top-14 md:left-0 transition-[bottom] duration-300 ease-in-out",
                 isPlayerVisible ? "md:bottom-[68px]" : "md:bottom-0"
             )}>
                 <div className="p-3 border-b">
-                    <h2 className="text-xl md:text-2xl font-headline font-semibold text-center md:text-left">{pageTitle}</h2>
+                    <h2 className="text-lg md:text-xl font-headline font-semibold text-center md:text-left">{pageTitle}</h2>
                 </div>
                 
                 <Tabs onValueChange={handleTabChange} value={activeTab} className="flex flex-col flex-grow overflow-hidden">
-                    <div className="p-4 border-b">
-                        <TabsList className="grid w-full grid-cols-2 font-body">
+                    <div className="p-3 md:p-4 border-b">
+                        <TabsList className="grid w-full grid-cols-2 font-body h-9 md:h-10">
                             <TabsTrigger value="book">{t('tabs.book')}</TabsTrigger>
                             <TabsTrigger value="piece">{t('tabs.piece')}</TabsTrigger>
                         </TabsList>
                     </div>
 
                     <ScrollArea className="flex-grow">
-                        <div className="p-4">
+                        <div className="p-3 md:p-4">
                             <CreationForm job={job} formId={formId} type={activeTab} />
                         </div>
                     </ScrollArea>
                 </Tabs>
                 
-                <div className="p-4 border-t bg-card mt-auto space-y-2 fixed bottom-0 left-0 right-0 md:static">
+                <div className="p-3 md:p-4 border-t bg-card mt-auto space-y-2 fixed bottom-0 left-0 right-0 md:static">
                     {!isBusy && validationMessage && (
                         <div className="flex items-center justify-center text-xs text-destructive font-medium">
                             <Icon name="Info" className="mr-1 h-3.5 w-3.5" />
                             {t(validationMessage)}
                         </div>
                     )}
-                    <Button type="button" onClick={handleSubmitClick} className="w-full font-body bg-primary hover:bg-primary/90 text-primary-foreground relative" disabled={isSubmitDisabled}>
+                    <Button type="button" onClick={handleSubmitClick} className="w-full font-body h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground relative" disabled={isSubmitDisabled}>
                         {isBusy ? (
                             <><Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> {t('status.conceptualizing')}</>
                         ) : !canGenerate && !validationMessage && user && !isRateLimited ? (
@@ -124,7 +125,7 @@ export default function CreatePage() {
                 </div>
             </div>
             
-            <div className="hidden md:block bg-muted/30 md:fixed md:top-16 md:left-96 md:right-0 md:bottom-0">
+            <div className="hidden md:block bg-muted/30 md:fixed md:top-14 md:left-96 md:right-0 md:bottom-0">
                 {renderDesktopPreview()}
             </div>
         </div>
