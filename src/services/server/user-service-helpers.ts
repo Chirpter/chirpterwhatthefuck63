@@ -10,8 +10,8 @@ import { ApiServiceError } from '@/lib/errors';
  * This is a helper function to be used by other server actions/components.
  */
 export async function getUserIdFromSession(): Promise<string> {
-  // ✅ FIX: Removed 'await' - cookies() is a synchronous function.
-  const cookieStore = cookies();
+  // ✅ FIX: The cookies() function from next/headers is asynchronous and requires 'await'.
+  const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('__session')?.value;
   
   if (!sessionCookie) {
