@@ -1,18 +1,22 @@
 // src/features/reader/components/piece/PieceReader.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/contexts/settings-context';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
+import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
-import type { Piece, LibraryItem, Page, VocabContext } from '@/lib/types';
+import type { Piece, LibraryItem, VocabContext } from '@/lib/types';
 
 import { ReaderToolbar } from '../shared/ReaderToolbar';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
 import { getItemSegments } from '@/services/shared/SegmentParser';
 import { Icon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
+import { useMobile } from '@/hooks/useMobile';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
@@ -49,17 +53,21 @@ export default function PieceReader({
   presentationStyle: externalPresentationStyle,
   aspectRatio: externalAspectRatio,
 }: PieceReaderProps) {
-  // --- HOOKS (Called unconditionally at the top) ---
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   const { wordLookupEnabled } = useSettings();
   const [editorSettings, setEditorSettings] = useEditorSettings(piece?.id ?? null);
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
+  const isMobile = useMobile();
   
   const [displayLang1, setDisplayLang1] = useState(piece?.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(piece?.langs[1] || 'none');
-  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
+  const [lookupState, setLookupState] = useState<LookupState>({ 
+    isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', 
+    sourceItem: null, sentenceContext: '', context: 'reader' 
+  });
 
-  // Update display languages when the piece prop changes
+  const contentContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setDisplayLang1(piece?.langs[0] || 'en');
     setDisplayLang2(piece?.langs[1] || 'none');
@@ -67,11 +75,24 @@ export default function PieceReader({
 
   const allSegments = useMemo(() => getItemSegments(piece), [piece]);
   
-  const singlePage: Page = useMemo(() => ({
-    pageIndex: 0,
-    items: allSegments,
-    estimatedHeight: 0
-  }), [allSegments]);
+  const finalPresentationStyle = externalPresentationStyle || piece?.presentationStyle || 'card';
+  const finalAspectRatio = externalAspectRatio || piece?.aspectRatio || '3:4';
+
+  // ADD PAGINATION FOR NON-PREVIEW
+  const {
+    pages,
+    currentPageIndex,
+    setCurrentPageIndex,
+    isCalculating,
+    goToPage,
+    pageCount,
+  } = usePagination({
+    segments: allSegments,
+    containerRef: contentContainerRef,
+    isEnabled: !isPreview, // Only paginate in full reader
+    presentationStyle: finalPresentationStyle,
+    aspectRatio: finalAspectRatio,
+  });
 
   const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!wordLookupEnabled || isPreview || !piece) return;
@@ -86,7 +107,7 @@ export default function PieceReader({
         const rect = range.getBoundingClientRect();
         
         let sourceLang = displayLang1;
-        let sentenceContext = `...${'${selectedText}'}...`;
+        let sentenceContext = `...${selectedText}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
@@ -112,11 +133,15 @@ export default function PieceReader({
     }
   }, [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1, isPreview]);
 
-  // --- RENDER LOGIC ---
+  const handleDragEnd = (event: any, info: any) => {
+    const swipeThreshold = 50;
+    if (info.offset.x > swipeThreshold) {
+      goToPage(currentPageIndex - 1);
+    } else if (info.offset.x < -swipeThreshold) {
+      goToPage(currentPageIndex + 1);
+    }
+  };
 
-  const finalPresentationStyle = externalPresentationStyle || piece?.presentationStyle || 'card';
-  const finalAspectRatio = externalAspectRatio || piece?.aspectRatio || '3:4';
-  
   if (!piece || piece.contentState !== 'ready') {
     if (isPreview) {
       return (
@@ -136,7 +161,6 @@ export default function PieceReader({
     return null; 
   }
   
-  // In preview, 'doc' style should look like a 3:4 card
   const isDocLikeCard = isPreview && finalPresentationStyle === 'doc';
 
   const cardClassName = cn(
@@ -148,28 +172,32 @@ export default function PieceReader({
     editorSettings.background
   );
 
-  const mainContainerClasses = isPreview 
-    ? cardClassName
-    : "w-full h-full flex flex-col items-center justify-center p-4";
-
-  const contentWrapper = (
-    <div className={isPreview ? 'w-full h-full' : cardClassName}>
-      <div className="w-full h-full overflow-y-auto">
-        <ContentPageRenderer
-          page={singlePage}
-          presentationStyle={finalPresentationStyle}
-          editorSettings={editorSettings}
-          itemData={piece}
-          displayLang1={displayLang1}
-          displayLang2={displayLang2}
-        />
-      </div>
-    </div>
-  );
-  
+  // FOR PREVIEW - Single page, no pagination
   if (isPreview) {
-    return contentWrapper;
+    const singlePage = {
+      pageIndex: 0,
+      items: allSegments,
+      estimatedHeight: 0
+    };
+
+    return (
+      <div className={cardClassName}>
+        <div className="w-full h-full overflow-y-auto">
+          <ContentPageRenderer
+            page={singlePage}
+            presentationStyle={finalPresentationStyle}
+            editorSettings={editorSettings}
+            itemData={piece}
+            displayLang1={displayLang1}
+            displayLang2={displayLang2}
+          />
+        </div>
+      </div>
+    );
   }
+
+  // FOR FULL READER - With pagination
+  const currentPageData = pages[currentPageIndex];
 
   return (
     <div id="reader-veil" className="w-full h-full fixed inset-0 z-40" onMouseUp={handleTextSelection}>
@@ -189,24 +217,82 @@ export default function PieceReader({
         )}
       </Suspense>
 
-      <div id="reader-studio-container" className={mainContainerClasses}>
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
-          <ReaderToolbar
-            settings={editorSettings}
-            onSettingsChange={setEditorSettings}
-            onClose={() => setIsToolbarOpen(false)}
-            isToolbarOpen={isToolbarOpen}
-            onToggleToolbar={() => setIsToolbarOpen(p => !p)}
-            bookTitle={(piece.title as any)[displayLang1]}
-            availableLanguages={piece.langs}
-            displayLang1={displayLang1}
-            displayLang2={displayLang2}
-            onDisplayLang1Change={setDisplayLang1}
-            onDisplayLang2Change={setDisplayLang2}
-            presentationStyle={finalPresentationStyle}
-          />
+      <div id="reader-studio-container" className="w-full h-full flex flex-col items-center justify-center p-4">
+        <div id="reader-content-wrapper" className="relative w-full h-full flex items-center justify-center min-h-0 group/reader">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30">
+            <ReaderToolbar
+              settings={editorSettings}
+              onSettingsChange={setEditorSettings}
+              onClose={() => setIsToolbarOpen(false)}
+              isToolbarOpen={isToolbarOpen}
+              onToggleToolbar={() => setIsToolbarOpen(p => !p)}
+              bookTitle={(piece.title as any)[displayLang1]}
+              availableLanguages={piece.langs}
+              displayLang1={displayLang1}
+              displayLang2={displayLang2}
+              onDisplayLang1Change={setDisplayLang1}
+              onDisplayLang2Change={setDisplayLang2}
+              presentationStyle={finalPresentationStyle}
+            />
+          </div>
+
+          {pageCount > 1 && (
+            <>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full z-20 opacity-0 group-hover/reader:opacity-100 transition-opacity disabled:opacity-0" 
+                disabled={currentPageIndex === 0} 
+                onClick={() => goToPage(currentPageIndex - 1)}
+              >
+                <Icon name="ChevronLeft" className="h-5 w-5" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full z-20 opacity-0 group-hover/reader:opacity-100 transition-opacity disabled:opacity-0" 
+                disabled={currentPageIndex >= pageCount - 1} 
+                onClick={() => goToPage(currentPageIndex + 1)}
+              >
+                <Icon name="ChevronRight" className="h-5 w-5" />
+              </Button>
+              <div className="absolute bottom-4 right-8 z-20 text-xs text-muted-foreground font-sans bg-background/50 px-2 py-1 rounded-md opacity-0 group-hover/reader:opacity-100 transition-opacity">
+                {currentPageIndex + 1} / {pageCount}
+              </div>
+            </>
+          )}
+
+          <motion.div 
+            ref={contentContainerRef} 
+            className={cardClassName}
+            drag={isMobile ? 'x' : false} 
+            dragConstraints={{ left: 0, right: 0 }} 
+            dragElastic={0.2} 
+            onDragEnd={handleDragEnd}
+          >
+            {isCalculating ? (
+              <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
+                <div>
+                  <Icon name="FileText" className="h-10 w-10 animate-pulse text-primary mx-auto" />
+                  <p className="mt-2">{t('paginating')}</p>
+                </div>
+              </div>
+            ) : currentPageData ? (
+              <ContentPageRenderer
+                page={currentPageData}
+                presentationStyle={finalPresentationStyle}
+                editorSettings={editorSettings}
+                itemData={piece}
+                displayLang1={displayLang1}
+                displayLang2={displayLang2}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
+                <p>No content to display.</p>
+              </div>
+            )}
+          </motion.div>
         </div>
-        {contentWrapper}
       </div>
     </div>
   );

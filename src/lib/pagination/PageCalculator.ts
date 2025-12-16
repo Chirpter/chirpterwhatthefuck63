@@ -1,77 +1,114 @@
+// src/lib/pagination/PageCalculator.ts
 'use client';
 
 import type { Page, Segment } from '@/lib/types';
-import type { SegmentCalibrator, CalibrationBaseline } from './SegmentCalibrator';
-
-// A heuristic for the extra vertical space added by new paragraphs (e.g., margin-top).
-const PARAGRAPH_SPACING_HEURISTIC = 16; 
+import { SegmentCalibrator, type CalibrationBaseline } from './SegmentCalibrator';
 
 /**
- * The definitive pagination engine. It uses a calibrated baseline to divide a flat list of items (Segment)
- * into virtual pages, ensuring no content overflows the container height.
+ * Calculates how to split an array of Segments into multiple Pages
+ * based on the container size and estimated content height.
  */
 export class PageCalculator {
   private calibrator: SegmentCalibrator;
+  private baseline: CalibrationBaseline | null = null;
+  private presentationStyle: 'book' | 'doc' | 'card';
+  private aspectRatio?: '1:1' | '3:4' | '4:3';
 
-  constructor(calibrator: SegmentCalibrator) {
+  constructor(
+    calibrator: SegmentCalibrator,
+    presentationStyle: 'book' | 'doc' | 'card' = 'book',
+    aspectRatio?: '1:1' | '3:4' | '4:3'
+  ) {
     this.calibrator = calibrator;
+    this.presentationStyle = presentationStyle;
+    this.aspectRatio = aspectRatio;
   }
-  
+
   /**
-   * Calculates pages for an entire book's worth of segments.
-   * @param allBookSegments - A single flat array of all segments from all chapters.
-   * @returns A promise resolving to an object with the pages array and an array of chapter start page indices.
+   * Initializes the baseline by calibrating the segments.
    */
-  public async calculatePagesForBook(allBookSegments: Segment[]): Promise<{ pages: Page[], chapterStartPages: number[] }> {
-    const baseline = await this.calibrator.calibrate(allBookSegments);
+  private async ensureBaseline(segments: Segment[]): Promise<void> {
+    if (!this.baseline) {
+      this.baseline = await this.calibrator.calibrate(segments);
+    }
+  }
+
+  /**
+   * Estimates the height of a single segment.
+   * Uses real measurement for headings and estimation for text.
+   */
+  private async estimateItemHeight(segment: Segment): Promise<number> {
+    const textContent = (segment.content.primary as string) || (segment.content.en as string) || '';
+    if (!textContent) return 0;
+    
+    // Always measure headings for accuracy
+    if (textContent.startsWith('##')) {
+      return await this.calibrator.measureItem(segment);
+    }
+    
+    // For text, use estimation based on calibration
+    if (this.baseline && this.baseline.avgCharHeight > 0) {
+      return textContent.length * this.baseline.avgCharHeight;
+    }
+    
+    // Fallback to direct measurement if no baseline
+    return await this.calibrator.measureItem(segment);
+  }
+
+  /**
+   * Main method to calculate pages for a given set of segments (e.g., a book).
+   */
+  public async calculatePages(segments: Segment[]): Promise<{ pages: Page[], chapterStartPages: number[] }> {
+    await this.ensureBaseline(segments);
+
     const pages: Page[] = [];
-    let chapterStartPages: number[] = [];
+    const chapterStartPages: number[] = [];
     let currentPageItems: Segment[] = [];
-    let currentHeight = 0;
+    let currentPageHeight = 0;
+    
+    if (!this.baseline || this.baseline.containerHeight <= 0) {
+        console.warn("Invalid container height, cannot calculate pages.");
+        return { pages: [], chapterStartPages: [] };
+    }
+    
+    const pageHeight = this.baseline.containerHeight;
+    let isNewChapter = true;
 
-    for (let i = 0; i < allBookSegments.length; i++) {
-        const currentItem = allBookSegments[i];
-        const isNewChapter = (currentItem.content.primary as string)?.startsWith('## ') || (currentItem.content.en as string)?.startsWith('## ');
+    for (const segment of segments) {
+      const itemHeight = await this.estimateItemHeight(segment);
+      const textContent = (segment.content.primary as string) || (segment.content.en as string) || '';
 
-        if (isNewChapter) {
-            if (currentPageItems.length > 0) {
-                pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
-                currentPageItems = [];
-                currentHeight = 0;
-            }
-            chapterStartPages.push(pages.length);
-        }
+      if (textContent.startsWith('##')) {
+          isNewChapter = true;
+      }
+      
+      if (currentPageHeight + itemHeight > pageHeight && currentPageItems.length > 0) {
+        pages.push({
+          pageIndex: pages.length,
+          items: currentPageItems,
+          estimatedHeight: currentPageHeight,
+        });
+        currentPageItems = [];
+        currentPageHeight = 0;
+      }
 
-        const itemHeight = await this.calibrator.measureItem(currentItem);
-        
-        if (itemHeight >= baseline.containerHeight) {
-            if (currentPageItems.length > 0) {
-                pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
-            }
-            pages.push({ pageIndex: pages.length, items: [currentItem], estimatedHeight: itemHeight });
-            currentPageItems = [];
-            currentHeight = 0;
-            continue;
-        }
-        
-        if (currentHeight + itemHeight > baseline.containerHeight) {
-            pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
-            currentPageItems = [currentItem];
-            currentHeight = itemHeight;
-        } else {
-            currentPageItems.push(currentItem);
-            currentHeight += itemHeight;
-        }
+      if (isNewChapter) {
+        chapterStartPages.push(pages.length);
+        isNewChapter = false;
+      }
+
+      currentPageItems.push(segment);
+      currentPageHeight += itemHeight;
     }
 
     if (currentPageItems.length > 0) {
-        pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentHeight });
+      pages.push({
+        pageIndex: pages.length,
+        items: currentPageItems,
+        estimatedHeight: currentPageHeight,
+      });
     }
-    
-    if (chapterStartPages.length === 0 && allBookSegments.length > 0) {
-      chapterStartPages.push(0);
-    }
-    
+
     return { pages, chapterStartPages };
   }
 }
