@@ -47,6 +47,7 @@ export default function BookReader({ book }: { book: Book }) {
 
   const [editorSettings, setEditorSettings] = useEditorSettings(book.id);
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
+  const [isTocOpen, setIsTocOpen] = useState(false);
   
   const [displayLang1, setDisplayLang1] = useState(book.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(book.langs[1] || 'none');
