@@ -32,8 +32,8 @@ const getInitialFormDataForBook = (t: (key: string) => string): Partial<Creation
     tags: [],
     origin: primaryLang,
     unit: 'sentence',
+    presentationStyle: 'book', // Correct default for book
     // Book specific fields
-    presentationStyle: 'book',
     bookLength: 'short-story',
     targetChapterCount: 3,
     generationScope: 'full',
@@ -73,6 +73,21 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const { items: processingItems } = useLibraryItems({ status: 'processing' });
   const processingJobsCount = processingItems.length;
+
+  // --- DEBUGGING: Record pre-submission state ---
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const preSubmissionState = {
+        hasActiveJob: !!activeId,
+        activeJobId: activeId,
+        hasFinalizedJob: !!finalizedId,
+        finalizedJobId: finalizedId,
+        currentJobData: jobData ? { id: jobData.id, status: jobData.status, contentState: (jobData as Book).contentState, coverState: (jobData as Book).coverState } : null
+    };
+    sessionStorage.setItem('creation_debug_presubmit', JSON.stringify(preSubmissionState, null, 2));
+  }, [activeId, finalizedId, jobData]);
+  // --- END DEBUGGING ---
+
 
   const creditCost = useMemo(() => {
     if (type === 'piece') return 1;
@@ -222,11 +237,10 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, []);
   
   const reset = useCallback((newType: 'book' | 'piece') => {
-    const defaultData = getInitialFormDataForBook(t); // Always start with full book defaults
+    const defaultData = getInitialFormDataForBook(t);
     let newFormData: Partial<CreationFormValues> = { ...defaultData, type: newType };
 
     if (newType === 'piece') {
-        // Set piece defaults and remove book-specific fields
         newFormData.presentationStyle = 'card';
         newFormData.aspectRatio = '3:4';
         delete newFormData.bookLength;
@@ -236,20 +250,18 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         delete newFormData.coverImageAiPrompt;
         delete newFormData.coverImageFile;
     } else {
-        // Ensure piece-specific fields are not present for books
         newFormData.presentationStyle = 'book';
         delete newFormData.aspectRatio;
     }
-
-    setFormData(newFormData);
     
+    setFormData(newFormData);
     setIsPromptDefault(true);
     setPromptError(null);
     setIsBusy(false);
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+    if (user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
   }, [user?.uid, t]);
 
 
@@ -278,6 +290,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     }
 
     setIsBusy(true);
+    let submissionStatus = 'pending';
     try {
       const dataToSubmit: CreationFormValues = {
         ...formData,
@@ -294,14 +307,15 @@ export function useCreationJob({ type }: UseCreationJobParams) {
               },
               creditCost,
               processingJobsCount,
+              submissionStatus: 'pending_to_server',
           };
           sessionStorage.setItem('creation_debug_data', JSON.stringify(snapshot, null, 2));
-          // Clear previous AI data
-          sessionStorage.removeItem('ai_debug_data');
+          sessionStorage.removeItem('ai_debug_data'); // Clear previous AI data
       }
       // --- END DEBUGGING SNAPSHOT ---
 
       const jobId = await createLibraryItem(type, dataToSubmit);
+      submissionStatus = 'success';
       setActiveId(jobId);
       if(user.uid) {
         sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
@@ -309,8 +323,18 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       
       toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {
+      submissionStatus = 'failed';
       toast({ title: t('toast:error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
+    } finally {
+        if (process.env.NODE_ENV === 'development') {
+            const dataRaw = sessionStorage.getItem('creation_debug_data');
+            if(dataRaw) {
+                const data = JSON.parse(dataRaw);
+                data.submissionStatus = submissionStatus;
+                sessionStorage.setItem('creation_debug_data', JSON.stringify(data, null, 2));
+            }
+        }
     }
   }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited, isPromptDefault, type, creditCost]);
 
@@ -356,7 +380,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, []);
 
   return {
-    formData: formData as CreationFormValues, // Cast to full type for components
+    formData: formData as CreationFormValues,
     isPromptDefault, 
     promptError, 
     isBusy, 
@@ -383,3 +407,5 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     isRateLimited, 
   };
 }
+
+    

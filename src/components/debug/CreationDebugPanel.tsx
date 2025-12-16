@@ -4,22 +4,86 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
+import { cn } from '@/lib/utils';
+import type { Book } from '@/lib/types';
 
-interface DebugData {
+// Simplified state interfaces for debugging
+interface PreSubmitState {
+  hasActiveJob: boolean;
+  activeJobId: string | null;
+  hasFinalizedJob: boolean;
+  finalizedJobId: string | null;
+  currentJobData: { id: string; status: string; contentState: string; coverState: string } | null;
+}
+
+interface SubmissionState {
   submittedAt: string;
   formDataSent: any;
   creditCost: number;
   processingJobsCount: number;
-  ai?: {
-    systemPrompt: string;
-    userPrompt: string;
-    rawResponse: string;
-  };
+  submissionStatus: 'pending_to_server' | 'success' | 'failed';
 }
+
+interface AiState {
+  sentAt: string;
+  status: 'pending' | 'success' | 'error';
+  systemPrompt: string;
+  userPrompt: string;
+  rawResponse: string | null;
+  error: string | null;
+}
+
+const Section = ({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-gray-700 pt-2">
+      <button onClick={() => setIsOpen(!isOpen)} className="font-bold text-blue-400 mb-1 w-full text-left flex items-center justify-between">
+        {title}
+        <Icon name={isOpen ? 'ChevronUp' : 'ChevronDown'} className="h-4 w-4" />
+      </button>
+      {isOpen && <div className="space-y-1 pl-2 mt-2">{children}</div>}
+    </div>
+  );
+};
+
+const Info = ({ label, value, mono = false, statusColor }: { label: string; value: any; mono?: boolean; statusColor?: string }) => {
+    const valueStr = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+    
+    return (
+      <div className="flex flex-col">
+        <span className="text-gray-400">{label}:</span>
+        {mono ? (
+             <pre className="whitespace-pre-wrap break-all text-xs">{valueStr}</pre>
+        ) : (
+            <span className={cn("whitespace-pre-wrap break-all", statusColor)}>{valueStr}</span>
+        )}
+      </div>
+    );
+};
+
+const getStatusColor = (status: string | undefined | null): string => {
+  if (!status) return 'text-gray-500';
+  switch (status.toLowerCase()) {
+    case 'success':
+    case 'ready':
+      return 'text-green-400';
+    case 'error':
+    case 'failed':
+      return 'text-red-400';
+    case 'processing':
+    case 'pending':
+    case 'pending_to_server':
+      return 'text-yellow-400';
+    default:
+      return 'text-gray-400';
+  }
+};
 
 export function CreationDebugPanel() {
   const [isOpen, setIsOpen] = useState(false);
-  const [debugData, setDebugData] = useState<DebugData | null>(null);
+  const [preSubmitState, setPreSubmitState] = useState<PreSubmitState | null>(null);
+  const [submissionState, setSubmissionState] = useState<SubmissionState | null>(null);
+  const [aiState, setAiState] = useState<AiState | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined' || process.env.NODE_ENV !== 'development') {
@@ -28,26 +92,21 @@ export function CreationDebugPanel() {
 
     const interval = setInterval(() => {
       try {
-        const creationDataRaw = sessionStorage.getItem('creation_debug_data');
-        const aiDataRaw = sessionStorage.getItem('ai_debug_data');
-
-        if (creationDataRaw) {
-          const creationData = JSON.parse(creationDataRaw);
-          const aiData = aiDataRaw ? JSON.parse(aiDataRaw) : null;
-          
-          const combinedData = { ...creationData, ai: aiData };
-
-          if (JSON.stringify(combinedData) !== JSON.stringify(debugData)) {
-            setDebugData(combinedData);
-          }
-        }
+        const preSubmitRaw = sessionStorage.getItem('creation_debug_presubmit');
+        const submissionRaw = sessionStorage.getItem('creation_debug_data');
+        const aiRaw = sessionStorage.getItem('ai_debug_data');
+        
+        if (preSubmitRaw) setPreSubmitState(JSON.parse(preSubmitRaw));
+        if (submissionRaw) setSubmissionState(JSON.parse(submissionRaw));
+        if (aiRaw) setAiState(JSON.parse(aiRaw));
+        
       } catch (e) {
         console.error("Failed to parse debug data from sessionStorage", e);
       }
-    }, 1000); // Check every second
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [debugData]);
+  }, []);
 
   if (process.env.NODE_ENV !== 'development') {
     return null;
@@ -56,47 +115,70 @@ export function CreationDebugPanel() {
   const handleCopy = (content: any) => {
     const contentString = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
     navigator.clipboard.writeText(contentString);
-    alert('Copied to clipboard!');
   };
-
+  
   const renderPanelContent = () => {
-    if (!debugData) {
-      return (
-        <div className="text-center text-gray-400 py-8">
-          <p>No creation data captured yet.</p>
-          <p className="text-xs mt-2">Generate a book or piece to see debug info.</p>
-        </div>
-      );
-    }
-
     return (
       <div className="space-y-4">
-        <div className="text-gray-400 text-xs">Last submission: {new Date(debugData.submittedAt).toLocaleTimeString()}</div>
+        {preSubmitState && (
+          <Section title="1. Pre-Submission State" defaultOpen={true}>
+            <Info label="Active Job Running?" value={preSubmitState.hasActiveJob ? 'Yes' : 'No'} />
+            <Info label="Active Job ID" value={preSubmitState.activeJobId || 'None'} mono />
+            {preSubmitState.currentJobData && (
+                 <>
+                    <Info label="Content State" value={(preSubmitState.currentJobData as any).contentState} statusColor={getStatusColor((preSubmitState.currentJobData as any).contentState)} />
+                    <Info label="Cover State" value={(preSubmitState.currentJobData as any).coverState} statusColor={getStatusColor((preSubmitState.currentJobData as any).coverState)} />
+                </>
+            )}
+          </Section>
+        )}
         
-        <Section title="Submission State">
-          <Info label="Credit Cost" value={debugData.creditCost} />
-          <Info label="Concurrent Jobs" value={debugData.processingJobsCount} />
-          <Info label="Form Data Sent" value={debugData.formDataSent} mono />
-          <Button size="sm" variant="ghost" onClick={() => handleCopy(debugData.formDataSent)} className="mt-2 text-xs">Copy Form Data</Button>
-        </Section>
+        {submissionState && (
+            <Section title="2. Submission State" defaultOpen={true}>
+                <Info label="Submitted At" value={new Date(submissionState.submittedAt).toLocaleTimeString()} />
+                <Info label="Status" value={submissionState.submissionStatus} statusColor={getStatusColor(submissionState.submissionStatus)} />
+                <Info label="Credit Cost" value={submissionState.creditCost} />
+                <Info label="Concurrent Jobs" value={submissionState.processingJobsCount} />
+                <Info label="Form Data Sent" value={submissionState.formDataSent} mono />
+                <Button size="sm" variant="ghost" onClick={() => handleCopy(submissionState.formDataSent)} className="mt-2 text-xs h-6">Copy Form Data</Button>
+            </Section>
+        )}
+        
+        {aiState && (
+            <Section title="3. AI Flow" defaultOpen={true}>
+                <Info label="Status" value={aiState.status} statusColor={getStatusColor(aiState.status)} />
+                {aiState.error && <Info label="AI Error" value={aiState.error} mono statusColor="text-red-400" />}
 
-        {debugData.ai && (
-          <>
-            <Section title="AI System Prompt">
-              <pre className="whitespace-pre-wrap break-words">{debugData.ai.systemPrompt}</pre>
-              <Button size="sm" variant="ghost" onClick={() => handleCopy(debugData.ai.systemPrompt)} className="mt-2 text-xs">Copy</Button>
+                <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer text-gray-400">View Prompts & Response</summary>
+                    <div className="pl-2 mt-2 space-y-3">
+                        <div>
+                          <h4 className="font-semibold text-gray-300">System Prompt:</h4>
+                          <pre className="whitespace-pre-wrap break-words">{aiState.systemPrompt}</pre>
+                          <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.systemPrompt)} className="mt-1 text-xs h-6">Copy</Button>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-300">User Prompt:</h4>
+                          <pre className="whitespace-pre-wrap break-words">{aiState.userPrompt}</pre>
+                          <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.userPrompt)} className="mt-1 text-xs h-6">Copy</Button>
+                        </div>
+                        {aiState.rawResponse && (
+                          <div>
+                            <h4 className="font-semibold text-gray-300">Raw AI Response (Markdown):</h4>
+                            <pre className="whitespace-pre-wrap break-words">{aiState.rawResponse}</pre>
+                            <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.rawResponse)} className="mt-1 text-xs h-6">Copy</Button>
+                          </div>
+                        )}
+                    </div>
+                </details>
             </Section>
+        )}
 
-            <Section title="AI User Prompt">
-              <p className="whitespace-pre-wrap break-words">{debugData.ai.userPrompt}</p>
-              <Button size="sm" variant="ghost" onClick={() => handleCopy(debugData.ai.userPrompt)} className="mt-2 text-xs">Copy</Button>
-            </Section>
-            
-            <Section title="Raw AI Response (Markdown)">
-              <pre className="whitespace-pre-wrap break-words">{debugData.ai.rawResponse}</pre>
-              <Button size="sm" variant="ghost" onClick={() => handleCopy(debugData.ai.rawResponse)} className="mt-2 text-xs">Copy</Button>
-            </Section>
-          </>
+        {!preSubmitState && !submissionState && !aiState && (
+             <div className="text-center text-gray-400 py-8">
+                <p>No creation data captured yet.</p>
+                <p className="text-xs mt-2">Generate content to see debug info.</p>
+            </div>
         )}
       </div>
     );
@@ -128,27 +210,5 @@ export function CreationDebugPanel() {
     </div>
   );
 }
-
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="border-t border-gray-700 pt-2">
-    <div className="font-bold text-blue-400 mb-1">{title}</div>
-    <div className="space-y-1 pl-2">{children}</div>
-  </div>
-);
-
-const Info = ({ label, value, mono = false }: { label: string; value: any; mono?: boolean }) => {
-    const valueStr = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-    
-    return (
-      <div className="flex flex-col">
-        <span className="text-gray-400">{label}:</span>
-        {mono ? (
-             <pre className="whitespace-pre-wrap break-all text-xs">{valueStr}</pre>
-        ) : (
-            <span className="whitespace-pre-wrap break-all">{valueStr}</span>
-        )}
-      </div>
-    );
-  };
 
     

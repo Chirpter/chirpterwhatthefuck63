@@ -68,3 +68,5 @@ export async function createLibraryItem(type: 'book' | 'piece', formData: Creati
     throw new ApiServiceError(error.message || 'Creation failed unexpectedly', 'UNKNOWN', error);
   }
 }
+
+    

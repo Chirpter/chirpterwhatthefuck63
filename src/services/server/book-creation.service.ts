@@ -192,12 +192,13 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     coverData = bookFormData.coverImageAiPrompt;
   }
 
+
   processBookGenerationPipeline(
     userId,
     bookId,
     contentInput,
     bookFormData.coverImageOption,
-    coverData
+    coverData,
   ).catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
 
@@ -232,7 +233,7 @@ async function processContentGenerationForBook(
     ];
 
     // Structure instructions
-    if (generationScope === 'partial-book' && totalChapterOutlineCount) {
+    if (generationScope === 'firstFew' && totalChapterOutlineCount) {
         systemInstructions.push(`- Create a complete book outline with exactly ${totalChapterOutlineCount} chapters.`);
         systemInstructions.push(`- Write the full Markdown content for ONLY THE FIRST ${chaptersToGenerate} chapters.`);
         systemInstructions.push(`- For the remaining chapters (from chapter ${chaptersToGenerate + 1} to ${totalChapterOutlineCount}), only write their Markdown heading.`);
@@ -250,20 +251,28 @@ async function processContentGenerationForBook(
         prompt: `{{{userPrompt}}}\n\n{{{systemPrompt}}}`,
     });
 
+    const aiDebugData = {
+        sentAt: new Date().toISOString(),
+        status: 'pending',
+        systemPrompt,
+        userPrompt,
+        rawResponse: null as string | null,
+        error: null as string | null
+    };
+
     try {
+        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+
         const { output: aiOutput } = await bookContentGenerationPrompt({ userPrompt, systemPrompt });
 
         if (!aiOutput || !aiOutput.markdownContent) {
-          throw new ApiServiceError('AI returned empty or invalid content.', "UNKNOWN");
+          throw new ApiServiceError('AI returned empty or invalid content.', "UNAVAILABLE");
         }
         
-        // --- START AI DEBUGGING HOOK ---
-        if (typeof window !== 'undefined') {
-            const debugData = { userPrompt, systemPrompt, rawResponse: aiOutput.markdownContent };
-            sessionStorage.setItem('ai_debug_data', JSON.stringify(debugData));
-        }
-        // --- END AI DEBUGGING HOOK ---
-        
+        aiDebugData.status = 'success';
+        aiDebugData.rawResponse = aiOutput.markdownContent;
+        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+
         const { title: parsedTitle, chapters: finalChapters, unit: parsedUnit } = parseBookMarkdown(aiOutput.markdownContent, origin);
         
         return {
@@ -275,8 +284,13 @@ async function processContentGenerationForBook(
         };
 
     } catch (error) {
-        console.error(`Content generation failed for book ${bookId}:`, (error as Error).message);
-        throw new ApiServiceError('AI content generation failed. This might be due to safety filters or a temporary issue. Please try a different prompt.', "UNKNOWN");
+        const errorMessage = (error as Error).message || 'Unknown AI error';
+        aiDebugData.status = 'error';
+        aiDebugData.error = errorMessage;
+        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
+
+        console.error(`Content generation failed for book ${bookId}:`, errorMessage);
+        throw new ApiServiceError('AI content generation failed. This might be due to safety filters or a temporary issue. Please try a different prompt.', "UNAVAILABLE", error as Error);
     }
 }
 
@@ -329,7 +343,7 @@ async function processCoverImageForBook(
     };
   } catch (error) {
     console.error(`Cover image processing failed for book ${bookId}:`, error);
-    throw new ApiServiceError("Cover image generation failed.", "UNKNOWN");
+    throw new ApiServiceError("Cover image generation failed.", "UNAVAILABLE");
   }
 }
 
