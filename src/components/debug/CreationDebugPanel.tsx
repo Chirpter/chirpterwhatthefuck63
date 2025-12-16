@@ -30,7 +30,7 @@ interface AiState {
   systemPrompt: string;
   userPrompt: string;
   rawResponse: string | null;
-  parsedData: any | null; // NEW: To hold the parsed JSON object
+  parsedData: any | null;
   error: string | null;
 }
 
@@ -135,23 +135,27 @@ export function CreationDebugPanel() {
         )}
         
         {submissionState && (
-            <Section title="2. Submission State" defaultOpen={true}>
+            <Section title="2. Client Submission" defaultOpen={true}>
                 <Info label="Submitted At" value={new Date(submissionState.submittedAt).toLocaleTimeString()} />
                 <Info label="Status" value={submissionState.submissionStatus} statusColor={getStatusColor(submissionState.submissionStatus)} />
                 <Info label="Credit Cost" value={submissionState.creditCost} />
                 <Info label="Concurrent Jobs" value={submissionState.processingJobsCount} />
-                <Info label="Form Data Sent" value={submissionState.formDataSent} mono />
-                <Button size="sm" variant="ghost" onClick={() => handleCopy(submissionState.formDataSent)} className="mt-2 text-xs h-6">Copy Form Data</Button>
+                <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer text-gray-400">View Form Data</summary>
+                    <pre className="whitespace-pre-wrap break-all">{JSON.stringify(submissionState.formDataSent, null, 2)}</pre>
+                    <Button size="sm" variant="ghost" onClick={() => handleCopy(submissionState.formDataSent)} className="mt-2 text-xs h-6">Copy</Button>
+                </details>
             </Section>
         )}
         
         {aiState && (
-            <Section title="3. AI Flow" defaultOpen={true}>
+          <>
+            <Section title="3. AI Generation" defaultOpen={true}>
                 <Info label="Status" value={aiState.status} statusColor={getStatusColor(aiState.status)} />
                 {aiState.error && <Info label="AI Error" value={aiState.error} mono statusColor="text-red-400" />}
 
                 <details className="mt-2 text-xs">
-                    <summary className="cursor-pointer text-gray-400">View Prompts & Response</summary>
+                    <summary className="cursor-pointer text-gray-400">View Prompts & Raw Response</summary>
                     <div className="pl-2 mt-2 space-y-3">
                         <div>
                           <h4 className="font-semibold text-gray-300">System Prompt:</h4>
@@ -170,16 +174,19 @@ export function CreationDebugPanel() {
                             <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.rawResponse)} className="mt-1 text-xs h-6">Copy</Button>
                           </div>
                         )}
-                         {aiState.parsedData && (
-                          <div>
-                            <h4 className="font-semibold text-gray-300">Parsed Data (JSON):</h4>
-                            <pre className="whitespace-pre-wrap break-words">{JSON.stringify(aiState.parsedData, null, 2)}</pre>
-                            <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.parsedData)} className="mt-1 text-xs h-6">Copy</Button>
-                          </div>
-                        )}
                     </div>
                 </details>
             </Section>
+            {aiState.parsedData && (
+              <Section title="4. Content Parsing" defaultOpen={true}>
+                  <div>
+                    <h4 className="font-semibold text-gray-300">Parsed Data (JSON):</h4>
+                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(aiState.parsedData, null, 2)}</pre>
+                    <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.parsedData)} className="mt-1 text-xs h-6">Copy</Button>
+                  </div>
+              </Section>
+            )}
+          </>
         )}
 
         {!preSubmitState && !submissionState && !aiState && (
