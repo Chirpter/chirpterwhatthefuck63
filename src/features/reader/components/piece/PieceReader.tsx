@@ -43,6 +43,16 @@ interface PieceReaderProps {
 
 export default function PieceReader({ piece, isPreview = false }: PieceReaderProps) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
+  const { wordLookupEnabled } = useSettings();
+  const [editorSettings, setEditorSettings] = useEditorSettings(piece?.id ?? null);
+  const [isToolbarOpen, setIsToolbarOpen] = useState(false);
+  
+  const [displayLang1, setDisplayLang1] = useState(piece?.langs[0] || 'en');
+  const [displayLang2, setDisplayLang2] = useState(piece?.langs[1] || 'none');
+
+  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
+  
+  // ✅ FIX: All hooks are now at the top level. The conditional return is moved below.
   
   if (!piece || piece.contentState !== 'ready') {
     if (isPreview) {
@@ -62,14 +72,6 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
     return null; 
   }
 
-  const { wordLookupEnabled } = useSettings();
-  const [editorSettings, setEditorSettings] = useEditorSettings(piece.id);
-  const [isToolbarOpen, setIsToolbarOpen] = useState(false);
-  
-  const [displayLang1, setDisplayLang1] = useState(piece.langs[0] || 'en');
-  const [displayLang2, setDisplayLang2] = useState(piece.langs[1] || 'none');
-
-  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
   const allSegments = useMemo(() => getItemSegments(piece), [piece]);
   
   const singlePage: Page = useMemo(() => ({
