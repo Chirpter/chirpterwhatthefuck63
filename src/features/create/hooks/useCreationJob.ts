@@ -82,10 +82,9 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         activeJobId: activeId,
         hasFinalizedJob: !!finalizedId,
         finalizedJobId: finalizedId,
-        currentJobData: jobData ? { id: jobData.id, status: jobData.status, contentState: (jobData as Book).contentState, coverState: (jobData as Book).coverState } : null
     };
     sessionStorage.setItem('creation_debug_presubmit', JSON.stringify(preSubmissionState, null, 2));
-  }, [activeId, finalizedId, jobData]);
+  }, [activeId, finalizedId]);
   // --- END DEBUGGING ---
 
 
@@ -310,7 +309,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
               submissionStatus: 'pending_to_server',
           };
           sessionStorage.setItem('creation_debug_data', JSON.stringify(snapshot, null, 2));
-          sessionStorage.removeItem('ai_debug_data'); // Clear previous AI data
       }
       // --- END DEBUGGING SNAPSHOT ---
 
