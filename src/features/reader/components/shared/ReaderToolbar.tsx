@@ -1,4 +1,3 @@
-
 // src/features/reader/components/shared/ReaderToolbar.tsx
 
 "use client";

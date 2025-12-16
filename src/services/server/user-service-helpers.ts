@@ -11,7 +11,7 @@ import { ApiServiceError } from '@/lib/errors';
  */
 export async function getUserIdFromSession(): Promise<string> {
   // ✅ FIX: The cookies() function from next/headers is asynchronous and requires 'await'.
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const sessionCookie = cookieStore.get('__session')?.value;
   
   if (!sessionCookie) {

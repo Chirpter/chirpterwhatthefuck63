@@ -1,4 +1,4 @@
-
+// src/features/vocabulary/components/vocab/VocabularyItemCard.tsx
 
 "use client";
 

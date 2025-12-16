@@ -275,7 +275,8 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         generationScope: 'full', // Not used for pieces
         coverImageOption: 'none', // Not used for pieces
         coverImageAiPrompt: '', // Not used for pieces
-        coverImageFile: null, // Not used for pieces
+        coverImageFile: null, // Not used for pieces,
+        type: 'piece' // Added type
     };
     
     processPieceGenerationPipeline(userId, workId, pieceFormData)

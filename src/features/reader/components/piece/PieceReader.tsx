@@ -118,7 +118,7 @@ export default function PieceReader({
         const rect = range.getBoundingClientRect();
         
         let sourceLang = displayLang1;
-        let sentenceContext = `...${'${selectedText}'}...`;
+        let sentenceContext = `...${selectedText}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 

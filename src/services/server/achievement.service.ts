@@ -1,4 +1,4 @@
-
+// src/services/server/achievement.service.ts
 
 'use server';
 
@@ -25,7 +25,7 @@ export async function checkAndUnlockAchievements(userId: string): Promise<void> 
         await adminDb.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (!userDoc.exists) {
-                console.warn(`[AchievementService] User document ${'${userId}'} not found. Skipping achievement check.`);
+                console.warn(`[AchievementService] User document ${userId} not found. Skipping achievement check.`);
                 return;
             }
 

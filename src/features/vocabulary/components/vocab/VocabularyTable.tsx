@@ -1,3 +1,4 @@
+// src/features/vocabulary/components/vocab/VocabularyTable.tsx
 
 "use client";
 
@@ -30,8 +31,8 @@ const TableRowItem: React.FC<{ item: VocabItemType } & Omit<VocabularyTableProps
     
     const sourceLink = !item.sourceDeleted && item.sourceId && item.sourceType === 'book'
         ? (item.chapterId && item.segmentId 
-            ? `/read/${'${item.sourceId}'}?chapterId=${'${item.chapterId}'}&segmentId=${'${item.segmentId}'}`
-            : `/read/${'${item.sourceId}'}`)
+            ? `/read/${item.sourceId}?chapterId=${item.chapterId}&segmentId=${item.segmentId}`
+            : `/read/${item.sourceId}`)
         : '';
     
     return (
