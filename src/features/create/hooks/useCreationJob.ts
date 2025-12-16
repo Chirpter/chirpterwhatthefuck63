@@ -11,7 +11,7 @@ import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
-const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
+const getInitialFormData = (t: (key: string) => string): Omit<CreationFormValues, 'aspectRatio' | 'presentationStyle'> => {
   const primaryLang = 'en';
 
   const suggestions = [
@@ -29,16 +29,14 @@ const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
     availableLanguages: [primaryLang],
     aiPrompt: defaultPrompt,
     tags: [],
-    presentationStyle: 'card', // Default to card for pieces
     origin: primaryLang,
     unit: 'sentence' as ContentUnit,
     coverImageOption: 'none' as const,
     coverImageAiPrompt: '',
-    coverImageFile: null, // Ensure this is explicitly null
+    coverImageFile: null,
     previousContentSummary: '',
     targetChapterCount: 3,
     bookLength: 'short-story' as const,
-    aspectRatio: '3:4' as const,
   };
 };
 
@@ -52,7 +50,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const { user } = useUser();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<CreationFormValues>(() => getInitialFormData(t));
+  const [formData, setFormData] = useState<Partial<CreationFormValues>>(() => getInitialFormData(t));
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -80,7 +78,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       if (formData.bookLength === 'standard-book') {
         cost = formData.generationScope === 'full' ? 8 : 2;
       } else {
-        cost = { 'short-story': 1, 'mini-book': 2, 'long-book': 15 }[formData.bookLength] || 1;
+        cost = { 'short-story': 1, 'mini-book': 2, 'long-book': 15 }[formData.bookLength!] || 1;
       }
     }
     
@@ -94,19 +92,19 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     if (!user) return ''; 
     if (promptError === 'too_long') return 'formErrors.prompt.tooLong';
     
-    if (!isPromptDefault && formData.aiPrompt.trim() === '') {
+    if (!isPromptDefault && (!formData.aiPrompt || formData.aiPrompt.trim() === '')) {
         return 'formErrors.prompt.empty';
     }
     
     if (type === 'book') {
       const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === formData.bookLength);
       const min = bookLengthOption?.minChapters || 1;
-      if (formData.targetChapterCount < min || formData.targetChapterCount > 15) {
+      if (!formData.targetChapterCount || formData.targetChapterCount < min || formData.targetChapterCount > 15) {
         return 'formErrors.chapterCount.outOfRange';
       }
     }
     
-    if (formData.availableLanguages.length > 1 && formData.availableLanguages[0] === formData.availableLanguages[1]) {
+    if (formData.availableLanguages && formData.availableLanguages.length > 1 && formData.availableLanguages[0] === formData.availableLanguages[1]) {
       return 'formErrors.languages.sameLanguage';
     }
 
@@ -154,21 +152,21 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     }
 
     setFormData(prev => {
-        let newFormData = { ...prev };
+        let newFormData: Partial<CreationFormValues> = { ...prev };
         
         switch(key) {
             case 'isBilingual':
-                newFormData.availableLanguages = value ? [newFormData.primaryLanguage, 'vi'] : [newFormData.primaryLanguage];
+                newFormData.availableLanguages = value ? [newFormData.primaryLanguage!, 'vi'] : [newFormData.primaryLanguage!];
                 break;
             case 'isPhraseMode':
                  newFormData.unit = value ? 'phrase' : 'sentence';
                 break;
             case 'primaryLanguage':
                 newFormData.primaryLanguage = value;
-                newFormData.availableLanguages = [value, ...(newFormData.availableLanguages.length > 1 ? [newFormData.availableLanguages[1]] : [])];
+                newFormData.availableLanguages = [value, ...(newFormData.availableLanguages && newFormData.availableLanguages.length > 1 ? [newFormData.availableLanguages[1]] : [])];
                 break;
             case 'secondaryLanguage':
-                newFormData.availableLanguages = [newFormData.primaryLanguage, ...(value !== 'none' ? [value] : [])];
+                newFormData.availableLanguages = [newFormData.primaryLanguage!, ...(value !== 'none' ? [value] : [])];
                 break;
             case 'bookLength':
                 const option = BOOK_LENGTH_OPTIONS.find(o => o.value === value);
@@ -181,7 +179,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
                 (newFormData as any)[key] = value;
         }
 
-        const [primary, secondary] = newFormData.availableLanguages;
+        const [primary, secondary] = newFormData.availableLanguages!;
         let newOrigin = primary;
         if (secondary) newOrigin += `-${secondary}`;
         if (newFormData.unit === 'phrase' && secondary) newOrigin += '-ph';
@@ -198,7 +196,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const handleChapterCountBlur = useCallback(() => {
     setFormData(prev => ({
       ...prev,
-      targetChapterCount: Math.max(minChaptersForCurrentLength, Math.min(prev.targetChapterCount, maxChapters))
+      targetChapterCount: Math.max(minChaptersForCurrentLength, Math.min(prev.targetChapterCount || 0, maxChapters))
     }));
   }, [minChaptersForCurrentLength, maxChapters]);
 
@@ -218,15 +216,24 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setFormData(prev => ({ ...prev, aspectRatio }));
   }, []);
   
-
   const reset = useCallback((newType: 'book' | 'piece') => {
     const defaultData = getInitialFormData(t);
-    // Correctly set defaults for piece type
+    let newFormData: Partial<CreationFormValues> = { ...defaultData, type: newType };
+
     if (newType === 'piece') {
-        defaultData.presentationStyle = 'card';
-        defaultData.aspectRatio = '3:4';
+        newFormData.presentationStyle = 'card';
+        newFormData.aspectRatio = '3:4';
+        // Remove book-specific fields
+        delete newFormData.bookLength;
+        delete newFormData.targetChapterCount;
+        delete newFormData.generationScope;
+    } else {
+        // Ensure piece-specific fields are not present for books
+        delete newFormData.presentationStyle;
+        delete newFormData.aspectRatio;
     }
-    setFormData({ ...defaultData, type: newType });
+
+    setFormData(newFormData);
     
     setIsPromptDefault(true);
     setPromptError(null);
@@ -237,6 +244,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
   }, [user?.uid, t]);
 
+
   useEffect(() => {
     reset(type);
   }, [type, reset]);
@@ -244,7 +252,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || validationMessage || isRateLimited) {
-        if (!isPromptDefault && formData.aiPrompt.trim() === '') {
+        if (!isPromptDefault && (!formData.aiPrompt || formData.aiPrompt.trim() === '')) {
             setPromptError('empty');
         }
         return;
@@ -265,8 +273,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     try {
       const dataToSubmit: CreationFormValues = {
         ...formData,
-        type: type, 
-      };
+        type: type,
+      } as CreationFormValues;
 
       // --- DEBUGGING SNAPSHOT ---
       if (process.env.NODE_ENV === 'development') {
@@ -340,10 +348,30 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, []);
 
   return {
-    formData, isPromptDefault, promptError, isBusy, activeId, jobData, finalizedId, creditCost,
-    validationMessage, canGenerate, minChaptersForCurrentLength, maxChapters, availableLanguages, isProUser,
-    handleInputChange, handleValueChange, handleFileChange, handleChapterCountBlur, handlePromptFocus,
-    handlePresentationStyleChange, handleAspectRatioChange, handleSubmit, handleViewResult, reset,
+    formData: formData as CreationFormValues, // Cast to full type for components
+    isPromptDefault, 
+    promptError, 
+    isBusy, 
+    activeId, 
+    jobData, 
+    finalizedId, 
+    creditCost,
+    validationMessage, 
+    canGenerate, 
+    minChaptersForCurrentLength, 
+    maxChapters, 
+    availableLanguages, 
+    isProUser,
+    handleInputChange, 
+    handleValueChange, 
+    handleFileChange, 
+    handleChapterCountBlur, 
+    handlePromptFocus,
+    handlePresentationStyleChange, 
+    handleAspectRatioChange, 
+    handleSubmit, 
+    handleViewResult, 
+    reset,
     isRateLimited, 
   };
 }
