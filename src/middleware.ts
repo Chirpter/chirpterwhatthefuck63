@@ -1,18 +1,20 @@
-// src/middleware.ts - SIMPLIFIED AND MORE ROBUST
+// src/middleware.ts - ENHANCED VERSION
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
 
-// Helper to determine the reason for logout for better UX on the login page
+// Helper to determine the reason for logout
 function getLogoutReason(errorCode: string): string {
   switch (errorCode) {
     case 'auth/session-cookie-expired':
       return 'session_expired';
     case 'auth/session-cookie-revoked':
       return 'session_revoked';
+    case 'auth/argument-error':
+      return 'invalid_session';
     default:
-      return 'auth_error'; // Generic reason
+      return 'auth_error';
   }
 }
 
@@ -20,8 +22,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('__session')?.value;
 
-  // Let static files and API routes pass through without checks.
-  // The API routes should perform their own authentication checks if necessary.
+  // ✅ Let static files and API routes pass through without checks
   if (pathname.startsWith('/_next') || pathname.startsWith('/api/') || pathname.includes('.')) {
     return NextResponse.next();
   }
@@ -35,7 +36,6 @@ export async function middleware(request: NextRequest) {
       await getAuthAdmin().verifySessionCookie(sessionCookie, true);
       isAuthenticated = true;
     } catch (error: any) {
-      // If the cookie is invalid (expired, revoked, etc.), mark it for deletion.
       console.warn(`[MIDDLEWARE] Invalid session for path "${pathname}":`, error.code);
       shouldClearCookie = true;
       redirectReason = getLogoutReason(error.code);
@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
 
   // --- REDIRECTION LOGIC ---
 
-  // 1. If trying to access a protected route without being authenticated
+  // 1. Protected route without authentication
   if (!isPublicRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);
@@ -61,15 +61,17 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 2. If authenticated and trying to access a public route (like /login)
+  // 2. Authenticated user on public route
   if (isAuthenticated && isPublicRoute) {
-    return NextResponse.redirect(new URL('/library/book', request.url));
+    // ✅ IMPROVED: Check for 'next' parameter to redirect properly
+    const next = request.nextUrl.searchParams.get('next');
+    const redirectUrl = next && next.startsWith('/') ? next : '/library/book';
+    return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
 
   // --- REGULAR RESPONSE ---
   const response = NextResponse.next();
   
-  // If we detected an invalid cookie earlier, clear it from the user's browser.
   if (shouldClearCookie) {
     response.cookies.delete('__session');
   }
@@ -78,7 +80,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // This matcher ensures the middleware runs on all routes except for static files and specific assets.
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],

@@ -2,7 +2,7 @@
 // src/services/server/library.service.ts
 'use server';
 
-import type { DocumentData, QueryConstraint } from 'firebase-admin/firestore';
+import type { DocumentData } from 'firebase-admin/firestore';
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
