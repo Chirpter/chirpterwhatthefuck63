@@ -1,4 +1,3 @@
-
 // src/services/server/user-service-helpers.ts
 'use server';
 
@@ -11,6 +10,7 @@ import { ApiServiceError } from '@/lib/errors';
  * This is a helper function to be used by other server actions/components.
  */
 export async function getUserIdFromSession(): Promise<string> {
+  // ✅ FIX: Removed 'await' from cookies() which is a synchronous function
   const cookieStore = cookies();
   const sessionCookie = cookieStore.get('__session')?.value;
   

@@ -1,4 +1,3 @@
-
 // src/middleware.ts - SIMPLIFIED AND MORE ROBUST
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAuthAdmin } from '@/lib/firebase-admin';
