@@ -34,9 +34,11 @@ export default {
     'aspect-[3/4]',
   ],
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/ui/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/layout/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/dev/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/debug/*.{js,ts,jsx,tsx,mdx}',
     './src/features/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
