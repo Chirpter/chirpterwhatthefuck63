@@ -55,7 +55,7 @@ export function AIDebugPanel() {
         variant="outline"
         size="sm"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-44 z-50 bg-blue-500 text-white"
+        className="fixed bottom-4 left-4 z-50 bg-blue-500 text-white"
       >
         <Icon name="BrainCircuit" className="mr-2 h-4 w-4" />
         AI Debug

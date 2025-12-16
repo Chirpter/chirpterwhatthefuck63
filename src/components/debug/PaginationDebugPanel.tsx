@@ -95,7 +95,7 @@ export function PaginationDebugPanel({
         variant="outline"
         size="sm"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 z-50 bg-yellow-500 text-black"
+        className="fixed bottom-4 right-44 z-50 bg-yellow-500 text-black"
       >
         <Icon name="Bug" className="mr-2 h-4 w-4" />
         Debug Pagination
