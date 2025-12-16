@@ -271,7 +271,9 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
       const jobId = await createLibraryItem(type, dataToSubmit);
       setActiveId(jobId);
-      sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
+      if(user.uid) {
+        sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
+      }
       
       toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {

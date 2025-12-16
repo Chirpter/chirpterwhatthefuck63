@@ -1,4 +1,3 @@
-
 // src/app/(app)/create/page.tsx
 "use client";
 
@@ -17,6 +16,7 @@ import { BookGenerationAnimation } from '@/features/create/components/book/BookG
 import type { Piece, Book } from '@/lib/types';
 import { useCreationJob } from '@/features/create/hooks/useCreationJob';
 import PieceReader from '@/features/reader/components/piece/PieceReader';
+import { AIDebugPanel } from '@/components/debug/AIDebugPanel';
 
 // CreateView has been merged into this page component for simplicity.
 export default function CreatePage() {
@@ -76,6 +76,7 @@ export default function CreatePage() {
 
     return (
         <div className="md:pl-96">
+            <AIDebugPanel />
             <div className={cn(
                 "w-full md:w-96 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col md:fixed md:top-14 md:left-0 transition-[bottom] duration-300 ease-in-out",
                 isPlayerVisible ? "md:bottom-[68px]" : "md:bottom-0"

@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 interface RegeneratePromptDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  item: LibraryItem;
+  item: LibraryItem | null; // Allow item to be null
 }
 
 const RegeneratePromptDialog: React.FC<RegeneratePromptDialogProps> = ({
@@ -37,14 +37,18 @@ const RegeneratePromptDialog: React.FC<RegeneratePromptDialogProps> = ({
   const { t } = useTranslation(['bookCard', 'common', 'toast']);
   const { user } = useUser();
   const { toast } = useToast();
-  const [newPrompt, setNewPrompt] = useState(item.prompt || '');
+  const [newPrompt, setNewPrompt] = useState(item?.prompt || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && item) {
       setNewPrompt(item.prompt || '');
     }
-  }, [isOpen, item.prompt]);
+  }, [isOpen, item]);
+
+  if (!item) {
+    return null; // Don't render if there's no item
+  }
 
   const handleRegenerate = async () => {
     if (!user || !newPrompt.trim()) {

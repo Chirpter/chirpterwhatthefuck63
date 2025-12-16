@@ -2,7 +2,6 @@
 'use server';
 
 import { getUserIdFromSession } from './user-service-helpers';
-import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { CreationFormValues } from '@/lib/types';
 import { createBookAndStartGeneration } from './book-creation.service';
 import { createPieceAndStartGeneration } from './piece-creation.service';
