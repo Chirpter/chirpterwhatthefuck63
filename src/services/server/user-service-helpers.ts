@@ -10,8 +10,8 @@ import { ApiServiceError } from '@/lib/errors';
  * This is a helper function to be used by other server actions/components.
  */
 export async function getUserIdFromSession(): Promise<string> {
-  // ✅ FIX: Use the correct method `cookies().get(...)` to access the cookie.
-  const sessionCookie = cookies().get('__session')?.value;
+  const cookieStore = cookies();
+  const sessionCookie = cookieStore.get('__session')?.value;
   
   if (!sessionCookie) {
     throw new ApiServiceError('No session cookie found. Please log in again.', 'AUTH');
