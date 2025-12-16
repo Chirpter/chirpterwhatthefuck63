@@ -100,6 +100,7 @@ export interface User {
   coverPhotoURL?: string; // For the profile background
   isAnonymous: boolean;
   plan: UserPlan;
+  role: UserRole; // ✅ ADDED THIS LINE
   credits: number;
   level: number;
   lastLoginDate: string;
@@ -241,6 +242,7 @@ export type LibraryItem = Book | Piece;
 
 
 export interface CreationFormValues {
+  type: 'book' | 'piece'; // Added type property
   primaryLanguage: string;
   availableLanguages: string[];
   aiPrompt: string;
