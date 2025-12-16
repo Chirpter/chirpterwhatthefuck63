@@ -24,12 +24,12 @@ const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
   const defaultPrompt = suggestions[Math.floor(Math.random() * suggestions.length)];
   
   return {
-    type: 'book', // Default type
+    type: 'book', // Default type on initial load
     primaryLanguage: primaryLang,
     availableLanguages: [primaryLang],
     aiPrompt: defaultPrompt,
     tags: [],
-    presentationStyle: 'book',
+    presentationStyle: 'card', // Default to card for pieces
     origin: primaryLang,
     unit: 'sentence' as ContentUnit,
     coverImageOption: 'none' as const,
@@ -39,7 +39,7 @@ const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
     targetChapterCount: 3,
     bookLength: 'short-story' as const,
     generationScope: 'full' as const,
-    aspectRatio: '3:4' as const,
+    aspectRatio: '3:4' as const, // Default to 3:4 for pieces
   };
 };
 
@@ -260,7 +260,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       const fullFormData: CreationFormValues = {
         ...formData,
         type: type, // Ensure type is correctly set
-        presentationStyle: type === 'book' ? 'book' : formData.presentationStyle || 'card',
+        presentationStyle: type === 'book' ? 'book' : formData.presentationStyle,
       };
       const jobId = await createLibraryItem(type, fullFormData);
       setActiveId(jobId);

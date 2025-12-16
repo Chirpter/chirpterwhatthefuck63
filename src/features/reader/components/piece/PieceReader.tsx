@@ -122,8 +122,8 @@ export default function PieceReader({
       return (
         <div className={cn(
           "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300 flex items-center justify-center p-4 text-center text-muted-foreground",
-          finalPresentationStyle === 'card' ? getAspectRatioClass(finalAspectRatio) : 'aspect-video',
-          finalPresentationStyle === 'doc' ? 'max-w-3xl' : 'max-w-md',
+          finalPresentationStyle === 'doc' ? 'aspect-video max-w-3xl' : 'max-w-md',
+          finalPresentationStyle === 'card' && getAspectRatioClass(finalAspectRatio),
           'bg-muted/30 border-2 border-dashed'
         )}>
           <div>
@@ -135,11 +135,16 @@ export default function PieceReader({
     }
     return null; 
   }
+  
+  // In preview, 'doc' style should look like a 3:4 card
+  const isDocLikeCard = isPreview && finalPresentationStyle === 'doc';
 
   const cardClassName = cn(
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
-    finalPresentationStyle === 'card' ? getAspectRatioClass(finalAspectRatio) : '',
-    finalPresentationStyle === 'doc' ? 'max-w-3xl aspect-[1/1]' : 'max-w-md',
+    finalPresentationStyle === 'card' && getAspectRatioClass(finalAspectRatio),
+    isDocLikeCard && getAspectRatioClass('3:4'),
+    finalPresentationStyle === 'doc' && !isPreview && 'max-w-3xl aspect-[1/1]',
+    finalPresentationStyle === 'card' && 'max-w-md',
     editorSettings.background
   );
 
