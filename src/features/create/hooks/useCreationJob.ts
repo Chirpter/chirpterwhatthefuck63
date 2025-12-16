@@ -4,14 +4,15 @@ import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
-import type { CreationFormValues, LibraryItem, ContentUnit, Book, Piece, PieceFormValues } from '@/lib/types';
+import type { CreationFormValues, LibraryItem, ContentUnit, Book, Piece } from '@/lib/types';
 import { createLibraryItem } from '@/services/server/creation.service';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
-const getInitialFormData = (t: (key: string) => string): Omit<CreationFormValues, 'aspectRatio' | 'presentationStyle'> => {
+// ✅ This now provides a complete and correct default state for a BOOK.
+const getInitialFormDataForBook = (t: (key: string) => string): Partial<CreationFormValues> => {
   const primaryLang = 'en';
 
   const suggestions = [
@@ -24,19 +25,22 @@ const getInitialFormData = (t: (key: string) => string): Omit<CreationFormValues
   const defaultPrompt = suggestions[Math.floor(Math.random() * suggestions.length)];
   
   return {
-    type: 'book', // Default type on initial load
+    type: 'book',
     primaryLanguage: primaryLang,
     availableLanguages: [primaryLang],
     aiPrompt: defaultPrompt,
     tags: [],
     origin: primaryLang,
-    unit: 'sentence' as ContentUnit,
-    coverImageOption: 'none' as const,
+    unit: 'sentence',
+    // Book specific fields
+    presentationStyle: 'book',
+    bookLength: 'short-story',
+    targetChapterCount: 3,
+    generationScope: 'full',
+    coverImageOption: 'none',
     coverImageAiPrompt: '',
     coverImageFile: null,
     previousContentSummary: '',
-    targetChapterCount: 3,
-    bookLength: 'short-story' as const,
   };
 };
 
@@ -50,7 +54,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const { user } = useUser();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<Partial<CreationFormValues>>(() => getInitialFormData(t));
+  // Initialize state with correct defaults for a book.
+  const [formData, setFormData] = useState<Partial<CreationFormValues>>(() => getInitialFormDataForBook(t));
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -217,19 +222,22 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, []);
   
   const reset = useCallback((newType: 'book' | 'piece') => {
-    const defaultData = getInitialFormData(t);
+    const defaultData = getInitialFormDataForBook(t); // Always start with full book defaults
     let newFormData: Partial<CreationFormValues> = { ...defaultData, type: newType };
 
     if (newType === 'piece') {
+        // Set piece defaults and remove book-specific fields
         newFormData.presentationStyle = 'card';
         newFormData.aspectRatio = '3:4';
-        // Remove book-specific fields
         delete newFormData.bookLength;
         delete newFormData.targetChapterCount;
         delete newFormData.generationScope;
+        delete newFormData.coverImageOption;
+        delete newFormData.coverImageAiPrompt;
+        delete newFormData.coverImageFile;
     } else {
         // Ensure piece-specific fields are not present for books
-        delete newFormData.presentationStyle;
+        newFormData.presentationStyle = 'book';
         delete newFormData.aspectRatio;
     }
 
@@ -375,5 +383,3 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     isRateLimited, 
   };
 }
-
-    
