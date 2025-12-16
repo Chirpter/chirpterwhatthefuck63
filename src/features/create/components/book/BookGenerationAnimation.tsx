@@ -8,15 +8,9 @@ import { Icon } from '@/components/ui/icons';
 import type { Book, User, JobStatus, CreationFormValues } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BookPreview } from '@/features/reader/components/book/BookPreview';
+import { BookPreview } from './BookPreview';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/contexts/user-context';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 const Typewriter: React.FC<{ text: string }> = ({ text: fullText }) => {
     const [text, setText] = useState('');

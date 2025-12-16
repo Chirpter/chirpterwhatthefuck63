@@ -1,4 +1,4 @@
-// src/features/reader/components/book/BookPreview.tsx
+// src/features/create/components/book/BookPreview.tsx
 
 "use client";
 

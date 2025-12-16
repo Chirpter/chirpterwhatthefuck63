@@ -59,8 +59,11 @@ export default function PieceReader({
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const isMobile = useMobile();
   
-  const [displayLang1, setDisplayLang1] = useState(piece?.langs[0] || 'en');
-  const [displayLang2, setDisplayLang2] = useState(piece?.langs[1] || 'none');
+  // ✅ FIX: Initialize languages from origin
+  const originParts = piece?.origin.split('-') || [];
+  const [displayLang1, setDisplayLang1] = useState(originParts[0] || piece?.langs[0] || 'en');
+  const [displayLang2, setDisplayLang2] = useState(originParts[1] || 'none');
+  
   const [lookupState, setLookupState] = useState<LookupState>({ 
     isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', 
     sourceItem: null, sentenceContext: '', context: 'reader' 
@@ -68,9 +71,13 @@ export default function PieceReader({
 
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
+  // ✅ Update languages when piece changes
   useEffect(() => {
-    setDisplayLang1(piece?.langs[0] || 'en');
-    setDisplayLang2(piece?.langs[1] || 'none');
+    if (piece) {
+      const parts = piece.origin.split('-');
+      setDisplayLang1(parts[0] || piece.langs[0] || 'en');
+      setDisplayLang2(parts[1] || 'none');
+    }
   }, [piece]);
 
   const allSegments = useMemo(() => getItemSegments(piece), [piece]);
@@ -167,7 +174,7 @@ export default function PieceReader({
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
     finalPresentationStyle === 'card' && getAspectRatioClass(finalAspectRatio),
     isDocLikeCard && getAspectRatioClass('3:4'),
-    finalPresentationStyle === 'doc' && !isPreview && 'max-w-3xl aspect-[1/1]',
+    finalPresentationStyle === 'doc' && !isPreview && 'max-w-3xl aspect-[3/4]',
     finalPresentationStyle === 'card' && 'max-w-md',
     editorSettings.background
   );

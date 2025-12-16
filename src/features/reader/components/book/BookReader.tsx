@@ -49,10 +49,15 @@ export default function BookReader({ book }: { book: Book }) {
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const [isTocOpen, setIsTocOpen] = useState(false);
   
-  const [displayLang1, setDisplayLang1] = useState(book.langs[0] || 'en');
-  const [displayLang2, setDisplayLang2] = useState(book.langs[1] || 'none');
+  // ✅ FIX: Initialize languages from origin
+  const originParts = book.origin.split('-');
+  const [displayLang1, setDisplayLang1] = useState(originParts[0] || book.langs[0] || 'en');
+  const [displayLang2, setDisplayLang2] = useState(originParts[1] || 'none');
 
-  const [lookupState, setLookupState] = useState<LookupState>({ isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', sourceItem: null, sentenceContext: '', context: 'reader' });
+  const [lookupState, setLookupState] = useState<LookupState>({ 
+    isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', 
+    sourceItem: null, sentenceContext: '', context: 'reader' 
+  });
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const readerInitializedRef = useRef(false);
 
@@ -141,7 +146,7 @@ export default function BookReader({ book }: { book: Book }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${'${selectedText}'}...`;
+        let sentenceContext = `...${selectedText}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
