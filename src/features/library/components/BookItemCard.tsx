@@ -388,7 +388,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
         <RegeneratePromptDialog
           isOpen={!!itemToRegenerateContent}
           onOpenChange={() => setItemToRegenerateContent(null)}
-          book={itemToRegenerateContent}
+          item={itemToRegenerateContent}
         />
       </Suspense>
     )}

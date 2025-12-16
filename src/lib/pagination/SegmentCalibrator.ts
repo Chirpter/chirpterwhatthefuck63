@@ -1,315 +1,326 @@
-// src/lib/pagination/SegmentCalibrator.ts
+// src/lib/pagination/PageCalculator.ts
+// ✅ REFACTORED VERSION - Tách biệt book và piece/card logic
 'use client';
 
-import type { Segment, ContentUnit } from '@/lib/types';
+import type { Page, Segment, ContentUnit } from '@/lib/types';
 
-interface Measurement {
-  segmentIndex: number;
-  height: number;
-  charCount: number;
-}
+// ==================== SHARED UTILITIES ====================
 
-export interface CalibrationBaseline {
-  avgSegmentHeight: number;
-  avgCharHeight: number;
+interface CachedBaseline {
+  avgLineHeight: number;
   containerHeight: number;
-  confidence: number;
+  timestamp: number;
+  checksum: string;
 }
 
-const LOCALSTORAGE_CALIBRATION_KEY = 'chirpter_calibration_cache_v2';
+const CACHE_KEY = 'chirpter_pagination_v3';
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
-/**
- * Measures sample segments to establish a baseline for pagination calculations.
- */
-export class SegmentCalibrator {
-  private container: HTMLElement;
-  private displayLang1: string;
-  private displayLang2: string;
-  private unit: ContentUnit;
+function createChecksum(
+  presentationStyle: string,
+  containerWidth: number,
+  containerHeight: number,
+  displayLang1: string,
+  displayLang2: string,
+  unit: ContentUnit
+): string {
+  const isBilingual = displayLang2 !== 'none';
+  return `${presentationStyle}-${containerWidth}x${containerHeight}-${displayLang1}-${displayLang2}-${unit}-${isBilingual}`;
+}
 
-  constructor(
-    container: HTMLElement,
-    displayLang1: string = 'en',
-    displayLang2: string = 'none',
-    unit: ContentUnit = 'sentence'
-  ) {
-    if (!container) {
-      throw new Error("SegmentCalibrator requires a valid container element.");
-    }
-    this.container = container;
-    this.displayLang1 = displayLang1;
-    this.displayLang2 = displayLang2;
-    this.unit = unit;
-  }
-
-  /**
-   * Generates a unique key for caching based on container dimensions and settings.
-   */
-  private getCacheKey(): string {
-    const style = getComputedStyle(this.container);
-    const isBilingual = this.displayLang2 !== 'none';
-    return `w${this.container.clientWidth}-h${this.container.clientHeight}-f${style.fontSize}-${style.fontFamily.replace(/\s/g, '')}-lh${style.lineHeight}-${this.displayLang1}-${this.displayLang2}-${this.unit}-${isBilingual}`;
-  }
-
-  /**
-   * Retrieves the cached baseline from localStorage.
-   */
-  private getCachedBaseline(key: string): CalibrationBaseline | null {
-    try {
-      const cachedData = localStorage.getItem(LOCALSTORAGE_CALIBRATION_KEY);
-      if (!cachedData) return null;
-      
-      const allCache = JSON.parse(cachedData);
-      if (allCache[key]) {
-        return allCache[key] as CalibrationBaseline;
-      }
-    } catch (error) {
-      console.warn("Could not retrieve calibration cache from localStorage", error);
-    }
+function getCachedBaseline(checksum: string): CachedBaseline | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const data: CachedBaseline = JSON.parse(cached);
+    if (Date.now() - data.timestamp > CACHE_TTL) return null;
+    if (data.checksum !== checksum) return null;
+    return data;
+  } catch {
     return null;
   }
+}
+
+function setCachedBaseline(baseline: CachedBaseline): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(baseline));
+  } catch (e) {
+    console.warn('[Pagination] Failed to save cache:', e);
+  }
+}
+
+// ==================== BOOK PAGINATION ====================
+
+async function calibrateForBook(
+  container: HTMLElement,
+  sampleSegments: Segment[],
+  displayLang1: string,
+  displayLang2: string,
+  unit: ContentUnit
+): Promise<{ avgLineHeight: number; containerHeight: number }> {
+  const checksum = createChecksum(
+    'book',
+    container.clientWidth,
+    container.clientHeight,
+    displayLang1,
+    displayLang2,
+    unit
+  );
   
-  /**
-   * Saves the calculated baseline to localStorage.
-   */
-  private setCachedBaseline(key: string, baseline: CalibrationBaseline): void {
-    try {
-      const cachedData = localStorage.getItem(LOCALSTORAGE_CALIBRATION_KEY);
-      const allCache = cachedData ? JSON.parse(cachedData) : {};
-      allCache[key] = baseline;
-      localStorage.setItem(LOCALSTORAGE_CALIBRATION_KEY, JSON.stringify(allCache));
-    } catch (error) {
-      console.warn("Could not save calibration cache to localStorage", error);
-    }
-  }
-
-  /**
-   * Gets text content from a segment based on current language settings.
-   */
-  private getSegmentText(segment: Segment): string {
-    const content = segment.content[this.displayLang1];
-    if (!content) return '';
-    
-    // Handle both string and array content
-    if (Array.isArray(content)) {
-      return content.join(' ');
-    }
-    return content;
-  }
-
-  /**
-   * Gets character count for a segment (including bilingual if applicable).
-   */
-  private getSegmentCharCount(segment: Segment): number {
-    const primaryText = this.getSegmentText(segment);
-    let totalChars = primaryText.length;
-    
-    if (this.displayLang2 !== 'none') {
-      const secondaryContent = segment.content[this.displayLang2];
-      if (secondaryContent) {
-        const secondaryText = Array.isArray(secondaryContent) 
-          ? secondaryContent.join(' ') 
-          : secondaryContent;
-        totalChars += secondaryText.length;
-      }
-    }
-    
-    return totalChars;
-  }
-
-  /**
-   * The main logic: Measures a sample of items to get a baseline.
-   */
-  public async calibrate(items: Segment[]): Promise<CalibrationBaseline> {
-    const cacheKey = this.getCacheKey();
-    const cachedBaseline = this.getCachedBaseline(cacheKey);
-
-    // If we have a high-confidence cache, use it immediately.
-    if (cachedBaseline && cachedBaseline.confidence > 0.9) {
-      return cachedBaseline;
-    }
-
-    const sampleSize = Math.min(15, items.length);
-    if (sampleSize === 0) {
-      return {
-        avgSegmentHeight: 20,
-        avgCharHeight: 0.5,
-        containerHeight: this.container.clientHeight,
-        confidence: 0,
-      };
-    }
-    
-    // Select a representative sample
-    const sampleItems = items.slice(0, sampleSize);
-    const measurements: Measurement[] = [];
-
-    for (let i = 0; i < sampleItems.length; i++) {
-      const height = await this.measureItem(sampleItems[i]);
-      measurements.push({
-        segmentIndex: i,
-        height: height,
-        charCount: this.getSegmentCharCount(sampleItems[i]),
-      });
-    }
-
-    const baseline = this.calculateBaseline(measurements);
-    this.setCachedBaseline(cacheKey, baseline);
-    return baseline;
-  }
-  
-  /**
-   * Measures the height of a single item by rendering it into a hidden element.
-   */
-  public measureItem(segment: Segment): Promise<number> {
-    return new Promise((resolve) => {
-      const primaryText = this.getSegmentText(segment);
-      if (!primaryText) {
-        resolve(0);
-        return;
-      }
-      
-      const isBilingual = this.displayLang2 !== 'none';
-      const measurer = document.createElement('div');
-      
-      // Apply the same classes and styles as the actual renderer's container
-      measurer.className = 'prose dark:prose-invert max-w-none font-serif';
-      measurer.style.cssText = `
-        position: absolute;
-        visibility: hidden;
-        height: auto;
-        width: ${this.container.clientWidth}px;
-        padding-left: ${getComputedStyle(this.container).paddingLeft};
-        padding-right: ${getComputedStyle(this.container).paddingRight};
-        font-family: var(--font-noto-serif), serif;
-      `;
-      
-      // Handle different content types
-      if (primaryText.startsWith('##')) {
-        // Heading
-        const h2 = document.createElement('h2');
-        h2.innerText = primaryText;
-        measurer.appendChild(h2);
-      } else if (isBilingual && this.unit === 'sentence') {
-        // Bilingual sentence mode - each language on separate line
-        const container = document.createElement('div');
-        container.className = 'bilingual-sentence-block mb-4';
-        
-        const primaryDiv = document.createElement('div');
-        primaryDiv.className = 'mb-1';
-        primaryDiv.innerText = primaryText;
-        container.appendChild(primaryDiv);
-        
-        const secondaryContent = segment.content[this.displayLang2];
-        if (secondaryContent) {
-          const secondaryText = Array.isArray(secondaryContent) 
-            ? secondaryContent.join(' ') 
-            : secondaryContent;
-          const secondaryDiv = document.createElement('div');
-          secondaryDiv.className = 'text-muted-foreground italic text-[0.9em]';
-          secondaryDiv.innerText = secondaryText;
-          container.appendChild(secondaryDiv);
-        }
-        
-        measurer.appendChild(container);
-      } else if (isBilingual && this.unit === 'phrase') {
-        // Bilingual phrase mode - inline with parentheses
-        const span = document.createElement('span');
-        span.className = 'inline';
-        
-        const primaryContent = segment.content[this.displayLang1];
-        const secondaryContent = segment.content[this.displayLang2];
-        
-        if (Array.isArray(primaryContent)) {
-          // Phrase-by-phrase
-          primaryContent.forEach((phrase, index) => {
-            const phraseSpan = document.createElement('span');
-            phraseSpan.className = 'inline whitespace-nowrap mr-1';
-            phraseSpan.innerText = phrase;
-            
-            if (Array.isArray(secondaryContent) && secondaryContent[index]) {
-              const secondarySpan = document.createElement('span');
-              secondarySpan.className = 'text-muted-foreground italic text-[0.9em] ml-1';
-              secondarySpan.innerText = `(${secondaryContent[index]})`;
-              phraseSpan.appendChild(secondarySpan);
-            }
-            
-            span.appendChild(phraseSpan);
-          });
-        } else {
-          // Single phrase
-          span.innerText = primaryText;
-          if (secondaryContent) {
-            const secondaryText = Array.isArray(secondaryContent) 
-              ? secondaryContent.join(' ') 
-              : secondaryContent;
-            const secondarySpan = document.createElement('span');
-            secondarySpan.className = 'text-muted-foreground italic text-[0.9em] ml-1';
-            secondarySpan.innerText = `(${secondaryText})`;
-            span.appendChild(secondarySpan);
-          }
-        }
-        
-        measurer.appendChild(span);
-      } else {
-        // Monolingual mode
-        const span = document.createElement('span');
-        span.className = 'inline';
-        span.innerText = primaryText;
-        measurer.appendChild(span);
-      }
-
-      document.body.appendChild(measurer);
-
-      // Use requestAnimationFrame to ensure the browser has calculated the layout
-      requestAnimationFrame(() => {
-        const height = measurer.offsetHeight;
-        document.body.removeChild(measurer);
-        resolve(height);
-      });
-    });
-  }
-
-  /**
-   * Calculates the baseline metrics from a set of measurements.
-   */
-  private calculateBaseline(measurements: Measurement[]): CalibrationBaseline {
-    if (measurements.length === 0) {
-      return { 
-        avgSegmentHeight: 20, 
-        avgCharHeight: 0.5, 
-        containerHeight: this.container.clientHeight, 
-        confidence: 0 
-      };
-    }
-    
-    const totalHeight = measurements.reduce((sum, m) => sum + m.height, 0);
-    const totalChars = measurements.reduce((sum, m) => sum + m.charCount, 0);
-
-    const avgSegmentHeight = totalHeight / measurements.length;
-    const avgCharHeight = totalChars > 0 ? totalHeight / totalChars : 0;
-    
-    // Subtract padding/margin for safe headroom
-    const containerHeight = this.container.clientHeight - 80; 
-
+  const cached = getCachedBaseline(checksum);
+  if (cached) {
+    console.log('[Book Pagination] ✅ Using cached baseline');
     return {
-      avgSegmentHeight,
-      avgCharHeight,
-      containerHeight: containerHeight > 0 ? containerHeight : 500,
-      confidence: this.calculateConfidence(measurements),
+      avgLineHeight: cached.avgLineHeight,
+      containerHeight: cached.containerHeight
     };
   }
   
-  /**
-   * Calculates a confidence score for the baseline.
-   */
-  private calculateConfidence(measurements: Measurement[]): number {
-    if (measurements.length < 5) return 0.5;
-    const heights = measurements.map(m => m.height);
-    const avg = heights.reduce((sum, h) => sum + h, 0) / heights.length;
-    const stdDev = Math.sqrt(
-      heights.map(h => Math.pow(h - avg, 2)).reduce((sum, sq) => sum + sq, 0) / heights.length
+  console.log('[Book Pagination] 📏 Calibrating...');
+  
+  const measurer = document.createElement('div');
+  measurer.className = 'prose max-w-none font-serif';
+  measurer.style.cssText = `
+    position: absolute;
+    visibility: hidden;
+    width: ${container.clientWidth}px;
+    padding: ${getComputedStyle(container).padding};
+    font-family: var(--font-noto-serif), serif;
+  `;
+  
+  const samplesToMeasure = sampleSegments.slice(0, 5);
+  const isBilingual = displayLang2 !== 'none';
+  const isSentenceMode = unit === 'sentence';
+  
+  for (const seg of samplesToMeasure) {
+    const primaryText = seg.content[displayLang1];
+    if (!primaryText) continue;
+    
+    const textContent = Array.isArray(primaryText) 
+      ? primaryText.join(' ') 
+      : primaryText;
+    
+    if (isBilingual && isSentenceMode) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'bilingual-sentence-block mb-4';
+      
+      const primary = document.createElement('div');
+      primary.className = 'mb-1';
+      primary.textContent = textContent;
+      wrapper.appendChild(primary);
+      
+      const secondaryText = seg.content[displayLang2];
+      if (secondaryText) {
+        const secondary = document.createElement('div');
+        secondary.className = 'text-muted-foreground italic text-[0.9em]';
+        secondary.textContent = Array.isArray(secondaryText) 
+          ? secondaryText.join(' ') 
+          : secondaryText;
+        wrapper.appendChild(secondary);
+      }
+      
+      measurer.appendChild(wrapper);
+    } else {
+      const span = document.createElement('span');
+      span.className = 'inline';
+      span.textContent = textContent + ' ';
+      measurer.appendChild(span);
+    }
+  }
+  
+  document.body.appendChild(measurer);
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  
+  const totalHeight = measurer.offsetHeight;
+  document.body.removeChild(measurer);
+  
+  const avgLineHeight = totalHeight / samplesToMeasure.length;
+  const containerHeight = container.clientHeight - 100;
+  
+  const baseline: CachedBaseline = {
+    avgLineHeight,
+    containerHeight: containerHeight > 0 ? containerHeight : 500,
+    timestamp: Date.now(),
+    checksum
+  };
+  setCachedBaseline(baseline);
+  
+  console.log('[Book Pagination] ✅ Calibrated:', baseline);
+  return { avgLineHeight: baseline.avgLineHeight, containerHeight: baseline.containerHeight };
+}
+
+function estimateSegmentHeightForBook(
+  segment: Segment,
+  avgLineHeight: number,
+  displayLang1: string,
+  displayLang2: string,
+  unit: ContentUnit
+): number {
+  const primaryText = segment.content[displayLang1];
+  if (!primaryText) return 0;
+  
+  const text = Array.isArray(primaryText) ? primaryText.join(' ') : primaryText;
+  
+  if (text.startsWith('##') || text.startsWith('#')) {
+    return avgLineHeight * 2.5;
+  }
+  
+  const isBilingual = displayLang2 !== 'none';
+  const isSentenceMode = unit === 'sentence';
+  
+  if (isBilingual && isSentenceMode) {
+    return avgLineHeight * 2 + 16; // mb-4
+  }
+  
+  const charCount = text.length;
+  const estimatedLines = Math.ceil(charCount / 80);
+  return avgLineHeight * estimatedLines;
+}
+
+async function paginateBook(
+  segments: Segment[],
+  container: HTMLElement,
+  displayLang1: string,
+  displayLang2: string,
+  unit: ContentUnit
+): Promise<{ pages: Page[]; chapterStartPages: number[] }> {
+  
+  if (!segments || segments.length === 0) {
+    return { pages: [], chapterStartPages: [] };
+  }
+  
+  console.log(`[Book Pagination] 🚀 Starting for ${segments.length} segments`);
+  
+  const { avgLineHeight, containerHeight } = await calibrateForBook(
+    container,
+    segments,
+    displayLang1,
+    displayLang2,
+    unit
+  );
+  
+  const pages: Page[] = [];
+  const chapterStartPages: number[] = [];
+  
+  let currentPageItems: Segment[] = [];
+  let currentPageHeight = 0;
+  let isNewChapter = false;
+  
+  for (const segment of segments) {
+    const primaryText = segment.content[displayLang1];
+    const text = Array.isArray(primaryText) ? primaryText.join(' ') : primaryText || '';
+    
+    const isHeading = text.startsWith('##') || text.startsWith('#');
+    if (isHeading) {
+      isNewChapter = true;
+    }
+    
+    const estimatedHeight = estimateSegmentHeightForBook(
+      segment,
+      avgLineHeight,
+      displayLang1,
+      displayLang2,
+      unit
     );
-    const confidence = 1 - Math.min(1, (stdDev / avg));
-    return parseFloat(confidence.toFixed(2));
+    
+    const wouldOverflow = currentPageHeight + estimatedHeight > containerHeight;
+    
+    if (wouldOverflow && currentPageItems.length > 0) {
+      pages.push({
+        pageIndex: pages.length,
+        items: currentPageItems,
+        estimatedHeight: currentPageHeight
+      });
+      currentPageItems = [];
+      currentPageHeight = 0;
+    }
+    
+    if (isNewChapter && currentPageItems.length === 0) {
+      chapterStartPages.push(pages.length);
+      isNewChapter = false;
+    }
+    
+    currentPageItems.push(segment);
+    currentPageHeight += estimatedHeight;
+  }
+  
+  if (currentPageItems.length > 0) {
+    pages.push({
+      pageIndex: pages.length,
+      items: currentPageItems,
+      estimatedHeight: currentPageHeight
+    });
+  }
+  
+  console.log(`[Book Pagination] ✅ Complete: ${pages.length} pages, ${chapterStartPages.length} chapters`);
+  
+  return { pages, chapterStartPages };
+}
+
+// ==================== PIECE/CARD PAGINATION (LEGACY) ====================
+// ⚠️ TODO: Refactor này sau khi book pagination hoàn thiện
+
+async function paginatePieceOrCard(
+  segments: Segment[],
+  container: HTMLElement,
+  presentationStyle: 'doc' | 'card',
+  aspectRatio: '1:1' | '3:4' | '4:3' | undefined,
+  displayLang1: string,
+  displayLang2: string,
+  unit: ContentUnit
+): Promise<{ pages: Page[]; chapterStartPages: number[] }> {
+  console.log('[Piece/Card Pagination] ⚠️ Using legacy logic - needs refactor');
+  
+  // Fallback: single page với tất cả content
+  // CQI sẽ tự động scale dựa trên container size
+  return {
+    pages: [{
+      pageIndex: 0,
+      items: segments,
+      estimatedHeight: 0
+    }],
+    chapterStartPages: [0]
+  };
+}
+
+// ==================== PUBLIC API ====================
+
+/**
+ * ✅ MAIN ENTRY POINT - Intelligent routing
+ */
+export async function calculatePages(
+  segments: Segment[],
+  container: HTMLElement,
+  presentationStyle: 'book' | 'doc' | 'card',
+  aspectRatio: '1:1' | '3:4' | '4:3' | undefined,
+  displayLang1: string,
+  displayLang2: string,
+  unit: ContentUnit
+): Promise<{ pages: Page[]; chapterStartPages: number[] }> {
+  
+  if (presentationStyle === 'book') {
+    return paginateBook(segments, container, displayLang1, displayLang2, unit);
+  } else {
+    return paginatePieceOrCard(
+      segments,
+      container,
+      presentationStyle as 'doc' | 'card',
+      aspectRatio,
+      displayLang1,
+      displayLang2,
+      unit
+    );
+  }
+}
+
+/**
+ * ✅ CLEAR CACHE
+ */
+export function clearPaginationCache(): void {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+    console.log('[Pagination] Cache cleared');
+  } catch (e) {
+    console.warn('[Pagination] Failed to clear cache:', e);
   }
 }

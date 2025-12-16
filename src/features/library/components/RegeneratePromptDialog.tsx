@@ -69,7 +69,7 @@ const RegeneratePromptDialog: React.FC<RegeneratePromptDialogProps> = ({
     }
   };
 
-  const title = item.title[Object.keys(item.title)[0]] || 'this item';
+  const title = (item.title as any)[Object.keys(item.title)[0]] || 'this item';
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
