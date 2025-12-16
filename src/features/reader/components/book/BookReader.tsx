@@ -22,7 +22,6 @@ import { useMobile } from '@/hooks/useMobile';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
 import { ReaderToolbar } from '../shared/ReaderToolbar';
 
-
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
 interface LookupState {
@@ -49,7 +48,7 @@ export default function BookReader({ book }: { book: Book }) {
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const [isTocOpen, setIsTocOpen] = useState(false);
   
-  // ✅ FIX: Initialize languages from origin
+  // ✅ Initialize languages from origin
   const originParts = book.origin.split('-');
   const [displayLang1, setDisplayLang1] = useState(originParts[0] || book.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(originParts[1] || 'none');
@@ -65,6 +64,7 @@ export default function BookReader({ book }: { book: Book }) {
     (book.chapters || []).flatMap((chapter, index) => getItemSegments(book, index))
   , [book]);
 
+  // ✅ Pass displayLang1, displayLang2, and unit to pagination
   const {
     pages,
     chapterStartPages,
@@ -79,6 +79,9 @@ export default function BookReader({ book }: { book: Book }) {
     containerRef: contentContainerRef,
     isEnabled: true,
     presentationStyle: 'book',
+    displayLang1,
+    displayLang2,
+    unit: book.unit || 'sentence',
   });
 
   const currentChapterIndex = useMemo(() => {
@@ -146,7 +149,7 @@ export default function BookReader({ book }: { book: Book }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 

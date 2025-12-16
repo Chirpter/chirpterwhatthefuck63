@@ -1,8 +1,8 @@
 // src/features/reader/hooks/usePagination.ts
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Page, Segment } from '@/lib/types';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import type { Page, Segment, ContentUnit } from '@/lib/types';
 import { PageCalculator } from '@/lib/pagination/PageCalculator';
 import { SegmentCalibrator } from '@/lib/pagination/SegmentCalibrator';
 
@@ -12,12 +12,13 @@ interface UsePaginationProps {
   isEnabled: boolean;
   presentationStyle: 'book' | 'doc' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3';
+  displayLang1?: string;
+  displayLang2?: string;
+  unit?: ContentUnit;
 }
 
 /**
  * A reusable hook to handle the complex logic of pagination.
- * It takes a list of segments and a container element, and returns
- * the calculated pages and functions to navigate them.
  */
 export const usePagination = ({
   segments,
@@ -25,6 +26,9 @@ export const usePagination = ({
   isEnabled,
   presentationStyle,
   aspectRatio,
+  displayLang1 = 'en',
+  displayLang2 = 'none',
+  unit = 'sentence',
 }: UsePaginationProps) => {
   const [pages, setPages] = useState<Page[]>([]);
   const [chapterStartPages, setChapterStartPages] = useState<number[]>([]);
@@ -33,12 +37,17 @@ export const usePagination = ({
 
   const pageCalculator = useMemo(() => {
     if (!containerRef.current) return null;
-    const calibrator = new SegmentCalibrator(containerRef.current);
+    const calibrator = new SegmentCalibrator(
+      containerRef.current, 
+      displayLang1, 
+      displayLang2, 
+      unit
+    );
     return new PageCalculator(calibrator, presentationStyle, aspectRatio);
-  }, [containerRef, presentationStyle, aspectRatio]);
+  }, [containerRef, presentationStyle, aspectRatio, displayLang1, displayLang2, unit]);
 
   const calculatePages = useCallback(async () => {
-    if (!isEnabled || !pageCalculator || segments.length === 0) {
+    if (!isEnabled || !pageCalculator || !segments || segments.length === 0) {
       setIsCalculating(false);
       setPages([]);
       setChapterStartPages([]);
@@ -47,13 +56,20 @@ export const usePagination = ({
 
     setIsCalculating(true);
     try {
+      console.log(`🔄 Starting pagination for ${segments.length} segments...`);
       const result = await pageCalculator.calculatePages(segments);
+      console.log(`✅ Pagination complete: ${'${result.pages.length}'} pages`);
       setPages(result.pages);
       setChapterStartPages(result.chapterStartPages);
     } catch (error) {
-      console.error('Failed to calculate pages:', error);
-      setPages([]);
-      setChapterStartPages([]);
+      console.error('❌ Failed to calculate pages:', error);
+      // Fallback: create single page with all content
+      setPages([{
+        pageIndex: 0,
+        items: segments,
+        estimatedHeight: 0
+      }]);
+      setChapterStartPages([0]);
     } finally {
       setIsCalculating(false);
     }
@@ -63,11 +79,11 @@ export const usePagination = ({
     calculatePages();
   }, [calculatePages]);
 
-  const goToPage = (pageIndex: number) => {
+  const goToPage = useCallback((pageIndex: number) => {
     if (isCalculating) return;
     const newIndex = Math.max(0, Math.min(pageIndex, pages.length - 1));
     setCurrentPageIndex(newIndex);
-  };
+  }, [isCalculating, pages.length]);
 
   const getPageForSegment = useCallback(
     (segmentId: string): number => {

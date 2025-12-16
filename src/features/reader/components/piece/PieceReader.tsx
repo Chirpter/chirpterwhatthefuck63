@@ -59,7 +59,7 @@ export default function PieceReader({
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const isMobile = useMobile();
   
-  // ✅ FIX: Initialize languages from origin
+  // ✅ Initialize languages from origin
   const originParts = piece?.origin.split('-') || [];
   const [displayLang1, setDisplayLang1] = useState(originParts[0] || piece?.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(originParts[1] || 'none');
@@ -85,7 +85,7 @@ export default function PieceReader({
   const finalPresentationStyle = externalPresentationStyle || piece?.presentationStyle || 'card';
   const finalAspectRatio = externalAspectRatio || piece?.aspectRatio || '3:4';
 
-  // ADD PAGINATION FOR NON-PREVIEW
+  // ✅ Pass displayLang1, displayLang2, and unit to pagination
   const {
     pages,
     currentPageIndex,
@@ -99,6 +99,9 @@ export default function PieceReader({
     isEnabled: !isPreview, // Only paginate in full reader
     presentationStyle: finalPresentationStyle,
     aspectRatio: finalAspectRatio,
+    displayLang1,
+    displayLang2,
+    unit: piece?.unit || 'sentence',
   });
 
   const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
@@ -114,7 +117,7 @@ export default function PieceReader({
         const rect = range.getBoundingClientRect();
         
         let sourceLang = displayLang1;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
@@ -173,7 +176,7 @@ export default function PieceReader({
   const cardClassName = cn(
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
     finalPresentationStyle === 'card' && getAspectRatioClass(finalAspectRatio),
-    isDocLikeCard && getAspectRatioClass('3:4'),
+    isDocLikeCard && getAspectRatioClass('4:3'), // Corrected to 4:3 for doc-like cards
     finalPresentationStyle === 'doc' && !isPreview && 'max-w-3xl aspect-[3/4]',
     finalPresentationStyle === 'card' && 'max-w-md',
     editorSettings.background
