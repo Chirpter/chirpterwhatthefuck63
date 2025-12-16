@@ -65,6 +65,8 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
            <PieceReader
               piece={jobData as Piece}
               isPreview
+              presentationStyle={formData.presentationStyle as 'doc' | 'card'}
+              aspectRatio={formData.aspectRatio}
             />
         )}
     </div>

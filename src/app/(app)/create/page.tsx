@@ -1,4 +1,4 @@
-// src/app/(app)/create/page.tsx - REFACTORED
+// src/app/(app)/create/page.tsx
 "use client";
 
 import React, { useState, useCallback } from 'react';
@@ -36,7 +36,7 @@ export default function CreatePage() {
     }, [job]);
 
     const pageTitle = t('createContentTitle');
-    const { isBusy, validationMessage, canGenerate, creditCost, finalizedId, isRateLimited } = job;
+    const { isBusy, validationMessage, canGenerate, creditCost, finalizedId, isRateLimited, formData } = job;
     const formId = "creation-form";
 
     const submitButtonText = isRateLimited ? t('common:pleaseWait') : t('generateButton.default');
@@ -63,7 +63,12 @@ export default function CreatePage() {
         
         return (
             <div className="w-full h-full flex items-center justify-center p-4">
-                <PieceReader piece={job.jobData as Piece} isPreview />
+                <PieceReader
+                  piece={job.jobData as Piece}
+                  isPreview
+                  presentationStyle={formData.presentationStyle as 'doc' | 'card'}
+                  aspectRatio={formData.aspectRatio}
+                />
             </div>
         );
     };

@@ -39,9 +39,18 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 interface PieceReaderProps {
   piece: Piece | null;
   isPreview?: boolean;
+  // ✅ NEW: Add props to control presentation style from outside
+  presentationStyle?: 'doc' | 'card';
+  aspectRatio?: '1:1' | '3:4' | '4:3';
 }
 
-export default function PieceReader({ piece, isPreview = false }: PieceReaderProps) {
+export default function PieceReader({
+  piece,
+  isPreview = false,
+  // ✅ NEW: Use passed-in style or fall back to piece's own style
+  presentationStyle: externalPresentationStyle,
+  aspectRatio: externalAspectRatio,
+}: PieceReaderProps) {
   // --- HOOKS (Called unconditionally at the top) ---
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   const { wordLookupEnabled } = useSettings();
@@ -105,13 +114,19 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
     }
   }, [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1, isPreview]);
 
-  // --- CONDITIONAL RETURN (After all hooks) ---
+  // --- RENDER LOGIC ---
+
+  // ✅ NEW: Determine presentation style from props first, then from data
+  const finalPresentationStyle = externalPresentationStyle || piece?.presentationStyle || 'card';
+  const finalAspectRatio = externalAspectRatio || piece?.aspectRatio || '3:4';
+  
   if (!piece || piece.contentState !== 'ready') {
     if (isPreview) {
       return (
         <div className={cn(
           "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300 flex items-center justify-center p-4 text-center text-muted-foreground",
-          'aspect-[3/4] max-w-md',
+          finalPresentationStyle === 'card' ? getAspectRatioClass(finalAspectRatio) : 'aspect-video',
+          finalPresentationStyle === 'doc' ? 'max-w-3xl' : 'max-w-md',
           'bg-muted/30 border-2 border-dashed'
         )}>
           <div>
@@ -124,11 +139,10 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
     return null; 
   }
 
-  // --- RENDER LOGIC ---
   const cardClassName = cn(
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
-    piece.presentationStyle === 'card' ? getAspectRatioClass(piece.aspectRatio) : '',
-    piece.presentationStyle === 'doc' ? 'max-w-3xl aspect-[1/1]' : 'max-w-md',
+    finalPresentationStyle === 'card' ? getAspectRatioClass(finalAspectRatio) : '',
+    finalPresentationStyle === 'doc' ? 'max-w-3xl aspect-[1/1]' : 'max-w-md',
     editorSettings.background
   );
 
@@ -141,7 +155,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
       <div className="w-full h-full overflow-y-auto">
         <ContentPageRenderer
           page={singlePage}
-          presentationStyle={piece.presentationStyle}
+          presentationStyle={finalPresentationStyle}
           editorSettings={editorSettings}
           itemData={piece}
           displayLang1={displayLang1}
@@ -187,7 +201,7 @@ export default function PieceReader({ piece, isPreview = false }: PieceReaderPro
             displayLang2={displayLang2}
             onDisplayLang1Change={setDisplayLang1}
             onDisplayLang2Change={setDisplayLang2}
-            presentationStyle={piece.presentationStyle}
+            presentationStyle={finalPresentationStyle}
           />
         </div>
         {contentWrapper}
