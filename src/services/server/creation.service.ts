@@ -1,33 +1,12 @@
 // src/services/server/creation.service.ts
 'use server';
 
-import { cookies } from 'next/headers';
-import { getAuthAdmin, getAdminDb } from '@/lib/firebase-admin';
+import { getUserIdFromSession } from './user-service-helpers';
+import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { CreationFormValues } from '@/lib/types';
 import { createBookAndStartGeneration } from './book-creation.service';
 import { createPieceAndStartGeneration } from './piece-creation.service';
 import { ApiServiceError } from '@/lib/errors';
-
-/**
- * Extracts userId from session cookie.
- */
-async function getUserIdFromSession(): Promise<string> {
-  const cookieStore = cookies();
-  const sessionCookie = cookieStore.get('__session')?.value;
-  
-  if (!sessionCookie) {
-    throw new ApiServiceError('No session cookie found. Please log in again.', 'AUTH');
-  }
-
-  try {
-    const authAdmin = getAuthAdmin();
-    const decodedClaims = await authAdmin.verifySessionCookie(sessionCookie, true);
-    return decodedClaims.uid;
-  } catch (error: any) {
-    console.error('❌ [Creation Service] Session verification failed:', error.code);
-    throw new ApiServiceError('Invalid or expired session. Please log in again.', 'AUTH');
-  }
-}
 
 /**
  * Validates the origin format against other form data.
