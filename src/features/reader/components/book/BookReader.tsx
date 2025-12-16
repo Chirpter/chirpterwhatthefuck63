@@ -72,7 +72,8 @@ export default function BookReader({ book }: { book: Book }) {
   } = usePagination({
     segments: allBookSegments,
     containerRef: contentContainerRef,
-    isEnabled: true, // Pagination is always enabled for books
+    isEnabled: true,
+    presentationStyle: 'book',
   });
 
   const currentChapterIndex = useMemo(() => {
@@ -140,7 +141,7 @@ export default function BookReader({ book }: { book: Book }) {
         
         let sourceLang = displayLang1;
         let segmentId: string | undefined = undefined;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
