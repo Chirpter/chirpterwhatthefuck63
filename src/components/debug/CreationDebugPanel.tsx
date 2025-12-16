@@ -30,6 +30,7 @@ interface AiState {
   systemPrompt: string;
   userPrompt: string;
   rawResponse: string | null;
+  parsedData: any | null; // NEW: To hold the parsed JSON object
   error: string | null;
 }
 
@@ -167,6 +168,13 @@ export function CreationDebugPanel() {
                             <h4 className="font-semibold text-gray-300">Raw AI Response (Markdown):</h4>
                             <pre className="whitespace-pre-wrap break-words">{aiState.rawResponse}</pre>
                             <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.rawResponse)} className="mt-1 text-xs h-6">Copy</Button>
+                          </div>
+                        )}
+                         {aiState.parsedData && (
+                          <div>
+                            <h4 className="font-semibold text-gray-300">Parsed Data (JSON):</h4>
+                            <pre className="whitespace-pre-wrap break-words">{JSON.stringify(aiState.parsedData, null, 2)}</pre>
+                            <Button size="sm" variant="ghost" onClick={() => handleCopy(aiState.parsedData)} className="mt-1 text-xs h-6">Copy</Button>
                           </div>
                         )}
                     </div>

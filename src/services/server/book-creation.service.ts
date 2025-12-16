@@ -257,6 +257,7 @@ async function processContentGenerationForBook(
         systemPrompt,
         userPrompt,
         rawResponse: null as string | null,
+        parsedData: null as any | null,
         error: null as string | null
     };
 
@@ -271,9 +272,12 @@ async function processContentGenerationForBook(
         
         aiDebugData.status = 'success';
         aiDebugData.rawResponse = aiOutput.markdownContent;
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
 
         const { title: parsedTitle, chapters: finalChapters, unit: parsedUnit } = parseBookMarkdown(aiOutput.markdownContent, origin);
+        
+        // Log parsed data for debugging
+        aiDebugData.parsedData = { title: parsedTitle, chapters: finalChapters, unit: parsedUnit };
+        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
         
         return {
           title: parsedTitle,
@@ -290,7 +294,7 @@ async function processContentGenerationForBook(
         if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
 
         console.error(`Content generation failed for book ${bookId}:`, errorMessage);
-        throw new Error(errorMessage); // Throw the original, detailed error
+        throw new Error(errorMessage);
     }
 }
 
@@ -344,7 +348,7 @@ async function processCoverImageForBook(
   } catch (error) {
     const errorMessage = (error as Error).message || 'Unknown cover processing error';
     console.error(`Cover image processing failed for book ${bookId}:`, errorMessage);
-    throw new Error(errorMessage); // Throw the original, detailed error
+    throw new Error(errorMessage);
   }
 }
 
