@@ -83,7 +83,7 @@ export default function AchievementsView() {
     return (
         <div className="space-y-8">
             <h2 className="text-xl md:text-2xl font-headline font-semibold">{t('title')}</h2>
-            <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 2xl:columns-6 gap-4 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
                 {[...Array(12)].map((_, i) => (
                     <Skeleton key={i} className="h-48 w-full rounded-lg" />
                 ))}
@@ -149,7 +149,7 @@ export default function AchievementsView() {
     });
 
     return (
-      <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 2xl:columns-6 gap-4 space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
         {sortedList.map(achievement => (
             <AchievementCard 
                 key={achievement.id}
@@ -209,7 +209,7 @@ export default function AchievementsView() {
         )}
 
         {activeTab === 'badges' && (
-            <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 2xl:columns-6 gap-4 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
                 <SuperBadgeCard 
                     name="Bookworm"
                     description="A true lover of literature and creation."

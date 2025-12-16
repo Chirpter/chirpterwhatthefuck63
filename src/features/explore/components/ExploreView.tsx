@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -74,7 +75,7 @@ export default function ExploreView() {
   const renderBookmarkContent = () => {
     if (isLoading && bookmarks.length === 0) {
        return (
-         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(144px, 1fr))', gap: '1rem' }}>
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
          </div>
        );
@@ -84,7 +85,7 @@ export default function ExploreView() {
 
     return (
        <BookmarkStyleProvider items={[]} availableBookmarks={bookmarks}>
-            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(144px, 1fr))', gap: '1rem' }}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4">
                 {bookmarks.map((bm) => {
                     const isOwned = ownedBookmarkIds.has(bm.id);
                     const isForSale = !isOwned && bm.unlockType === 'purchase';
