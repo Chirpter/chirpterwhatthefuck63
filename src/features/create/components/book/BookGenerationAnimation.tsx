@@ -8,7 +8,7 @@ import { Icon } from '@/components/ui/icons';
 import type { Book, User, JobStatus, CreationFormValues } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BookPreview } from './BookPreview';
+import { BookPreview } from '@/features/reader/components/book/BookPreview';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/contexts/user-context';
 import {
