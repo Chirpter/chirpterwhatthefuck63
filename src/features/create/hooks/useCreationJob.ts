@@ -34,7 +34,7 @@ const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
     unit: 'sentence' as ContentUnit,
     coverImageOption: 'none' as const,
     coverImageAiPrompt: '',
-    coverImageFile: null,
+    coverImageFile: null, // ✅ FIX: Ensure file is null on init
     previousContentSummary: '',
     targetChapterCount: 3,
     bookLength: 'short-story' as const,
@@ -61,7 +61,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
   const [activeId, setActiveId] = useState<string | null>(() => {
     if (typeof window === 'undefined' || !user?.uid) return null;
-    return sessionStorage.getItem(`activeJobId_${user.uid}`) || null;
+    return sessionStorage.getItem(`activeJobId_${'${user.uid}'}`) || null;
   });
   
   const [jobData, setJobData] = useState<LibraryItem | null>(null);
@@ -235,7 +235,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+    if(user?.uid) sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
   }, [user?.uid, t]);
 
   useEffect(() => {
@@ -267,12 +267,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       const dataToSubmit: CreationFormValues = {
         ...formData,
         type: type, // Ensure type is correctly set
-        presentationStyle: type === 'piece' ? formData.presentationStyle : 'book',
+        presentationStyle: type === 'book' ? 'book' : formData.presentationStyle,
       };
 
       const jobId = await createLibraryItem(type, dataToSubmit);
       setActiveId(jobId);
-      sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
+      sessionStorage.setItem(`activeJobId_${'${user.uid}'}`, jobId);
       
       toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {
@@ -284,7 +284,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   useEffect(() => {
     if (!activeId || !user) return;
 
-    const docRef = doc(db, `users/${user.uid}/libraryItems`, activeId);
+    const docRef = doc(db, `users/${'${user.uid}'}/libraryItems`, activeId);
     unsubscribeRef.current = onSnapshot(docRef, (snapshot) => {
       if (!snapshot.exists()) return;
       
@@ -304,7 +304,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         setFinalizedId(activeId);
         setIsBusy(false);
         setActiveId(null);
-        if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+        if(user?.uid) sessionStorage.removeItem(`activeJobId_${'${user.uid}'}`);
       }
     });
     
@@ -329,3 +329,5 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     isRateLimited, 
   };
 }
+
+    

@@ -25,7 +25,7 @@ function createChecksum(
   unit: ContentUnit
 ): string {
   const isBilingual = displayLang2 !== 'none';
-  return `${'${presentationStyle}'}-${'${containerWidth}'}x${'${containerHeight}'}-${'${displayLang1}'}-${'${displayLang2}'}-${'${unit}'}-${'${isBilingual}'}`;
+  return `${presentationStyle}-${containerWidth}x${containerHeight}-${displayLang1}-${displayLang2}-${unit}-${isBilingual}`;
 }
 
 function getCachedBaseline(checksum: string): CachedBaseline | null {
@@ -83,8 +83,8 @@ async function calibrateForBook(
   measurer.style.cssText = `
     position: absolute;
     visibility: hidden;
-    width: ${'${container.clientWidth}'}px;
-    padding: ${'${getComputedStyle(container).padding}'};
+    width: ${container.clientWidth}px;
+    padding: ${getComputedStyle(container).padding};
     font-family: var(--font-noto-serif), serif;
   `;
   
@@ -189,7 +189,7 @@ async function paginateBook(
     return { pages: [], chapterStartPages: [] };
   }
   
-  console.log(`[Book Pagination] 🚀 Starting for ${'${segments.length}'} segments`);
+  console.log(`[Book Pagination] 🚀 Starting for ${segments.length} segments`);
   
   const { avgLineHeight, containerHeight } = await calibrateForBook(
     container,
@@ -252,7 +252,7 @@ async function paginateBook(
     });
   }
   
-  console.log(`[Book Pagination] ✅ Complete: ${'${pages.length}'} pages, ${'${chapterStartPages.length}'} chapters`);
+  console.log(`[Book Pagination] ✅ Complete: ${pages.length} pages, ${chapterStartPages.length} chapters`);
   
   return { pages, chapterStartPages };
 }
