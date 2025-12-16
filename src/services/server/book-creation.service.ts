@@ -290,7 +290,7 @@ async function processContentGenerationForBook(
         if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('ai_debug_data', JSON.stringify(aiDebugData));
 
         console.error(`Content generation failed for book ${bookId}:`, errorMessage);
-        throw new ApiServiceError('AI content generation failed. This might be due to safety filters or a temporary issue. Please try a different prompt.', "UNAVAILABLE", error as Error);
+        throw new Error(errorMessage); // Throw the original, detailed error
     }
 }
 
@@ -342,8 +342,9 @@ async function processCoverImageForBook(
       coverRetries: 0,
     };
   } catch (error) {
-    console.error(`Cover image processing failed for book ${bookId}:`, error);
-    throw new ApiServiceError("Cover image generation failed.", "UNAVAILABLE");
+    const errorMessage = (error as Error).message || 'Unknown cover processing error';
+    console.error(`Cover image processing failed for book ${bookId}:`, errorMessage);
+    throw new Error(errorMessage); // Throw the original, detailed error
   }
 }
 
@@ -432,5 +433,3 @@ export async function editBookCover(
     });
   });
 }
-
-    

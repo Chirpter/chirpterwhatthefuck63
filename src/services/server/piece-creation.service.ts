@@ -220,8 +220,9 @@ async function generatePieceContent(pieceFormData: CreationFormValues): Promise<
         };
 
     } catch (error) {
-        console.error(`Piece content generation failed:`, (error as Error).message);
-        throw new ApiServiceError('AI content generation failed.', "UNKNOWN");
+        const errorMessage = (error as Error).message || 'Unknown AI error';
+        console.error(`Piece content generation failed:`, errorMessage);
+        throw new Error(errorMessage); // Throw the original, detailed error
     }
 }
 

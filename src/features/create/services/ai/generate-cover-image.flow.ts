@@ -8,7 +8,7 @@
  * - GenerateCoverImageOutput - Output schema.
  */
 import {ai} from '@/services/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 import sharp from 'sharp';
 import type { GenerateCoverImageInput } from '@/lib/types';
 import { GenerateCoverImageInputSchema } from '@/lib/types';
@@ -107,9 +107,10 @@ const generateCoverImageFlow = ai.defineFlow(
       return { imageUrl: compressedImageDataUrl, bookId: input.bookId };
 
     } catch (compressionError) {
-        console.error("Error during image optimization:", compressionError);
-        // Fallback to the original image if optimization fails
-        return { imageUrl: media.url, bookId: input.bookId };
+        const errorMessage = (compressionError as Error).message || 'Unknown image processing error';
+        console.error("Error during image optimization:", errorMessage);
+        // Fallback to the original image if optimization fails but throw the specific error
+        throw new Error(errorMessage);
     }
   }
 );
