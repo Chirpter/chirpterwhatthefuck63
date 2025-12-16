@@ -21,6 +21,7 @@ import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
 import { ReaderToolbar } from '../shared/ReaderToolbar';
+import { PaginationDebugPanel } from '@/components/debug/PaginationDebugPanel';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
@@ -78,7 +79,8 @@ export default function BookReader({ book }: { book: Book }) {
     segments: allBookSegments,
     containerRef: contentContainerRef,
     isEnabled: true,
-    presentationStyle: 'book',
+    presentationStyle: 'book', // ADD THIS
+    // aspectRatio not needed for book
     displayLang1,
     displayLang2,
     unit: book.unit || 'sentence',
@@ -269,6 +271,17 @@ export default function BookReader({ book }: { book: Book }) {
           </motion.div>
         </div>
       </div>
+      <PaginationDebugPanel
+        item={book}
+        segments={allBookSegments}
+        pages={pages}
+        currentPageIndex={currentPageIndex}
+        isCalculating={isCalculating}
+        containerRef={contentContainerRef}
+        displayLang1={displayLang1}
+        displayLang2={displayLang2}
+        unit={book.unit || 'sentence'}
+      />
     </div>
   );
 }

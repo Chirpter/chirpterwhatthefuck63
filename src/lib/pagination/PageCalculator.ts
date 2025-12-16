@@ -1,20 +1,17 @@
-// src/lib/pagination/PageCalculator.ts
+// src/lib/pagination/PageCalculator.ts (Version 2 - Improved)
 'use client';
 
 import type { Page, Segment } from '@/lib/types';
 import { SegmentCalibrator, type CalibrationBaseline } from './SegmentCalibrator';
 
 /**
- * Calculates how to split an array of Segments into multiple Pages
- * based on the container size and estimated content height.
+ * Improved PageCalculator with better error handling and bilingual support
  */
 export class PageCalculator {
   private calibrator: SegmentCalibrator;
   private baseline: CalibrationBaseline | null = null;
   private presentationStyle: 'book' | 'doc' | 'card';
   private aspectRatio?: '1:1' | '3:4' | '4:3';
-  private displayLang1: string;
-  private displayLang2: string;
 
   constructor(
     calibrator: SegmentCalibrator,
@@ -24,15 +21,13 @@ export class PageCalculator {
     this.calibrator = calibrator;
     this.presentationStyle = presentationStyle;
     this.aspectRatio = aspectRatio;
-    this.displayLang1 = 'en'; // Will be updated during calculatePages
-    this.displayLang2 = 'none';
   }
 
   /**
-   * Gets text content from a segment based on current language settings.
+   * Get text content from segment based on calibrator's language settings
    */
-  private getSegmentText(segment: Segment): string {
-    const content = segment.content[this.displayLang1];
+  private getSegmentText(segment: Segment, lang: string): string {
+    const content = segment.content[lang];
     if (!content) {
       // Fallback to any available language
       const firstLang = Object.keys(segment.content)[0];
@@ -41,85 +36,98 @@ export class PageCalculator {
       return Array.isArray(fallbackContent) ? fallbackContent.join(' ') : fallbackContent;
     }
     
-    if (Array.isArray(content)) {
-      return content.join(' ');
-    }
-    return content;
+    return Array.isArray(content) ? content.join(' ') : content;
   }
 
   /**
-   * Initializes the baseline by calibrating the segments.
+   * Initialize baseline - ensure it's ready before use
    */
   private async ensureBaseline(segments: Segment[]): Promise<void> {
     if (!this.baseline) {
+      console.log('[PageCalculator] Initializing baseline...');
       this.baseline = await this.calibrator.calibrate(segments);
+      
+      if (!this.baseline || this.baseline.containerHeight <= 0) {
+        console.error('[PageCalculator] Invalid baseline:', this.baseline);
+        throw new Error('Failed to establish valid calibration baseline');
+      }
+      
+      console.log('[PageCalculator] Baseline ready:', {
+        avgHeight: this.baseline.avgSegmentHeight,
+        avgCharHeight: this.baseline.avgCharHeight,
+        containerHeight: this.baseline.containerHeight,
+        confidence: this.baseline.confidence,
+      });
     }
   }
 
   /**
-   * Estimates the height of a single segment.
-   * Uses real measurement for headings and estimation for text.
+   * Estimate height of a single segment with improved accuracy
    */
   private async estimateItemHeight(segment: Segment): Promise<number> {
-    const textContent = this.getSegmentText(segment);
+    // Always measure headings for accuracy
+    const primaryLang = Object.keys(segment.content)[0];
+    const textContent = this.getSegmentText(segment, primaryLang);
+    
     if (!textContent) return 0;
     
-    // Always measure headings for accuracy
     if (textContent.startsWith('##') || textContent.startsWith('#')) {
-      return await this.calibrator.measureItem(segment);
+      const measured = await this.calibrator.measureItem(segment);
+      console.log('[PageCalculator] Heading measured:', measured, 'px');
+      return measured;
     }
     
-    // For text, use estimation based on calibration
+    // Use estimation for regular text
     if (this.baseline && this.baseline.avgCharHeight > 0) {
-      let totalChars = textContent.length;
-      
-      // Add secondary language character count if bilingual
-      if (this.displayLang2 !== 'none') {
-        const secondaryContent = segment.content[this.displayLang2];
-        if (secondaryContent) {
-          const secondaryText = Array.isArray(secondaryContent) 
-            ? secondaryContent.join(' ') 
-            : secondaryContent;
-          totalChars += secondaryText.length;
+      // Count total characters across all languages
+      let totalChars = 0;
+      Object.values(segment.content).forEach(content => {
+        if (content) {
+          const text = Array.isArray(content) ? content.join(' ') : content;
+          totalChars += text.length;
         }
-      }
+      });
       
-      return totalChars * this.baseline.avgCharHeight;
+      const estimated = totalChars * this.baseline.avgCharHeight;
+      
+      // Add padding for bilingual sentence mode (each sentence is a block)
+      const isBilingualSentence = Object.keys(segment.content).length > 1;
+      const paddingAdjustment = isBilingualSentence ? 16 : 0; // mb-4 class
+      
+      return Math.max(estimated + paddingAdjustment, 10);
     }
     
-    // Fallback to direct measurement if no baseline
+    // Fallback to direct measurement
     return await this.calibrator.measureItem(segment);
   }
 
   /**
-   * Checks if a segment is a chapter heading.
+   * Check if segment is a chapter heading
    */
   private isChapterHeading(segment: Segment): boolean {
-    const textContent = this.getSegmentText(segment);
+    const firstLang = Object.keys(segment.content)[0];
+    const textContent = this.getSegmentText(segment, firstLang);
     return textContent.startsWith('##') || textContent.startsWith('#');
   }
 
   /**
-   * Main method to calculate pages for a given set of segments.
+   * Main pagination calculation
    */
   public async calculatePages(
     segments: Segment[]
   ): Promise<{ pages: Page[], chapterStartPages: number[] }> {
+    console.log(`[PageCalculator] Starting pagination for ${segments.length} segments`);
+    
     if (!segments || segments.length === 0) {
-      console.warn("No segments to paginate");
+      console.warn("[PageCalculator] No segments to paginate");
       return { pages: [], chapterStartPages: [] };
     }
 
-    await this.ensureBaseline(segments);
-
-    const pages: Page[] = [];
-    const chapterStartPages: number[] = [];
-    let currentPageItems: Segment[] = [];
-    let currentPageHeight = 0;
-    
-    if (!this.baseline || this.baseline.containerHeight <= 0) {
-      console.warn("Invalid container height, cannot calculate pages.");
-      // Fallback: put all segments on one page
+    try {
+      await this.ensureBaseline(segments);
+    } catch (error) {
+      console.error('[PageCalculator] Baseline initialization failed:', error);
+      // Return single-page fallback
       return { 
         pages: [{
           pageIndex: 0,
@@ -129,11 +137,33 @@ export class PageCalculator {
         chapterStartPages: [0] 
       };
     }
+
+    if (!this.baseline || this.baseline.containerHeight <= 0) {
+      console.error('[PageCalculator] Invalid baseline after initialization');
+      return { 
+        pages: [{
+          pageIndex: 0,
+          items: segments,
+          estimatedHeight: 0
+        }], 
+        chapterStartPages: [0] 
+      };
+    }
+
+    const pages: Page[] = [];
+    const chapterStartPages: number[] = [];
+    let currentPageItems: Segment[] = [];
+    let currentPageHeight = 0;
     
     const pageHeight = this.baseline.containerHeight;
+    console.log(`[PageCalculator] Target page height: ${pageHeight}px`);
+    
     let isNewChapter = true;
+    let segmentCount = 0;
 
     for (const segment of segments) {
+      segmentCount++;
+      
       const itemHeight = await this.estimateItemHeight(segment);
       const isHeading = this.isChapterHeading(segment);
 
@@ -142,14 +172,21 @@ export class PageCalculator {
         isNewChapter = true;
       }
       
-      // If adding this item would overflow the page AND we already have items
-      if (currentPageHeight + itemHeight > pageHeight && currentPageItems.length > 0) {
+      // Check if we need a page break
+      const wouldOverflow = currentPageHeight + itemHeight > pageHeight;
+      const hasContent = currentPageItems.length > 0;
+      
+      if (wouldOverflow && hasContent) {
         // Save current page
         pages.push({
           pageIndex: pages.length,
           items: currentPageItems,
           estimatedHeight: currentPageHeight,
         });
+        
+        console.log(`[PageCalculator] Page ${pages.length} created with ${currentPageItems.length} items (${Math.round(currentPageHeight)}px)`);
+        
+        // Reset for next page
         currentPageItems = [];
         currentPageHeight = 0;
       }
@@ -172,9 +209,24 @@ export class PageCalculator {
         items: currentPageItems,
         estimatedHeight: currentPageHeight,
       });
+      console.log(`[PageCalculator] Final page ${pages.length} created with ${currentPageItems.length} items`);
     }
 
-    console.log(`✅ Pagination complete: ${pages.length} pages, ${'${chapterStartPages.length}'} chapters`);
+    console.log(`[PageCalculator] ✅ Pagination complete: ${pages.length} pages, ${chapterStartPages.length} chapters, ${segmentCount} segments processed`);
+    
+    // Validation
+    if (pages.length === 0) {
+      console.error('[PageCalculator] ERROR: No pages generated!');
+      return { 
+        pages: [{
+          pageIndex: 0,
+          items: segments,
+          estimatedHeight: 0
+        }], 
+        chapterStartPages: [0] 
+      };
+    }
+    
     return { pages, chapterStartPages };
   }
 }

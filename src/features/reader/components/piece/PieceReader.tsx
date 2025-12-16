@@ -17,6 +17,7 @@ import { Icon } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { useMobile } from '@/hooks/useMobile';
+import { PaginationDebugPanel } from '@/components/debug/PaginationDebugPanel';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
@@ -304,6 +305,17 @@ export default function PieceReader({
           </motion.div>
         </div>
       </div>
+      <PaginationDebugPanel
+        item={piece}
+        segments={allSegments}
+        pages={pages}
+        currentPageIndex={currentPageIndex}
+        isCalculating={isCalculating}
+        containerRef={contentContainerRef}
+        displayLang1={displayLang1}
+        displayLang2={displayLang2}
+        unit={piece.unit || 'sentence'}
+      />
     </div>
   );
 }
