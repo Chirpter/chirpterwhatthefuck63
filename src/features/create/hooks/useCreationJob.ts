@@ -34,7 +34,7 @@ const getInitialFormData = (t: (key: string) => string): CreationFormValues => {
     unit: 'sentence' as ContentUnit,
     coverImageOption: 'none' as const,
     coverImageAiPrompt: '',
-    coverImageFile: null,
+    coverImageFile: null, // Ensure this is explicitly null
     previousContentSummary: '',
     targetChapterCount: 3,
     bookLength: 'short-story' as const,
@@ -226,7 +226,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         defaultData.presentationStyle = 'card';
         defaultData.aspectRatio = '3:4';
     }
-    setFormData(defaultData);
+    setFormData({ ...defaultData, type: newType });
     
     setIsPromptDefault(true);
     setPromptError(null);
@@ -265,9 +265,25 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     try {
       const dataToSubmit: CreationFormValues = {
         ...formData,
-        type: type, // Ensure type is correctly set
-        presentationStyle: type === 'book' ? 'book' : formData.presentationStyle,
+        type: type, 
       };
+
+      // --- DEBUGGING SNAPSHOT ---
+      if (process.env.NODE_ENV === 'development') {
+          const snapshot = {
+              submittedAt: new Date().toISOString(),
+              formDataSent: {
+                  ...dataToSubmit,
+                  coverImageFile: dataToSubmit.coverImageFile ? { name: dataToSubmit.coverImageFile.name, size: dataToSubmit.coverImageFile.size, type: dataToSubmit.coverImageFile.type } : null
+              },
+              creditCost,
+              processingJobsCount,
+          };
+          sessionStorage.setItem('creation_debug_data', JSON.stringify(snapshot, null, 2));
+          // Clear previous AI data
+          sessionStorage.removeItem('ai_debug_data');
+      }
+      // --- END DEBUGGING SNAPSHOT ---
 
       const jobId = await createLibraryItem(type, dataToSubmit);
       setActiveId(jobId);
@@ -280,7 +296,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       toast({ title: t('toast:error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
     }
-  }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited, isPromptDefault, type]);
+  }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited, isPromptDefault, type, creditCost]);
+
 
   useEffect(() => {
     if (!activeId || !user) return;
