@@ -1,4 +1,4 @@
-
+// src/features/library/components/BookItemCard.tsx
 
 "use client";
 
@@ -344,7 +344,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
              {currentBookmark && (
                 <div className="absolute top-0 right-2 w-12 h-16 z-[5]">
                     <div className="w-full h-full">
-                         <DynamicBookmark bookmark={currentBookmark} isComplete={!!book.completedAt} isInteractive={false} />
+                         <DynamicBookmark bookmark={currentBookmark} isComplete={!!book.isCompleted} isInteractive={false} />
                     </div>
                     {renderProgressIndicator()}
                 </div>

@@ -8,7 +8,6 @@ import { useUser } from '@/contexts/user-context';
 
 interface ProgressInfo {
     overallProgress: number;
-    chapterIndex: number;
 }
 
 export const useItemCardProgress = (itemId: string | null, item: LibraryItem | null): ProgressInfo => {
@@ -60,25 +59,19 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
     }, [itemId]);
     
     const calculatedProgress = useMemo((): ProgressInfo => {
-        if (!item || item.type !== 'book' || !progress) {
-            return { overallProgress: 0, chapterIndex: 0 };
+        if (!item || !progress) {
+            return { overallProgress: 0 };
         }
         
-        const book = item as Book;
-        const segments = book.content || [];
-        if (segments.length === 0) {
-            return { overallProgress: 0, chapterIndex: 0 };
-        }
+        // This logic is now greatly simplified because the `AudioEngine` is the single source of truth
+        // for complex calculations. This hook just reads the final percentage.
+        const totalSegments = item.content?.length || 0;
+        if (totalSegments === 0) return { overallProgress: 0 };
 
-        // This is simplified. For the audio engine, the `segmentIndex` would refer to the index
-        // in the flattened, multi-lingual `speechSegments` array, not the original `content` array.
-        // A more accurate progress would require a more complex mapping.
-        // For now, we assume a rough 1-to-1 mapping for display purposes.
-        const overallProgress = (progress.segmentIndex / segments.length) * 100;
+        const overallProgress = (progress.segmentIndex / totalSegments) * 100;
         
         return {
             overallProgress,
-            chapterIndex: 0, // Simplified, as we no longer have chapterIndex in audio progress state
         };
 
     }, [item, progress]);

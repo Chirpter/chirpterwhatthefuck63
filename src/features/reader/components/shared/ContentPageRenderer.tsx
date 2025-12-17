@@ -17,47 +17,38 @@ interface ContentPageRendererProps {
   displayLang2: string; // 'none' or language code
 }
 
-const SegmentRenderer: React.FC<{
-  segment: Segment,
-  displayLang1: string,
-  displayLang2: string,
-  unit: ContentUnit,
-  isSegmentPlaying: boolean,
-  speechBoundary: { charIndex: number, charLength: number } | null
-}> = ({ segment, displayLang1, displayLang2, unit, isSegmentPlaying, speechBoundary }) => {
-  
-  const reconstructedMarkdown = useMemo(() => {
-    let finalString = '';
-    const isBilingual = displayLang2 !== 'none';
-    
-    for(const part of segment.content) {
-      if (typeof part === 'string') {
-        finalString += part;
-      } else { // It's a LanguageBlock
-        const langBlock = part as LanguageBlock;
-        const text1 = langBlock[displayLang1] || '';
-        
-        if (isBilingual) {
-          const text2 = langBlock[displayLang2] || '';
-          if (unit === 'phrase') {
-            finalString += `${text1} (${text2})`;
-          } else { // sentence
-            finalString += `${text1}\n\n<em class="text-muted-foreground">${text2}</em>`;
-          }
-        } else {
-          finalString += text1;
+/**
+ * Reconstructs the final markdown string from a segment object based on display settings.
+ * @param segment - The structured segment object.
+ * @param displayLang1 - The primary language to display.
+ * @param displayLang2 - The secondary language to display ('none' if monolingual).
+ * @param unit - The unit for bilingual display ('sentence' or 'phrase').
+ * @returns A markdown-ready string.
+ */
+function reconstructMarkdown(
+    segment: Segment,
+    displayLang1: string,
+    displayLang2: string,
+    unit: ContentUnit
+): string {
+    const prefix = segment.content[0] as string;
+    const langBlock = segment.content[1] as LanguageBlock;
+    const suffix = segment.content[2] as string;
+
+    const primaryText = langBlock[displayLang1] || '';
+    const secondaryText = langBlock[displayLang2] || '';
+
+    if (displayLang2 !== 'none' && secondaryText) {
+        if (unit === 'phrase') {
+            return `${prefix}${primaryText} (${secondaryText})${suffix}`;
         }
-      }
+        // Default to sentence mode
+        return `${prefix}${primaryText}${suffix}\n\n<em class="text-muted-foreground">${secondaryText}</em>`;
     }
-    
-    return finalString;
-  }, [segment.content, displayLang1, displayLang2, unit]);
 
-  // For now, word highlighting on the reconstructed string is complex.
-  // We can add it back later if necessary.
-  return <ReactMarkdown remarkPlugins={[remarkGfm]} allowDangerousHtml>{reconstructedMarkdown}</ReactMarkdown>;
-};
-
+    // Monolingual mode
+    return `${prefix}${primaryText}${suffix}`;
+}
 
 export function ContentPageRenderer({ 
     page, 
@@ -67,11 +58,10 @@ export function ContentPageRenderer({
     displayLang1 = 'en',
     displayLang2 = 'none',
 }: ContentPageRendererProps) {
-  const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary } = useAudioPlayer();
+  const { position, currentSpeechBoundary: speechBoundary } = useAudioPlayer();
   const segments = page?.items || [];
   
-  // This logic would need to be updated if audio playback needs to sync with the new structure.
-  const currentSpokenSegmentId = null;
+  const currentSpokenSegmentId = position.originalSegmentId;
 
   const proseThemeClass = useMemo(() => {
     switch (editorSettings.background) {
@@ -116,21 +106,23 @@ export function ContentPageRenderer({
 
   return (
     <div className={contentContainerClasses}>
-      {segments.map((segment) => (
-        <div 
-            key={segment.id} 
-            data-segment-id={segment.id}
-        >
-            <SegmentRenderer
-                segment={segment}
-                displayLang1={displayLang1}
-                displayLang2={displayLang2}
-                unit={itemData?.unit || 'sentence'}
-                isSegmentPlaying={currentSpokenSegmentId === segment.id}
-                speechBoundary={speechBoundary}
-            />
-        </div>
-      ))}
+      {segments.map((segment) => {
+        const finalMarkdown = reconstructMarkdown(
+          segment, 
+          displayLang1, 
+          displayLang2, 
+          itemData?.unit || 'sentence'
+        );
+        
+        return (
+          <div 
+              key={segment.id} 
+              data-segment-id={segment.id}
+          >
+              <ReactMarkdown remarkPlugins={[remarkGfm]} allowDangerousHtml>{finalMarkdown}</ReactMarkdown>
+          </div>
+        );
+      })}
     </div>
   );
 }

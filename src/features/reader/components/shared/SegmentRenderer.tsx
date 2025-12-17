@@ -1,6 +1,6 @@
 // src/features/reader/components/shared/SegmentRenderer.tsx
 
-'use client';
+"use client";
 
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';

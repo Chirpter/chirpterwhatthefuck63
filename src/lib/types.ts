@@ -142,7 +142,7 @@ export type CombinedBookmark = SystemBookmark & Partial<BookmarkMetadata>;
 export interface BaseDocument {
     createdAt?: any;
     updatedAt?: any;
-    completedAt?: any;
+    isCompleted?: boolean;
 }
 
 /**
@@ -160,7 +160,6 @@ interface LiteratureItem extends BaseDocument {
   origin: string;
   langs: string[];
   status: OverallStatus;
-  progress?: number;
   isGlobal?: boolean;
   price?: number;
   originId?: string;

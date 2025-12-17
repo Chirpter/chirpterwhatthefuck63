@@ -3,13 +3,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { AudioProgressState, Book, LibraryItem } from '@/lib/types';
+import type { AudioProgressState, Book, LibraryItem, Segment } from '@/lib/types';
 import { useUser } from '@/contexts/user-context';
 
 interface ProgressInfo {
     overallProgress: number;
-    chapterProgress: number;
-    chapterIndex: number;
 }
 
 export const useItemCardProgress = (itemId: string | null, item: LibraryItem | null): ProgressInfo => {
@@ -61,46 +59,19 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
     }, [itemId]);
     
     const calculatedProgress = useMemo((): ProgressInfo => {
-        if (!item || item.type !== 'book' || !progress) {
-            return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
+        if (!item || !progress) {
+            return { overallProgress: 0 };
         }
         
-        const book = item as Book;
-        const chapters = book.chapters || [];
-        if (chapters.length === 0) {
-            return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
-        }
+        // This logic is now greatly simplified because the `AudioEngine` is the single source of truth
+        // for complex calculations. This hook just reads the final percentage.
+        const totalSegments = item.content?.length || 0;
+        if (totalSegments === 0) return { overallProgress: 0 };
 
-        let totalSegmentsInBook = 0;
-        let segmentsPlayedSoFar = 0;
-        let segmentsInCurrentChapter = 0;
-        
-        // This logic now correctly reflects the flat segment structure per chapter
-        chapters.forEach((chapter, index) => {
-            const chapterSegmentCount = chapter.segments?.length || 0;
-            totalSegmentsInBook += chapterSegmentCount;
-            
-            if (index < progress.chapterIndex) {
-                segmentsPlayedSoFar += chapterSegmentCount;
-            }
-            if (index === progress.chapterIndex) {
-                segmentsInCurrentChapter = chapterSegmentCount;
-            }
-        });
-        
-        if (totalSegmentsInBook === 0) {
-            return { overallProgress: 0, chapterProgress: 0, chapterIndex: progress.chapterIndex };
-        }
-
-        segmentsPlayedSoFar += progress.segmentIndex;
-
-        const overallProgress = (segmentsPlayedSoFar / totalSegmentsInBook) * 100;
-        const chapterProgress = segmentsInCurrentChapter > 0 ? (progress.segmentIndex / segmentsInCurrentChapter) * 100 : 0;
+        const overallProgress = (progress.segmentIndex / totalSegments) * 100;
         
         return {
             overallProgress,
-            chapterProgress,
-            chapterIndex: progress.chapterIndex,
         };
 
     }, [item, progress]);
