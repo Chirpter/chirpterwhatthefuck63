@@ -4,6 +4,7 @@
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
 import type { LibraryItem, EditorSettings, Page, Segment, LanguageBlock, ContentUnit } from '@/lib/types';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
@@ -119,7 +120,7 @@ export function ContentPageRenderer({
               key={segment.id} 
               data-segment-id={segment.id}
           >
-              <ReactMarkdown remarkPlugins={[remarkGfm]} allowDangerousHtml>{finalMarkdown}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{finalMarkdown}</ReactMarkdown>
           </div>
         );
       })}
