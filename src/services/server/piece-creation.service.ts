@@ -144,7 +144,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
 }
 
 function extractBilingualPairFromMarkdown(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
-    const cleanText = text.replace(/^#+\s*/, '');
+    const cleanText = text.replace(/^#+\s*/, '').trim();
     
     if (secondaryLang) {
         const match = cleanText.match(/^(.*?)\s*\{(.*)\}\s*$/);

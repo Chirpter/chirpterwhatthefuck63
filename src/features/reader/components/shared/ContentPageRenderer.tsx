@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
-import type { LibraryItem, EditorSettings, Page, Segment, LanguageBlock } from '@/lib/types';
+import type { LibraryItem, EditorSettings, Page, Segment, LanguageBlock, ContentUnit } from '@/lib/types';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface ContentPageRendererProps {
@@ -21,7 +21,7 @@ const SegmentRenderer: React.FC<{
   segment: Segment,
   displayLang1: string,
   displayLang2: string,
-  unit: 'sentence' | 'phrase',
+  unit: ContentUnit,
   isSegmentPlaying: boolean,
   speechBoundary: { charIndex: number, charLength: number } | null
 }> = ({ segment, displayLang1, displayLang2, unit, isSegmentPlaying, speechBoundary }) => {
@@ -30,7 +30,7 @@ const SegmentRenderer: React.FC<{
     let finalString = '';
     const isBilingual = displayLang2 !== 'none';
     
-    segment.content.forEach(part => {
+    for(const part of segment.content) {
       if (typeof part === 'string') {
         finalString += part;
       } else { // It's a LanguageBlock
@@ -48,7 +48,7 @@ const SegmentRenderer: React.FC<{
           finalString += text1;
         }
       }
-    });
+    }
     
     return finalString;
   }, [segment.content, displayLang1, displayLang2, unit]);
@@ -120,7 +120,6 @@ export function ContentPageRenderer({
         <div 
             key={segment.id} 
             data-segment-id={segment.id}
-            className={cn(segment.type === 'heading1' && 'font-headline text-3xl mt-4 mb-6 border-b pb-2')}
         >
             <SegmentRenderer
                 segment={segment}

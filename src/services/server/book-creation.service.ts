@@ -191,8 +191,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 }
 
 function extractBilingualPairFromMarkdown(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
-    // Remove markdown heading characters before extracting pairs
-    const cleanText = text.replace(/^#+\s*/, '');
+    const cleanText = text.replace(/^#+\s*/, '').trim();
     
     if (secondaryLang) {
         const match = cleanText.match(/^(.*?)\s*\{(.*)\}\s*$/);
@@ -208,19 +207,22 @@ function extractBilingualPairFromMarkdown(text: string, primaryLang: string, sec
 
 function aggregateSegmentsIntoChapters(segments: Segment[], origin: string): Chapter[] {
     const chapters: Chapter[] = [];
-    if (segments.length === 0) return [];
+    if (segments.length === 0) return chapters;
     
     const [primaryLang] = origin.split('-');
 
     let currentChapter: Chapter | null = null;
 
     for (const segment of segments) {
-        if (segment.type === 'heading1') {
+        const firstContent = segment.content[0];
+        const isHeading = typeof firstContent === 'string' && firstContent.trim().startsWith('#');
+        
+        if (isHeading) {
             if (currentChapter) {
                 chapters.push(currentChapter);
             }
             
-            const langBlock = segment.content.find(c => typeof c === 'object') as MultilingualContent | undefined;
+            const langBlock = segment.content.find(c => typeof c === 'object') as LanguageBlock | undefined;
             
             currentChapter = {
                 id: segment.id,

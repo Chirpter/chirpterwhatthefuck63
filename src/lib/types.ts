@@ -33,7 +33,6 @@ export interface Segment {
   id: string;
   order: number;
   content: SegmentContent;
-  type?: 'heading1'; // Optional: only for special segments like headings
 }
 
 

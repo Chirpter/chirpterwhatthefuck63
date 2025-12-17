@@ -100,32 +100,26 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
     if (secondaryLang) {
         // --- BILINGUAL LOGIC ---
         const pairs: Array<MultilingualContent> = [];
-        const regex = /([^{}]+)\s*\{(.*?)\}/g;
-        let lastIndex = 0;
-        let match;
-
-        while ((match = regex.exec(text)) !== null) {
-            if (match.index > lastIndex) {
-                const orphanText = cleanText(text.substring(lastIndex, match.index));
-                if (orphanText) pairs.push({ [primaryLang]: orphanText });
-            }
-
+        // Match a block of text, followed by its translation in curly braces.
+        // This is greedy and will match from the start of the string to the first {...} block.
+        const regex = /^(.*?)\s*\{(.*)\}\s*$/s;
+        const match = text.match(regex);
+        
+        if (match) {
             const primaryText = cleanText(match[1]);
             const secondaryText = cleanText(match[2]);
-            
             if (primaryText) {
                 pairs.push({
                     [primaryLang]: primaryText,
                     [secondaryLang]: secondaryText
                 });
             }
-            lastIndex = match.index + match[0].length;
+        } else {
+            // If no match, treat the whole thing as primary language
+            const primaryText = cleanText(text);
+            if (primaryText) pairs.push({ [primaryLang]: primaryText });
         }
         
-        if (lastIndex < text.length) {
-            const remainingText = cleanText(text.substring(lastIndex));
-            if (remainingText) pairs.push({ [primaryLang]: remainingText });
-        }
         return pairs;
     } else {
         // --- MONOLINGUAL LOGIC ---
@@ -137,113 +131,55 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
 }
 
 /**
- * Processes a paragraph of text into an array of Segments.
- * This is the core logic that transforms a block of text into structured data.
- */
-function processParagraphIntoSegments(
-    paragraphText: string, 
-    origin: string, 
-    unit: ContentUnit
-): Segment[] {
-    const parts = origin.split('-');
-    const primaryLang = parts[0];
-    const secondaryLang = parts.length > 1 ? parts[1] : undefined;
-    
-    const segments: Segment[] = [];
-    let segmentOrder = 0;
-
-    const sentencePairs = extractBilingualTextPairs(paragraphText, primaryLang, secondaryLang);
-
-    sentencePairs.forEach((sentencePair) => {
-        const primarySentence = sentencePair[primaryLang];
-        if (!primarySentence || typeof primarySentence !== 'string') return;
-        
-        let finalContent: MultilingualContent = {};
-
-        if (unit === 'phrase' && secondaryLang) {
-            finalContent[primaryLang] = splitSentenceIntoPhrases(primarySentence);
-            const secondarySentence = sentencePair[secondaryLang];
-            if (secondarySentence && typeof secondarySentence === 'string') {
-                finalContent[secondaryLang] = splitSentenceIntoPhrases(secondarySentence);
-            } else {
-                finalContent[secondaryLang] = []; // Ensure it's an array even if empty
-            }
-        } else {
-            finalContent[primaryLang] = Array.isArray(sentencePair[primaryLang]) ? (sentencePair[primaryLang] as string[]).join(' ') : sentencePair[primaryLang];
-            if (secondaryLang && sentencePair[secondaryLang]) {
-                finalContent[secondaryLang] = Array.isArray(sentencePair[secondaryLang]) ? (sentencePair[secondaryLang] as string[]).join(' ') : sentencePair[secondaryLang];
-            }
-        }
-        
-        segments.push({
-            id: generateLocalUniqueId(),
-            order: segmentOrder++,
-            content: finalContent,
-            type: 'text', // Default type
-        });
-    });
-
-    return segments;
-}
-
-
-/**
- * Main parser - processes markdown text into a flat array of Segments.
+ * Main parser - processes a raw markdown string into a flat array of Segments.
  * This is now the unified parser for both Book and Piece types.
  * It identifies H1 headings and creates special segment types for them.
  */
-export function parseMarkdownToSegments(markdown: string, origin: string, unit: ContentUnit): Segment[] {
+export function segmentize(markdown: string, origin: string): Segment[] {
     const segments: Segment[] = [];
     let order = 0;
-    const primaryLang = origin.split('-')[0];
+    const [primaryLang, secondaryLang] = origin.split('-');
 
     // Split content by H1 headings, keeping the heading as a delimiter
     const blocks = markdown.split(/(^#\s+.*$)/m).filter(p => p && p.trim() !== '');
-    let isFirstParagraph = true;
 
-    blocks.forEach(block => {
+    for (const block of blocks) {
         const trimmedBlock = block.trim();
+        const contentArray: (string | LanguageBlock)[] = [];
         
         if (trimmedBlock.startsWith('# ')) {
-            // This is an H1 heading, treat it as a special segment
-            const titleContent = trimmedBlock.substring(2).trim();
-            const titlePair = extractBilingualTextPairs(titleContent, origin.split('-')[0], origin.split('-')[1])[0] || { [primaryLang]: titleContent };
-            
-            segments.push({
-                id: generateLocalUniqueId(),
-                order: order++,
-                type: 'heading1',
-                content: titlePair,
-            });
-            isFirstParagraph = true; // The next segment after a heading is a new paragraph start
+            const headingContent = trimmedBlock.substring(2);
+            const titlePair = extractBilingualTextPairs(headingContent, primaryLang, secondaryLang)[0] || {};
+            contentArray.push("# ", titlePair);
         } else {
-            // This is regular paragraph content, process it normally
-            const paragraphSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
-            if (paragraphSegments.length > 0) {
-              if (isFirstParagraph) {
-                paragraphSegments[0].type = 'start_para';
-                isFirstParagraph = false;
-              }
-              paragraphSegments.forEach(seg => {
-                  seg.order = order++;
-                  segments.push(seg);
-              });
-            }
+            const pair = extractBilingualTextPairs(trimmedBlock, primaryLang, secondaryLang)[0] || {};
+            contentArray.push("", pair);
         }
-    });
+        
+        // Add trailing newlines if they exist
+        const trailingNewlines = block.match(/(\r?\n)*$/);
+        if (trailingNewlines && trailingNewlines[0]) {
+            contentArray.push(trailingNewlines[0]);
+        }
+
+        segments.push({
+            id: generateLocalUniqueId(),
+            order: order++,
+            content: contentArray,
+        });
+    }
     
     return segments;
 }
-
 
 /**
  * Calculates total word count from segments, handling both string and array content.
  */
 function calculateTotalWords(segments: Segment[], primaryLang: string): number {
     return segments.reduce((sum, seg) => {
-        const content = seg.content[primaryLang];
-        if (content) {
-            const text = Array.isArray(content) ? content.join(' ') : content;
+        const langBlock = seg.content.find(c => typeof c === 'object') as LanguageBlock | undefined;
+        if (langBlock && langBlock[primaryLang]) {
+            const text = langBlock[primaryLang];
             return sum + (text.split(/\s+/).filter(Boolean).length || 0);
         }
         return sum;
@@ -258,8 +194,14 @@ function calculateTotalWords(segments: Segment[], primaryLang: string): number {
 export function getItemSegments(
     item: Book | Piece | null
 ): Segment[] {
-    if (!item || !item.content) return [];
+    if (!item) return [];
 
     // The content is already a Segment[] array, so just return it.
-    return item.content;
+    if(item.type === 'book') {
+        return item.chapters.flatMap(c => c.segments) || [];
+    }
+    if (item.type === 'piece') {
+        return item.generatedContent || [];
+    }
+    return [];
 }

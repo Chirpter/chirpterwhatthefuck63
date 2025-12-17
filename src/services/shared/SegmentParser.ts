@@ -14,52 +14,62 @@ function cleanText(text: string): string {
 /**
  * The core parser that transforms a line of markdown text into a structured Segment content array.
  * It identifies a prefix, the language blocks, and a suffix.
- * e.g., "# {Hello} {Xin chào}\n\n" -> ["# ", {en: "Hello", vi: "Xin chào"}, "\n\n"]
+ * This version correctly handles the format: `Some text in primary language. {Dịch sang ngôn ngữ phụ.}`
  */
 function parseLineToSegmentContent(line: string, primaryLang: string, secondaryLang?: string): (string | LanguageBlock)[] {
     const content: (string | LanguageBlock)[] = [];
     const langBlock: LanguageBlock = {};
-    
-    // Regex to find language blocks like {text}
-    const langBlockRegex = /\{(.*?)\}/g;
-    let lastIndex = 0;
-    let langIndex = 0;
 
-    // Find the first language block to determine the prefix
-    const firstMatch = langBlockRegex.exec(line);
-    
-    if (!firstMatch) {
-        // No language blocks, treat the whole line as the content itself (monolingual case without braces)
-        // This makes the parser more robust.
-        langBlock[primaryLang] = cleanText(line);
-        content.push(langBlock);
-        return content;
-    }
-    
-    // There is at least one language block
-    const prefix = line.substring(0, firstMatch.index);
-    if (prefix) {
-        content.push(prefix);
-    }
+    // Regex to find the LAST language block like {text}
+    const langBlockRegex = /\{(.*?)\}\s*$/;
+    const match = line.match(langBlockRegex);
 
-    // Reset regex for global search from the beginning
-    langBlockRegex.lastIndex = 0;
-    let match;
-    
-    while ((match = langBlockRegex.exec(line)) !== null) {
-        const lang = langIndex === 0 ? primaryLang : secondaryLang;
-        if (lang) {
-            langBlock[lang] = cleanText(match[1]);
+    if (match && secondaryLang) {
+        // --- BILINGUAL CASE ---
+        // The text before the match is the primary language content + any prefix
+        const primaryPart = line.substring(0, match.index).trim();
+        const secondaryText = cleanText(match[1]);
+        
+        langBlock[secondaryLang] = secondaryText;
+
+        // Check for markdown prefix in the primary part
+        const markdownPrefixRegex = /^(#+\s*|>\s*|[-*+]\s+)/;
+        const prefixMatch = primaryPart.match(markdownPrefixRegex);
+        
+        let prefix = "";
+        let primaryText = primaryPart;
+
+        if (prefixMatch) {
+            prefix = prefixMatch[0];
+            primaryText = primaryPart.substring(prefix.length);
         }
-        langIndex++;
-        lastIndex = match.index + match[0].length;
-    }
 
-    content.push(langBlock);
+        langBlock[primaryLang] = cleanText(primaryText);
+        
+        if (prefix) content.push(prefix);
+        content.push(langBlock);
+        // Suffix is ignored in this logic as the {block} is assumed to be at the end.
 
-    const suffix = line.substring(lastIndex);
-    if (suffix) {
-        content.push(suffix);
+    } else {
+        // --- MONOLINGUAL CASE ---
+        // The whole line is treated as primary content
+        const trimmedLine = cleanText(line);
+
+        const markdownPrefixRegex = /^(#+\s*|>\s*|[-*+]\s+)/;
+        const prefixMatch = trimmedLine.match(markdownPrefixRegex);
+        
+        let prefix = "";
+        let primaryText = trimmedLine;
+
+        if (prefixMatch) {
+            prefix = prefixMatch[0];
+            primaryText = trimmedLine.substring(prefix.length);
+        }
+        
+        langBlock[primaryLang] = primaryText;
+        
+        if (prefix) content.push(prefix);
+        content.push(langBlock);
     }
     
     return content;
@@ -78,16 +88,10 @@ export function segmentize(markdown: string, origin: string): Segment[] {
     const lines = markdown.split(/\r?\n/).filter(line => line.trim() !== '');
 
     for (const line of lines) {
-        let segmentType: 'heading1' | undefined = undefined;
-        if (line.trim().startsWith('#')) {
-            segmentType = 'heading1';
-        }
-        
         segments.push({
             id: generateLocalUniqueId(),
             order: order++,
             content: parseLineToSegmentContent(line, primaryLang, secondaryLang),
-            type: segmentType,
         });
     }
     
