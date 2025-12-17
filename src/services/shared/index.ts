@@ -1,1 +1,1 @@
-export * from './SegmentParser';
+export * from './segment-parser';

@@ -1,3 +1,4 @@
+
 // src/features/vocabulary/components/flashcards/FlashcardsView.tsx
 
 "use client";

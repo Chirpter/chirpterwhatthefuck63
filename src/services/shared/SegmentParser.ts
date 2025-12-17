@@ -1,4 +1,4 @@
-// src/services/shared/SegmentParser.ts
+// src/services/shared/segment-parser.ts
 
 import type { Segment, LanguageBlock, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
