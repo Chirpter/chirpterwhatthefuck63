@@ -3,11 +3,10 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, ContentUnit } from "@/lib/types";
+import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, ContentUnit, MultilingualContent } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement.service';
 import { ApiServiceError } from "@/lib/errors";
-import { parseBookMarkdown } from '../shared/SegmentParser';
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
@@ -109,7 +108,7 @@ async function processBookGenerationPipeline(
  * The main exported function to create a new book and start its generation process.
  * This function is INTERNAL to the server and is called by the creation-service facade.
  */
-export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<{ jobId: string, debugData: any }> {
+export async function createBookAndStartGeneration(userId: string, bookFormData: CreationFormValues): Promise<string> {
   const adminDb = getAdminDb();
   let bookId = '';
 
@@ -166,11 +165,11 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         presentationStyle: 'book',
         contentRetries: 0,
         coverRetries: 0,
-        chapters: [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         unit: bookFormData.unit,
         labels: [],
+        content: '', // Start with empty content
     };
     transaction.set(newBookRef, removeUndefinedProps(initialBookData));
     bookId = newBookRef.id;
@@ -206,7 +205,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
   ).catch(err => console.error(`[Orphaned Pipeline] Unhandled error for book ${bookId}:`, err));
 
 
-  return { jobId: bookId, debugData: {} };
+  return bookId;
 }
 
 
@@ -270,21 +269,18 @@ async function processContentGenerationForBook(
         
         debugData.rawResponse = aiOutput.markdownContent;
         
-        const { chapters: finalChapters, unit: parsedUnit } = parseBookMarkdown(aiOutput.markdownContent, origin);
-        
-        const finalTitle = { [primaryLanguage]: aiOutput.title };
-        // A simple check if there's a translation in the AI title response
+        const finalTitle: MultilingualContent = { [primaryLanguage]: aiOutput.title };
         const titleTranslationMatch = aiOutput.title.match(/\{(.*)\}/);
         if (secondaryLanguage && titleTranslationMatch) {
             finalTitle[secondaryLanguage] = titleTranslationMatch[1].trim();
         }
 
-        debugData.parsedData = { title: finalTitle, chapters: finalChapters, unit: parsedUnit };
+        debugData.parsedData = { title: finalTitle, content: aiOutput.markdownContent };
         
         return {
           title: finalTitle,
-          chapters: finalChapters,
-          unit: parsedUnit,
+          content: aiOutput.markdownContent, // Store raw markdown
+          unit: origin.endsWith('-ph') ? 'phrase' : 'sentence',
           contentState: 'ready',
           contentRetries: 0,
           debug: debugData,
@@ -379,8 +375,8 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     prompt: newPrompt || bookData.prompt || '',
     origin: bookData.origin,
     bookLength: bookData.length || 'short-story',
-    generationScope: bookData.chapters.length > 3 ? 'full' : 'firstFew',
-    chaptersToGenerate: bookData.chapters.length || 3,
+    generationScope: 'full', // Always full for now, can be changed
+    chaptersToGenerate: 3, // Default to 3, can be changed
   };
   
   processBookGenerationPipeline(

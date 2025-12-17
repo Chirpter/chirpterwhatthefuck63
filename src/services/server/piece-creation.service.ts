@@ -3,12 +3,11 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Piece, CreationFormValues, GeneratePieceInput, ContentUnit } from "@/lib/types";
+import type { Piece, CreationFormValues, GeneratePieceInput, ContentUnit, MultilingualContent } from "@/lib/types";
 import { removeUndefinedProps } from "@/lib/utils";
 import { checkAndUnlockAchievements } from './achievement.service';
 import { updateLibraryItem } from "./library.service";
 import { ApiServiceError } from "@/lib/errors";
-import { parseMarkdownToSegments } from '../shared/SegmentParser';
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
@@ -63,13 +62,13 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
 
     try {
         const contentResult = await generatePieceContent(pieceFormData);
-        if (!contentResult || !contentResult.generatedContent) {
+        if (!contentResult || !contentResult.content) {
             throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
 
         finalUpdate = {
             title: contentResult.title,
-            generatedContent: contentResult.generatedContent,
+            content: contentResult.content,
             contentState: 'ready',
             status: 'draft',
             contentRetryCount: 0,
@@ -96,7 +95,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
 }
 
 
-export async function createPieceAndStartGeneration(userId: string, pieceFormData: CreationFormValues): Promise<{ jobId: string, debugData: any }> {
+export async function createPieceAndStartGeneration(userId: string, pieceFormData: CreationFormValues): Promise<string> {
     const adminDb = getAdminDb();
     let pieceId = '';
     
@@ -131,7 +130,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             tags: [],
             presentationStyle: pieceFormData.presentationStyle || 'card',
             aspectRatio: pieceFormData.aspectRatio,
-            generatedContent: [],
+            content: '', // Start with empty content
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
             isBilingual: pieceFormData.availableLanguages.length > 1,
@@ -149,7 +148,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
         console.error(`[Orphaned Pipeline] Unhandled error for piece ${pieceId}:`, err);
     });
 
-    return { jobId: pieceId, debugData: {} };
+    return pieceId;
 }
 
 /**
@@ -201,20 +200,18 @@ async function generatePieceContent(
         rawResponse = aiOutput.markdownContent;
         debugData.rawResponse = rawResponse;
 
-        const segments = parseMarkdownToSegments(aiOutput.markdownContent, pieceFormData.origin, pieceFormData.unit, true);
-        
-        const finalTitle = { [primaryLanguage]: aiOutput.title };
+        const finalTitle: MultilingualContent = { [primaryLanguage]: aiOutput.title };
         const titleTranslationMatch = aiOutput.title.match(/\{(.*)\}/);
         if (secondaryLanguage && titleTranslationMatch) {
             finalTitle[secondaryLanguage] = titleTranslationMatch[1].trim();
         }
 
-        parsedData = { title: finalTitle, segments };
+        parsedData = { title: finalTitle, content: aiOutput.markdownContent };
         debugData.parsedData = parsedData;
         
         return {
           title: finalTitle,
-          generatedContent: segments,
+          content: aiOutput.markdownContent,
           debug: debugData,
         };
 
