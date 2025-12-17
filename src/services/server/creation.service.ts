@@ -40,7 +40,8 @@ function validateOriginFormat(formData: CreationFormValues): void {
  * ✅ MAIN FACADE: Routes creation requests to the appropriate service.
  * Returns an object with the jobId.
  */
-export async function createLibraryItem(type: 'book' | 'piece', formData: CreationFormValues): Promise<{ jobId: string, debugData: any }> {
+export async function createLibraryItem(formData: CreationFormValues): Promise<{ jobId: string, debugData: any }> {
+  const { type } = formData;
   console.log('📝 [Creation Service] Starting creation for type:', type);
   
   const userId = await getUserIdFromSession();
@@ -48,19 +49,18 @@ export async function createLibraryItem(type: 'book' | 'piece', formData: Creati
   validateOriginFormat(formData);
   
   try {
+    let jobId: string;
     if (type === 'book') {
-      const bookId = await createBookAndStartGeneration(userId, formData);
-      console.log('✅ [Creation Service] Book created:', bookId);
-      // Return the correct object structure
-      return { jobId: bookId, debugData: {} };
+      jobId = await createBookAndStartGeneration(userId, formData);
+      console.log('✅ [Creation Service] Book created:', jobId);
     } else if (type === 'piece') {
-      const pieceId = await createPieceAndStartGeneration(userId, formData);
-      console.log('✅ [Creation Service] Piece created:', pieceId);
-      // Return the correct object structure
-      return { jobId: pieceId, debugData: {} };
+      jobId = await createPieceAndStartGeneration(userId, formData);
+      console.log('✅ [Creation Service] Piece created:', jobId);
     } else {
       throw new ApiServiceError(`Unknown content type: ${type}`, 'VALIDATION');
     }
+    // Debug data is now handled within each creation service, so we return an empty object here.
+    return { jobId, debugData: {} };
   } catch (error: any) {
     console.error('❌ [Creation Service] Failed:', error.message);
     
