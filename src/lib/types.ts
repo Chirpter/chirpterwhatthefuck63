@@ -41,13 +41,6 @@ export type MultilingualContent = {
   [languageCode: string]: string;
 };
 
-export interface ChapterOutlineItem {
-  id: string;
-  title: MultilingualContent;
-  isGenerated: boolean;
-  metadata: {};
-}
-
 export type UserPlan = 'free' | 'pro';
 export type UserRole = 'user' | 'admin';
 
@@ -149,9 +142,10 @@ export interface BaseDocument {
  * @interface LiteratureItem
  * @description The core shared structure for all text-based literary content types.
  */
-interface LiteratureItem extends BaseDocument {
+export interface LiteratureItem extends BaseDocument {
   id: string;
   userId: string;
+  type: 'book' | 'piece';
   title: MultilingualContent;
   content: Segment[];
   contentState: JobStatus;

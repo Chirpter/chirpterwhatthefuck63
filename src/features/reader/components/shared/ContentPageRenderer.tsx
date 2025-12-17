@@ -1,5 +1,5 @@
 // src/features/reader/components/shared/ContentPageRenderer.tsx
-"use client";
+'use client';
 
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -119,7 +119,7 @@ export function ContentPageRenderer({
               key={segment.id} 
               data-segment-id={segment.id}
           >
-              <ReactMarkdown remarkPlugins={[remarkGfm]} allowDangerousHtml>{finalMarkdown}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalMarkdown}</ReactMarkdown>
           </div>
         );
       })}
