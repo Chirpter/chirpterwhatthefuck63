@@ -8,6 +8,7 @@ import { checkAndUnlockAchievements } from './achievement.service';
 import { getLevelStyles } from '@/lib/utils';
 import { ACHIEVEMENTS } from '@/features/user/constants/achievements';
 import { convertTimestamps } from '@/lib/utils';
+import { getStorage } from 'firebase-admin/storage';
 
 const USERS_COLLECTION = 'users';
 
@@ -107,7 +108,53 @@ export async function updateUserProfile(
     profileCoverFile?: File;
   }
 ): Promise<{ photoURL?: string; coverPhotoURL?: string }> {
-  return {};
+  const { displayName, profilePictureFile, profileCoverFile } = data;
+  const adminDb = getAdminDb();
+  const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
+  const auth = (await import('firebase-admin/auth')).getAuth();
+
+  const updates: any = {};
+  const authUpdates: any = {};
+  const returnedUrls: { photoURL?: string; coverPhotoURL?: string } = {};
+
+  if (displayName) {
+    updates.displayName = displayName;
+    authUpdates.displayName = displayName;
+  }
+
+  const handleFileUpload = async (file: File, path: string): Promise<string> => {
+    const bucket = getStorage().bucket();
+    const fileUpload = bucket.file(path);
+    await fileUpload.save(Buffer.from(await file.arrayBuffer()), {
+      metadata: { contentType: file.type },
+    });
+    const [url] = await fileUpload.getSignedUrl({ action: 'read', expires: '03-09-2491' });
+    return url;
+  };
+
+  if (profilePictureFile) {
+    const photoURL = await handleFileUpload(profilePictureFile, `user-avatars/${userId}/profile.webp`);
+    updates.photoURL = photoURL;
+    authUpdates.photoURL = photoURL;
+    returnedUrls.photoURL = photoURL;
+  }
+
+  if (profileCoverFile) {
+    const coverPhotoURL = await handleFileUpload(profileCoverFile, `user-covers/${userId}/cover.webp`);
+    updates.coverPhotoURL = coverPhotoURL;
+    returnedUrls.coverPhotoURL = coverPhotoURL;
+  }
+  
+  if (Object.keys(updates).length > 0) {
+    updates.updatedAt = FieldValue.serverTimestamp();
+    await userDocRef.update(updates);
+  }
+
+  if (Object.keys(authUpdates).length > 0) {
+    await auth.updateUser(userId, authUpdates);
+  }
+
+  return returnedUrls;
 }
 
 export async function deductCredits(

@@ -1,4 +1,4 @@
-
+// src/features/profile/components/ProfileView.tsx
 
 "use client";
 
@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getLevelStyles, type LevelTier } from '@/lib/utils';
-import { updateUserProfile } from '@/services/user-service';
+import { updateUserProfile } from '@/services/server/user.service'; // ✅ FIX: Use correct server action
 import { useToast } from '@/hooks/useToast';
 import {
   Dialog,
@@ -23,7 +23,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { User } from '@/lib/types';
-import { ACHIEVEMENTS } from '@/lib/achievements';
+import { ACHIEVEMENTS } from '@/features/user/constants/achievements';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/auth-context';
 import { Logo } from '@/components/ui/Logo';
