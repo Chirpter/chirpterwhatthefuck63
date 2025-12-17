@@ -1,4 +1,3 @@
-
 // src/features/vocabulary/index.ts
 // ============================================================================
 // PUBLIC API FOR THE VOCABULARY FEATURE

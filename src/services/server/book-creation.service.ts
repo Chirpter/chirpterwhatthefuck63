@@ -332,7 +332,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 
   const bookData = await adminDb.runTransaction(async (transaction) => {
     const bookSnap = await transaction.get(bookDocRef);
-    if (!workSnap.exists) throw new ApiServiceError("Book not found for content regeneration.", "UNKNOWN");
+    if (!bookSnap.exists) throw new ApiServiceError("Book not found for content regeneration.", "UNKNOWN");
     
     const currentData = bookSnap.data() as Book;
     const updatePayload: any = {
