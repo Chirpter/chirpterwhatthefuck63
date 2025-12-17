@@ -352,7 +352,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     origin: bookData.origin,
     bookLength: bookData.length || 'short-story',
     generationScope: 'full', // Always full for now, can be changed
-    chaptersToGenerate: bookData.content.filter(s => s.content[0].toString().startsWith('#')).length || 3,
+    chaptersToGenerate: bookData.content.filter(s => typeof s.content[0] === 'string' && s.content[0].startsWith('#')).length || 3,
   };
   
   processBookGenerationPipeline(

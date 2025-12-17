@@ -70,13 +70,6 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
             return { overallProgress: 0, chapterIndex: 0 };
         }
 
-        const chapterHeadings = segments.map((seg, index) => ({ seg, index }))
-                                     .filter(({ seg }) => typeof seg.content[0] === 'string' && seg.content[0].startsWith('#'));
-
-        const chapterStartIndexMap = chapterHeadings.map(ch => ch.index);
-
-        let currentChapterIndex = 0;
-        
         // This is simplified. For the audio engine, the `segmentIndex` would refer to the index
         // in the flattened, multi-lingual `speechSegments` array, not the original `content` array.
         // A more accurate progress would require a more complex mapping.

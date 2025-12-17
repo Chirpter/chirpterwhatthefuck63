@@ -146,10 +146,10 @@ export interface BaseDocument {
 }
 
 /**
- * @interface BaseLibraryItem (The "Literature Item")
- * @description The core shared structure for all content types in the user's library.
+ * @interface LiteratureItem
+ * @description The core shared structure for all text-based literary content types.
  */
-interface BaseLibraryItem extends BaseDocument {
+interface LiteratureItem extends BaseDocument {
   id: string;
   userId: string;
   title: MultilingualContent;
@@ -174,9 +174,9 @@ export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
 
 /**
  * @interface Book
- * @description Represents a full book. Extends BaseLibraryItem with book-specific metadata.
+ * @description Represents a full book. Extends LiteratureItem with book-specific metadata.
  */
-export interface Book extends BaseLibraryItem {
+export interface Book extends LiteratureItem {
   type: 'book';
   presentationStyle: 'book';
   author?: string;
@@ -191,9 +191,9 @@ export interface Book extends BaseLibraryItem {
 
 /**
  * @interface Piece
- * @description Represents a shorter, single-part work. Extends BaseLibraryItem with piece-specific metadata.
+ * @description Represents a shorter, single-part work. Extends LiteratureItem with piece-specific metadata.
  */
-export interface Piece extends BaseLibraryItem {
+export interface Piece extends LiteratureItem {
   type: 'piece';
   presentationStyle: 'doc' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3';
@@ -204,6 +204,7 @@ export interface Piece extends BaseLibraryItem {
   isBilingual?: boolean;
 }
 
+// The union type for any item that can appear in the user's main library feed.
 export type LibraryItem = Book | Piece;
 
 
@@ -225,6 +226,8 @@ export interface CreationFormValues {
   aspectRatio?: '1:1' | '3:4' | '4:3';
   unit: ContentUnit;
   origin: string;
+  // New field from form that's not on Book/Piece models
+  previousContentSummary?: string; 
 }
 
 // A Piece should never have a 'book' presentationStyle

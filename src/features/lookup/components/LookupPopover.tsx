@@ -141,7 +141,7 @@ const LookupPopoverContent: React.FC<Omit<LookupPopoverProps, 'isOpen' | 'onOpen
               <Icon name="Volume2" className={cn("h-4 w-4", (isSpeaking || isPlayerSpeaking) && "text-destructive")} />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={isSaving || !translationResult}>
-            {isSaving ? <Icon name="Loader2" className="animate-spin h-4 w-4" /> : <Icon name="Save" className="h-4 w-4" />}
+            {isSaving ? <Icon name="Loader2" className="animate-spin h-4 w-4" /> : <Icon name="Plus" className="h-4 w-4" />}
             </Button>
         </div>
     </div>

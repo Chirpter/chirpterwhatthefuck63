@@ -42,7 +42,7 @@ const SegmentRenderer: React.FC<{
           if (unit === 'phrase') {
             finalString += `${text1} (${text2})`;
           } else { // sentence
-            finalString += `${text1}\n\n_${text2}_`;
+            finalString += `${text1}\n\n<em class="text-muted-foreground">${text2}</em>`;
           }
         } else {
           finalString += text1;
@@ -55,7 +55,7 @@ const SegmentRenderer: React.FC<{
 
   // For now, word highlighting on the reconstructed string is complex.
   // We can add it back later if necessary.
-  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{reconstructedMarkdown}</ReactMarkdown>;
+  return <ReactMarkdown remarkPlugins={[remarkGfm]} allowDangerousHtml>{reconstructedMarkdown}</ReactMarkdown>;
 };
 
 

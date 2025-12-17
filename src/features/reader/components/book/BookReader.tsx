@@ -10,7 +10,7 @@ import { useSettings } from '@/contexts/settings-context';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
-import type { Book, LibraryItem, VocabContext, Segment, MultilingualContent } from '@/lib/types';
+import type { Book, LibraryItem, VocabContext, Segment, LanguageBlock, MultilingualContent } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';

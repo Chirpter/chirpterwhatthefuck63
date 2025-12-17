@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useMobile } from '@/hooks/useMobile';
 import { AudioSettingsPopover } from '@/features/player/components/AudioSettingsPopover';
 import { motion } from "framer-motion";
-import type { PlaylistItem as TPlaylistItem, Book, RepeatMode, ChapterTitle, PlaylistRepeatMode, MultilingualContent } from '@/lib/types';
+import type { PlaylistItem as TPlaylistItem, Book, RepeatMode, LanguageBlock, MultilingualContent, PlaylistRepeatMode } from '@/lib/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
@@ -97,7 +97,7 @@ export function ExpandedPlayer() {
 
     const readerPageHref = currentPlayingItem
         ? `/read/${currentPlayingItem.id}`
-        : "/library";
+        : "/library/book";
 
     const chaptersForMenu = useMemo(() => {
         if (currentPlayingItem?.type !== 'book' || !currentPlayingItem.data) return null;
@@ -128,7 +128,7 @@ export function ExpandedPlayer() {
     };
 
     const getRepeatIconName = (): IconName => {
-        return repeatMode === 'item' ? 'Repeat1' : 'Repeat';
+        return repeatMode === 'item' ? 'Repeat' : 'Repeat';
     };
 
     const repeatButtonTooltip = repeatMode === 'item' ? t('audioSettings.repeatItem') : t('audioSettings.repeatOff');
