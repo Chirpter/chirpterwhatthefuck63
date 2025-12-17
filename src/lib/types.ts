@@ -6,7 +6,7 @@ import { z } from 'zod';
 // Custom error class for better error handling in vocab-videos service
 export class ApiServiceError extends Error {
   constructor(
-    message: string,
+    public message: string,
     public code: 'RATE_LIMIT' | 'AUTH' | 'NETWORK' | 'UNKNOWN' | 'FIRESTORE' | 'PERMISSION' | 'UNAVAILABLE' | 'VALIDATION' = 'UNKNOWN',
     public originalError?: any
   ) {

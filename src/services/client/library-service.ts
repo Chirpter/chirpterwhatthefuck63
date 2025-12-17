@@ -29,10 +29,20 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
             
             const convertedItem = convertTimestamps(item) as LibraryItem;
 
-            // Perform client-side parsing if content exists
+            // This client-side parsing step is now DEPRECATED as content is pre-structured.
+            // However, we keep it for backward compatibility with old data.
+            // @ts-ignore
             if (convertedItem.content && typeof convertedItem.content === 'string') {
-                convertedItem.content = segmentize(convertedItem.content, convertedItem.origin) as any;
+                console.warn(`[Compatibility] Parsing legacy string content for item ${itemId}`);
+                 // @ts-ignore
+                const segments = segmentize(convertedItem.content, convertedItem.origin);
+                if (convertedItem.type === 'book') {
+                    convertedItem.chapters = [{ id: 'legacy', order: 0, title: convertedItem.title, segments: segments }];
+                } else if (convertedItem.type === 'piece') {
+                    convertedItem.generatedContent = segments;
+                }
             }
+
 
             return convertedItem;
         }
@@ -64,8 +74,15 @@ export async function getLibraryItemsByIds(userId: string, itemIds: string[]): P
             const itemWithId = { id: snap.id, ...rawData };
             const convertedItem = convertTimestamps(itemWithId) as LibraryItem;
 
+            // @ts-ignore
             if (convertedItem.content && typeof convertedItem.content === 'string') {
-                convertedItem.content = segmentize(convertedItem.content, convertedItem.origin) as any;
+                 // @ts-ignore
+                const segments = segmentize(convertedItem.content, convertedItem.origin);
+                 if (convertedItem.type === 'book') {
+                    convertedItem.chapters = [{ id: 'legacy', order: 0, title: convertedItem.title, segments: segments }];
+                } else if (convertedItem.type === 'piece') {
+                    convertedItem.generatedContent = segments;
+                }
             }
             return convertedItem;
           });
