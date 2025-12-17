@@ -2,11 +2,12 @@
 
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import type { Segment, ContentUnit, LanguageBlock } from '@/lib/types';
+import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface SegmentRendererProps {
   segment: Segment;
