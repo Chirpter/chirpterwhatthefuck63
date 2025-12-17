@@ -194,11 +194,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
   };
 
   const isReadable = book.contentState === 'ready';
-  const ReaderLinkWrapper = (isReadable && !onPurchase) ? Link : 'div';
-  const readerLinkProps = (isReadable && !onPurchase) ? { href: `/read/${book.id}` } : {};
-  
   const authorNameToDisplay = book.author || user?.displayName;
-
   const ownedBookmarkIds = new Set(user?.ownedBookmarkIds || []);
   
   const bookmarksForSelector = useMemo(() => {
@@ -259,25 +255,37 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
     }
   };
 
+  const coverImageComponent = (
+    <CoverImage 
+      title={titleToDisplay}
+      author={authorNameToDisplay}
+      coverStatus={book.coverState}
+      cover={book.cover}
+      imageHint={book.imageHint}
+      className="w-full h-full"
+      onRegenerate={handleCoverRetry}
+      isRetrying={isRetryingCover}
+      isPromptError={!!isCoverPromptError}
+      retryCount={book.coverRetries || 0}
+    />
+  );
+  
+  const coverClasses = cn("relative block w-full aspect-[3/4] rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 z-10 cover-shadow-overlay", isReadable && "hover:shadow-xl");
+
 
   return (
     <>
     <div className="flex flex-col break-inside-avoid">
       <div className="relative group/cover"> 
-        <ReaderLinkWrapper {...readerLinkProps} className={cn("relative block w-full aspect-[3/4] rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 z-10 cover-shadow-overlay", isReadable && "hover:shadow-xl")}>
-          <CoverImage 
-            title={titleToDisplay}
-            author={authorNameToDisplay}
-            coverStatus={book.coverState}
-            cover={book.cover}
-            imageHint={book.imageHint}
-            className="w-full h-full"
-            onRegenerate={handleCoverRetry}
-            isRetrying={isRetryingCover}
-            isPromptError={!!isCoverPromptError}
-            retryCount={book.coverRetries || 0}
-          />
-        </ReaderLinkWrapper>
+         {isReadable && !onPurchase ? (
+              <Link href={`/read/${book.id}`} className={coverClasses}>
+                {coverImageComponent}
+              </Link>
+            ) : (
+              <div className={coverClasses}>
+                {coverImageComponent}
+              </div>
+            )}
         {!onPurchase && (
           <>
             <div className="absolute top-0 left-0 w-12 h-full bg-gradient-to-r from-black/50 to-transparent opacity-0 group-hover/cover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center gap-2 z-20">
@@ -365,9 +373,11 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
                   )}
               </div>
                <CardTitle className="font-headline text-base font-bold leading-snug truncate" title={titleToDisplay}>
-                  <ReaderLinkWrapper {...readerLinkProps}>
-                    {titleToDisplay}
-                  </ReaderLinkWrapper>
+                 {isReadable && !onPurchase ? (
+                    <Link href={`/read/${book.id}`}>{titleToDisplay}</Link>
+                  ) : (
+                    <div>{titleToDisplay}</div>
+                  )}
               </CardTitle>
             </div>
           </CardContent>
