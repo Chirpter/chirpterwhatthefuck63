@@ -131,7 +131,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             tags: [],
             presentationStyle: pieceFormData.presentationStyle || 'card',
             aspectRatio: pieceFormData.aspectRatio,
-            content: [], // Start with empty content array
+            content: "", // Start with empty content string
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
             isBilingual: pieceFormData.availableLanguages.length > 1,
@@ -217,14 +217,12 @@ async function generatePieceContent(
 
         const titlePair = extractBilingualPair(aiOutput.title, primaryLanguage, secondaryLanguage);
         
-        // ✅ SEGMENTATION STEP
-        const segments = parseMarkdownToSegments(aiOutput.markdownContent, pieceFormData.origin, pieceFormData.unit);
-        parsedData = { title: titlePair, segmentsCount: segments.length };
+        parsedData = { title: titlePair };
         debugData.parsedData = parsedData;
         
         return {
           title: titlePair,
-          content: segments, // Store array of Segments
+          content: aiOutput.markdownContent, // Store raw markdown
           debug: debugData,
         };
 

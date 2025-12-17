@@ -35,9 +35,6 @@ export const usePagination = ({
   const isCalculatingRef = useRef(false);
   const lastDepsRef = useRef<string>('');
 
-  /**
-   * ✅ Dependency key để tránh recalculate không cần thiết
-   */
   const createDepsKey = useCallback(() => {
     return JSON.stringify({
       segmentCount: segments.length,
@@ -51,9 +48,6 @@ export const usePagination = ({
     });
   }, [segments.length, containerRef, displayLang1, displayLang2, unit, presentationStyle, aspectRatio]);
 
-  /**
-   * ✅ MAIN PAGINATION FUNCTION
-   */
   const performPagination = useCallback(async () => {
     if (!isEnabled) {
       setIsCalculating(false);
@@ -61,12 +55,10 @@ export const usePagination = ({
     }
     
     if (!containerRef.current) {
-      console.log('[usePagination] ⏳ Waiting for container...');
       return;
     }
     
     if (!segments || segments.length === 0) {
-      console.log('[usePagination] No segments');
       setIsCalculating(false);
       setPages([]);
       setChapterStartPages([]);
@@ -75,13 +67,11 @@ export const usePagination = ({
     
     const currentDepsKey = createDepsKey();
     if (currentDepsKey === lastDepsRef.current && pages.length > 0) {
-      console.log('[usePagination] ⏭️ Skip - no changes');
-      setIsCalculating(false); // Ensure loading state is turned off
+      setIsCalculating(false);
       return;
     }
     
     if (isCalculatingRef.current) {
-      console.log('[usePagination] ⏸️ Already calculating...');
       return;
     }
     
@@ -112,7 +102,6 @@ export const usePagination = ({
       console.error('[usePagination] ❌ Error:', err);
       setError((err as Error).message);
       
-      // Fallback
       setPages([{
         pageIndex: 0,
         items: segments,
@@ -137,9 +126,6 @@ export const usePagination = ({
     pages.length
   ]);
 
-  /**
-   * ✅ TRIGGER on deps change
-   */
   useEffect(() => {
     const timer = setTimeout(() => {
       performPagination();
@@ -148,14 +134,10 @@ export const usePagination = ({
     return () => clearTimeout(timer);
   }, [performPagination]);
 
-  /**
-   * ✅ RESIZE OBSERVER
-   */
   useEffect(() => {
     if (!containerRef.current) return;
     
     const observer = new ResizeObserver(() => {
-      console.log('[usePagination] 📐 Container resized');
       lastDepsRef.current = '';
       performPagination();
     });
@@ -164,9 +146,6 @@ export const usePagination = ({
     return () => observer.disconnect();
   }, [containerRef, performPagination]);
 
-  /**
-   * ✅ NAVIGATION
-   */
   const goToPage = useCallback((pageIndex: number) => {
     if (isCalculating) return;
     const newIndex = Math.max(0, Math.min(pageIndex, pages.length - 1));

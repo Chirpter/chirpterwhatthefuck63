@@ -3,11 +3,9 @@
 
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import type { LibraryItem, EditorSettings, Page } from '@/lib/types';
+import type { LibraryItem, EditorSettings, Page, Segment } from '@/lib/types';
 import { SegmentRenderer } from './SegmentRenderer';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
-import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
-
 
 interface ContentPageRendererProps {
   page: Page;
@@ -30,18 +28,11 @@ export function ContentPageRenderer({
   const segments = page?.items || [];
   
   const currentSpokenSegment = useMemo(() => {
+    // This logic needs review and might be simplified based on how AudioEngine works with raw markdown
     if (!itemData || !currentPlayingItem || currentPlayingItem.id !== itemData.id || !position || !itemData.content) {
       return null;
     }
-    
-    // ✅ This logic needs to be updated to work with the flat segment structure
-    // The TTS engine will need to provide enough context to find the right segment
-    const allSegments = parseMarkdownToSegments(itemData.content, itemData.origin, itemData.unit);
-    const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
-    if (!spokenSegmentFromEngine) return null;
-    
-    return allSegments.find(s => s.id === spokenSegmentFromEngine.originalSegmentId) || null;
-
+    return null; // Placeholder until audio engine sync is refactored for raw content
   }, [currentPlayingItem, itemData, position]);
 
   const currentPlayingSegmentId = currentSpokenSegment?.id || null;
@@ -59,7 +50,6 @@ export function ContentPageRenderer({
   }, [editorSettings.background]);
   
   const proseSizeClass = useMemo(() => {
-    // ONLY apply user-configurable font size for 'book' presentation style
     if (presentationStyle === 'book') {
         switch(editorSettings.fontSize) {
             case 'sm': return 'prose-sm';
@@ -67,7 +57,6 @@ export function ContentPageRenderer({
             default: return 'prose-base';
         }
     }
-    // For 'doc' and 'card', ALWAYS use the dynamic CQI-based font size
     return 'prose-dynamic';
   }, [presentationStyle, editorSettings.fontSize]);
 
@@ -79,7 +68,6 @@ export function ContentPageRenderer({
             editorSettings.textAlign
         );
     }
-    // For 'book' style
     return 'p-8 md:p-12';
   }, [presentationStyle, editorSettings]);
   

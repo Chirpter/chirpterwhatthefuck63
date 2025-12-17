@@ -169,7 +169,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         updatedAt: FieldValue.serverTimestamp(),
         unit: bookFormData.unit,
         labels: [],
-        content: [], // Start with empty content array
+        content: "", // Start with empty content string
     };
     transaction.set(newBookRef, removeUndefinedProps(initialBookData));
     bookId = newBookRef.id;
@@ -262,14 +262,11 @@ async function processContentGenerationForBook(
         
         const titlePair = extractBilingualPair(aiOutput.title, primaryLanguage, secondaryLanguage);
         
-        // ✅ SEGMENTATION STEP (Server-side)
-        const segments = parseMarkdownToSegments(aiOutput.markdownContent, origin, contentInput.unit || 'sentence');
-        
-        debugData.parsedData = { title: titlePair, segmentsCount: segments.length };
+        debugData.parsedData = { title: titlePair };
         
         return {
           title: titlePair,
-          content: segments, // Store the array of Segments
+          content: aiOutput.markdownContent, // Store the raw markdown string
           unit: origin.endsWith('-ph') ? 'phrase' : 'sentence',
           contentState: 'ready',
           contentRetries: 0,

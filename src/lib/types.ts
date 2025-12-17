@@ -30,12 +30,8 @@ export type MultilingualContent = {
 
 export type ContentUnit = 'sentence' | 'phrase';
 
-/**
- * @interface Segment
- * @description The fundamental building block of all content. Represents a structured element.
- * This is now the primary data structure saved in Firestore, generated on the server.
- * The `type` field is optional and only used for special cases like headings.
- */
+// ✅ REMOVED: The Segment interface is no longer a core data type stored in the DB.
+// It will be a transient type generated on the client by a parser.
 export interface Segment {
   id: string;
   order: number;
@@ -44,26 +40,13 @@ export interface Segment {
 }
 
 
-export interface ChapterStats {
-  totalSegments: number;
-  totalWords: number;
-  estimatedReadingTime: number; // Added field for estimated reading time
-}
-
-export type ChapterTitle = MultilingualContent;
-
-
-/**
- * @interface Chapter
- * @description A CLIENT-SIDE construct representing a chapter. It's generated dynamically
- * by the client by parsing an array of Segments. It is NOT stored in the database.
- */
+// ✅ REMOVED: Chapter is no longer a stored data type.
+// It will be inferred on the client by parsing the raw markdown content.
 export interface Chapter {
   id: string;
   order: number;
-  title: ChapterTitle;
+  title: MultilingualContent;
   segments: Segment[];
-  stats: ChapterStats;
 }
 
 
@@ -188,8 +171,8 @@ interface BaseLibraryItem extends BaseDocument {
   tags?: string[];
   labels?: string[];
   unit: ContentUnit;
-  // ✅ UPDATED: The 'content' field is now an array of Segments.
-  content: Segment[]; 
+  // ✅ UPDATED: The 'content' field is now a single string holding the raw Markdown.
+  content: string; 
 }
 
 

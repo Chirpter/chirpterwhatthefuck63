@@ -1,1 +1,1 @@
-export * from './MarkdownParser';
+export * from './SegmentParser';

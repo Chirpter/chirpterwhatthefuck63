@@ -57,21 +57,18 @@ const renderSegmentContent = (
   unit: ContentUnit
 ) => {
   const { content, type } = segment;
+  const primaryText = content[displayLang1] as string || '';
+  const secondaryText = content[displayLang2] as string || '';
 
   // --- Monolingual Mode ---
   if (!isBilingualMode) {
-    const monolingualText = content[displayLang1] as string || '';
-    if (!monolingualText) return null;
-    
+    if (!primaryText) return null;
     const boundary = isSegmentPlaying ? speechBoundary : null;
-    return <ContentRenderer text={monolingualText} boundary={boundary} />;
+    return <ContentRenderer text={primaryText} boundary={boundary} />;
   }
 
   // --- Bilingual Sentence Mode ---
   if (unit === 'sentence') {
-    const primaryText = content[displayLang1] as string || '';
-    const secondaryText = content[displayLang2] as string || '';
-    
     return (
       <>
         <div lang={displayLang1} className={cn("mb-1", isSegmentPlaying && spokenLang === displayLang1 && 'tts-highlight')}>
@@ -85,32 +82,9 @@ const renderSegmentContent = (
       </>
     );
   }
-
-  // --- Bilingual Phrase Mode ---
-  if (unit === 'phrase') {
-      const primaryPhrases = content[displayLang1] as string[] || [];
-      const secondaryPhrases = content[displayLang2] as string[] || [];
-
-      return (
-        <>
-            {primaryPhrases.map((phrase, index) => {
-                const secondaryPhrase = secondaryPhrases[index] || '';
-                return (
-                    <span key={index} className="inline-block whitespace-nowrap mr-1">
-                        <ContentRenderer text={phrase} />
-                        {secondaryPhrase && (
-                            <span className="text-muted-foreground italic text-[0.9em] ml-1">
-                                (<ContentRenderer text={secondaryPhrase} />)
-                            </span>
-                        )}
-                    </span>
-                );
-            })}
-        </>
-      );
-  }
   
-  return null;
+  // --- Fallback for other units or default behavior ---
+  return <ContentRenderer text={primaryText} />;
 };
 
 export const SegmentRenderer: React.FC<SegmentRendererProps> = ({ 
@@ -123,7 +97,6 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     displayLang2,
     unit
 }) => {
-  // Determine the wrapper component based on segment type
   const Wrapper = segment.type === 'heading1' ? 'h1' : 'div';
   
   const blockClass = segment.type === 'heading1' 
@@ -133,7 +106,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
       : 'inline';
 
   return (
-    <Wrapper data-segment-id={segment.id} className={cn(blockClass, isPlaying && spokenLang === displayLang1 && unit === 'sentence' && 'tts-highlight')}>
+    <Wrapper data-segment-id={segment.id} className={cn(blockClass)}>
       {renderSegmentContent(
         segment, 
         displayLang1, 
@@ -144,7 +117,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
         speechBoundary, 
         unit
       )}
-      {segment.type !== 'heading1' && unit === 'sentence' && ' '}
+      {segment.type !== 'heading1' && unit === 'sentence' && !isBilingualMode && ' '}
     </Wrapper>
   );
 };

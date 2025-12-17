@@ -3,9 +3,10 @@
 
 import { collection, query, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { LibraryItem } from '@/lib/types';
+import type { LibraryItem, Segment } from '@/lib/types';
 import { convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
+import { parseMarkdownToSegments } from '../shared/SegmentParser';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -25,8 +26,15 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
         if (docSnap.exists()) {
             const rawData = docSnap.data();
             const item = { id: docSnap.id, ...rawData };
-            // Ensure any timestamp objects are converted before returning
-            return convertTimestamps(item) as LibraryItem;
+            
+            const convertedItem = convertTimestamps(item) as LibraryItem;
+
+            // Perform client-side parsing if content exists
+            if (convertedItem.content && typeof convertedItem.content === 'string') {
+                convertedItem.content = parseMarkdownToSegments(convertedItem.content, convertedItem.origin) as any;
+            }
+
+            return convertedItem;
         }
         return null;
     } catch (error) {
@@ -54,7 +62,12 @@ export async function getLibraryItemsByIds(userId: string, itemIds: string[]): P
           .map(snap => {
             const rawData = snap.data();
             const itemWithId = { id: snap.id, ...rawData };
-            return convertTimestamps(itemWithId) as LibraryItem;
+            const convertedItem = convertTimestamps(itemWithId) as LibraryItem;
+
+            if (convertedItem.content && typeof convertedItem.content === 'string') {
+                convertedItem.content = parseMarkdownToSegments(convertedItem.content, convertedItem.origin) as any;
+            }
+            return convertedItem;
           });
     } catch (error) {
       console.error('Error in getLibraryItemsByIds (client):', error);

@@ -11,6 +11,7 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
 import type { Book, LibraryItem, VocabContext, Chapter, Segment, MultilingualContent } from '@/lib/types';
+import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
@@ -63,7 +64,8 @@ export default function BookReader({ book }: { book: Book }) {
   const { chapters, allBookSegments } = useMemo(() => {
     if (!book.content) return { chapters: [], allBookSegments: [] };
     
-    const allSegments = book.content; // Use the Segment[] array directly
+    const allSegments = parseMarkdownToSegments(book.content, book.origin); // unit is implicit now
+    
     const chapterList: Chapter[] = [];
     let currentChapterSegments: Segment[] = [];
     let currentChapterTitle: MultilingualContent = { [displayLang1]: 'Introduction' };
@@ -77,41 +79,35 @@ export default function BookReader({ book }: { book: Book }) {
                 order: chapterList.length,
                 title: currentChapterTitle,
                 segments: currentChapterSegments,
-                stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
             });
         }
         currentChapterSegments = [];
         currentChapterTitle = seg.content;
         currentChapterId = seg.id;
       } else {
-        // Add segment to the current chapter buffer
-        if (currentChapterSegments.length === 0 && chapterList.length === 0) {
-            // Handle content before the first H1
-             chapterList.push({
+        if (chapterList.length === 0 && currentChapterSegments.length === 0) {
+            chapterList.push({
                 id: currentChapterId,
                 order: 0,
                 title: currentChapterTitle,
                 segments: [],
-                stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
             });
         }
         currentChapterSegments.push(seg);
       }
     });
     
-    // Add the last collected chapter
     if (currentChapterSegments.length > 0) {
         chapterList.push({
             id: currentChapterId,
             order: chapterList.length,
             title: currentChapterTitle,
             segments: currentChapterSegments,
-            stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
         });
     }
 
-    return { chapters: chapterList, allBookSegments };
-  }, [book.content, displayLang1]);
+    return { chapters: chapterList, allBookSegments: allSegments };
+  }, [book.content, book.origin, displayLang1]);
 
 
   const {
