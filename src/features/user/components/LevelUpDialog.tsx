@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { motion } from 'framer-motion';
-import type { LevelUpInfo } from '@/contexts/user-context'; // Corrected import path
+import type { LevelUpInfo } from '@/contexts/user-context';
 
 interface LevelUpDialogProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ interface LevelUpDialogProps {
 }
 
 const LevelUpDialog: React.FC<LevelUpDialogProps> = ({ isOpen, onClose, levelUpInfo }) => {
-  if (!levelUpInfo) return null; // Don't render if no info
+  if (!levelUpInfo) return null;
   
   const { newLevel, oldLevel } = levelUpInfo;
   const isNewUser = oldLevel === 0 && newLevel === 1;
