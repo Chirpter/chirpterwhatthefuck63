@@ -2,12 +2,10 @@
 
 "use client";
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { cn } from '@/lib/utils';
 import type { Segment, ContentUnit, LanguageBlock } from '@/lib/types';
-import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface SegmentRendererProps {
   segment: Segment;
@@ -19,11 +17,6 @@ interface SegmentRendererProps {
 
 /**
  * Reconstructs the final markdown string from a segment object based on display settings.
- * @param segment - The structured segment object.
- * @param displayLang1 - The primary language to display.
- * @param displayLang2 - The secondary language to display ('none' if monolingual).
- * @param unit - The unit for bilingual display ('sentence' or 'phrase').
- * @returns A markdown-ready string.
  */
 function reconstructMarkdown(
     segment: Segment,
@@ -67,7 +60,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
 
   return (
     <div data-segment-id={segment.id}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalMarkdown}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} allowDangerousHtml>{finalMarkdown}</ReactMarkdown>
     </div>
   );
 };
