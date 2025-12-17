@@ -8,7 +8,6 @@ import { useUser } from '@/contexts/user-context';
 
 interface ProgressInfo {
     overallProgress: number;
-    chapterProgress: number;
     chapterIndex: number;
 }
 
@@ -62,13 +61,13 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
     
     const calculatedProgress = useMemo((): ProgressInfo => {
         if (!item || item.type !== 'book' || !progress) {
-            return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
+            return { overallProgress: 0, chapterIndex: 0 };
         }
         
         const book = item as Book;
         const segments = book.content || [];
         if (segments.length === 0) {
-            return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
+            return { overallProgress: 0, chapterIndex: 0 };
         }
 
         const chapterHeadings = segments.map((seg, index) => ({ seg, index }))
@@ -76,30 +75,17 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
 
         const chapterStartIndexMap = chapterHeadings.map(ch => ch.index);
 
-        let chapterStartIndex = 0;
-        let chapterEndIndex = segments.length - 1;
         let currentChapterIndex = 0;
         
-        for (let i = 0; i < chapterStartIndexMap.length; i++) {
-            if (progress.segmentIndex >= chapterStartIndexMap[i]) {
-                currentChapterIndex = i;
-                chapterStartIndex = chapterStartIndexMap[i];
-                chapterEndIndex = (i + 1 < chapterStartIndexMap.length) ? chapterStartIndexMap[i + 1] - 1 : segments.length - 1;
-            } else {
-                break;
-            }
-        }
-        
-        const segmentsInCurrentChapter = chapterEndIndex - chapterStartIndex + 1;
-        const segmentsPlayedInCurrentChapter = progress.segmentIndex - chapterStartIndex;
-
+        // This is simplified. For the audio engine, the `segmentIndex` would refer to the index
+        // in the flattened, multi-lingual `speechSegments` array, not the original `content` array.
+        // A more accurate progress would require a more complex mapping.
+        // For now, we assume a rough 1-to-1 mapping for display purposes.
         const overallProgress = (progress.segmentIndex / segments.length) * 100;
-        const chapterProgress = segmentsInCurrentChapter > 0 ? (segmentsPlayedInCurrentChapter / segmentsInCurrentChapter) * 100 : 0;
         
         return {
             overallProgress,
-            chapterProgress,
-            chapterIndex: currentChapterIndex,
+            chapterIndex: 0, // Simplified, as we no longer have chapterIndex in audio progress state
         };
 
     }, [item, progress]);

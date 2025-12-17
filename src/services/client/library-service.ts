@@ -34,6 +34,7 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
             // @ts-ignore
             if (convertedItem.content && typeof convertedItem.content === 'string') {
                 console.warn(`[Compatibility] Parsing legacy string content for item ${itemId}`);
+                // @ts-ignore
                 const segments = segmentize(convertedItem.content as string, convertedItem.origin);
                 convertedItem.content = segments;
             }
@@ -71,6 +72,7 @@ export async function getLibraryItemsByIds(userId: string, itemIds: string[]): P
 
             // @ts-ignore
             if (convertedItem.content && typeof convertedItem.content === 'string') {
+                // @ts-ignore
                 const segments = segmentize(convertedItem.content as string, convertedItem.origin);
                 convertedItem.content = segments;
             }

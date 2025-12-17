@@ -1,4 +1,4 @@
-
+// src/features/player/services/AudioEngine.ts
 
 /**
  * ============================================
@@ -15,9 +15,8 @@
 import type {
   PlaylistItem,
   Book,
-  Chapter,
-  Segment,
   VocabularyItem,
+  Segment,
 } from '@/lib/types';
 import * as ttsService from '@/services/client/tts.service';
 import { getSystemVoices } from '@/services/client/tts.service';
@@ -35,9 +34,9 @@ export type PlaybackStatus =
 
 export interface PlaybackPosition {
   playlistIndex: number;        // -1 = nothing playing
-  chapterIndex: number | null;  // null for vocab
   segmentIndex: number;
   wordBoundary: { charIndex: number; charLength: number } | null; // For text highlighting
+  originalSegmentId: string | null; // To link back to the source Segment
 }
 
 export interface AudioSettings {
@@ -72,9 +71,7 @@ interface SpeechSegment {
 
 // Cache for expensive computations (NOT in state)
 interface BookCache {
-  totalSegmentsInBook: number; // Total original segments in the whole book
-  totalSpokenSegmentsInChapter: number; // Spoken segments for the CURRENT chapter
-  cumulativeOriginalSegments: number; // Original segments up to the start of the current chapter
+  totalSegments: number;
 }
 
 // External event listener
@@ -129,7 +126,6 @@ class AudioEngine {
   public async play(
     item: PlaylistItem,
     options?: { 
-      chapterIndex?: number; 
       segmentIndex?: number;
       playbackLanguages?: string[];
     }
@@ -147,9 +143,9 @@ class AudioEngine {
       // 3. Set position
       this.setPosition({
         playlistIndex,
-        chapterIndex: options?.chapterIndex ?? (item.type === 'book' ? 0 : null),
         segmentIndex: options?.segmentIndex ?? 0,
         wordBoundary: null,
+        originalSegmentId: null,
       });
       
       // 4. Load track data
@@ -190,7 +186,7 @@ class AudioEngine {
     this.clearCache();
     this.clearSleepTimer();
     this.setStatus({ type: 'idle' });
-    this.setPosition({ playlistIndex: -1, chapterIndex: null, segmentIndex: 0, wordBoundary: null });
+    this.setPosition({ playlistIndex: -1, segmentIndex: 0, wordBoundary: null, originalSegmentId: null });
   }
   
   public skipForward(): void {
@@ -200,7 +196,7 @@ class AudioEngine {
     if (nextIndex < this.segmentsCache.length) {
       this.seekToSegment(nextIndex);
     } else {
-      this.nextChapter();
+      this.nextTrack(); // End of track
     }
   }
   
@@ -242,9 +238,9 @@ class AudioEngine {
     
     this.setPosition({
       playlistIndex,
-      chapterIndex: track.type === 'book' ? 0 : null,
       segmentIndex: 0,
       wordBoundary: null,
+      originalSegmentId: null,
     });
     
     await this.loadAndPlayTrack(track);
@@ -392,33 +388,7 @@ class AudioEngine {
   }
   
   get progress(): number {
-    const track = this.currentTrack;
-    if (!track || !this.bookStatsCache) return 0;
-    
     const { position } = this.state;
-    
-    if (track.type === 'book' && position.chapterIndex !== null) {
-      // Spoken segments so far in THIS chapter
-      const spokenSegmentsInChapter = this.state.position.segmentIndex;
-      
-      // Total original segments up to the PREVIOUS chapter
-      const originalSegmentsBefore = this.bookStatsCache.cumulativeOriginalSegments;
-
-      // The correct number of spoken segments before this chapter starts
-      const cumulativeSpokenSegmentsBefore = originalSegmentsBefore * this.currentPlaybackLanguages.length;
-
-      // Total original segments in the WHOLE book
-      const totalOriginalSegmentsInBook = this.bookStatsCache.totalSegmentsInBook;
-
-      // Total spoken segments in the WHOLE book
-      const totalSpokenSegmentsInBook = totalOriginalSegmentsInBook * this.currentPlaybackLanguages.length;
-      
-      if (totalSpokenSegmentsInBook === 0) return 0;
-      
-      const totalPlayedSoFar = cumulativeSpokenSegmentsBefore + spokenSegmentsInChapter;
-      
-      return (totalPlayedSoFar / totalSpokenSegmentsInBook) * 100;
-    }
     
     if (this.segmentsCache.length > 0) {
       return ((position.segmentIndex + 1) / this.segmentsCache.length) * 100;
@@ -487,9 +457,9 @@ class AudioEngine {
         throw new Error('No playable segments');
       }
       
-      // 2. Calculate stats (for books)
+      // 2. Cache stats
       if (item.type === 'book' && item.data) {
-        this.bookStatsCache = this.calculateBookStats(item.data as Book, this.state.position.chapterIndex ?? 0);
+        this.bookStatsCache = this.calculateBookStats(item.data as Book);
       }
       
       // 3. Validate position
@@ -513,6 +483,8 @@ class AudioEngine {
       this.onSegmentEnd();
       return;
     }
+
+    this.updatePosition({ originalSegmentId: segment.originalSegmentId });
     
     const { tts } = this.state.settings;
     
@@ -543,9 +515,9 @@ class AudioEngine {
   private onSegmentEnd(): void {
     this.updatePosition({ wordBoundary: null });
 
-    // ✅ FIX: Correctly handle repeat mode
+    // Handle repeat mode for the current segment
     if (this.state.settings.repeat.track === 'item') {
-      this.speakCurrentSegment(); // Re-speak the current segment
+      this.speakCurrentSegment();
       return;
     }
 
@@ -553,29 +525,6 @@ class AudioEngine {
     if (nextIndex < this.segmentsCache.length) {
       this.updatePosition({ segmentIndex: nextIndex });
       this.speakCurrentSegment();
-    } else {
-      this.nextChapter();
-    }
-  }
-  
-  private nextChapter(): void {
-    const track = this.currentTrack;
-    if (!track || track.type !== 'book' || !track.data) {
-      this.nextTrack();
-      return;
-    }
-    
-    const { position } = this.state;
-    const nextChapterIndex = (position.chapterIndex ?? 0) + 1;
-    
-    if (nextChapterIndex < ((track.data as Book).chapters?.length || 0)) {
-      this.setPosition({
-        ...position,
-        chapterIndex: nextChapterIndex,
-        segmentIndex: 0,
-        wordBoundary: null,
-      });
-      this.loadAndPlayTrack(track);
     } else {
       this.nextTrack();
     }
@@ -587,7 +536,7 @@ class AudioEngine {
   
   private async generateSegments(item: PlaylistItem): Promise<SpeechSegment[]> {
     if (item.type === 'book' && item.data) {
-      return this.generateBookSegments(item.data as Book, this.state.position.chapterIndex ?? 0);
+      return this.generateBookSegments(item.data as Book);
     }
     
     if (item.type === 'vocab') {
@@ -597,18 +546,18 @@ class AudioEngine {
     return [];
   }
   
-  private generateBookSegments(book: Book, chapterIndex: number): SpeechSegment[] {
-    const chapter = book.chapters?.[chapterIndex];
-    if (!chapter?.segments) return [];
+  private generateBookSegments(book: Book): SpeechSegment[] {
+    const segments = book.content || [];
+    if (!segments) return [];
   
     const speechSegments: SpeechSegment[] = [];
   
-    for (const seg of chapter.segments) {
+    for (const seg of segments) {
       // Filter out languages not in the current playback selection
-      const languagesToPlay = this.currentPlaybackLanguages.filter(lang => seg.content[lang]);
+      const languagesToPlay = this.currentPlaybackLanguages.filter(lang => seg.content[1][lang]);
       
       for (const lang of languagesToPlay) {
-        const text = seg.content[lang]?.trim();
+        const text = seg.content[1][lang]?.trim();
         if (text) {
           speechSegments.push({
             text,
@@ -633,39 +582,21 @@ class AudioEngine {
 
     for (const vocab of items) {
       if (vocab.term) {
-        speechSegments.push({ text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${'${vocab.id}'}-term` });
+        speechSegments.push({ text: vocab.term, lang: vocab.termLanguage, originalSegmentId: `${vocab.id}-term` });
       }
       if (vocab.meaning) {
-        speechSegments.push({ text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${'${vocab.id}'}-meaning` });
+        speechSegments.push({ text: vocab.meaning, lang: vocab.meaningLanguage, originalSegmentId: `${vocab.id}-meaning` });
       }
       if (vocab.example) {
-        speechSegments.push({ text: vocab.example, lang: vocab.exampleLanguage || vocab.termLanguage, originalSegmentId: `${'${vocab.id}'}-example` });
+        speechSegments.push({ text: vocab.example, lang: vocab.exampleLanguage || vocab.termLanguage, originalSegmentId: `${vocab.id}-example` });
       }
     }
     return speechSegments;
   }
   
-  private calculateBookStats(book: Book, currentChapterIndex: number): BookCache {
-    let totalSegmentsInBook = 0;
-    let cumulativeOriginalSegments = 0;
-    
-    book.chapters?.forEach((chapter, index) => {
-      const segmentCount = chapter.segments?.length || 0;
-      totalSegmentsInBook += segmentCount;
-      if (index < currentChapterIndex) {
-        cumulativeOriginalSegments += segmentCount;
-      }
-    });
-
-    const currentChapter = book.chapters?.[currentChapterIndex];
-    // Correctly calculate spoken segments by accounting for multiple languages
-    const totalSpokenSegmentsInChapter = (currentChapter?.segments?.length || 0) * this.currentPlaybackLanguages.length;
-    
-    return {
-      totalSegmentsInBook,
-      totalSpokenSegmentsInChapter,
-      cumulativeOriginalSegments,
-    };
+  private calculateBookStats(book: Book): BookCache {
+    const totalSegments = book.content?.length || 0;
+    return { totalSegments };
   }
   
   // ============================================
@@ -676,7 +607,7 @@ class AudioEngine {
     const existingIndex = this.state.playlist.findIndex(p => p.id === item.id);
     
     if (existingIndex !== -1) {
-      // ✅ FIX: Update data if exists to ensure freshness
+      // Update data if exists to ensure freshness
       const newPlaylist = [...this.state.playlist];
       newPlaylist[existingIndex] = item;
       this.setState({ playlist: newPlaylist });
@@ -732,9 +663,9 @@ class AudioEngine {
       playlist: [],
       position: {
         playlistIndex: -1,
-        chapterIndex: null,
         segmentIndex: 0,
         wordBoundary: null,
+        originalSegmentId: null,
       },
       settings: {
         tts: {

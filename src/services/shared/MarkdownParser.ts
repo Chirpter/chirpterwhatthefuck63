@@ -1,6 +1,6 @@
 // src/services/shared/MarkdownParser.ts
 
-import type { Segment, Book, Piece, MultilingualContent, LanguageBlock } from '@/lib/types';
+import type { Segment, Book, Piece, MultilingualContent, LibraryItem } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 import { segmentize } from './SegmentParser';
 
@@ -9,7 +9,7 @@ import { segmentize } from './SegmentParser';
  */
 function calculateTotalWords(segments: Segment[], primaryLang: string): number {
     return segments.reduce((sum, seg) => {
-        const langBlock = seg.content.find(c => typeof c === 'object') as LanguageBlock | undefined;
+        const langBlock = seg.content.find(c => typeof c === 'object') as MultilingualContent | undefined;
         if (langBlock && langBlock[primaryLang]) {
             const text = langBlock[primaryLang];
             return sum + (text.split(/\s+/).filter(Boolean).length || 0);
@@ -23,13 +23,10 @@ function calculateTotalWords(segments: Segment[], primaryLang: string): number {
  * Helper to extract segments from library items.
  */
 export function getItemSegments(
-    item: Book | Piece | null
+    item: LibraryItem | null
 ): Segment[] {
     if (!item) return [];
 
     // The content is already a Segment[] array, so just return it.
-    if(item.type === 'book' || item.type === 'piece') {
-        return item.content || [];
-    }
-    return [];
+    return item.content || [];
 }

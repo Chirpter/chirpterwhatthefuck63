@@ -145,11 +145,18 @@ export interface BaseDocument {
     completedAt?: any;
 }
 
+/**
+ * @interface BaseLibraryItem (The "Literature Item")
+ * @description The core shared structure for all content types in the user's library.
+ */
 interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
-  type: 'book' | 'piece';
   title: MultilingualContent;
+  content: Segment[];
+  contentState: JobStatus;
+  contentError?: string;
+  contentRetries?: number;
   origin: string;
   langs: string[];
   status: OverallStatus;
@@ -158,26 +165,21 @@ interface BaseLibraryItem extends BaseDocument {
   price?: number;
   originId?: string;
   prompt?: string;
-  presentationStyle: 'book' | 'doc' | 'card';
   tags?: string[];
   labels?: string[];
   unit: ContentUnit;
 }
 
-
 export type BookLengthOptionValue = typeof BOOK_LENGTH_OPTIONS[number]['value'];
 
 /**
  * @interface Book
- * @description Represents a full book. Inherits from BaseLibraryItem.
+ * @description Represents a full book. Extends BaseLibraryItem with book-specific metadata.
  */
 export interface Book extends BaseLibraryItem {
   type: 'book';
-  presentationStyle: 'book'; // OVERRIDE for clarity
+  presentationStyle: 'book';
   author?: string;
-  contentState: JobStatus;
-  contentError?: string;
-  contentRetries?: number;
   coverState: JobStatus;
   coverError?: string;
   cover?: Cover;
@@ -185,26 +187,21 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
-  content: Segment[];
 }
 
 /**
  * @interface Piece
- * @description Represents a shorter, single-part work. Inherits from BaseLibraryItem.
+ * @description Represents a shorter, single-part work. Extends BaseLibraryItem with piece-specific metadata.
  */
 export interface Piece extends BaseLibraryItem {
   type: 'piece';
-  presentationStyle: 'doc' | 'card'; // OVERRIDE for clarity
-  contentState: JobStatus;
-  contentError?: string;
-  contentRetryCount?: number;
+  presentationStyle: 'doc' | 'card';
   aspectRatio?: '1:1' | '3:4' | '4:3';
   contextData?: {
     startTime?: number;
     endTime?: number;
   };
   isBilingual?: boolean;
-  content: Segment[];
 }
 
 export type LibraryItem = Book | Piece;

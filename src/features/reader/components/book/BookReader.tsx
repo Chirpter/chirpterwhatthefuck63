@@ -91,8 +91,8 @@ export default function BookReader({ book }: { book: Book }) {
     const chapterData: { title: MultilingualContent, segmentId: string }[] = [];
     allBookSegments.forEach(segment => {
       const firstContent = segment.content[0];
+      const langBlock = segment.content[1] as LanguageBlock;
       if (typeof firstContent === 'string' && firstContent.startsWith('#')) {
-        const langBlock = segment.content.find(c => typeof c === 'object') as MultilingualContent | undefined;
         if(langBlock) {
           chapterData.push({ title: langBlock, segmentId: segment.id });
         }
@@ -154,10 +154,10 @@ export default function BookReader({ book }: { book: Book }) {
 
         if (segmentElement) {
             segmentId = segmentElement.dataset.segmentId;
-            const spanElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('span[lang]');
-            if (spanElement) {
-                sentenceContext = spanElement.textContent || '';
-                sourceLang = spanElement.lang || sourceLang;
+            const langBlockElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[lang]');
+            if (langBlockElement) {
+                sentenceContext = langBlockElement.textContent || '';
+                sourceLang = langBlockElement.lang || sourceLang;
             } else {
                 sentenceContext = segmentElement.textContent || '';
             }

@@ -64,7 +64,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
             content: contentResult.content,
             contentState: 'ready',
             status: 'draft',
-            contentRetryCount: 0,
+            contentRetries: 0,
             debug: contentResult.debug,
         };
     } catch (err) {
@@ -114,13 +114,13 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             title: { [primaryLanguage]: pieceFormData.aiPrompt.substring(0, 50) },
             status: 'processing',
             contentState: 'processing',
-            contentRetryCount: 0,
+            contentRetries: 0,
             origin: pieceFormData.origin,
             langs: pieceFormData.availableLanguages,
             unit: pieceFormData.unit,
             prompt: pieceFormData.aiPrompt,
             tags: [],
-            presentationStyle: pieceFormData.presentationStyle || 'card',
+            presentationStyle: pieceFormData.presentationStyle as 'doc' | 'card',
             aspectRatio: pieceFormData.aspectRatio,
             content: [], // Initialize with empty segments
             createdAt: FieldValue.serverTimestamp(),
@@ -236,7 +236,7 @@ export async function regeneratePieceContent(userId: string, workId: string, new
         const updatePayload: any = {
             contentState: 'processing',
             status: 'processing',
-            contentRetryCount: newPrompt ? 0 : (currentData.contentRetryCount || 0) + 1,
+            contentRetries: newPrompt ? 0 : (currentData.contentRetries || 0) + 1,
             updatedAt: FieldValue.serverTimestamp(),
         };
         if (newPrompt) updatePayload.prompt = newPrompt;
