@@ -11,7 +11,6 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
 import type { Book, LibraryItem, VocabContext, Chapter, Segment, MultilingualContent } from '@/lib/types';
-import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
@@ -60,54 +59,8 @@ export default function BookReader({ book }: { book: Book }) {
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const readerInitializedRef = useRef(false);
 
-  // ✅ Client-side parsing to create a virtual chapter structure
-  const { chapters, allBookSegments } = useMemo(() => {
-    if (!book.content) return { chapters: [], allBookSegments: [] };
-    
-    const allSegments = parseMarkdownToSegments(book.content, book.origin); // unit is implicit now
-    
-    const chapterList: Chapter[] = [];
-    let currentChapterSegments: Segment[] = [];
-    let currentChapterTitle: MultilingualContent = { [displayLang1]: 'Introduction' };
-    let currentChapterId = 'implicit-chapter-0';
-
-    allSegments.forEach((seg) => {
-      if (seg.type === 'heading1') {
-        if (chapterList.length > 0 || currentChapterSegments.length > 0) {
-            chapterList.push({
-                id: currentChapterId,
-                order: chapterList.length,
-                title: currentChapterTitle,
-                segments: currentChapterSegments,
-            });
-        }
-        currentChapterSegments = [];
-        currentChapterTitle = seg.content;
-        currentChapterId = seg.id;
-      } else {
-        if (chapterList.length === 0 && currentChapterSegments.length === 0) {
-            chapterList.push({
-                id: currentChapterId,
-                order: 0,
-                title: currentChapterTitle,
-                segments: [],
-            });
-        }
-        currentChapterSegments.push(seg);
-      }
-    });
-    
-    if (currentChapterSegments.length > 0) {
-        chapterList.push({
-            id: currentChapterId,
-            order: chapterList.length,
-            title: currentChapterTitle,
-            segments: currentChapterSegments,
-        });
-    }
-
-    return { chapters: chapterList, allBookSegments: allSegments };
-  }, [book.content, book.origin, displayLang1]);
+  const chapters = book.chapters || [];
+  const allBookSegments = useMemo(() => chapters.flatMap(c => c.segments), [chapters]);
 
 
   const {

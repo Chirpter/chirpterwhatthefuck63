@@ -5,7 +5,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AudioProgressState, Book, LibraryItem, Segment } from '@/lib/types';
 import { useUser } from '@/contexts/user-context';
-import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
 
 interface ProgressInfo {
     overallProgress: number;
@@ -62,45 +61,40 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
     }, [itemId]);
     
     const calculatedProgress = useMemo((): ProgressInfo => {
-        if (!item || item.type !== 'book' || !progress || typeof item.content !== 'string') {
+        if (!item || item.type !== 'book' || !progress) {
             return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
         }
         
         const book = item as Book;
-        const allSegments = parseMarkdownToSegments(book.content, book.origin);
-        if (allSegments.length === 0) {
+        const chapters = book.chapters || [];
+        if (chapters.length === 0) {
             return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
         }
 
-        const chapters: Segment[][] = [];
-        let currentChapter: Segment[] = [];
-        allSegments.forEach(seg => {
-            if (seg.type === 'heading1' && currentChapter.length > 0) {
-                chapters.push(currentChapter);
-                currentChapter = [];
+        let totalSegmentsInBook = 0;
+        let segmentsPlayedSoFar = 0;
+        let segmentsInCurrentChapter = 0;
+        
+        // This logic now correctly reflects the flat segment structure per chapter
+        chapters.forEach((chapter, index) => {
+            const chapterSegmentCount = chapter.segments?.length || 0;
+            totalSegmentsInBook += chapterSegmentCount;
+            
+            if (index < progress.chapterIndex) {
+                segmentsPlayedSoFar += chapterSegmentCount;
             }
-            currentChapter.push(seg);
+            if (index === progress.chapterIndex) {
+                segmentsInCurrentChapter = chapterSegmentCount;
+            }
         });
-        if (currentChapter.length > 0) {
-            chapters.push(currentChapter);
+        
+        if (totalSegmentsInBook === 0) {
+            return { overallProgress: 0, chapterProgress: 0, chapterIndex: progress.chapterIndex };
         }
 
-        const chapterIndex = progress.chapterIndex;
-        if (chapterIndex >= chapters.length) {
-             return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
-        }
-        
-        let totalSegmentsInBook = allSegments.length;
-        let segmentsPlayedSoFar = 0;
-        
-        for (let i = 0; i < chapterIndex; i++) {
-            segmentsPlayedSoFar += chapters[i].length;
-        }
         segmentsPlayedSoFar += progress.segmentIndex;
 
-        const segmentsInCurrentChapter = chapters[chapterIndex].length;
-
-        const overallProgress = totalSegmentsInBook > 0 ? (segmentsPlayedSoFar / totalSegmentsInBook) * 100 : 0;
+        const overallProgress = (segmentsPlayedSoFar / totalSegmentsInBook) * 100;
         const chapterProgress = segmentsInCurrentChapter > 0 ? (progress.segmentIndex / segmentsInCurrentChapter) * 100 : 0;
         
         return {

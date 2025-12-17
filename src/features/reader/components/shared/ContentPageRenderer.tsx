@@ -3,8 +3,9 @@
 
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import type { LibraryItem, EditorSettings, Page, Segment } from '@/lib/types';
-import { SegmentRenderer } from './SegmentRenderer';
+import type { LibraryItem, EditorSettings, Page, Segment, LanguageBlock, ContentUnit } from '@/lib/types';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface ContentPageRendererProps {
@@ -12,9 +13,72 @@ interface ContentPageRendererProps {
   presentationStyle: 'book' | 'doc' | 'card';
   editorSettings: EditorSettings;
   itemData: LibraryItem | null;
-  displayLang1?: string;
-  displayLang2?: string; // 'none' or language code
+  displayLang1: string;
+  displayLang2: string; // 'none' or language code
 }
+
+const WordHighlight: React.FC<{ text: string; boundary: { charIndex: number, charLength: number } | null }> = ({ text, boundary }) => {
+    if (boundary) {
+        const { charIndex, charLength } = boundary;
+        if (charIndex <= text.length) {
+            const pre = text.substring(0, charIndex);
+            const highlighted = text.substring(charIndex, charIndex + charLength);
+            const post = text.substring(charIndex + charLength);
+            
+            return (
+                <>
+                    {pre}
+                    <span className="tts-word-highlight">{highlighted}</span>
+                    {post}
+                </>
+            );
+        }
+    }
+    return <>{text}</>;
+};
+
+const ContentRenderer: React.FC<{
+  segmentContent: (string | LanguageBlock)[];
+  displayLang1: string;
+  displayLang2: string;
+  isBilingualMode: boolean;
+  isSegmentPlaying: boolean;
+  spokenLang: string | null;
+  speechBoundary: { charIndex: number, charLength: number } | null;
+  unit: ContentUnit;
+}> = ({ segmentContent, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, unit }) => {
+  
+  const reconstructedMarkdown = useMemo(() => {
+    let text = '';
+    for (const part of segmentContent) {
+      if (typeof part === 'string') {
+        text += part;
+      } else {
+        // This is the language block
+        if (!isBilingualMode) {
+          text += part[displayLang1] || '';
+        } else if (unit === 'sentence') {
+          const primary = part[displayLang1] || '';
+          const secondary = part[displayLang2] || '';
+          // Render on separate lines for sentence mode
+          text += `${primary}\n_${secondary}_`;
+        } else { // phrase mode
+          const primary = part[displayLang1] || '';
+          const secondary = part[displayLang2] || '';
+          // Render inline for phrase mode
+          text += `${primary} (${secondary})`;
+        }
+      }
+    }
+    return text;
+  }, [segmentContent, displayLang1, displayLang2, isBilingualMode, unit]);
+
+  // For now, word highlighting is disabled in this new architecture,
+  // as it would require parsing the reconstructed markdown.
+  // We can add this back later if needed.
+  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{reconstructedMarkdown}</ReactMarkdown>;
+};
+
 
 export function ContentPageRenderer({ 
     page, 
@@ -27,15 +91,12 @@ export function ContentPageRenderer({
   const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary, currentSegmentLanguage } = useAudioPlayer();
   const segments = page?.items || [];
   
-  const currentSpokenSegment = useMemo(() => {
-    // This logic needs review and might be simplified based on how AudioEngine works with raw markdown
-    if (!itemData || !currentPlayingItem || currentPlayingItem.id !== itemData.id || !position || !itemData.content) {
-      return null;
-    }
-    return null; // Placeholder until audio engine sync is refactored for raw content
+  const currentSpokenSegmentId = useMemo(() => {
+    // This logic will need to be adapted based on how audio engine tracks progress
+    // with the new `Segment[]` structure.
+    return null;
   }, [currentPlayingItem, itemData, position]);
 
-  const currentPlayingSegmentId = currentSpokenSegment?.id || null;
   const currentSpokenLang = currentSegmentLanguage;
 
   const proseThemeClass = useMemo(() => {
@@ -85,16 +146,16 @@ export function ContentPageRenderer({
   return (
     <div className={contentContainerClasses}>
       {segments.map((segment) => (
-        <div key={segment.id}>
-            <SegmentRenderer 
-                segment={segment} 
-                isPlaying={currentPlayingSegmentId === segment.id}
-                speechBoundary={speechBoundary}
-                spokenLang={currentSpokenLang}
-                isBilingualMode={isBilingualMode}
+        <div key={segment.id} data-segment-id={segment.id}>
+            <ContentRenderer
+                segmentContent={segment.content}
                 displayLang1={displayLang1}
                 displayLang2={displayLang2}
+                isBilingualMode={isBilingualMode}
                 unit={itemData?.unit || 'sentence'}
+                isSegmentPlaying={currentSpokenSegmentId === segment.id}
+                spokenLang={currentSpokenLang}
+                speechBoundary={speechBoundary}
             />
         </div>
       ))}

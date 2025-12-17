@@ -9,7 +9,6 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
 import type { Piece, LibraryItem, VocabContext, Segment } from '@/lib/types';
-import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
 
 import { ReaderToolbar } from '../shared/ReaderToolbar';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
@@ -75,10 +74,7 @@ export default function PieceReader({
     }
   }, [piece]);
 
-  const allSegments = useMemo(() => {
-    if (!piece || !piece.content) return [];
-    return parseMarkdownToSegments(piece.content, piece.origin);
-  }, [piece]);
+  const allSegments = piece?.generatedContent || [];
   
   const finalPresentationStyle = piece?.presentationStyle || 'card';
   const finalAspectRatio = piece?.aspectRatio || '3:4';

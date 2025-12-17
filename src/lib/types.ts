@@ -16,36 +16,32 @@ export class ApiServiceError extends Error {
 }
 
 /**
- * @typedef {Object.<string, string | string[]>} MultilingualContent
- * @description A flexible object to hold content in multiple languages.
+ * @typedef {Object.<string, string>} LanguageBlock
+ * @description A flexible object to hold content in multiple languages for a single segment part.
  * The key is the BCP-47 language code (e.g., 'en', 'vi').
- * The value can be a single string (for a sentence) or an array of strings (for phrases).
+ * The value is a string.
  */
-export type MultilingualContent = {
-  [languageCode: string]: string | string[];
+export type LanguageBlock = {
+  [languageCode: string]: string;
 };
 
+// Re-defining MultilingualContent to be more specific to its use cases now.
+export type MultilingualContent = {
+  [languageCode: string]: string;
+};
 
-// --- UNIFIED STRUCTURE FOR ALL TEXTUAL CONTENT ---
+export type SegmentContent = (string | LanguageBlock)[];
 
-export type ContentUnit = 'sentence' | 'phrase';
-
-// ✅ REMOVED: The Segment interface is no longer a core data type stored in the DB.
-// It will be a transient type generated on the client by a parser.
 export interface Segment {
   id: string;
   order: number;
-  content: MultilingualContent;
-  type?: 'heading1' | 'start_para';
+  content: SegmentContent;
 }
 
-
-// ✅ REMOVED: Chapter is no longer a stored data type.
-// It will be inferred on the client by parsing the raw markdown content.
 export interface Chapter {
   id: string;
   order: number;
-  title: MultilingualContent;
+  title: MultilingualContent; // Title is simple, no prefix/suffix
   segments: Segment[];
 }
 
@@ -87,7 +83,7 @@ export interface User {
   coverPhotoURL?: string; // For the profile background
   isAnonymous: boolean;
   plan: UserPlan;
-  role: UserRole; // ✅ ADDED THIS LINE
+  role: UserRole;
   credits: number;
   level: number;
   lastLoginDate: string;
@@ -100,6 +96,7 @@ export interface User {
 export type JobStatus = 'pending' | 'processing' | 'ready' | 'error' | 'ignored';
 export type OverallStatus = 'processing' | 'draft' | 'published' | 'archived';
 export type CoverJobType = 'none' | 'upload' | 'ai';
+export type ContentUnit = 'sentence' | 'phrase';
 
 export type BilingualViewMode = 'primary' | 'secondary' | 'bilingual';
 export type PresentationMode = 'mono' | 'bilingual-sentence' | 'bilingual-phrase';
@@ -153,11 +150,10 @@ export interface BaseDocument {
     completedAt?: any;
 }
 
-// ✅ NEW: Base interface for all items in the user's library.
 interface BaseLibraryItem extends BaseDocument {
   id: string;
   userId: string;
-  type: 'book' | 'piece'; // The critical discriminator field
+  type: 'book' | 'piece';
   title: MultilingualContent;
   origin: string;
   langs: string[];
@@ -167,12 +163,10 @@ interface BaseLibraryItem extends BaseDocument {
   price?: number;
   originId?: string;
   prompt?: string;
-  presentationStyle: 'book' | 'doc' | 'card'; // More specific
+  presentationStyle: 'book' | 'doc' | 'card';
   tags?: string[];
   labels?: string[];
   unit: ContentUnit;
-  // ✅ UPDATED: The 'content' field is now a single string holding the raw Markdown.
-  content: string; 
 }
 
 
@@ -196,13 +190,7 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
-}
-
-export interface EditorSettings {
-  textAlign: 'text-left' | 'text-center' | 'text-right' | 'text-justify';
-  verticalAlign: 'justify-start' | 'justify-center' | 'justify-end';
-  background: string;
-  fontSize: 'sm' | 'base' | 'lg';
+  chapters: Chapter[];
 }
 
 /**
@@ -221,9 +209,9 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isBilingual?: boolean;
+  generatedContent: Segment[];
 }
 
-// ✅ UPDATED: LibraryItem is now a union of the specific types.
 export type LibraryItem = Book | Piece;
 
 

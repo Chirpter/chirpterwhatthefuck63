@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Page, Segment, ContentUnit } from '@/lib/types';
+import type { Page, Segment, ContentUnit, LanguageBlock } from '@/lib/types';
 import { calculatePages } from '@/lib/pagination/PageCalculator';
 
 interface UsePaginationProps {
@@ -36,8 +36,13 @@ export const usePagination = ({
   const lastDepsRef = useRef<string>('');
 
   const createDepsKey = useCallback(() => {
+    const segmentContentKey = segments.map(s => {
+        const langBlock = s.content.find(p => typeof p === 'object') as LanguageBlock | undefined;
+        return langBlock ? `${s.id}-${langBlock[displayLang1]}` : s.id;
+    }).join(',');
+
     return JSON.stringify({
-      segmentCount: segments.length,
+      segmentKey: segmentContentKey,
       containerWidth: containerRef.current?.clientWidth || 0,
       containerHeight: containerRef.current?.clientHeight || 0,
       displayLang1,
@@ -46,7 +51,7 @@ export const usePagination = ({
       presentationStyle,
       aspectRatio,
     });
-  }, [segments.length, containerRef, displayLang1, displayLang2, unit, presentationStyle, aspectRatio]);
+  }, [segments, containerRef, displayLang1, displayLang2, unit, presentationStyle, aspectRatio]);
 
   const performPagination = useCallback(async () => {
     if (!isEnabled) {

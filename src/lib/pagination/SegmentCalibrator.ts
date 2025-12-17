@@ -1,7 +1,7 @@
 // src/lib/pagination/SegmentCalibrator.ts
 'use client';
 
-import type { Segment, ContentUnit } from '@/lib/types';
+import type { Segment, ContentUnit, LanguageBlock } from '@/lib/types';
 import { SegmentRenderer } from '@/features/reader/components/shared/SegmentRenderer';
 
 export class SegmentCalibrator {
@@ -37,45 +37,40 @@ export class SegmentCalibrator {
     
     this.measurer.innerHTML = '';
     const isBilingual = displayLang2 !== 'none';
+    const segmentContent = segment.content;
 
-    // Instead of manually constructing elements, we use the actual React component logic
-    // This is more complex to set up but provides perfect accuracy.
-    // For now, we'll stick to a slightly simplified but still robust manual construction.
-
-    const primaryText = segment.content[displayLang1] as string;
-    if (!primaryText) return 0;
-    
-    const wrapper = document.createElement(segment.type === 'heading1' ? 'h1' : 'div');
-    wrapper.className = segment.type === 'heading1' 
-        ? 'font-headline text-3xl mt-4 mb-6 border-b pb-2' 
-        : (isBilingual && unit === 'sentence') 
-            ? 'block-segment mb-4' 
-            : 'inline';
-    
-    if (isBilingual && unit === 'sentence') {
-      const primaryEl = document.createElement('div');
-      primaryEl.className = 'mb-1';
-      primaryEl.textContent = primaryText;
-      wrapper.appendChild(primaryEl);
-
-      const secondaryText = segment.content[displayLang2];
-      if (secondaryText) {
-        const secondaryEl = document.createElement('div');
-        secondaryEl.className = 'text-muted-foreground italic text-[0.9em]';
-        secondaryEl.textContent = secondaryText as string;
-        wrapper.appendChild(secondaryEl);
-      }
-    } else {
-      wrapper.textContent = primaryText + (unit === 'sentence' ? ' ' : '');
+    let text = '';
+    for (const part of segmentContent) {
+        if (typeof part === 'string') {
+            text += part;
+        } else {
+            // This is the language block
+            if (!isBilingual) {
+                text += part[displayLang1] || '';
+            } else if (unit === 'sentence') {
+                const primary = part[displayLang1] || '';
+                const secondary = part[displayLang2] || '';
+                // Render on separate lines for sentence mode
+                text += `${primary}\n_${secondary}_`;
+            } else { // phrase mode
+                const primary = part[displayLang1] || '';
+                const secondary = part[displayLang2] || '';
+                // Render inline for phrase mode
+                text += `${primary} (${secondary})`;
+            }
+        }
     }
     
-    this.measurer.appendChild(wrapper);
+    // Simple conversion of markdown to HTML for height calculation
+    text = text.replace(/^#\s+(.*)/, '<h1>$1</h1>');
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    this.measurer.innerHTML = text;
 
     await new Promise(resolve => requestAnimationFrame(resolve));
     
-    const extraSpacing = segment.type === 'heading1' ? 30 : 0;
-    
-    return this.measurer.offsetHeight + extraSpacing;
+    return this.measurer.offsetHeight;
   }
 
   public cleanup(): void {

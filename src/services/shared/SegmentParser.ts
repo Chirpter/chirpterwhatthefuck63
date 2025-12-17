@@ -1,6 +1,6 @@
 // src/services/shared/SegmentParser.ts
 
-import type { Segment, MultilingualContent, ContentUnit } from '@/lib/types';
+import type { Segment, LanguageBlock } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
 /**
@@ -12,87 +12,75 @@ function cleanText(text: string): string {
 }
 
 /**
- * Extracts a text pair (e.g., "Hello {Xin chào}") into a structured object.
- * It's robust against missing translations.
+ * The core parser that transforms a line of markdown text into a structured Segment content array.
+ * It identifies a prefix, the language blocks, and a suffix.
+ * e.g., "# {Hello} {Xin chào}\n\n" -> ["# ", {en: "Hello", vi: "Xin chào"}, "\n\n"]
  */
-function extractBilingualPair(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
-    if (secondaryLang) {
-        const match = text.match(/^(.*?)\s*\{(.*)\}\s*$/);
-        if (match) {
-            return {
-                [primaryLang]: cleanText(match[1]),
-                [secondaryLang]: cleanText(match[2]),
-            };
-        }
+function parseLineToSegmentContent(line: string, primaryLang: string, secondaryLang?: string): (string | LanguageBlock)[] {
+    const content: (string | LanguageBlock)[] = [];
+    const langBlock: LanguageBlock = {};
+    
+    // Regex to find language blocks like {text}
+    const langBlockRegex = /\{(.*?)\}/g;
+    let lastIndex = 0;
+    let match;
+    let langIndex = 0;
+
+    // Find the first language block to determine the prefix
+    const firstMatch = langBlockRegex.exec(line);
+    
+    if (!firstMatch) {
+        // No language blocks, treat the whole line as a prefix
+        return [line];
     }
-    return { [primaryLang]: cleanText(text) };
+    
+    // There is at least one language block
+    const prefix = line.substring(0, firstMatch.index);
+    if (prefix) {
+        content.push(prefix);
+    }
+
+    // Reset regex for global search from the beginning
+    langBlockRegex.lastIndex = 0;
+
+    while ((match = langBlockRegex.exec(line)) !== null) {
+        const lang = langIndex === 0 ? primaryLang : secondaryLang;
+        if (lang) {
+            langBlock[lang] = cleanText(match[1]);
+        }
+        langIndex++;
+        lastIndex = match.index + match[0].length;
+    }
+
+    content.push(langBlock);
+
+    const suffix = line.substring(lastIndex);
+    if (suffix) {
+        content.push(suffix);
+    }
+    
+    return content;
 }
 
 /**
  * Main parser - processes a raw markdown string into a flat array of Segments.
- * This function embodies the final, optimized architecture.
- * It does NOT interpret markdown beyond identifying H1 headings for classification.
- *
- * @param markdown The raw markdown string from the AI.
- * @param origin The language origin string (e.g., 'en', 'en-vi').
- * @returns A flat array of `Segment` objects.
+ * Each segment's content is an array: [prefix, {langBlock}, suffix].
  */
 export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
     const segments: Segment[] = [];
     let order = 0;
     const [primaryLang, secondaryLang] = origin.split('-');
 
-    // Split content by newlines to process line by line.
-    // This simple approach is robust for detecting headings.
-    const lines = markdown.split(/\r?\n/);
-    
-    let paragraphBuffer: string[] = [];
-
-    const flushParagraphBuffer = () => {
-        if (paragraphBuffer.length > 0) {
-            const paragraphText = paragraphBuffer.join('\n');
-            
-            // Create a single segment for the entire paragraph block.
-            // The content is kept raw, including newlines.
-            segments.push({
-                id: generateLocalUniqueId(),
-                order: order++,
-                type: 'start_para', // Mark this as the start of a paragraph
-                content: {
-                    [primaryLang]: paragraphText,
-                },
-            });
-            paragraphBuffer = [];
-        }
-    };
+    // Split by newlines to process line by line.
+    const lines = markdown.split(/\r?\n/).filter(line => line.trim() !== '');
 
     for (const line of lines) {
-        const trimmedLine = line.trim();
-        
-        if (trimmedLine.startsWith('# ')) {
-            // A heading marks the end of any preceding paragraph.
-            flushParagraphBuffer(); 
-            
-            const headingContent = trimmedLine.substring(2).trim();
-            const contentPair = extractBilingualPair(headingContent, primaryLang, secondaryLang);
-            
-            segments.push({
-                id: generateLocalUniqueId(),
-                order: order++,
-                type: 'heading1',
-                content: contentPair,
-            });
-        } else if (trimmedLine === '') {
-            // A blank line also marks the end of a paragraph.
-            flushParagraphBuffer();
-        } else {
-            // Collect lines into a buffer for the current paragraph.
-            paragraphBuffer.push(line);
-        }
+        segments.push({
+            id: generateLocalUniqueId(),
+            order: order++,
+            content: parseLineToSegmentContent(line, primaryLang, secondaryLang),
+        });
     }
     
-    // Ensure any remaining text in the buffer is processed.
-    flushParagraphBuffer(); 
-
     return segments;
 }
