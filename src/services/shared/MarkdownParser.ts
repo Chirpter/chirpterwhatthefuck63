@@ -5,21 +5,6 @@ import { generateLocalUniqueId } from '@/lib/utils';
 import { segmentize } from './SegmentParser';
 
 /**
- * Calculates total word count from segments, handling both string and array content.
- */
-function calculateTotalWords(segments: Segment[], primaryLang: string): number {
-    return segments.reduce((sum, seg) => {
-        const langBlock = seg.content.find(c => typeof c === 'object') as MultilingualContent | undefined;
-        if (langBlock && langBlock[primaryLang]) {
-            const text = langBlock[primaryLang];
-            return sum + (text.split(/\s+/).filter(Boolean).length || 0);
-        }
-        return sum;
-    }, 0);
-}
-
-
-/**
  * Helper to extract segments from library items.
  */
 export function getItemSegments(
