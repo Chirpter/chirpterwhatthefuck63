@@ -1,3 +1,4 @@
+
 // src/features/learning/components/shadowing/ShadowingView.tsx
 "use client";
 
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { getTranscriptFromUrl, type TranscriptResult } from '@/features/learning/services/shadowing.service';
+import { getTranscriptFromUrl, type TranscriptResult } from '@/services/server/shadowing-service';
 import { useToast } from '@/hooks/useToast';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/contexts/auth-context';
+import { useUser } from '@/contexts/user-context';
 import { ActivitiesPanel } from '../activities/ActivitiesPanel';
 import { Progress } from '@/components/ui/progress';
 import { ShadowingHistory } from './ShadowingHistory';
@@ -685,3 +686,5 @@ export default function ShadowingView() {
     </div>
   );
 }
+
+    
