@@ -60,40 +60,49 @@ export default function BookReader({ book }: { book: Book }) {
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const readerInitializedRef = useRef(false);
 
-  // ✅ Client-side parsing
+  // ✅ Client-side parsing from the single 'content' field
   const { chapters, allBookSegments } = useMemo(() => {
+    if (!book.content) return { chapters: [], allBookSegments: [] };
+    
     const segments = parseMarkdownToSegments(book.content, book.origin, book.unit);
     const chapterList: Chapter[] = [];
-    let currentSegments: Segment[] = [];
-    let currentChapterIndex = 0;
+    let currentChapterSegments: Segment[] = [];
+    let currentChapterTitle: MultilingualContent = { [displayLang1]: 'Introduction' };
+    let currentChapterId = 'implicit-chapter-0';
 
-    segments.forEach(seg => {
+    segments.forEach((seg, index) => {
       if (seg.type === 'heading1') {
-        if (currentSegments.length > 0) {
-          // This should not happen if H1 is always first
+        // If we have segments accumulated, finalize the previous chapter
+        if (currentChapterSegments.length > 0 || chapterList.length === 0) {
+            if (chapterList.length > 0 || currentChapterSegments.length > 0) { // Avoid adding empty implicit first chapter if first line is H1
+                 chapterList.push({
+                    id: currentChapterId,
+                    order: chapterList.length,
+                    title: currentChapterTitle,
+                    segments: currentChapterSegments,
+                    stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 } // Stats can be calculated if needed
+                });
+            }
         }
-        chapterList.push({
-          id: seg.id,
-          order: currentChapterIndex++,
-          title: seg.content,
-          segments: [], // Will be populated by subsequent segments
-          stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
-        });
+        // Start a new chapter
+        currentChapterSegments = [];
+        currentChapterTitle = seg.content;
+        currentChapterId = seg.id;
       } else {
-        if (chapterList.length === 0) {
-          // Content before any H1 belongs to an implicit first chapter
-          chapterList.push({
-            id: 'implicit-chapter-0',
-            order: 0,
-            title: { [displayLang1]: 'Introduction' },
-            segments: [],
-            stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
-          });
-        }
-        // Add segment to the most recent chapter
-        chapterList[chapterList.length - 1].segments.push(seg);
+        currentChapterSegments.push(seg);
       }
     });
+
+    // Add the last chapter
+    if (currentChapterSegments.length > 0) {
+        chapterList.push({
+            id: currentChapterId,
+            order: chapterList.length,
+            title: currentChapterTitle,
+            segments: currentChapterSegments,
+            stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
+        });
+    }
 
     return { chapters: chapterList, allBookSegments: segments };
   }, [book.content, book.origin, book.unit, displayLang1]);

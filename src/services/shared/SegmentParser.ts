@@ -49,13 +49,13 @@ function splitIntoSentences(text: string): string[] {
     let counter = 0;
     
     processed = processed.replace(/\.{3,}/g, () => {
-        const placeholder = `${'${ELLIPSIS_PREFIX}'}${'${counter++}'}___`;
+        const placeholder = `__ELLIP_${'${counter++}'}__`;
         replacements.push({ placeholder, original: '...' });
         return placeholder;
     });
     
     processed = processed.replace(/\d+\.\d+/g, (match) => {
-        const placeholder = `${'${DECIMAL_PREFIX}'}${'${counter++}'}___`;
+        const placeholder = `__DEC_${'${counter++}'}__`;
         replacements.push({ placeholder, original: match });
         return placeholder;
     });
@@ -63,7 +63,7 @@ function splitIntoSentences(text: string): string[] {
     abbreviations.forEach(abbr => {
         const regex = new RegExp(`\\b${'${abbr}'}\\.`, 'gi');
         processed = processed.replace(regex, (match) => {
-            const placeholder = `${'${ABBR_PREFIX}'}${'${counter++}'}___`;
+            const placeholder = `__ABBR_${'${counter++}'}__`;
             replacements.push({ placeholder, original: match });
             return placeholder;
         });

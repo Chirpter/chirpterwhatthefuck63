@@ -79,7 +79,7 @@ export default function PieceReader({
     }
   }, [piece]);
 
-  // ✅ Client-side parsing of the raw `content` field
+  // ✅ Client-side parsing of the raw 'content' field
   const allSegments = useMemo(() => {
     if (!piece || !piece.content) return [];
     return parseMarkdownToSegments(piece.content, piece.origin, piece.unit);
@@ -119,7 +119,7 @@ export default function PieceReader({
         const rect = range.getBoundingClientRect();
         
         let sourceLang = displayLang1;
-        let sentenceContext = `...${selectedText}...`;
+        let sentenceContext = `...${'${selectedText}'}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 
@@ -154,7 +154,7 @@ export default function PieceReader({
     }
   };
 
-  if (!piece || piece.contentState !== 'ready') {
+  if (!piece || (piece.contentState !== 'ready' && !isPreview)) {
     if (isPreview) {
       return (
         <div className={cn(
