@@ -3,6 +3,7 @@
 import React from 'react';
 import { Logo } from '@/components/ui/Logo';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button'; // ✅ IMPORTED shared button
 
 export default function PrivacyPolicyPage() {
   return (
@@ -76,8 +77,4 @@ export default function PrivacyPolicyPage() {
   );
 }
 
-// Minimal Button component needed for the page
-const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'outline', asChild?: boolean, children: React.ReactNode }> = ({ variant, asChild, children, ...props }) => {
-    const Comp = asChild ? 'span' : 'button';
-    return <Comp {...props}>{children}</Comp>
-}
+// ✅ REMOVED redundant Button component definition
