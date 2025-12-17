@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -20,7 +21,7 @@ import { VocabularyFolderCard } from '@/features/vocabulary/components/vocab/Voc
 import { Separator } from '@/components/ui/separator';
 import { Flashcard } from '@/features/vocabulary/components/flashcards/Flashcard';
 import { AnimatePresence } from 'framer-motion';
-import * as srsService from "@/services/client/srs-service";
+import * as srsService from "@/services/client/srs.service";
 import AddVocabDialog from '@/features/vocabulary/components/dialogs/AddVocabDialog';
 import AddFolderDialog from '@/features/vocabulary/components/dialogs/AddFolderDialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
