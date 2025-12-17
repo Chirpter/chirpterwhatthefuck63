@@ -8,11 +8,11 @@ import { useSettings } from '@/contexts/settings-context';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
-import type { Piece, LibraryItem, VocabContext } from '@/lib/types';
+import type { Piece, LibraryItem, VocabContext, Segment } from '@/lib/types';
 
 import { ReaderToolbar } from '../shared/ReaderToolbar';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
-import { getItemSegments } from '@/services/shared/SegmentParser';
+import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
 import { Icon } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
@@ -60,7 +60,6 @@ export default function PieceReader({
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const isMobile = useMobile();
   
-  // ✅ Initialize languages from origin
   const originParts = piece?.origin.split('-') || [];
   const [displayLang1, setDisplayLang1] = useState(originParts[0] || piece?.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(originParts[1] || 'none');
@@ -72,7 +71,6 @@ export default function PieceReader({
 
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Update languages when piece changes
   useEffect(() => {
     if (piece) {
       const parts = piece.origin.split('-');
@@ -81,12 +79,15 @@ export default function PieceReader({
     }
   }, [piece]);
 
-  const allSegments = useMemo(() => getItemSegments(piece), [piece]);
+  // ✅ Client-side parsing of the raw `content` field
+  const allSegments = useMemo(() => {
+    if (!piece || !piece.content) return [];
+    return parseMarkdownToSegments(piece.content, piece.origin, piece.unit);
+  }, [piece]);
   
   const finalPresentationStyle = externalPresentationStyle || piece?.presentationStyle || 'card';
   const finalAspectRatio = externalAspectRatio || piece?.aspectRatio || '3:4';
 
-  // ✅ Pass displayLang1, displayLang2, and unit to pagination
   const {
     pages,
     currentPageIndex,
@@ -97,7 +98,7 @@ export default function PieceReader({
   } = usePagination({
     segments: allSegments,
     containerRef: contentContainerRef,
-    isEnabled: !isPreview, // Only paginate in full reader
+    isEnabled: !isPreview,
     presentationStyle: finalPresentationStyle,
     aspectRatio: finalAspectRatio,
     displayLang1,
@@ -177,7 +178,7 @@ export default function PieceReader({
   const cardClassName = cn(
     "w-full shadow-xl rounded-lg overflow-hidden transition-colors duration-300",
     finalPresentationStyle === 'card' && getAspectRatioClass(finalAspectRatio),
-    isDocLikeCard && getAspectRatioClass('4:3'), // Corrected to 4:3 for doc-like cards
+    isDocLikeCard && getAspectRatioClass('4:3'),
     finalPresentationStyle === 'doc' && !isPreview && 'max-w-3xl aspect-[3/4]',
     finalPresentationStyle === 'card' && 'max-w-md',
     editorSettings.background

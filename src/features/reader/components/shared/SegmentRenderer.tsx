@@ -62,6 +62,15 @@ const renderSegmentContent = (
 ) => {
   const { content } = segment;
 
+  if (segment.type === 'heading1') {
+      const titleText = content[displayLang1] as string || '';
+      return (
+        <h1 className="font-headline text-3xl mt-4 mb-6 border-b pb-2">
+            {titleText}
+        </h1>
+      )
+  }
+
   // ✅ FIX: Sentence-by-sentence bilingual (each language on separate line)
   if (isBilingualMode && unit === 'sentence') {
     const primaryText = content[displayLang1] as string || '';
@@ -162,7 +171,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
   const isSegmentPlaying = isPlaying;
   
   // ✅ Use div for sentence mode (block-level), span for phrase/mono mode (inline)
-  const Wrapper = (isBilingualMode && unit === 'sentence') ? 'div' : 'span';
+  const Wrapper = (isBilingualMode && unit === 'sentence' || segment.type === 'heading1') ? 'div' : 'span';
 
   return (
     <Wrapper data-segment-id={segment.id}>

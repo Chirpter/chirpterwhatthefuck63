@@ -179,6 +179,7 @@ function processParagraphIntoSegments(
             id: generateLocalUniqueId(),
             order: segmentOrder++,
             content: finalContent,
+            type: 'text', // Default type
         });
     });
 
@@ -188,116 +189,42 @@ function processParagraphIntoSegments(
 
 /**
  * Main parser - processes markdown text into a flat array of Segments.
- * For Pieces, it preserves ## headings as part of the content.
- * For Books, it assumes ## headings have already been extracted.
+ * This is now the unified parser for both Book and Piece types.
+ * It identifies H1 headings and creates special segment types for them.
  */
-export function parseMarkdownToSegments(markdown: string, origin: string, unit: ContentUnit, isPiece: boolean = false): Segment[] {
+export function parseMarkdownToSegments(markdown: string, origin: string, unit: ContentUnit): Segment[] {
     const segments: Segment[] = [];
     let order = 0;
+    const primaryLang = origin.split('-')[0];
 
-    const blocks = markdown.split(/(\n\s*\n|(?=^##\s+)|(?=^###\s+))/g).filter(p => p && p.trim() !== '');
+    // Split content by H1 headings, keeping the heading as a delimiter
+    const blocks = markdown.split(/(^#\s+.*$)/m).filter(p => p && p.trim() !== '');
 
-    for (const block of blocks) {
+    blocks.forEach(block => {
         const trimmedBlock = block.trim();
-        if (!trimmedBlock) continue;
-
-        if (isPiece && trimmedBlock.startsWith('#')) {
-             segments.push({
+        
+        if (trimmedBlock.startsWith('# ')) {
+            // This is an H1 heading, treat it as a special segment
+            const titleContent = trimmedBlock.substring(2).trim();
+            const titlePair = extractBilingualTextPairs(titleContent, origin.split('-')[0], origin.split('-')[1])[0] || { [primaryLang]: titleContent };
+            
+            segments.push({
                 id: generateLocalUniqueId(),
                 order: order++,
-                content: { [origin.split('-')[0]]: trimmedBlock },
+                type: 'heading1',
+                content: titlePair,
             });
         } else {
-            const blockSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
-            blockSegments.forEach((seg) => {
+            // This is regular paragraph content, process it normally
+            const paragraphSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
+            paragraphSegments.forEach(seg => {
                 seg.order = order++;
                 segments.push(seg);
             });
         }
-    }
-
-    return segments;
-}
-
-
-/**
- * Parses book-level markdown with title and chapters.
- * This function EXTRACTS and REMOVES the title (#) and chapter titles (##).
- */
-export function parseBookMarkdown(
-    markdown: string,
-    origin: string
-): { title: MultilingualContent; chapters: Chapter[]; unit: ContentUnit } {
-    const parts = origin.split('-');
-    const primaryLang = parts[0];
-    const secondaryLang = parts.length > 1 ? parts[1] : undefined;
-    const unit: ContentUnit = origin.endsWith('-ph') ? 'phrase' : 'sentence';
-
-    let title: MultilingualContent = { [primaryLang]: 'Untitled' };
-    let contentAfterTitle = markdown;
-    const lines = markdown.split('\n');
-
-    // 1. Extract book title (#)
-    const firstH1Index = lines.findIndex(line => line.trim().startsWith('# '));
-    if (firstH1Index !== -1) {
-        const titleLine = lines[firstH1Index].trim().substring(2).trim();
-        const extractedTitle = extractBilingualTextPairs(titleLine, primaryLang, secondaryLang)[0];
-        if (extractedTitle) {
-          title = extractedTitle;
-        }
-        contentAfterTitle = lines.slice(firstH1Index + 1).join('\n');
-    }
-
-    // 2. Find all chapter heading (##) locations
-    const chapterIndices: number[] = [];
-    const contentLines = contentAfterTitle.split('\n');
-    contentLines.forEach((line, index) => {
-        if (line.trim().startsWith('## ')) {
-            chapterIndices.push(index);
-        }
-    });
-
-    // 3. Create blocks of text for each chapter
-    const chapterBlocks: string[] = [];
-    if (chapterIndices.length === 0) {
-        // If no chapters found, treat the whole content as the first chapter
-        if (contentAfterTitle.trim()) {
-            chapterBlocks.push(`## Chapter 1\n${contentAfterTitle}`);
-        }
-    } else {
-        for (let i = 0; i < chapterIndices.length; i++) {
-            const start = chapterIndices[i];
-            const end = i + 1 < chapterIndices.length ? chapterIndices[i + 1] : undefined;
-            const chapterBlock = contentLines.slice(start, end).join('\n');
-            chapterBlocks.push(chapterBlock);
-        }
-    }
-
-    // 4. Process each chapter block
-    const chapters: Chapter[] = [];
-    chapterBlocks.forEach((chapterText) => {
-        const chapterLines = chapterText.trim().split('\n');
-        if (chapterLines.length === 0) return;
-
-        const chapterTitleLine = chapterLines[0] || '';
-        const chapterContent = chapterLines.slice(1).join('\n');
-        
-        const chapterTitle = extractBilingualTextPairs(chapterTitleLine.replace(/^##\s*/, ''), primaryLang, secondaryLang)[0] || { [primaryLang]: `Chapter ${chapters.length + 1}` };
-        const segments = parseMarkdownToSegments(chapterContent, origin, unit, false); // isPiece is false
-
-        // Only add chapter if it has content
-        if (segments.length > 0) {
-            chapters.push({
-                id: generateLocalUniqueId(),
-                order: chapters.length,
-                title: chapterTitle,
-                segments,
-                stats: { totalSegments: segments.length, totalWords: calculateTotalWords(segments, primaryLang), estimatedReadingTime: 1 },
-            });
-        }
     });
     
-    return { title, chapters, unit };
+    return segments;
 }
 
 
@@ -318,22 +245,34 @@ function calculateTotalWords(segments: Segment[], primaryLang: string): number {
 
 /**
  * Helper to extract segments from library items.
+ * ✅ UPDATED: Now parses from the `content` field.
  */
 export function getItemSegments(
     item: Book | Piece | null,
-    chapterIndex: number = 0
+    chapterIndexToFilter?: number // This is now optional
 ): Segment[] {
-    if (!item) return [];
+    if (!item || !item.content) return [];
 
-    if (item.type === 'piece') {
-        return (item as Piece).generatedContent || [];
+    const allSegments = parseMarkdownToSegments(item.content, item.origin, item.unit);
+    
+    if (item.type === 'piece' || chapterIndexToFilter === undefined) {
+        return allSegments;
     }
 
-    if (item.type === 'book') {
-        const book = item as Book;
-        const chapter = book.chapters?.[chapterIndex];
-        return chapter?.segments || [];
-    }
-
-    return [];
+    // For books, filter segments by chapter
+    let currentChapter = -1;
+    const chapterSegments: Segment[][] = [];
+    
+    allSegments.forEach(segment => {
+        if (segment.type === 'heading1') {
+            currentChapter++;
+            chapterSegments[currentChapter] = [];
+        }
+        // Only add if a chapter has started
+        if (currentChapter !== -1) {
+            chapterSegments[currentChapter].push(segment);
+        }
+    });
+    
+    return chapterSegments[chapterIndexToFilter] || [];
 }

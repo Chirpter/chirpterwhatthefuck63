@@ -161,7 +161,7 @@ function estimateSegmentHeightForBook(
   
   const text = Array.isArray(primaryText) ? primaryText.join(' ') : primaryText;
   
-  if (text.startsWith('##') || text.startsWith('#')) {
+  if (segment.type === 'heading1') {
     return avgLineHeight * 2.5;
   }
   
@@ -204,15 +204,19 @@ async function paginateBook(
   
   let currentPageItems: Segment[] = [];
   let currentPageHeight = 0;
-  let isNewChapter = false;
   
   for (const segment of segments) {
-    const primaryText = segment.content[displayLang1];
-    const text = Array.isArray(primaryText) ? primaryText.join(' ') : primaryText || '';
-    
-    const isHeading = text.startsWith('##') || text.startsWith('#');
-    if (isHeading) {
-      isNewChapter = true;
+    if (segment.type === 'heading1') {
+      if (currentPageItems.length > 0) {
+        pages.push({
+          pageIndex: pages.length,
+          items: currentPageItems,
+          estimatedHeight: currentPageHeight
+        });
+        currentPageItems = [];
+        currentPageHeight = 0;
+      }
+      chapterStartPages.push(pages.length);
     }
     
     const estimatedHeight = estimateSegmentHeightForBook(
@@ -233,11 +237,6 @@ async function paginateBook(
       });
       currentPageItems = [];
       currentPageHeight = 0;
-    }
-    
-    if (isNewChapter && currentPageItems.length === 0) {
-      chapterStartPages.push(pages.length);
-      isNewChapter = false;
     }
     
     currentPageItems.push(segment);

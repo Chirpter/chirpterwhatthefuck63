@@ -212,7 +212,6 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
-  // chapters: Chapter[]; // ❌ REMOVED
 }
 
 export interface EditorSettings {
@@ -239,7 +238,6 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isBilingual?: boolean;
-  // generatedContent: Segment[]; // ❌ REMOVED
 }
 
 // ✅ UPDATED: LibraryItem is now a union of the specific types.

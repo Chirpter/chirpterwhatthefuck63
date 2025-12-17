@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { LibraryItem, EditorSettings, Page } from '@/lib/types';
 import { SegmentRenderer } from './SegmentRenderer';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
-import { getItemSegments } from '@/services/shared/SegmentParser';
+import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
 
 
 interface ContentPageRendererProps {
@@ -30,11 +30,13 @@ export function ContentPageRenderer({
   const segments = page?.items || [];
   
   const currentSpokenSegment = useMemo(() => {
-    if (!itemData || !currentPlayingItem || currentPlayingItem.id !== itemData.id || !position) {
+    if (!itemData || !currentPlayingItem || currentPlayingItem.id !== itemData.id || !position || !itemData.content) {
       return null;
     }
     
-    const allSegments = getItemSegments(itemData, position.chapterIndex ?? 0);
+    // ✅ This logic needs to be updated to work with the flat segment structure
+    // The TTS engine will need to provide enough context to find the right segment
+    const allSegments = parseMarkdownToSegments(itemData.content, itemData.origin, itemData.unit);
     const spokenSegmentFromEngine = (currentPlayingItem as any)._internal_segments?.[position.segmentIndex];
     if (!spokenSegmentFromEngine) return null;
     
