@@ -1,6 +1,6 @@
 // src/services/shared/SegmentParser.ts
 
-import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
+import type { Segment, MultilingualContent, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 
 /**
@@ -95,10 +95,10 @@ function splitIntoSentences(text: string): string[] {
 /**
  * Extracts text pairs using a simple and robust Regex scan.
  * Handles both monolingual and bilingual text based on whether `secondaryLang` is provided.
+ * ✅ UPDATE: This function now also cleans markdown characters from the content.
  */
 function extractBilingualTextPairs(text: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
     if (secondaryLang) {
-        // --- BILINGUAL LOGIC ---
         const pairs: Array<MultilingualContent> = [];
         const regex = /([^{}]+)\s*\{(.*?)\}/g;
         let lastIndex = 0;
@@ -110,7 +110,8 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
                 if (orphanText) pairs.push({ [primaryLang]: orphanText });
             }
 
-            const primaryText = cleanText(match[1]);
+            // ✅ Clean markdown characters like '#' from the content
+            const primaryText = cleanText(match[1].replace(/^#+\s*/, ''));
             const secondaryText = cleanText(match[2]);
             
             if (primaryText) {
@@ -128,9 +129,8 @@ function extractBilingualTextPairs(text: string, primaryLang: string, secondaryL
         }
         return pairs;
     } else {
-        // --- MONOLINGUAL LOGIC ---
         return splitIntoSentences(text)
-            .map(s => cleanText(s))
+            .map(s => cleanText(s.replace(/^#+\s*/, ''))) // ✅ Clean headings here too
             .filter(Boolean)
             .map(s => ({ [primaryLang]: s }));
     }
@@ -189,24 +189,25 @@ function processParagraphIntoSegments(
 
 /**
  * Main parser - processes markdown text into a flat array of Segments.
- * This is now the unified parser for both Book and Piece types.
- * It identifies H1 headings and creates special segment types for them.
+ * It identifies H1 headings, sets the segment `type` accordingly, and removes the '#' from the content.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string, unit: ContentUnit): Segment[] {
     const segments: Segment[] = [];
     let order = 0;
-    const primaryLang = origin.split('-')[0];
+    const [primaryLang, secondaryLang] = origin.split('-');
 
-    // Split content by H1 headings, keeping the heading as a delimiter
-    const blocks = markdown.split(/(^#\s+.*$)/m).filter(p => p && p.trim() !== '');
+    // Split content by lines to easily identify headings
+    const lines = markdown.split(/\r?\n/).filter(line => line.trim() !== '');
+    
+    let isFirstParagraph = true;
 
-    blocks.forEach(block => {
-        const trimmedBlock = block.trim();
+    for (const line of lines) {
+        const trimmedLine = line.trim();
         
-        if (trimmedBlock.startsWith('# ')) {
-            // This is an H1 heading, treat it as a special segment
-            const titleContent = trimmedBlock.substring(2).trim();
-            const titlePair = extractBilingualTextPairs(titleContent, origin.split('-')[0], origin.split('-')[1])[0] || { [primaryLang]: titleContent };
+        if (trimmedLine.startsWith('# ')) {
+            // This is an H1 heading.
+            const titleContent = trimmedLine.substring(2).trim();
+            const titlePair = extractBilingualTextPairs(titleContent, primaryLang, secondaryLang)[0] || { [primaryLang]: titleContent };
             
             segments.push({
                 id: generateLocalUniqueId(),
@@ -214,65 +215,22 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
                 type: 'heading1',
                 content: titlePair,
             });
+            isFirstParagraph = true; // The next segment after a heading is a new paragraph start
         } else {
-            // This is regular paragraph content, process it normally
-            const paragraphSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
-            paragraphSegments.forEach(seg => {
-                seg.order = order++;
-                segments.push(seg);
-            });
+            // This is regular paragraph content
+            const paragraphSegments = processParagraphIntoSegments(trimmedLine, origin, unit);
+            if (paragraphSegments.length > 0) {
+              if (isFirstParagraph) {
+                paragraphSegments[0].type = 'start_para';
+                isFirstParagraph = false;
+              }
+              paragraphSegments.forEach(seg => {
+                  seg.order = order++;
+                  segments.push(seg);
+              });
+            }
         }
-    });
+    }
     
     return segments;
-}
-
-
-/**
- * Calculates total word count from segments, handling both string and array content.
- */
-function calculateTotalWords(segments: Segment[], primaryLang: string): number {
-    return segments.reduce((sum, seg) => {
-        const content = seg.content[primaryLang];
-        if (content) {
-            const text = Array.isArray(content) ? content.join(' ') : content;
-            return sum + (text.split(/\s+/).filter(Boolean).length || 0);
-        }
-        return sum;
-    }, 0);
-}
-
-
-/**
- * Helper to extract segments from library items.
- * ✅ UPDATED: Now parses from the `content` field.
- */
-export function getItemSegments(
-    item: Book | Piece | null,
-    chapterIndexToFilter?: number // This is now optional
-): Segment[] {
-    if (!item || !item.content) return [];
-
-    const allSegments = parseMarkdownToSegments(item.content, item.origin, item.unit);
-    
-    if (item.type === 'piece' || chapterIndexToFilter === undefined) {
-        return allSegments;
-    }
-
-    // For books, filter segments by chapter
-    let currentChapter = -1;
-    const chapterSegments: Segment[][] = [];
-    
-    allSegments.forEach(segment => {
-        if (segment.type === 'heading1') {
-            currentChapter++;
-            chapterSegments[currentChapter] = [];
-        }
-        // Only add if a chapter has started
-        if (currentChapter !== -1) {
-            chapterSegments[currentChapter].push(segment);
-        }
-    });
-    
-    return chapterSegments[chapterIndexToFilter] || [];
 }

@@ -39,15 +39,13 @@ const WordHighlight: React.FC<{ text: string; boundary: { charIndex: number, cha
     return <>{text}</>;
 };
 
-const MarkdownContent: React.FC<{ text: string; boundary?: { charIndex: number, charLength: number } | null }> = ({ text, boundary }) => {
+// This component now trusts that the content is clean and relies on type for structure.
+const ContentRenderer: React.FC<{ text: string; boundary?: { charIndex: number, charLength: number } | null }> = ({ text, boundary }) => {
     if (boundary) {
         return <WordHighlight text={text} boundary={boundary} />;
     }
-    
-    if (/[*_~`#]/.test(text)) {
-      return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
-    }
-    return <>{text}</>;
+    // Use ReactMarkdown for any potential inline markdown like bold/italic
+    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
 };
 
 const renderSegmentContent = (
@@ -60,102 +58,72 @@ const renderSegmentContent = (
   speechBoundary: { charIndex: number, charLength: number } | null,
   unit: ContentUnit
 ) => {
-  const { content } = segment;
+  const { content, type } = segment;
+  
+  // ✅ NEW LOGIC: Use the 'type' to determine the wrapper component (h1, p, etc.)
+  const Wrapper = type === 'heading1' ? 'h1' : 'span';
+  const wrapperClasses = type === 'heading1' 
+    ? "font-headline text-3xl mt-4 mb-6 border-b pb-2" 
+    : "inline";
 
-  if (segment.type === 'heading1') {
-      const titleText = content[displayLang1] as string || '';
-      return (
-        <h1 className="font-headline text-3xl mt-4 mb-6 border-b pb-2">
-            {titleText}
-        </h1>
-      )
+  // --- Monolingual Mode ---
+  if (!isBilingualMode) {
+    const monolingualText = content[displayLang1] as string || '';
+    if (!monolingualText) return null;
+    
+    return (
+      <Wrapper className={cn(wrapperClasses, isSegmentPlaying && 'tts-highlight')} lang={displayLang1}>
+        <ContentRenderer text={monolingualText} boundary={isSegmentPlaying ? speechBoundary : null} />
+        {type === 'text' && ' '}
+      </Wrapper>
+    );
   }
 
-  // ✅ FIX: Sentence-by-sentence bilingual (each language on separate line)
-  if (isBilingualMode && unit === 'sentence') {
+  // --- Bilingual Sentence Mode ---
+  if (unit === 'sentence') {
     const primaryText = content[displayLang1] as string || '';
     const secondaryText = content[displayLang2] as string || '';
     
     return (
-      <div className="bilingual-sentence-block mb-4">
-        {primaryText && (
-          <div lang={displayLang1} className={cn(
-            "mb-1",
-            isSegmentPlaying && spokenLang === displayLang1 && 'tts-highlight'
-          )}>
-            <MarkdownContent 
-              text={primaryText} 
-              boundary={isSegmentPlaying && spokenLang === displayLang1 ? speechBoundary : null} 
-            />
-          </div>
-        )}
+      <Wrapper className={wrapperClasses}>
+        <div lang={displayLang1} className={cn("mb-1", isSegmentPlaying && spokenLang === displayLang1 && 'tts-highlight')}>
+            <ContentRenderer text={primaryText} boundary={isSegmentPlaying && spokenLang === displayLang1 ? speechBoundary : null} />
+        </div>
         {secondaryText && (
-          <div lang={displayLang2} className={cn(
-            'text-muted-foreground italic text-[0.9em]',
-            isSegmentPlaying && spokenLang === displayLang2 && 'tts-highlight'
-          )}>
-            <MarkdownContent 
-              text={secondaryText} 
-              boundary={isSegmentPlaying && spokenLang === displayLang2 ? speechBoundary : null} 
-            />
+          <div lang={displayLang2} className={cn('text-muted-foreground italic text-[0.9em]', isSegmentPlaying && spokenLang === displayLang2 && 'tts-highlight')}>
+            <ContentRenderer text={secondaryText} boundary={isSegmentPlaying && spokenLang === displayLang2 ? speechBoundary : null} />
           </div>
         )}
-      </div>
+      </Wrapper>
     );
   }
 
-  // ✅ FIX: Phrase-by-phrase bilingual (inline with secondary in parentheses)
-  if (isBilingualMode && unit === 'phrase') {
-      const primaryPhrases = content[displayLang1];
-      const secondaryPhrases = content[displayLang2];
-      
-      // Handle case where content is not split into phrases
-      if (!Array.isArray(primaryPhrases)) {
-          const primaryText = content[displayLang1] as string || '';
-          const secondaryText = content[displayLang2] as string || '';
-          return (
-            <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
-                <MarkdownContent text={primaryText} boundary={isSegmentPlaying && spokenLang === displayLang1 ? speechBoundary : null} />
-                {secondaryText && (
-                  <span className="text-muted-foreground italic text-[0.9em] ml-1">
-                      ({<MarkdownContent text={secondaryText} />})
-                  </span>
-                )}
-                {' '}
-            </span>
-          );
-      }
+  // --- Bilingual Phrase Mode ---
+  if (unit === 'phrase') {
+      const primaryPhrases = content[displayLang1] as string[] || [];
+      const secondaryPhrases = content[displayLang2] as string[] || [];
 
       return (
-        <span className={cn('inline', isSegmentPlaying && 'tts-highlight')}>
+        <Wrapper className={cn(wrapperClasses, isSegmentPlaying && 'tts-highlight')}>
             {primaryPhrases.map((phrase, index) => {
-                const secondaryPhrase = Array.isArray(secondaryPhrases) ? secondaryPhrases[index] : '';
+                const secondaryPhrase = secondaryPhrases[index] || '';
                 return (
                     <span key={index} className="inline whitespace-nowrap mr-1">
-                        <MarkdownContent text={phrase} />
+                        <ContentRenderer text={phrase} />
                         {secondaryPhrase && (
                             <span className="text-muted-foreground italic text-[0.9em] ml-1">
-                                ({<MarkdownContent text={secondaryPhrase} />})
+                                (<ContentRenderer text={secondaryPhrase} />)
                             </span>
                         )}
                         {' '}
                     </span>
                 );
             })}
-        </span>
+        </Wrapper>
       );
   }
-
-  // ✅ Monolingual mode (inline)
-  const monolingualText = content[displayLang1] as string || '';
-  if (!monolingualText) return null;
   
-  return (
-    <span className={cn('inline', isSegmentPlaying && 'tts-highlight')} lang={displayLang1}>
-      <MarkdownContent text={monolingualText} boundary={isSegmentPlaying ? speechBoundary : null} />
-      {' '}
-    </span>
-  );
+  return null;
 };
 
 export const SegmentRenderer: React.FC<SegmentRendererProps> = ({ 
@@ -168,19 +136,20 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     displayLang2,
     unit
 }) => {
-  const isSegmentPlaying = isPlaying;
+  // Use div for block-level elements like headings or sentence pairs
+  const Wrapper = (segment.type === 'heading1' || (isBilingualMode && unit === 'sentence')) ? 'div' : 'span';
   
-  // ✅ Use div for sentence mode (block-level), span for phrase/mono mode (inline)
-  const Wrapper = (isBilingualMode && unit === 'sentence' || segment.type === 'heading1') ? 'div' : 'span';
+  // Add a specific class for block-level segments for styling if needed
+  const blockClass = Wrapper === 'div' ? 'block-segment mb-4' : '';
 
   return (
-    <Wrapper data-segment-id={segment.id}>
+    <Wrapper data-segment-id={segment.id} className={blockClass}>
       {renderSegmentContent(
         segment, 
         displayLang1, 
         displayLang2, 
         isBilingualMode, 
-        isSegmentPlaying, 
+        isPlaying, 
         spokenLang || null, 
         speechBoundary || null, 
         unit
