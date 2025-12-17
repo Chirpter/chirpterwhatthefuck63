@@ -255,6 +255,8 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
     }
   };
 
+  const isAnyTaskRunning = isRetryingContent || isRetryingCover;
+
   const coverImageComponent = (
     <CoverImage 
       title={titleToDisplay}
@@ -267,10 +269,11 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
       isRetrying={isRetryingCover}
       isPromptError={!!isCoverPromptError}
       retryCount={book.coverRetries || 0}
+      isProcessing={isAnyTaskRunning}
     />
   );
   
-  const coverClasses = cn("relative block w-full aspect-[3/4] rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 z-10 cover-shadow-overlay", isReadable && "hover:shadow-xl");
+  const coverClasses = cn("relative block w-full aspect-[3/4] rounded-lg overflow-hidden shadow-lg transition-shadow duration-300 z-10", isReadable && "hover:shadow-xl");
 
 
   return (

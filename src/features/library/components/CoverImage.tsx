@@ -21,6 +21,7 @@ interface CoverImageProps {
   isRetrying?: boolean;
   isPromptError?: boolean;
   retryCount?: number;
+  isProcessing?: boolean; // New prop to indicate any parent task is running
 }
 
 export default function CoverImage({
@@ -34,6 +35,7 @@ export default function CoverImage({
   isRetrying = false,
   isPromptError = false,
   retryCount = 0,
+  isProcessing = false, // Default to false
 }: CoverImageProps) {
   const { t } = useTranslation(['bookCard', 'common']);
   const coverUrl = cover?.url;
@@ -101,6 +103,11 @@ export default function CoverImage({
   return (
     <div className={cn("relative w-full h-full bg-muted", className)}>
         {renderContent()}
+        {isProcessing && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10">
+                <Icon name="Loader2" className="h-8 w-8 text-white animate-spin" />
+            </div>
+        )}
     </div>
   );
 };
