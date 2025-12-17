@@ -318,7 +318,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
           sessionStorage.setItem('creation_debug_data', JSON.stringify(snapshot, null, 2));
       }
 
-      const { jobId, debugData } = await createLibraryItem(type, dataToSubmit);
+      const { jobId, debugData } = await createLibraryItem(dataToSubmit);
       submissionStatus = 'success';
       setActiveId(jobId);
       if(user.uid) {
