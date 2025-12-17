@@ -1,4 +1,4 @@
-// src/services/shared/SegmentParser.ts
+// src/services/shared/MarkdownParser.ts
 
 import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -199,6 +199,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
 
     // Split content by H1 headings, keeping the heading as a delimiter
     const blocks = markdown.split(/(^#\s+.*$)/m).filter(p => p && p.trim() !== '');
+    let isFirstParagraph = true;
 
     blocks.forEach(block => {
         const trimmedBlock = block.trim();
@@ -214,13 +215,20 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
                 type: 'heading1',
                 content: titlePair,
             });
+            isFirstParagraph = true; // The next segment after a heading is a new paragraph start
         } else {
             // This is regular paragraph content, process it normally
             const paragraphSegments = processParagraphIntoSegments(trimmedBlock, origin, unit);
-            paragraphSegments.forEach(seg => {
-                seg.order = order++;
-                segments.push(seg);
-            });
+            if (paragraphSegments.length > 0) {
+              if (isFirstParagraph) {
+                paragraphSegments[0].type = 'start_para';
+                isFirstParagraph = false;
+              }
+              paragraphSegments.forEach(seg => {
+                  seg.order = order++;
+                  segments.push(seg);
+              });
+            }
         }
     });
     
@@ -248,31 +256,10 @@ function calculateTotalWords(segments: Segment[], primaryLang: string): number {
  * ✅ UPDATED: Now parses from the `content` field.
  */
 export function getItemSegments(
-    item: Book | Piece | null,
-    chapterIndexToFilter?: number // This is now optional
+    item: Book | Piece | null
 ): Segment[] {
     if (!item || !item.content) return [];
 
-    const allSegments = parseMarkdownToSegments(item.content, item.origin, item.unit);
-    
-    if (item.type === 'piece' || chapterIndexToFilter === undefined) {
-        return allSegments;
-    }
-
-    // For books, filter segments by chapter
-    let currentChapter = -1;
-    const chapterSegments: Segment[][] = [];
-    
-    allSegments.forEach(segment => {
-        if (segment.type === 'heading1') {
-            currentChapter++;
-            chapterSegments[currentChapter] = [];
-        }
-        // Only add if a chapter has started
-        if (currentChapter !== -1) {
-            chapterSegments[currentChapter].push(segment);
-        }
-    });
-    
-    return chapterSegments[chapterIndexToFilter] || [];
+    // The content is already a Segment[] array, so just return it.
+    return item.content;
 }

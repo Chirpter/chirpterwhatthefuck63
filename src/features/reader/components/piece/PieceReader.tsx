@@ -12,7 +12,6 @@ import type { Piece, LibraryItem, VocabContext, Segment } from '@/lib/types';
 
 import { ReaderToolbar } from '../shared/ReaderToolbar';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
-import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
 import { Icon } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
@@ -75,10 +74,10 @@ export default function PieceReader({
     }
   }, [piece]);
 
-  // ✅ Client-side parsing of the raw 'content' field
+  // ✅ Use the flat Segment[] array from the piece object
   const allSegments = useMemo(() => {
     if (!piece || !piece.content) return [];
-    return parseMarkdownToSegments(piece.content, piece.origin, piece.unit);
+    return piece.content;
   }, [piece]);
   
   const finalPresentationStyle = piece?.presentationStyle || 'card';

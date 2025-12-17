@@ -11,7 +11,6 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
 import type { Book, LibraryItem, VocabContext, Chapter, Segment, MultilingualContent } from '@/lib/types';
-import { parseMarkdownToSegments } from '@/services/shared/MarkdownParser';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
@@ -60,11 +59,11 @@ export default function BookReader({ book }: { book: Book }) {
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const readerInitializedRef = useRef(false);
 
-  // ✅ Client-side parsing from the single 'content' field
+  // ✅ Client-side parsing to create a virtual chapter structure
   const { chapters, allBookSegments } = useMemo(() => {
     if (!book.content) return { chapters: [], allBookSegments: [] };
     
-    const allSegments = parseMarkdownToSegments(book.content, book.origin, book.unit);
+    const allSegments = book.content; // Use the Segment[] array directly
     const chapterList: Chapter[] = [];
     let currentChapterSegments: Segment[] = [];
     let currentChapterTitle: MultilingualContent = { [displayLang1]: 'Introduction' };
@@ -85,10 +84,22 @@ export default function BookReader({ book }: { book: Book }) {
         currentChapterTitle = seg.content;
         currentChapterId = seg.id;
       } else {
+        // Add segment to the current chapter buffer
+        if (currentChapterSegments.length === 0 && chapterList.length === 0) {
+            // Handle content before the first H1
+             chapterList.push({
+                id: currentChapterId,
+                order: 0,
+                title: currentChapterTitle,
+                segments: [],
+                stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
+            });
+        }
         currentChapterSegments.push(seg);
       }
     });
-
+    
+    // Add the last collected chapter
     if (currentChapterSegments.length > 0) {
         chapterList.push({
             id: currentChapterId,
@@ -100,7 +111,7 @@ export default function BookReader({ book }: { book: Book }) {
     }
 
     return { chapters: chapterList, allBookSegments };
-  }, [book.content, book.origin, book.unit, displayLang1]);
+  }, [book.content, displayLang1]);
 
 
   const {
