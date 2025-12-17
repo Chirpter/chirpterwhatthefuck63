@@ -187,7 +187,7 @@ interface BaseLibraryItem extends BaseDocument {
   tags?: string[];
   labels?: string[];
   unit: ContentUnit;
-  content?: string; // ✅ NEW: Single field for raw markdown content
+  content: string; // ✅ NEW: Single field for raw markdown content
 }
 
 
@@ -212,6 +212,7 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
+  // chapters: Chapter[]; // ❌ REMOVED
 }
 
 export interface EditorSettings {
@@ -238,6 +239,7 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isBilingual?: boolean;
+  // generatedContent: Segment[]; // ❌ REMOVED
 }
 
 // ✅ UPDATED: LibraryItem is now a union of the specific types.

@@ -198,7 +198,7 @@ export function parseMarkdownToSegments(markdown: string, origin: string, unit: 
     const primaryLang = origin.split('-')[0];
 
     // Split content by H1 headings, keeping the heading as a delimiter
-    const blocks = markdown.split(/(^#\s+.*$)/m).filter(p => p.trim() !== '');
+    const blocks = markdown.split(/(^#\s+.*$)/m).filter(p => p && p.trim() !== '');
 
     blocks.forEach(block => {
         const trimmedBlock = block.trim();
@@ -268,6 +268,7 @@ export function getItemSegments(
             currentChapter++;
             chapterSegments[currentChapter] = [];
         }
+        // Only add if a chapter has started
         if (currentChapter !== -1) {
             chapterSegments[currentChapter].push(segment);
         }

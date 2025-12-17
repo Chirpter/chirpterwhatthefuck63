@@ -76,6 +76,7 @@ export const usePagination = ({
     const currentDepsKey = createDepsKey();
     if (currentDepsKey === lastDepsRef.current && pages.length > 0) {
       console.log('[usePagination] ⏭️ Skip - no changes');
+      setIsCalculating(false); // Ensure loading state is turned off
       return;
     }
     
