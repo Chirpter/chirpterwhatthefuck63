@@ -1,4 +1,3 @@
-
 // src/features/library/components/BookItemCard.tsx
 
 "use client";
@@ -275,7 +274,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
             className="w-full h-full"
             onRegenerate={handleCoverRetry}
             isRetrying={isRetryingCover}
-            isPromptError={isCoverPromptError}
+            isPromptError={!!isCoverPromptError}
             retryCount={book.coverRetries || 0}
           />
         </ReaderLinkWrapper>
