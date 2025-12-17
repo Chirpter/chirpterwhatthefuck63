@@ -194,7 +194,6 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
-  content: string; // Markdown content
   chapters: Chapter[];
 }
 
@@ -214,7 +213,6 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isBilingual?: boolean;
-  content: string; // Markdown content
   generatedContent: Segment[];
 }
 

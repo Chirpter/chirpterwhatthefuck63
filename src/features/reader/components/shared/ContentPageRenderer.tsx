@@ -17,61 +17,44 @@ interface ContentPageRendererProps {
   displayLang2: string; // 'none' or language code
 }
 
-const WordHighlight: React.FC<{ text: string; boundary: { charIndex: number, charLength: number } | null }> = ({ text, boundary }) => {
-    if (boundary) {
-        const { charIndex, charLength } = boundary;
-        if (charIndex <= text.length) {
-            const pre = text.substring(0, charIndex);
-            const highlighted = text.substring(charIndex, charIndex + charLength);
-            const post = text.substring(charIndex + charLength);
-            
-            return (
-                <>
-                    {pre}
-                    <span className="tts-word-highlight">{highlighted}</span>
-                    {post}
-                </>
-            );
-        }
-    }
-    return <>{text}</>;
-};
-
-const ContentRenderer: React.FC<{
-  segmentContent: (string | LanguageBlock)[];
-  displayLang1: string;
-  displayLang2: string;
-  isSegmentPlaying: boolean;
-  spokenLang: string | null;
-  speechBoundary: { charIndex: number, charLength: number } | null;
-  unit: 'sentence' | 'phrase';
-}> = ({ segmentContent, displayLang1, displayLang2, isSegmentPlaying, spokenLang, speechBoundary, unit }) => {
+const SegmentRenderer: React.FC<{
+  segment: Segment,
+  displayLang1: string,
+  displayLang2: string,
+  unit: 'sentence' | 'phrase',
+  isSegmentPlaying: boolean,
+  speechBoundary: { charIndex: number, charLength: number } | null
+}> = ({ segment, displayLang1, displayLang2, unit, isSegmentPlaying, speechBoundary }) => {
   
   const reconstructedMarkdown = useMemo(() => {
     let finalString = '';
-    const prefix = typeof segmentContent[0] === 'string' ? segmentContent[0] : '';
-    const suffix = typeof segmentContent[segmentContent.length - 1] === 'string' ? segmentContent[segmentContent.length - 1] : '';
-    const langBlock = segmentContent.find(p => typeof p === 'object') as LanguageBlock | undefined;
-
-    const text1 = langBlock?.[displayLang1] as string || '';
-    const text2 = langBlock?.[displayLang2] as string || '';
-
-    if (displayLang2 !== 'none' && text2) {
-      if (unit === 'phrase') {
-        finalString = `${prefix}${text1} (${text2})${suffix}`;
-      } else { // sentence
-        finalString = `${prefix}${text1}${suffix}\n\n_${text2}_`;
+    const isBilingual = displayLang2 !== 'none';
+    
+    segment.content.forEach(part => {
+      if (typeof part === 'string') {
+        finalString += part;
+      } else { // It's a LanguageBlock
+        const langBlock = part as LanguageBlock;
+        const text1 = langBlock[displayLang1] || '';
+        
+        if (isBilingual) {
+          const text2 = langBlock[displayLang2] || '';
+          if (unit === 'phrase') {
+            finalString += `${text1} (${text2})`;
+          } else { // sentence
+            finalString += `${text1}\n\n_${text2}_`;
+          }
+        } else {
+          finalString += text1;
+        }
       }
-    } else {
-      finalString = `${prefix}${text1}${suffix}`;
-    }
-
+    });
+    
     return finalString;
-  }, [segmentContent, displayLang1, displayLang2, unit]);
+  }, [segment.content, displayLang1, displayLang2, unit]);
 
-  // For now, word highlighting is disabled in this new architecture,
-  // as it would require parsing the reconstructed markdown.
-  // We can add this back later if needed.
+  // For now, word highlighting on the reconstructed string is complex.
+  // We can add it back later if necessary.
   return <ReactMarkdown remarkPlugins={[remarkGfm]}>{reconstructedMarkdown}</ReactMarkdown>;
 };
 
@@ -84,16 +67,11 @@ export function ContentPageRenderer({
     displayLang1 = 'en',
     displayLang2 = 'none',
 }: ContentPageRendererProps) {
-  const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary, currentSegmentLanguage } = useAudioPlayer();
+  const { currentPlayingItem, position, currentSpeechBoundary: speechBoundary } = useAudioPlayer();
   const segments = page?.items || [];
   
-  const currentSpokenSegmentId = useMemo(() => {
-    // This logic will need to be adapted based on how audio engine tracks progress
-    // with the new `Segment[]` structure.
-    return null;
-  }, [currentPlayingItem, itemData, position]);
-
-  const currentSpokenLang = currentSegmentLanguage;
+  // This logic would need to be updated if audio playback needs to sync with the new structure.
+  const currentSpokenSegmentId = null;
 
   const proseThemeClass = useMemo(() => {
     switch (editorSettings.background) {
@@ -135,20 +113,21 @@ export function ContentPageRenderer({
     layoutClasses,
     "overflow-hidden"
   );
-  
 
   return (
     <div className={contentContainerClasses}>
       {segments.map((segment) => (
-        <div key={segment.id} data-segment-id={segment.id}>
-            <ContentRenderer
-                segmentContent={segment.content}
+        <div 
+            key={segment.id} 
+            data-segment-id={segment.id}
+            className={cn(segment.type === 'heading1' && 'font-headline text-3xl mt-4 mb-6 border-b pb-2')}
+        >
+            <SegmentRenderer
+                segment={segment}
                 displayLang1={displayLang1}
                 displayLang2={displayLang2}
-                isBilingualMode={displayLang2 !== 'none'}
                 unit={itemData?.unit || 'sentence'}
                 isSegmentPlaying={currentSpokenSegmentId === segment.id}
-                spokenLang={currentSpokenLang}
                 speechBoundary={speechBoundary}
             />
         </div>

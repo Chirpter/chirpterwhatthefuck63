@@ -215,11 +215,7 @@ function aggregateSegmentsIntoChapters(segments: Segment[], origin: string): Cha
     let currentChapter: Chapter | null = null;
 
     for (const segment of segments) {
-        const segmentPrefix = Array.isArray(segment.content) && typeof segment.content[0] === 'string' ? segment.content[0] : '';
-        const isHeading = segmentPrefix.trim().startsWith('#');
-
-        if (isHeading) {
-            // If there's an existing chapter, push it before starting a new one
+        if (segment.type === 'heading1') {
             if (currentChapter) {
                 chapters.push(currentChapter);
             }
@@ -234,10 +230,9 @@ function aggregateSegmentsIntoChapters(segments: Segment[], origin: string): Cha
                 stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
             };
         } else {
-            // If we encounter text before the first heading, create an intro chapter
             if (!currentChapter) {
                 currentChapter = {
-                    id: generateLocalUniqueId(),
+                    id: 'intro',
                     order: 0,
                     title: { [primaryLang]: 'Introduction' },
                     segments: [],
@@ -248,7 +243,6 @@ function aggregateSegmentsIntoChapters(segments: Segment[], origin: string): Cha
         }
     }
     
-    // Push the last chapter if it exists
     if (currentChapter) {
         chapters.push(currentChapter);
     }

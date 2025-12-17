@@ -23,15 +23,17 @@ function parseLineToSegmentContent(line: string, primaryLang: string, secondaryL
     // Regex to find language blocks like {text}
     const langBlockRegex = /\{(.*?)\}/g;
     let lastIndex = 0;
-    let match;
     let langIndex = 0;
 
     // Find the first language block to determine the prefix
     const firstMatch = langBlockRegex.exec(line);
     
     if (!firstMatch) {
-        // No language blocks, treat the whole line as a prefix
-        return [line];
+        // No language blocks, treat the whole line as the content itself (monolingual case without braces)
+        // This makes the parser more robust.
+        langBlock[primaryLang] = cleanText(line);
+        content.push(langBlock);
+        return content;
     }
     
     // There is at least one language block
@@ -42,7 +44,8 @@ function parseLineToSegmentContent(line: string, primaryLang: string, secondaryL
 
     // Reset regex for global search from the beginning
     langBlockRegex.lastIndex = 0;
-
+    let match;
+    
     while ((match = langBlockRegex.exec(line)) !== null) {
         const lang = langIndex === 0 ? primaryLang : secondaryLang;
         if (lang) {
@@ -71,14 +74,20 @@ export function parseMarkdownToSegments(markdown: string, origin: string): Segme
     let order = 0;
     const [primaryLang, secondaryLang] = origin.split('-');
 
-    // Split by newlines to process line by line.
+    // Split by newlines to process line by line. Filter out empty lines.
     const lines = markdown.split(/\r?\n/).filter(line => line.trim() !== '');
 
     for (const line of lines) {
+        let segmentType: 'heading1' | undefined = undefined;
+        if (line.trim().startsWith('#')) {
+            segmentType = 'heading1';
+        }
+        
         segments.push({
             id: generateLocalUniqueId(),
             order: order++,
             content: parseLineToSegmentContent(line, primaryLang, secondaryLang),
+            type: segmentType,
         });
     }
     
