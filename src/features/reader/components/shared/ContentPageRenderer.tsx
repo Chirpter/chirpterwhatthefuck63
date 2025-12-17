@@ -1,4 +1,3 @@
-
 // src/features/reader/components/shared/ContentPageRenderer.tsx
 'use client';
 
@@ -120,7 +119,7 @@ export function ContentPageRenderer({
               key={segment.id} 
               data-segment-id={segment.id}
           >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalMarkdown}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} allowDangerousHtml>{finalMarkdown}</ReactMarkdown>
           </div>
         );
       })}
