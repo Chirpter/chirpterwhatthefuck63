@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 import { getStorage } from 'firebase-admin/storage';
 import { updateLibraryItem } from "./library.service";
-import { parseMarkdownToSegments } from '../shared/SegmentParser';
+import { segmentize } from '../shared/SegmentParser';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -299,7 +299,7 @@ async function processContentGenerationForBook(
         debugData.rawResponse = aiOutput.markdownContent;
         
         const titlePair = extractBilingualPairFromMarkdown(aiOutput.title, primaryLanguage, secondaryLanguage);
-        const segments = parseMarkdownToSegments(aiOutput.markdownContent, origin);
+        const segments = segmentize(aiOutput.markdownContent, origin);
         const chapters = aggregateSegmentsIntoChapters(segments, origin);
 
         debugData.parsedData = { title: titlePair, chapterCount: chapters.length };

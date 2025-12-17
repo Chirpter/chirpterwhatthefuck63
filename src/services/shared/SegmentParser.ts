@@ -69,7 +69,7 @@ function parseLineToSegmentContent(line: string, primaryLang: string, secondaryL
  * Main parser - processes a raw markdown string into a flat array of Segments.
  * Each segment's content is an array: [prefix, {langBlock}, suffix].
  */
-export function parseMarkdownToSegments(markdown: string, origin: string): Segment[] {
+export function segmentize(markdown: string, origin: string): Segment[] {
     const segments: Segment[] = [];
     let order = 0;
     const [primaryLang, secondaryLang] = origin.split('-');

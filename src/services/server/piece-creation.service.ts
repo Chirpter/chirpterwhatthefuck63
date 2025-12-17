@@ -11,7 +11,7 @@ import { ApiServiceError } from "@/lib/errors";
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
-import { parseMarkdownToSegments } from '../shared/SegmentParser';
+import { segmentize } from '../shared/SegmentParser';
 
 const PieceOutputSchema = z.object({
   title: z.string().describe("A concise, fitting title for the piece."),
@@ -205,7 +205,7 @@ async function generatePieceContent(
         debugData.rawResponse = rawResponse;
 
         const titlePair = extractBilingualPairFromMarkdown(aiOutput.title, primaryLanguage, secondaryLanguage);
-        const segments = parseMarkdownToSegments(aiOutput.markdownContent, pieceFormData.origin);
+        const segments = segmentize(aiOutput.markdownContent, pieceFormData.origin);
         
         parsedData = { title: titlePair, segmentCount: segments.length };
         debugData.parsedData = parsedData;

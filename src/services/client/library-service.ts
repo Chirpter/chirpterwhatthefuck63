@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import type { LibraryItem, Segment } from '@/lib/types';
 import { convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-import { parseMarkdownToSegments } from '../shared/SegmentParser';
+import { segmentize } from '../shared/SegmentParser';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -31,7 +31,7 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
 
             // Perform client-side parsing if content exists
             if (convertedItem.content && typeof convertedItem.content === 'string') {
-                convertedItem.content = parseMarkdownToSegments(convertedItem.content, convertedItem.origin) as any;
+                convertedItem.content = segmentize(convertedItem.content, convertedItem.origin) as any;
             }
 
             return convertedItem;
@@ -65,7 +65,7 @@ export async function getLibraryItemsByIds(userId: string, itemIds: string[]): P
             const convertedItem = convertTimestamps(itemWithId) as LibraryItem;
 
             if (convertedItem.content && typeof convertedItem.content === 'string') {
-                convertedItem.content = parseMarkdownToSegments(convertedItem.content, convertedItem.origin) as any;
+                convertedItem.content = segmentize(convertedItem.content, convertedItem.origin) as any;
             }
             return convertedItem;
           });

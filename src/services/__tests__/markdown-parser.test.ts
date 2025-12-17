@@ -2,8 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { 
-  parseMarkdownToSegments, 
-  splitSentenceIntoPhrases
+  segmentize, 
 } from '../shared/SegmentParser'; // Updated import path
 import type { Book, Piece, MultilingualContent } from '@/lib/types';
 
@@ -12,64 +11,54 @@ describe('SegmentParser - Unified Architecture', () => {
   // ==========================================
   // 1. Core Segment Parsing
   // ==========================================
-  describe('✅ Core Segment Parsing', () => {
-    it('should split by H1 headings and paragraphs', () => {
-      const md = '# Chapter 1\n\nFirst paragraph.\n\n# Chapter 2\nSecond paragraph.';
-      const segments = parseMarkdownToSegments(md, 'en');
+  describe('✅ Core Segment Parsing with segmentize', () => {
+    it('should split by H1 headings and paragraphs into structured segments', () => {
+      const md = '# Chapter 1 {Chương 1}\n\nFirst paragraph. {Đoạn đầu tiên.}';
+      const segments = segmentize(md, 'en-vi');
       
-      expect(segments).toHaveLength(4); // h1, p, h1, p
+      expect(segments).toHaveLength(2);
       
-      expect(segments[0]).toMatchObject({ type: 'heading1', content: { en: 'Chapter 1' } });
-      expect(segments[1]).toMatchObject({ type: 'start_para', content: { en: 'First paragraph.' } });
-      expect(segments[2]).toMatchObject({ type: 'heading1', content: { en: 'Chapter 2' } });
-      expect(segments[3]).toMatchObject({ type: 'start_para', content: { en: 'Second paragraph.' } });
+      // Test Heading
+      expect(segments[0].type).toBe('heading1');
+      expect(segments[0].content).toEqual(['# ', { en: 'Chapter 1', vi: 'Chương 1' }]);
+      
+      // Test Paragraph
+      expect(segments[1].type).toBeUndefined();
+      expect(segments[1].content).toEqual(['', { en: 'First paragraph.', vi: 'Đoạn đầu tiên.' }]);
     });
     
-    it('should correctly handle bilingual headings', () => {
-        const md = '# Chapter 1 {Chương 1}';
-        const segments = parseMarkdownToSegments(md, 'en-vi');
-        expect(segments).toHaveLength(1);
+    it('should handle monolingual content correctly', () => {
+        const md = '# Monolingual Title\n\nJust one language here.';
+        const segments = segmentize(md, 'en');
+
+        expect(segments).toHaveLength(2);
         expect(segments[0]).toMatchObject({
             type: 'heading1',
-            content: { en: 'Chapter 1', vi: 'Chương 1' }
+            content: ['# ', { en: 'Monolingual Title' }]
+        });
+        expect(segments[1]).toMatchObject({
+            type: undefined,
+            content: ['', { en: 'Just one language here.' }]
         });
     });
 
-    it('should preserve markdown within text content', () => {
-        const md = 'This is **bold** and *italic*.';
-        const segments = parseMarkdownToSegments(md, 'en');
+    it('should preserve markdown within text content inside the language block', () => {
+        const md = 'This is **bold** and *italic*. {Đây là **đậm** và *nghiêng*.}';
+        const segments = segmentize(md, 'en-vi');
         expect(segments).toHaveLength(1);
-        expect(segments[0].content.en).toBe('This is **bold** and *italic*.');
-        expect(segments[0].type).toBe('start_para');
+        expect(segments[0].content[1]).toEqual({
+          en: 'This is **bold** and *italic*.',
+          vi: 'Đây là **đậm** và *nghiêng*.'
+        });
     });
 
-    it('should handle paragraphs with multiple lines', () => {
+    it('should handle paragraphs with multiple lines and keep newlines in suffix', () => {
         const md = 'Line one.\nLine two.';
-        const segments = parseMarkdownToSegments(md, 'en');
+        const segments = segmentize(md, 'en');
+        // This will now be treated as a single line since there are no {} and it's parsed as one block
         expect(segments).toHaveLength(1);
-        expect(segments[0].content.en).toBe('Line one.\nLine two.');
+        expect(segments[0].content[0]).toEqual({ en: 'Line one.\nLine two.' });
     });
   });
 
-  // ==========================================
-  // 2. HELPER: splitSentenceIntoPhrases (Assuming it's now part of a client-side utility)
-  // This logic is no longer part of the server-side SegmentParser, but we test it for completeness
-  // as it would be used by a client-side renderer.
-  // ==========================================
-  describe('✅ Client-side Utility: splitSentenceIntoPhrases', () => {
-    it('should split by comma', () => {
-      const sentence = "One, two, three.";
-      expect(splitSentenceIntoPhrases(sentence)).toEqual(["One,", "two,", "three."]);
-    });
-    
-    it('should split by semicolon', () => {
-      const sentence = "One; two; three.";
-      expect(splitSentenceIntoPhrases(sentence)).toEqual(["One;", "two;", "three."]);
-    });
-
-    it('should handle a mix of delimiters', () => {
-        const sentence = "One, two; three, four.";
-        expect(splitSentenceIntoPhrases(sentence)).toEqual(["One,", "two;", "three,", "four."]);
-    });
-  });
 });
