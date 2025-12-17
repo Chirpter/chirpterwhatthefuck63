@@ -153,7 +153,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         updatedAt: FieldValue.serverTimestamp(),
         unit: bookFormData.unit,
         labels: [],
-        generatedContent: [],
+        content: [],
     };
     transaction.set(newBookRef, removeUndefinedProps(initialBookData));
     bookId = newBookRef.id;
@@ -259,7 +259,7 @@ async function processContentGenerationForBook(
         
         return {
           title: titlePair,
-          generatedContent: segments,
+          content: segments,
           unit: origin.endsWith('-ph') ? 'phrase' : 'sentence',
           contentState: 'ready',
           contentRetries: 0,
@@ -352,7 +352,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     origin: bookData.origin,
     bookLength: bookData.length || 'short-story',
     generationScope: 'full', // Always full for now, can be changed
-    chaptersToGenerate: bookData.generatedContent.filter(s => s.content[0].toString().startsWith('#')).length || 3,
+    chaptersToGenerate: bookData.content.filter(s => s.content[0].toString().startsWith('#')).length || 3,
   };
   
   processBookGenerationPipeline(

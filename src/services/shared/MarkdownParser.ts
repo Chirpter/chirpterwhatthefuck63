@@ -29,7 +29,7 @@ export function getItemSegments(
 
     // The content is already a Segment[] array, so just return it.
     if(item.type === 'book' || item.type === 'piece') {
-        return item.generatedContent || [];
+        return item.content || [];
     }
     return [];
 }

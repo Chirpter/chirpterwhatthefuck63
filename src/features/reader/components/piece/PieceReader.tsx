@@ -75,7 +75,7 @@ export default function PieceReader({
 
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
-  const allSegments = piece?.generatedContent || [];
+  const allSegments = piece?.content || [];
   
   const finalPresentationStyle = piece?.presentationStyle || 'card';
   const finalAspectRatio = piece?.aspectRatio || '3:4';

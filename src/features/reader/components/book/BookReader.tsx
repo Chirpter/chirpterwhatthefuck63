@@ -66,7 +66,7 @@ export default function BookReader({ book }: { book: Book }) {
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
   // The flat list of all segments from the book
-  const allBookSegments = useMemo(() => book.generatedContent || [], [book.generatedContent]);
+  const allBookSegments = useMemo(() => book.content || [], [book.content]);
 
   const {
     pages,

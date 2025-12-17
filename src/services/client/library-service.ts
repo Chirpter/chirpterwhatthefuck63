@@ -34,13 +34,8 @@ export async function getLibraryItemById(userId: string, itemId: string): Promis
             // @ts-ignore
             if (convertedItem.content && typeof convertedItem.content === 'string') {
                 console.warn(`[Compatibility] Parsing legacy string content for item ${itemId}`);
-                 // @ts-ignore
-                const segments = segmentize(convertedItem.content, convertedItem.origin);
-                if (convertedItem.type === 'book') {
-                    convertedItem.chapters = [{ id: 'legacy', order: 0, title: convertedItem.title, segments: segments, stats: {totalSegments:0, totalWords:0, estimatedReadingTime:0}, metadata: {primaryLanguage: ''} }];
-                } else if (convertedItem.type === 'piece') {
-                    convertedItem.generatedContent = segments;
-                }
+                const segments = segmentize(convertedItem.content as string, convertedItem.origin);
+                convertedItem.content = segments;
             }
 
 
@@ -76,13 +71,8 @@ export async function getLibraryItemsByIds(userId: string, itemIds: string[]): P
 
             // @ts-ignore
             if (convertedItem.content && typeof convertedItem.content === 'string') {
-                 // @ts-ignore
-                const segments = segmentize(convertedItem.content, convertedItem.origin);
-                 if (convertedItem.type === 'book') {
-                    convertedItem.chapters = [{ id: 'legacy', order: 0, title: convertedItem.title, segments: segments, stats: {totalSegments:0, totalWords:0, estimatedReadingTime:0}, metadata: {primaryLanguage: ''} }];
-                } else if (convertedItem.type === 'piece') {
-                    convertedItem.generatedContent = segments;
-                }
+                const segments = segmentize(convertedItem.content as string, convertedItem.origin);
+                convertedItem.content = segments;
             }
             return convertedItem;
           });

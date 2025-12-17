@@ -55,13 +55,13 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
 
     try {
         const contentResult = await generatePieceContent(pieceFormData);
-        if (!contentResult || !contentResult.generatedContent) {
+        if (!contentResult || !contentResult.content) {
             throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
 
         finalUpdate = {
             title: contentResult.title,
-            generatedContent: contentResult.generatedContent,
+            content: contentResult.content,
             contentState: 'ready',
             status: 'draft',
             contentRetryCount: 0,
@@ -122,7 +122,7 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
             tags: [],
             presentationStyle: pieceFormData.presentationStyle || 'card',
             aspectRatio: pieceFormData.aspectRatio,
-            generatedContent: [], // Initialize with empty segments
+            content: [], // Initialize with empty segments
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
             isBilingual: pieceFormData.availableLanguages.length > 1,
@@ -212,7 +212,7 @@ async function generatePieceContent(
         
         return {
           title: titlePair,
-          generatedContent: segments,
+          content: segments,
           debug: debugData,
         };
 

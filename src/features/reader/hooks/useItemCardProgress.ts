@@ -66,7 +66,7 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
         }
         
         const book = item as Book;
-        const segments = book.generatedContent || [];
+        const segments = book.content || [];
         if (segments.length === 0) {
             return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
         }

@@ -185,7 +185,7 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
-  generatedContent: Segment[];
+  content: Segment[];
 }
 
 /**
@@ -204,7 +204,7 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isBilingual?: boolean;
-  generatedContent: Segment[];
+  content: Segment[];
 }
 
 export type LibraryItem = Book | Piece;
