@@ -101,7 +101,7 @@ export default function ShadowingView() {
     }
     
     try {
-      const saved = localStorage.getItem(`shadowing-progress-${'${videoId}'}`);
+      const saved = localStorage.getItem(`shadowing-progress-${videoId}`);
       setProgress(saved ? JSON.parse(saved) : []);
     } catch (e) {
       console.error('Failed to read progress', e);
@@ -117,7 +117,7 @@ export default function ShadowingView() {
       
       const next = Array.from(new Set([...prev, lineIndex])).sort((a, b) => a - b);
       try {
-        localStorage.setItem(`shadowing-progress-${'${videoId}'}`, JSON.stringify(next));
+        localStorage.setItem(`shadowing-progress-${videoId}`, JSON.stringify(next));
       } catch (e) {
         console.error(e);
       }
@@ -129,7 +129,7 @@ export default function ShadowingView() {
     if (!videoId) return;
     setProgress([]);
     try {
-      localStorage.removeItem(`shadowing-progress-${'${videoId}'}`);
+      localStorage.removeItem(`shadowing-progress-${videoId}`);
     } catch (e) {
       console.error(e);
     }
@@ -225,7 +225,7 @@ export default function ShadowingView() {
       setTranscriptResult(result);
       toast({
         title: 'Transcript Loaded',
-        description: `Loaded ${'${result.transcript.length}'} lines from "${'${result.title}'}"`
+        description: `Loaded ${result.transcript.length} lines from "${result.title}"`
       });
 
       const vid = videoId!;
@@ -247,7 +247,7 @@ export default function ShadowingView() {
   const formatTime = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${'${m}'}:${'${s}'}`;
+    return `${m}:${s}`;
   }, []);
 
   const handlePlaySnippet = useCallback((start: number, end: number, lineIndex?: number) => {
@@ -593,7 +593,7 @@ export default function ShadowingView() {
                   }}
                   disabled={!transcriptResult}
                   className="h-11 w-11 transition-colors"
-                  title={isShadowingMode ? t('shadowing.exitMode') : `${'${t(\'shadowing.startMode\')}'} (Ctrl + M)`}
+                  title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}
                 >
                   <Icon name="Shadowing" className="h-5 w-5" />
                 </Button>

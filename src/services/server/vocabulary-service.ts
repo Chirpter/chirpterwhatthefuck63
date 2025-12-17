@@ -28,7 +28,7 @@ export async function fetchAllVocabularyFromFirestore(userId: string): Promise<V
     
     return querySnapshot.docs.map(docSnap => {
       const data = docSnap.data() as Omit<VocabularyItem, 'id'>;
-      return convertTimestamps({ id: docSnap.id, ...data });
+      return convertTimestamps({ id: docSnap.id, ...data }) as VocabularyItem;
     });
   } catch (error) {
     handleVocabularyError(error, 'fetchAllVocabularyFromFirestore', VocabularyErrorCode.DB_QUERY_FAILED);
