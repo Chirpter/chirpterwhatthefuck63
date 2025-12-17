@@ -107,12 +107,21 @@ export const usePagination = ({
       console.error('[usePagination] ❌ Error:', err);
       setError((err as Error).message);
       
+      // Fallback to a single page containing all content on error
       setPages([{
         pageIndex: 0,
         items: segments,
         estimatedHeight: 0
       }]);
-      setChapterStartPages([0]);
+      // Calculate chapter starts based on headings in the flat segment list
+      const starts = segments.reduce((acc, segment, index) => {
+        const firstContent = segment.content[0];
+        if (typeof firstContent === 'string' && firstContent.trim().startsWith('#')) {
+          acc.push(index); // Just use index for now, will resolve to page later
+        }
+        return acc;
+      }, [] as number[]);
+      setChapterStartPages(starts.length > 0 ? starts.map(() => 0) : [0]); // Simplified for fallback
       
     } finally {
       isCalculatingRef.current = false;

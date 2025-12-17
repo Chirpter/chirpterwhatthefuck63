@@ -10,7 +10,7 @@ import { useSettings } from '@/contexts/settings-context';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
-import type { Book, LibraryItem, VocabContext, Chapter, Segment, MultilingualContent } from '@/lib/types';
+import type { Book, LibraryItem, VocabContext, Segment, MultilingualContent } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
@@ -49,12 +49,10 @@ export default function BookReader({ book }: { book: Book }) {
   const [isTocOpen, setIsTocOpen] = useState(false);
   
   // --- STATE FOR DYNAMIC LANGUAGE DISPLAY ---
-  // Initialize state based on the book's origin property
   const [displayLang1, setDisplayLang1] = useState(() => book.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(() => book.langs[1] || 'none');
   
   useEffect(() => {
-    // This effect ensures that the state is correctly initialized from origin on first load.
     const originParts = book.origin.split('-');
     setDisplayLang1(originParts[0] || book.langs[0] || 'en');
     setDisplayLang2(originParts[1] || 'none');
@@ -66,11 +64,9 @@ export default function BookReader({ book }: { book: Book }) {
     sourceItem: null, sentenceContext: '', context: 'reader' 
   });
   const contentContainerRef = useRef<HTMLDivElement>(null);
-  const readerInitializedRef = useRef(false);
 
-  const chapters = book.chapters || [];
-  const allBookSegments = useMemo(() => chapters.flatMap(c => c.segments), [chapters]);
-
+  // The flat list of all segments from the book
+  const allBookSegments = useMemo(() => book.generatedContent || [], [book.generatedContent]);
 
   const {
     pages,
@@ -90,25 +86,52 @@ export default function BookReader({ book }: { book: Book }) {
     displayLang2,
     unit: book.unit || 'sentence',
   });
+  
+  const chapters = useMemo(() => {
+    const chapterData: { title: MultilingualContent, segmentId: string }[] = [];
+    allBookSegments.forEach(segment => {
+      const firstContent = segment.content[0];
+      if (typeof firstContent === 'string' && firstContent.startsWith('#')) {
+        const langBlock = segment.content.find(c => typeof c === 'object') as MultilingualContent | undefined;
+        if(langBlock) {
+          chapterData.push({ title: langBlock, segmentId: segment.id });
+        }
+      }
+    });
+    // If no headings found, create a default "Chapter 1"
+    if (chapterData.length === 0 && allBookSegments.length > 0) {
+      return [{ title: { [displayLang1]: 'Chapter 1' }, segmentId: allBookSegments[0].id }];
+    }
+    return chapterData;
+  }, [allBookSegments, displayLang1]);
 
   const currentChapterIndex = useMemo(() => {
     if (chapterStartPages.length === 0) return 0;
     return chapterStartPages.findLastIndex(startPage => currentPageIndex >= startPage) ?? 0;
   }, [currentPageIndex, chapterStartPages]);
 
-  // This effect can be simplified or removed if not needed for audio sync
+  // Audio player sync effect
   useEffect(() => {
-    // ... existing audio player sync logic can remain ...
+    if (
+      audioPlayer.currentPlayingItem?.id === book.id &&
+      audioPlayer.isActive &&
+      !isCalculating &&
+      audioPlayer.position.originalSegmentId // Use new field
+    ) {
+      const targetPage = getPageForSegment(audioPlayer.position.originalSegmentId);
+      if (targetPage !== -1 && targetPage !== currentPageIndex) {
+        setCurrentPageIndex(targetPage);
+      }
+    }
   }, [
-    audioPlayer.currentPlayingItem, 
-    audioPlayer.position, 
-    currentPageIndex, 
-    getPageForSegment, 
+    audioPlayer.currentPlayingItem,
+    audioPlayer.isActive,
+    audioPlayer.position,
+    currentPageIndex,
+    getPageForSegment,
     isCalculating,
-    book, 
-    searchParams, 
-    chapterStartPages,
     setCurrentPageIndex,
+    book.id,
   ]);
   
   const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
@@ -142,11 +165,11 @@ export default function BookReader({ book }: { book: Book }) {
         
         if (sourceLang === i18n.language) return;
 
-        const currentChapterData = chapters?.[currentChapterIndex];
+        const currentChapterInfo = chapters?.[currentChapterIndex];
 
         setLookupState({ 
             isOpen: true, text: selectedText, rect, sourceLang,
-            targetLanguage: i18n.language, sourceItem: book, chapterId: currentChapterData?.id, segmentId,
+            targetLanguage: i18n.language, sourceItem: book, chapterId: currentChapterInfo?.segmentId, segmentId,
             sentenceContext, context: 'reader',
         });
     } else if (lookupState.isOpen) {
@@ -214,7 +237,7 @@ export default function BookReader({ book }: { book: Book }) {
                 <SheetHeader className="p-4 border-b"><SheetTitle className="font-headline text-lg text-primary truncate">{(book.title as any)[displayLang1]}</SheetTitle></SheetHeader>
                 <ScrollArea className="flex-1"><div className="p-2 font-body">
                   {chapters?.map((chapter, index) => (
-                    <Button key={chapter.id} variant="ghost" className={cn("w-full justify-start text-left h-auto py-2", index === currentChapterIndex && "bg-accent text-accent-foreground")} onClick={() => handleChapterSelect(index)}>
+                    <Button key={chapter.segmentId} variant="ghost" className={cn("w-full justify-start text-left h-auto py-2", index === currentChapterIndex && "bg-accent text-accent-foreground")} onClick={() => handleChapterSelect(index)}>
                       <span className="truncate">{(chapter.title as any)[displayLang1]}</span>
                     </Button>
                   ))}

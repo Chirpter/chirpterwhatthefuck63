@@ -66,41 +66,40 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
         }
         
         const book = item as Book;
-        const chapters = book.chapters || [];
-        if (chapters.length === 0) {
+        const segments = book.generatedContent || [];
+        if (segments.length === 0) {
             return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
         }
 
-        let totalSegmentsInBook = 0;
-        let segmentsPlayedSoFar = 0;
-        let segmentsInCurrentChapter = 0;
+        const chapterHeadings = segments.map((seg, index) => ({ seg, index }))
+                                     .filter(({ seg }) => typeof seg.content[0] === 'string' && seg.content[0].startsWith('#'));
+
+        const chapterStartIndexMap = chapterHeadings.map(ch => ch.index);
+
+        let chapterStartIndex = 0;
+        let chapterEndIndex = segments.length - 1;
+        let currentChapterIndex = 0;
         
-        // This logic now correctly reflects the flat segment structure per chapter
-        chapters.forEach((chapter, index) => {
-            const chapterSegmentCount = chapter.segments?.length || 0;
-            totalSegmentsInBook += chapterSegmentCount;
-            
-            if (index < progress.chapterIndex) {
-                segmentsPlayedSoFar += chapterSegmentCount;
+        for (let i = 0; i < chapterStartIndexMap.length; i++) {
+            if (progress.segmentIndex >= chapterStartIndexMap[i]) {
+                currentChapterIndex = i;
+                chapterStartIndex = chapterStartIndexMap[i];
+                chapterEndIndex = (i + 1 < chapterStartIndexMap.length) ? chapterStartIndexMap[i + 1] - 1 : segments.length - 1;
+            } else {
+                break;
             }
-            if (index === progress.chapterIndex) {
-                segmentsInCurrentChapter = chapterSegmentCount;
-            }
-        });
-        
-        if (totalSegmentsInBook === 0) {
-            return { overallProgress: 0, chapterProgress: 0, chapterIndex: progress.chapterIndex };
         }
+        
+        const segmentsInCurrentChapter = chapterEndIndex - chapterStartIndex + 1;
+        const segmentsPlayedInCurrentChapter = progress.segmentIndex - chapterStartIndex;
 
-        segmentsPlayedSoFar += progress.segmentIndex;
-
-        const overallProgress = (segmentsPlayedSoFar / totalSegmentsInBook) * 100;
-        const chapterProgress = segmentsInCurrentChapter > 0 ? (progress.segmentIndex / segmentsInCurrentChapter) * 100 : 0;
+        const overallProgress = (progress.segmentIndex / segments.length) * 100;
+        const chapterProgress = segmentsInCurrentChapter > 0 ? (segmentsPlayedInCurrentChapter / segmentsInCurrentChapter) * 100 : 0;
         
         return {
             overallProgress,
             chapterProgress,
-            chapterIndex: progress.chapterIndex,
+            chapterIndex: currentChapterIndex,
         };
 
     }, [item, progress]);

@@ -69,7 +69,7 @@ export async function generateMetadata({ params }: ReadPageProps) {
     }
 
     // Get title from multilingual content
-    const title = item.title.primary || Object.values(item.title)[0] || 'Untitled';
+    const title = (item.title as any).primary || Object.values(item.title)[0] || 'Untitled';
     
     return {
       title: Array.isArray(title) ? title.join(' ') : title,

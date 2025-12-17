@@ -41,14 +41,6 @@ export type MultilingualContent = {
   [languageCode: string]: string;
 };
 
-export interface Chapter {
-  id: string;
-  order: number;
-  title: MultilingualContent; // Title is simple, no prefix/suffix
-  segments: Segment[];
-}
-
-
 export interface ChapterOutlineItem {
   id: string;
   title: MultilingualContent;
@@ -193,7 +185,7 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
-  chapters: Chapter[];
+  generatedContent: Segment[];
 }
 
 /**

@@ -35,38 +35,57 @@ export async function paginateBook(
   const segmentHeights = await measureSegmentHeights(segments, calibrator, displayLang1, displayLang2, unit);
   calibrator.cleanup();
   
-  const containerHeight = container.clientHeight - 80; // Heuristic padding
+  // Apply a heuristic padding adjustment to the container height
+  const containerHeight = container.clientHeight - 80;
   
   const pages: Page[] = [];
   const chapterStartPages: number[] = [];
   
   let currentPageItems: Segment[] = [];
   let currentPageHeight = 0;
-  
-  for (const segment of segments) {
-    const estimatedHeight = segmentHeights.get(segment.id) || 20;
+  let isFirstSegmentOfChapter = false;
 
-    if (segment.type === 'heading1') {
+  for (const segment of segments) {
+    const isHeading = typeof segment.content[0] === 'string' && segment.content[0].startsWith('#');
+    const estimatedHeight = segmentHeights.get(segment.id) || 20;
+    
+    // If it's a heading, it MUST start a new page
+    if (isHeading) {
+      // If there's content on the current page, finalize it first
       if (currentPageItems.length > 0) {
         pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentPageHeight });
-        currentPageItems = [];
-        currentPageHeight = 0;
       }
+      // Reset for the new chapter page
+      currentPageItems = [];
+      currentPageHeight = 0;
+      // Record the index of the page where this chapter starts
       chapterStartPages.push(pages.length);
+      isFirstSegmentOfChapter = true; // Mark the next segment as the first after a heading
     }
     
+    // If adding the next segment would overflow the page, create a new page
     if (currentPageHeight + estimatedHeight > containerHeight && currentPageItems.length > 0) {
       pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentPageHeight });
       currentPageItems = [];
       currentPageHeight = 0;
+      // If a chapter was just started on the previous page, this new page is part of the same chapter
+      if (isFirstSegmentOfChapter) {
+          isFirstSegmentOfChapter = false;
+      }
     }
     
     currentPageItems.push(segment);
     currentPageHeight += estimatedHeight;
   }
   
+  // Add the last page if there's any remaining content
   if (currentPageItems.length > 0) {
     pages.push({ pageIndex: pages.length, items: currentPageItems, estimatedHeight: currentPageHeight });
+  }
+
+  // Ensure there's at least one chapter start if content exists
+  if (segments.length > 0 && chapterStartPages.length === 0) {
+      chapterStartPages.push(0);
   }
   
   return { pages, chapterStartPages };

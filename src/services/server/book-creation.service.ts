@@ -3,7 +3,7 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, ContentUnit, MultilingualContent, Segment, Chapter } from "@/lib/types";
+import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, ContentUnit, MultilingualContent, Segment } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement.service';
 import { ApiServiceError } from "@/lib/errors";
@@ -153,7 +153,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         updatedAt: FieldValue.serverTimestamp(),
         unit: bookFormData.unit,
         labels: [],
-        chapters: [], // Initialize with empty chapters
+        generatedContent: [],
     };
     transaction.set(newBookRef, removeUndefinedProps(initialBookData));
     bookId = newBookRef.id;
@@ -205,54 +205,6 @@ function extractBilingualPairFromMarkdown(text: string, primaryLang: string, sec
     return { [primaryLang]: cleanText.trim() };
 }
 
-function aggregateSegmentsIntoChapters(segments: Segment[], origin: string): Chapter[] {
-    const chapters: Chapter[] = [];
-    if (segments.length === 0) return chapters;
-    
-    const [primaryLang] = origin.split('-');
-
-    let currentChapter: Chapter | null = null;
-
-    for (const segment of segments) {
-        const firstContent = segment.content[0];
-        const isHeading = typeof firstContent === 'string' && firstContent.trim().startsWith('#');
-        
-        if (isHeading) {
-            if (currentChapter) {
-                chapters.push(currentChapter);
-            }
-            
-            const langBlock = segment.content.find(c => typeof c === 'object') as LanguageBlock | undefined;
-            
-            currentChapter = {
-                id: segment.id,
-                order: chapters.length,
-                title: langBlock || { [primaryLang]: '' },
-                segments: [],
-                stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
-            };
-        } else {
-            if (!currentChapter) {
-                currentChapter = {
-                    id: 'intro',
-                    order: 0,
-                    title: { [primaryLang]: 'Introduction' },
-                    segments: [],
-                    stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
-                };
-            }
-            currentChapter.segments.push(segment);
-        }
-    }
-    
-    if (currentChapter) {
-        chapters.push(currentChapter);
-    }
-    
-    return chapters;
-}
-
-
 async function processContentGenerationForBook(
     userId: string, 
     bookId: string, 
@@ -302,13 +254,12 @@ async function processContentGenerationForBook(
         
         const titlePair = extractBilingualPairFromMarkdown(aiOutput.title, primaryLanguage, secondaryLanguage);
         const segments = segmentize(aiOutput.markdownContent, origin);
-        const chapters = aggregateSegmentsIntoChapters(segments, origin);
 
-        debugData.parsedData = { title: titlePair, chapterCount: chapters.length };
+        debugData.parsedData = { title: titlePair, segmentCount: segments.length };
         
         return {
           title: titlePair,
-          chapters: chapters,
+          generatedContent: segments,
           unit: origin.endsWith('-ph') ? 'phrase' : 'sentence',
           contentState: 'ready',
           contentRetries: 0,
@@ -401,7 +352,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     origin: bookData.origin,
     bookLength: bookData.length || 'short-story',
     generationScope: 'full', // Always full for now, can be changed
-    chaptersToGenerate: bookData.chapters.length || 3,
+    chaptersToGenerate: bookData.generatedContent.filter(s => s.content[0].toString().startsWith('#')).length || 3,
   };
   
   processBookGenerationPipeline(

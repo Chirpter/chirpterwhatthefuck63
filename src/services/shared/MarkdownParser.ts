@@ -1,6 +1,6 @@
 // src/services/shared/MarkdownParser.ts
 
-import type { Segment, Chapter, Book, Piece, MultilingualContent, ContentUnit, LanguageBlock } from '@/lib/types';
+import type { Segment, Book, Piece, MultilingualContent, LanguageBlock } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
 import { segmentize } from './SegmentParser';
 
@@ -21,7 +21,6 @@ function calculateTotalWords(segments: Segment[], primaryLang: string): number {
 
 /**
  * Helper to extract segments from library items.
- * ✅ UPDATED: Now parses from the `content` field.
  */
 export function getItemSegments(
     item: Book | Piece | null
@@ -29,10 +28,7 @@ export function getItemSegments(
     if (!item) return [];
 
     // The content is already a Segment[] array, so just return it.
-    if(item.type === 'book') {
-        return item.chapters.flatMap(c => c.segments) || [];
-    }
-    if (item.type === 'piece') {
+    if(item.type === 'book' || item.type === 'piece') {
         return item.generatedContent || [];
     }
     return [];
