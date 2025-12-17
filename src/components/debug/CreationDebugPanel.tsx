@@ -1,12 +1,12 @@
 // src/components/debug/CreationDebugPanel.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import type { Book, Piece } from '@/lib/types';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/contexts/user-context';
 
@@ -34,6 +34,7 @@ interface FirestoreJobState {
     coverState: 'pending' | 'processing' | 'ready' | 'error' | 'ignored';
     contentError?: string;
     coverError?: string;
+    debug?: any; // To store the debug data from server
 }
 
 const Section = ({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) => {
@@ -94,18 +95,42 @@ export function CreationDebugPanel() {
   // State from Firestore (Server-side)
   const [firestoreJobState, setFirestoreJobState] = useState<FirestoreJobState | null>(null);
 
+  const fetchFinalizedJob = useCallback(async (jobId: string) => {
+    if (!user) return;
+    const docRef = doc(db, `users/${user.uid}/libraryItems`, jobId);
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+        const data = snapshot.data() as (Book | Piece);
+        setFirestoreJobState({
+            id: data.id,
+            status: data.status,
+            contentState: data.contentState,
+            coverState: (data as Book).coverState || 'ignored',
+            contentError: data.contentError,
+            coverError: (data as Book).coverError,
+            debug: (data as any).debug, // Make sure to get the debug field
+        });
+    }
+  }, [user]);
+
   useEffect(() => {
     if (typeof window === 'undefined' || process.env.NODE_ENV !== 'development') {
       return;
     }
 
-    // Interval to poll sessionStorage for client-side events
     const clientInterval = setInterval(() => {
       try {
         const preSubmitRaw = sessionStorage.getItem('creation_debug_presubmit');
         const submissionRaw = sessionStorage.getItem('creation_debug_data');
         
-        if (preSubmitRaw) setPreSubmitState(JSON.parse(preSubmitRaw));
+        if (preSubmitRaw) {
+            const parsedPreSubmit = JSON.parse(preSubmitRaw);
+            setPreSubmitState(parsedPreSubmit);
+            // If there's a finalized job, fetch its final state.
+            if (parsedPreSubmit.finalizedJobId && firestoreJobState?.id !== parsedPreSubmit.finalizedJobId) {
+                fetchFinalizedJob(parsedPreSubmit.finalizedJobId);
+            }
+        }
         if (submissionRaw) setSubmissionState(JSON.parse(submissionRaw));
 
       } catch (e) {
@@ -114,12 +139,15 @@ export function CreationDebugPanel() {
     }, 1000);
     
     return () => clearInterval(clientInterval);
-  }, []);
+  }, [firestoreJobState, fetchFinalizedJob]);
 
   // Effect to listen to Firestore for server-side updates
   useEffect(() => {
     if (!user || !preSubmitState?.activeJobId) {
-        setFirestoreJobState(null); // Clear server state if no active job
+        // Don't clear state if we have a finalized job to display
+        if (!preSubmitState?.finalizedJobId) {
+            setFirestoreJobState(null);
+        }
         return;
     }
 
@@ -134,14 +162,17 @@ export function CreationDebugPanel() {
                 coverState: (data as Book).coverState || 'ignored',
                 contentError: data.contentError,
                 coverError: (data as Book).coverError,
+                debug: (data as any).debug,
             });
         } else {
-            setFirestoreJobState(null);
+             if (!preSubmitState?.finalizedJobId) {
+                setFirestoreJobState(null);
+            }
         }
     });
 
     return () => unsubscribe();
-  }, [user, preSubmitState?.activeJobId]);
+  }, [user, preSubmitState]);
 
 
   if (process.env.NODE_ENV !== 'development') {
@@ -167,9 +198,9 @@ export function CreationDebugPanel() {
 
         {preSubmitState && (
           <Section title="1. Pre-Submission State" defaultOpen={true}>
+            <Info label="Active Job Running?" value={preSubmitState.activeJobId ? 'Yes' : 'No'} statusColor={preSubmitState.activeJobId ? 'text-yellow-400' : 'text-green-400'} />
             <Info label="Active Job ID" value={preSubmitState.activeJobId || 'None'} mono />
-            <Info label="Is Active Job Running?" value={preSubmitState.hasActiveJob ? 'Yes' : 'No'} statusColor={preSubmitState.hasActiveJob ? 'text-yellow-400' : 'text-green-400'} />
-            <Info label="Is Awaiting Finalization?" value={preSubmitState.hasFinalizedJob ? 'Yes' : 'No'} statusColor={preSubmitState.hasFinalizedJob ? 'text-yellow-400' : 'text-green-400'} />
+            <Info label="Finalized Job ID" value={preSubmitState.finalizedJobId || 'None'} mono />
           </Section>
         )}
         
@@ -187,23 +218,43 @@ export function CreationDebugPanel() {
             </Section>
         )}
         
+        {firestoreJobState?.debug && (
+          <Section title="3. AI / Server Pipeline" defaultOpen={true}>
+            <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-gray-400">View System Prompt</summary>
+                <pre className="whitespace-pre-wrap break-all">{firestoreJobState.debug.systemPrompt}</pre>
+                <Button size="sm" variant="ghost" onClick={() => handleCopy(firestoreJobState.debug.systemPrompt)} className="mt-2 text-xs h-6">Copy</Button>
+            </details>
+             <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-gray-400">View User Prompt</summary>
+                <pre className="whitespace-pre-wrap break-all">{firestoreJobState.debug.userPrompt}</pre>
+                <Button size="sm" variant="ghost" onClick={() => handleCopy(firestoreJobState.debug.userPrompt)} className="mt-2 text-xs h-6">Copy</Button>
+            </details>
+             <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-gray-400">View Raw AI Response</summary>
+                <pre className="whitespace-pre-wrap break-all">{firestoreJobState.debug.rawResponse}</pre>
+                <Button size="sm" variant="ghost" onClick={() => handleCopy(firestoreJobState.debug.rawResponse)} className="mt-2 text-xs h-6">Copy</Button>
+            </details>
+             {firestoreJobState.contentError && <Info label="Content Error" value={firestoreJobState.contentError} statusColor="text-red-400" mono />}
+             {firestoreJobState.coverError && <Info label="Cover Error" value={firestoreJobState.coverError} statusColor="text-red-400" mono />}
+          </Section>
+        )}
+        
         {firestoreJobState && (
-          <>
-            <Section title="3. AI / Server Pipeline" defaultOpen={true}>
+            <Section title="4. Final Data State" defaultOpen={true}>
                 <Info label="Overall Status" value={firestoreJobState.status} statusColor={getStatusColor(firestoreJobState.status)} />
                 <Info label="Content Gen Status" value={firestoreJobState.contentState} statusColor={getStatusColor(firestoreJobState.contentState)} />
-                {firestoreJobState.contentError && <Info label="Content Error" value={firestoreJobState.contentError} statusColor="text-red-400" mono />}
-
                 <Info label="Cover Gen Status" value={firestoreJobState.coverState} statusColor={getStatusColor(firestoreJobState.coverState)} />
-                {firestoreJobState.coverError && <Info label="Cover Error" value={firestoreJobState.coverError} statusColor="text-red-400" mono />}
+                 {firestoreJobState.debug?.parsedData && (
+                    <details className="mt-2 text-xs">
+                        <summary className="cursor-pointer text-gray-400">View Parsed JSON Data</summary>
+                        <pre className="whitespace-pre-wrap break-all">{JSON.stringify(firestoreJobState.debug.parsedData, null, 2)}</pre>
+                        <Button size="sm" variant="ghost" onClick={() => handleCopy(firestoreJobState.debug.parsedData)} className="mt-2 text-xs h-6">Copy</Button>
+                    </details>
+                 )}
             </Section>
-            
-             <Section title="4. Final Data State" defaultOpen={true}>
-                <p className="text-xs text-gray-400">This reflects the final state of the data in Firestore.</p>
-                <Info label="ID" value={firestoreJobState.id} mono />
-             </Section>
-          </>
         )}
+
       </div>
     );
   };

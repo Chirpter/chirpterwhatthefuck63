@@ -11,7 +11,6 @@ import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
-// ✅ This now provides a complete and correct default state for a BOOK.
 const getInitialFormDataForBook = (t: (key: string) => string): Partial<CreationFormValues> => {
   const primaryLang = 'en';
 
@@ -32,7 +31,7 @@ const getInitialFormDataForBook = (t: (key: string) => string): Partial<Creation
     tags: [],
     origin: primaryLang,
     unit: 'sentence',
-    presentationStyle: 'book', // Correct default for book
+    presentationStyle: 'book',
     // Book specific fields
     bookLength: 'short-story',
     targetChapterCount: 3,
@@ -54,7 +53,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const { user } = useUser();
   const router = useRouter();
 
-  // Initialize state with correct defaults for a book.
   const [formData, setFormData] = useState<Partial<CreationFormValues>>(() => getInitialFormDataForBook(t));
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
@@ -67,7 +65,10 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   });
   
   const [jobData, setJobData] = useState<LibraryItem | null>(null);
-  const [finalizedId, setFinalizedId] = useState<string | null>(null);
+  const [finalizedId, setFinalizedId] = useState<string | null>(() => {
+      if (typeof window === 'undefined' || !user?.uid) return null;
+      return sessionStorage.getItem(`finalizedJobId_${user.uid}`) || null;
+  });
   
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -76,7 +77,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   // --- DEBUGGING: Record pre-submission state ---
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') return;
+    if (process.env.NODE_ENV !== 'development' || !user?.uid) return;
     const preSubmissionState = {
         hasActiveJob: !!activeId,
         activeJobId: activeId,
@@ -84,7 +85,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         finalizedJobId: finalizedId,
     };
     sessionStorage.setItem('creation_debug_presubmit', JSON.stringify(preSubmissionState, null, 2));
-  }, [activeId, finalizedId]);
+  }, [activeId, finalizedId, user?.uid]);
   // --- END DEBUGGING ---
 
 
@@ -260,7 +261,11 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    if (user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
+    if (user?.uid) {
+        sessionStorage.removeItem(`activeJobId_${user.uid}`);
+        sessionStorage.removeItem(`finalizedJobId_${user.uid}`);
+        sessionStorage.removeItem('creation_debug_data');
+    }
   }, [user?.uid, t]);
 
 
@@ -289,14 +294,16 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     }
 
     setIsBusy(true);
-    let submissionStatus = 'pending';
+    setFinalizedId(null); // Clear previous finalized ID
+    if (user.uid) sessionStorage.removeItem(`finalizedJobId_${user.uid}`);
+    
+    let submissionStatus = 'pending_to_server';
     try {
       const dataToSubmit: CreationFormValues = {
         ...formData,
         type: type,
       } as CreationFormValues;
 
-      // --- DEBUGGING SNAPSHOT ---
       if (process.env.NODE_ENV === 'development') {
           const snapshot = {
               submittedAt: new Date().toISOString(),
@@ -306,13 +313,12 @@ export function useCreationJob({ type }: UseCreationJobParams) {
               },
               creditCost,
               processingJobsCount,
-              submissionStatus: 'pending_to_server',
+              submissionStatus,
           };
           sessionStorage.setItem('creation_debug_data', JSON.stringify(snapshot, null, 2));
       }
-      // --- END DEBUGGING SNAPSHOT ---
 
-      const jobId = await createLibraryItem(type, dataToSubmit);
+      const { jobId, debugData } = await createLibraryItem(type, dataToSubmit);
       submissionStatus = 'success';
       setActiveId(jobId);
       if(user.uid) {
@@ -358,6 +364,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
       if (isComplete) {
         setFinalizedId(activeId);
+        if(user?.uid) sessionStorage.setItem(`finalizedJobId_${user.uid}`, activeId);
         setIsBusy(false);
         setActiveId(null);
         if(user?.uid) sessionStorage.removeItem(`activeJobId_${user.uid}`);
