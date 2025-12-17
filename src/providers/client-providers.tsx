@@ -17,11 +17,9 @@ import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { Logo } from '@/components/ui/Logo';
 
-import { initializeAchievementListener, cleanupAchievementListener } from '@/features/vocabulary/listeners/achievement-listener';
+// DO NOT import client-only modules at the top level.
+// They will be imported dynamically inside useEffect.
 
-/**
- * ✅ FIX: Add a client-only check to prevent hydration mismatches
- */
 const InitialLoader = () => (
   <div className="flex h-screen w-full items-center justify-center">
     <div className="text-center">
@@ -31,10 +29,6 @@ const InitialLoader = () => (
   </div>
 );
 
-/**
- * This is the single entry point for all CLIENT-SIDE providers.
- * It is marked with 'use client' and receives server-fetched data as props.
- */
 export const ClientProviders = ({ 
   initialBookmarks, 
   children 
@@ -42,19 +36,39 @@ export const ClientProviders = ({
   initialBookmarks: CombinedBookmark[], 
   children: React.ReactNode 
 }) => {
-  // ✅ FIX: Ensure we're on the client before mounting providers
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    initializeAchievementListener();
     
+    // ✅ FIX: Dynamically import and initialize client-side listeners inside useEffect.
+    // This ensures they only run in the browser, not on the server.
+    const initializeListeners = async () => {
+      try {
+        const { initializeAchievementListener, cleanupAchievementListener } = await import('@/features/vocabulary/listeners/achievement-listener');
+        initializeAchievementListener();
+        
+        // Return the cleanup function to be run on component unmount.
+        return () => {
+          cleanupAchievementListener();
+        };
+      } catch (error) {
+        console.error("Failed to initialize client-side listeners:", error);
+        return () => {}; // Return an empty cleanup function on error.
+      }
+    };
+    
+    let cleanup: (() => void) | undefined;
+    
+    initializeListeners().then(cleanupFn => {
+        cleanup = cleanupFn;
+    });
+
     return () => {
-      cleanupAchievementListener();
+      cleanup?.();
     };
   }, []);
 
-  // ✅ FIX: Show loader during initial mount to prevent hydration mismatch
   if (!isMounted) {
     return <InitialLoader />;
   }
