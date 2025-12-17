@@ -1,4 +1,4 @@
-
+// src/app/(app)/layout.tsx - REFACTORED
 'use client';
 
 import React, { useEffect, Suspense } from 'react';
@@ -12,12 +12,12 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Logo } from '@/components/ui/Logo';
 import { AppErrorManager } from '@/services/client/error-manager.service';
 
-// Component LevelUpDialog được lazy load vì nó không phải lúc nào cũng cần thiết
+// --- Reusable Components ---
+
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
 
-// ✅ UNIFIED: This is now the single source of truth for global loading screens.
 const InitialLoader = ({ message = "Loading..." }: { message?: string }) => (
-    <div className="flex h-screen w-full items-center justify-center">
+    <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
       <div className="text-center">
           <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
           <p className="mt-2 text-sm text-muted-foreground">{message}</p>
@@ -25,13 +25,12 @@ const InitialLoader = ({ message = "Loading..." }: { message?: string }) => (
     </div>
 );
 
-// Component để hiển thị khi không tải được thông tin người dùng
 const UserProfileError = ({ error, onRetry, onLogout }: { 
   error: string; 
   onRetry: () => void; 
   onLogout: () => void; 
 }) => (
-  <div className="flex h-full w-full items-center justify-center p-4">
+  <div className="flex h-full w-full items-center justify-center p-4 bg-background text-foreground">
     <div className="text-center max-w-md mx-auto">
       <Icon name="AlertCircle" className="h-16 w-16 text-destructive mx-auto mb-4" />
       <h2 className="text-xl font-semibold mb-2">Unable to Load Profile</h2>
@@ -50,8 +49,7 @@ const UserProfileError = ({ error, onRetry, onLogout }: {
   </div>
 );
 
-// Component chính để render nội dung sau khi đã xác thực thành công
-const AuthenticatedContent = ({ children }: { children: React.ReactNode }) => {
+const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { 
         user, 
         loading: isUserLoading, 
@@ -66,32 +64,37 @@ const AuthenticatedContent = ({ children }: { children: React.ReactNode }) => {
         AppErrorManager.initialize();
     }, []);
 
+    // State 1: User data is loading
     if (isUserLoading) {
         return <InitialLoader message="Loading your profile..." />;
     }
 
+    // State 2: User data failed to load
+    if (userError && !user) {
+        return (
+            <UserProfileError 
+                error={userError}
+                onRetry={retryUserFetch}
+                onLogout={logout}
+            />
+        );
+    }
+    
+    // State 3: User object is still null after loading (edge case)
+    if (!user) {
+        return <InitialLoader message="Finalizing session..." />;
+    }
+
+    // State 4: Success - render the main app content
     return (
         <div className="flex flex-col min-h-screen">
             <AppHeader />
-
             <main className={cn(
                 "flex-1 bg-background relative", 
                 "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
             )}>
-                {userError && !user ? (
-                    <UserProfileError 
-                        error={userError}
-                        onRetry={retryUserFetch}
-                        onLogout={logout}
-                    />
-                // ✅ UNIFIED: Replaced Loader2 spinner with the InitialLoader component for consistency.
-                ) : !user ? (
-                    <InitialLoader message="Finalizing your profile..." />
-                ) : (
-                    children
-                )}
+                {children}
             </main>
-            
             <Suspense fallback={null}>
                 {levelUpInfo && (
                     <LevelUpDialog 
@@ -105,18 +108,21 @@ const AuthenticatedContent = ({ children }: { children: React.ReactNode }) => {
     );
 };
 
+// --- Main Layout Component ---
+
 export default function ProtectedAppLayout({ children }: { children: React.ReactNode }) {
   const { authUser, loading: isAuthLoading } = useAuth();
 
+  // State 1: Firebase Auth is still initializing
   if (isAuthLoading) {
     return <InitialLoader message="Authenticating..." />;
   }
 
+  // State 2: No authenticated user, redirect is imminent
   if (!authUser) {
-     // Hiển thị trạng thái tải trong khi middleware thực hiện chuyển hướng
-     return <InitialLoader message="Redirecting..." />;
+     return <InitialLoader message="Redirecting to login..." />;
   }
 
-  // Khi đã xác thực, render nội dung chính, bao gồm cả các trạng thái tải của người dùng.
+  // State 3: Authenticated, render the main content which handles user profile loading
   return <AuthenticatedContent>{children}</AuthenticatedContent>;
 }
