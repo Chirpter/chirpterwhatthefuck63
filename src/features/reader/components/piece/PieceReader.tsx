@@ -43,11 +43,15 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 interface PieceReaderProps {
   piece: Piece | null;
   isPreview?: boolean;
+  presentationStyle?: 'doc' | 'card';
+  aspectRatio?: '1:1' | '3:4' | '4:3';
 }
 
 export default function PieceReader({
   piece,
   isPreview = false,
+  presentationStyle: previewPresentationStyle,
+  aspectRatio: previewAspectRatio,
 }: PieceReaderProps) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   const { wordLookupEnabled } = useSettings();
@@ -77,8 +81,8 @@ export default function PieceReader({
 
   const allSegments = piece?.content || [];
   
-  const finalPresentationStyle = piece?.presentationStyle || 'card';
-  const finalAspectRatio = piece?.aspectRatio || '3:4';
+  const finalPresentationStyle = isPreview ? (previewPresentationStyle || 'card') : (piece?.presentationStyle || 'card');
+  const finalAspectRatio = isPreview ? (previewAspectRatio || '3:4') : (piece?.aspectRatio || '3:4');
 
   const {
     pages,
