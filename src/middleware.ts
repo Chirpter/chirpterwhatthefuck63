@@ -18,6 +18,9 @@ function getLogoutReason(errorCode: string): string {
   }
 }
 
+// List of routes that are always public
+const PUBLIC_ROUTES = ['/', '/login', '/privacy'];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('__session')?.value;
@@ -42,7 +45,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const isPublicRoute = pathname === '/' || pathname.startsWith('/login');
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
   // --- REDIRECTION LOGIC ---
 
