@@ -1,4 +1,4 @@
-// src/features/learning/services/shadowing-service.ts
+// src/services/server/shadowing.service.ts
 'use server';
 
 import type { FoundClip } from '@/lib/types';
@@ -65,12 +65,12 @@ export async function getTranscriptFromUrl(videoUrl: string, userId: string): Pr
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
+        const errorData = await response.json().catch(() => ({ error: `Request failed with status ${'${response.status}'}` }));
         
         if (typeof errorData.error === 'string' && errorData.error.includes('limit')) {
             throw new ApiServiceError(errorData.error, 'RATE_LIMIT');
         }
-        throw new ApiServiceError(errorData.error || `Request failed with status ${response.status}`, 'UNKNOWN');
+        throw new ApiServiceError(errorData.error || `Request failed with status ${'${response.status}'}`, 'UNKNOWN');
     }
 
     const data = await response.json();
