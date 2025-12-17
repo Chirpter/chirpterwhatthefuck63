@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getLevelStyles, type LevelTier } from '@/lib/utils';
-import { updateUserProfile } from '@/services/server/user.service'; // ✅ FIX: Use correct server action
+import { updateUserProfile } from '@/services/server/user.service';
 import { useToast } from '@/hooks/useToast';
 import {
   Dialog,
