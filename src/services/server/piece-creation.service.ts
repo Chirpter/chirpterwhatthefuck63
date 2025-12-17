@@ -4,14 +4,14 @@
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { Piece, CreationFormValues, GeneratePieceInput, ContentUnit, MultilingualContent, Segment } from "@/lib/types";
-import { removeUndefinedProps } from "@/lib/utils";
+import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement.service';
 import { updateLibraryItem } from "./library.service";
 import { ApiServiceError } from "@/lib/errors";
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
-import { parseMarkdownToSegments } from '../shared/MarkdownParser';
+import { parseMarkdownToSegments } from '../shared/SegmentParser';
 
 const PieceOutputSchema = z.object({
   title: z.string().describe("The generated title for the piece."),
@@ -152,12 +152,26 @@ export async function createPieceAndStartGeneration(userId: string, pieceFormDat
     return pieceId;
 }
 
+function extractBilingualPair(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
+    if (secondaryLang) {
+        const match = text.match(/^(.*?)\s*\{(.*)\}\s*$/);
+        if (match) {
+            return {
+                [primaryLang]: match[1].trim(),
+                [secondaryLang]: match[2].trim(),
+            };
+        }
+    }
+    return { [primaryLang]: text.trim() };
+}
+
+
 /**
  * Generates content for a "piece" using a unified Markdown approach.
  */
 async function generatePieceContent(
     pieceFormData: CreationFormValues,
-): Promise<Partial<Piece>> {
+): Promise<Partial<Piece> & { debug?: any }> {
     const promptInput = (pieceFormData.aiPrompt || '').slice(0, MAX_PROMPT_LENGTH);
     if (!promptInput) {
       throw new Error("A user prompt is required.");
@@ -201,19 +215,15 @@ async function generatePieceContent(
         rawResponse = aiOutput.markdownContent;
         debugData.rawResponse = rawResponse;
 
-        const finalTitle: MultilingualContent = { [primaryLanguage]: aiOutput.title };
-        const titleTranslationMatch = aiOutput.title.match(/\{(.*)\}/);
-        if (secondaryLanguage && titleTranslationMatch) {
-            finalTitle[secondaryLanguage] = titleTranslationMatch[1].trim();
-        }
-
+        const titlePair = extractBilingualPair(aiOutput.title, primaryLanguage, secondaryLanguage);
+        
         // ✅ SEGMENTATION STEP
         const segments = parseMarkdownToSegments(aiOutput.markdownContent, pieceFormData.origin, pieceFormData.unit);
-        parsedData = { title: finalTitle, segmentsCount: segments.length };
+        parsedData = { title: titlePair, segmentsCount: segments.length };
         debugData.parsedData = parsedData;
         
         return {
-          title: finalTitle,
+          title: titlePair,
           content: segments, // Store array of Segments
           debug: debugData,
         };

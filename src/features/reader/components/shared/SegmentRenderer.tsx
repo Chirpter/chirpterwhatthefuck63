@@ -39,14 +39,12 @@ const WordHighlight: React.FC<{ text: string; boundary: { charIndex: number, cha
     return <>{text}</>;
 };
 
-// This component now trusts that the content is clean and relies on type for structure.
 const ContentRenderer: React.FC<{ text: string; boundary?: { charIndex: number, charLength: number } | null }> = ({ text, boundary }) => {
-    if (boundary) {
-        return <WordHighlight text={text} boundary={boundary} />;
-    }
-    // Use ReactMarkdown for any potential inline markdown like bold/italic
-    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>;
+    const content = boundary ? <WordHighlight text={text} boundary={boundary} /> : text;
+    // Use ReactMarkdown to render any markdown within the content (like bold, italic)
+    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content as string}</ReactMarkdown>;
 };
+
 
 const renderSegmentContent = (
   segment: Segment,
@@ -59,24 +57,14 @@ const renderSegmentContent = (
   unit: ContentUnit
 ) => {
   const { content, type } = segment;
-  
-  // ✅ NEW LOGIC: Use the 'type' to determine the wrapper component (h1, p, etc.)
-  const Wrapper = type === 'heading1' ? 'h1' : 'span';
-  const wrapperClasses = type === 'heading1' 
-    ? "font-headline text-3xl mt-4 mb-6 border-b pb-2" 
-    : "inline";
 
   // --- Monolingual Mode ---
   if (!isBilingualMode) {
     const monolingualText = content[displayLang1] as string || '';
     if (!monolingualText) return null;
     
-    return (
-      <Wrapper className={cn(wrapperClasses, isSegmentPlaying && 'tts-highlight')} lang={displayLang1}>
-        <ContentRenderer text={monolingualText} boundary={isSegmentPlaying ? speechBoundary : null} />
-        {type === 'text' && ' '}
-      </Wrapper>
-    );
+    const boundary = isSegmentPlaying ? speechBoundary : null;
+    return <ContentRenderer text={monolingualText} boundary={boundary} />;
   }
 
   // --- Bilingual Sentence Mode ---
@@ -85,7 +73,7 @@ const renderSegmentContent = (
     const secondaryText = content[displayLang2] as string || '';
     
     return (
-      <Wrapper className={wrapperClasses}>
+      <>
         <div lang={displayLang1} className={cn("mb-1", isSegmentPlaying && spokenLang === displayLang1 && 'tts-highlight')}>
             <ContentRenderer text={primaryText} boundary={isSegmentPlaying && spokenLang === displayLang1 ? speechBoundary : null} />
         </div>
@@ -94,7 +82,7 @@ const renderSegmentContent = (
             <ContentRenderer text={secondaryText} boundary={isSegmentPlaying && spokenLang === displayLang2 ? speechBoundary : null} />
           </div>
         )}
-      </Wrapper>
+      </>
     );
   }
 
@@ -104,22 +92,21 @@ const renderSegmentContent = (
       const secondaryPhrases = content[displayLang2] as string[] || [];
 
       return (
-        <Wrapper className={cn(wrapperClasses, isSegmentPlaying && 'tts-highlight')}>
+        <>
             {primaryPhrases.map((phrase, index) => {
                 const secondaryPhrase = secondaryPhrases[index] || '';
                 return (
-                    <span key={index} className="inline whitespace-nowrap mr-1">
+                    <span key={index} className="inline-block whitespace-nowrap mr-1">
                         <ContentRenderer text={phrase} />
                         {secondaryPhrase && (
                             <span className="text-muted-foreground italic text-[0.9em] ml-1">
                                 (<ContentRenderer text={secondaryPhrase} />)
                             </span>
                         )}
-                        {' '}
                     </span>
                 );
             })}
-        </Wrapper>
+        </>
       );
   }
   
@@ -136,24 +123,28 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
     displayLang2,
     unit
 }) => {
-  // Use div for block-level elements like headings or sentence pairs
-  const Wrapper = (segment.type === 'heading1' || (isBilingualMode && unit === 'sentence')) ? 'div' : 'span';
+  // Determine the wrapper component based on segment type
+  const Wrapper = segment.type === 'heading1' ? 'h1' : 'div';
   
-  // Add a specific class for block-level segments for styling if needed
-  const blockClass = Wrapper === 'div' ? 'block-segment mb-4' : '';
+  const blockClass = segment.type === 'heading1' 
+    ? 'font-headline text-3xl mt-4 mb-6 border-b pb-2' 
+    : (isBilingualMode && unit === 'sentence') 
+      ? 'block-segment mb-4' 
+      : 'inline';
 
   return (
-    <Wrapper data-segment-id={segment.id} className={blockClass}>
+    <Wrapper data-segment-id={segment.id} className={cn(blockClass, isPlaying && spokenLang === displayLang1 && unit === 'sentence' && 'tts-highlight')}>
       {renderSegmentContent(
         segment, 
         displayLang1, 
         displayLang2, 
         isBilingualMode, 
         isPlaying, 
-        spokenLang || null, 
-        speechBoundary || null, 
+        spokenLang, 
+        speechBoundary, 
         unit
       )}
+      {segment.type !== 'heading1' && unit === 'sentence' && ' '}
     </Wrapper>
   );
 };

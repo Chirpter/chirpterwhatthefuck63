@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 import { getStorage } from 'firebase-admin/storage';
 import { updateLibraryItem } from "./library.service";
-import { parseMarkdownToSegments } from '../shared/MarkdownParser';
+import { parseMarkdownToSegments } from '../shared/SegmentParser';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
@@ -260,19 +260,15 @@ async function processContentGenerationForBook(
         
         debugData.rawResponse = aiOutput.markdownContent;
         
-        const finalTitle: MultilingualContent = { [primaryLanguage]: aiOutput.title };
-        const titleTranslationMatch = aiOutput.title.match(/\{(.*)\}/);
-        if (secondaryLanguage && titleTranslationMatch) {
-            finalTitle[secondaryLanguage] = titleTranslationMatch[1].trim();
-        }
-
-        // ✅ SEGMENTATION STEP
+        const titlePair = extractBilingualPair(aiOutput.title, primaryLanguage, secondaryLanguage);
+        
+        // ✅ SEGMENTATION STEP (Server-side)
         const segments = parseMarkdownToSegments(aiOutput.markdownContent, origin, contentInput.unit || 'sentence');
         
-        debugData.parsedData = { title: finalTitle, segmentsCount: segments.length };
+        debugData.parsedData = { title: titlePair, segmentsCount: segments.length };
         
         return {
-          title: finalTitle,
+          title: titlePair,
           content: segments, // Store the array of Segments
           unit: origin.endsWith('-ph') ? 'phrase' : 'sentence',
           contentState: 'ready',
@@ -287,6 +283,19 @@ async function processContentGenerationForBook(
         await updateLibraryItem(userId, bookId, { debug: debugData });
         throw new Error(errorMessage);
     }
+}
+
+function extractBilingualPair(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
+    if (secondaryLang) {
+        const match = text.match(/^(.*?)\s*\{(.*)\}\s*$/);
+        if (match) {
+            return {
+                [primaryLang]: match[1].trim(),
+                [secondaryLang]: match[2].trim(),
+            };
+        }
+    }
+    return { [primaryLang]: text.trim() };
 }
 
 

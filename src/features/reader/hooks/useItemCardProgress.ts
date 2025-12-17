@@ -61,6 +61,7 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
     }, [itemId]);
     
     const calculatedProgress = useMemo((): ProgressInfo => {
+        // Guard against missing data
         if (!item || item.type !== 'book' || !progress || !Array.isArray(item.content)) {
             return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
         }
@@ -86,6 +87,7 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
         }
 
         const chapterIndex = progress.chapterIndex;
+        // Ensure chapterIndex from progress is valid
         if (chapterIndex >= chapters.length) {
              return { overallProgress: 0, chapterProgress: 0, chapterIndex: 0 };
         }
@@ -93,13 +95,16 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
         let totalSegmentsInBook = allSegments.length;
         let segmentsPlayedSoFar = 0;
         
+        // Sum segments from previous chapters
         for (let i = 0; i < chapterIndex; i++) {
             segmentsPlayedSoFar += chapters[i].length;
         }
+        // Add segments from the current chapter
         segmentsPlayedSoFar += progress.segmentIndex;
 
         const segmentsInCurrentChapter = chapters[chapterIndex].length;
 
+        // Calculate percentages
         const overallProgress = totalSegmentsInBook > 0 ? (segmentsPlayedSoFar / totalSegmentsInBook) * 100 : 0;
         const chapterProgress = segmentsInCurrentChapter > 0 ? (progress.segmentIndex / segmentsInCurrentChapter) * 100 : 0;
         

@@ -34,12 +34,13 @@ export type ContentUnit = 'sentence' | 'phrase';
  * @interface Segment
  * @description The fundamental building block of all content. Represents a structured element.
  * This is now the primary data structure saved in Firestore, generated on the server.
+ * The `type` field is optional and only used for special cases like headings.
  */
 export interface Segment {
   id: string;
   order: number;
   content: MultilingualContent;
-  type: 'text' | 'heading1' | 'start_para';
+  type?: 'heading1' | 'start_para';
 }
 
 
@@ -187,7 +188,7 @@ interface BaseLibraryItem extends BaseDocument {
   tags?: string[];
   labels?: string[];
   unit: ContentUnit;
-  // ✅ UPDATED: The 'content' field is now an array of Segments, not a string.
+  // ✅ UPDATED: The 'content' field is now an array of Segments.
   content: Segment[]; 
 }
 
@@ -212,7 +213,6 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
-  chapters?: Chapter[]; // ✅ KEPT: But as a client-side only, optional property
 }
 
 export interface EditorSettings {

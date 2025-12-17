@@ -40,197 +40,141 @@ function splitIntoSentences(text: string): string[] {
         'U\\.S', 'U\\.K', 'U\\.S\\.A', 'Ph\\.D', 'M\\.D', 'B\\.A', 'M\\.A'
     ];
     
-    const ABBR_PREFIX = '___ABBR_';
-    const DECIMAL_PREFIX = '___DEC_';
-    const ELLIPSIS_PREFIX = '___ELLIP_';
-    
-    let processed = text;
-    const replacements: Array<{ placeholder: string; original: string }> = [];
-    let counter = 0;
-    
-    processed = processed.replace(/\.{3,}/g, () => {
-        const placeholder = `__ELLIP_${'${counter++}'}__`;
-        replacements.push({ placeholder, original: '...' });
-        return placeholder;
-    });
-    
-    processed = processed.replace(/\d+\.\d+/g, (match) => {
-        const placeholder = `__DEC_${'${counter++}'}__`;
-        replacements.push({ placeholder, original: match });
-        return placeholder;
-    });
+    let processedText = text;
+    const placeholder = '___PERIOD___';
     
     abbreviations.forEach(abbr => {
-        const regex = new RegExp(`\\b${'${abbr}'}\\.`, 'gi');
-        processed = processed.replace(regex, (match) => {
-            const placeholder = `__ABBR_${'${counter++}'}__`;
-            replacements.push({ placeholder, original: match });
-            return placeholder;
-        });
+        const regex = new RegExp(`\\b(${abbr})\\\.`, 'gi');
+        processedText = processedText.replace(regex, `$1${placeholder}`);
     });
     
-    const sentenceRegex = /[^.!?]+(?:[.!?]+["']?|$)(?=\s+[A-Z]|\s*$)/g;
-    const sentences = processed.match(sentenceRegex) || [];
+    const sentenceRegex = /[^.!?]+(?:[.!?]+["']?|$)/g;
+    let sentences = processedText.match(sentenceRegex) || [processedText];
     
-    if (sentences.length === 0 && processed.trim()) {
-        let restored = processed;
-        replacements.forEach(({ placeholder, original }) => {
-            restored = restored.replace(placeholder, original);
-        });
-        return [restored.trim()];
-    }
-    
-    return sentences
-        .map(sentence => {
-            let restored = sentence;
-            replacements.forEach(({ placeholder, original }) => {
-                restored = restored.replace(placeholder, original);
-            });
-            return restored.trim();
-        })
-        .filter(s => s.length > 0);
+    return sentences.map(s => s.replace(new RegExp(placeholder, 'g'), '.').trim()).filter(Boolean);
 }
 
 
 /**
  * Extracts text pairs using a simple and robust Regex scan.
  * Handles both monolingual and bilingual text based on whether `secondaryLang` is provided.
- * ✅ UPDATE: This function now also cleans markdown characters from the content.
+ * @returns An object with the primary text and optional secondary text.
  */
-function extractBilingualTextPairs(text: string, primaryLang: string, secondaryLang?: string): Array<MultilingualContent> {
+function extractBilingualPair(text: string, primaryLang: string, secondaryLang?: string): MultilingualContent {
     if (secondaryLang) {
-        const pairs: Array<MultilingualContent> = [];
-        const regex = /([^{}]+)\s*\{(.*?)\}/g;
-        let lastIndex = 0;
-        let match;
-
-        while ((match = regex.exec(text)) !== null) {
-            if (match.index > lastIndex) {
-                const orphanText = cleanText(text.substring(lastIndex, match.index));
-                if (orphanText) pairs.push({ [primaryLang]: orphanText });
-            }
-
-            // ✅ Clean markdown characters like '#' from the content
-            const primaryText = cleanText(match[1].replace(/^#+\s*/, ''));
-            const secondaryText = cleanText(match[2]);
-            
-            if (primaryText) {
-                pairs.push({
-                    [primaryLang]: primaryText,
-                    [secondaryLang]: secondaryText
-                });
-            }
-            lastIndex = match.index + match[0].length;
+        const match = text.match(/^(.*?)\s*\{(.*)\}\s*$/);
+        if (match) {
+            return {
+                [primaryLang]: cleanText(match[1]),
+                [secondaryLang]: cleanText(match[2]),
+            };
         }
-        
-        if (lastIndex < text.length) {
-            const remainingText = cleanText(text.substring(lastIndex));
-            if (remainingText) pairs.push({ [primaryLang]: remainingText });
-        }
-        return pairs;
-    } else {
-        return splitIntoSentences(text)
-            .map(s => cleanText(s.replace(/^#+\s*/, ''))) // ✅ Clean headings here too
-            .filter(Boolean)
-            .map(s => ({ [primaryLang]: s }));
     }
+    // Fallback for monolingual or malformed bilingual
+    return { [primaryLang]: cleanText(text) };
 }
 
 /**
- * Processes a paragraph of text into an array of Segments.
- * This is the core logic that transforms a block of text into structured data.
+ * Processes a block of text into an array of Segments.
  */
-function processParagraphIntoSegments(
-    paragraphText: string, 
+function processTextBlockIntoSegments(
+    textBlock: string, 
     origin: string, 
     unit: ContentUnit
 ): Segment[] {
-    const parts = origin.split('-');
-    const primaryLang = parts[0];
-    const secondaryLang = parts.length > 1 ? parts[1] : undefined;
-    
+    const [primaryLang, secondaryLang] = origin.split('-');
     const segments: Segment[] = [];
     let segmentOrder = 0;
 
-    const sentencePairs = extractBilingualTextPairs(paragraphText, primaryLang, secondaryLang);
+    const sentences = splitIntoSentences(textBlock);
 
-    sentencePairs.forEach((sentencePair) => {
-        const primarySentence = sentencePair[primaryLang];
-        if (!primarySentence || typeof primarySentence !== 'string') return;
+    for (const sentence of sentences) {
+        const contentPair = extractBilingualPair(sentence, primaryLang, secondaryLang);
+        const primarySentence = contentPair[primaryLang];
+        if (!primarySentence || typeof primarySentence !== 'string') continue;
         
         let finalContent: MultilingualContent = {};
 
         if (unit === 'phrase' && secondaryLang) {
             finalContent[primaryLang] = splitSentenceIntoPhrases(primarySentence);
-            const secondarySentence = sentencePair[secondaryLang];
+            const secondarySentence = contentPair[secondaryLang];
             if (secondarySentence && typeof secondarySentence === 'string') {
                 finalContent[secondaryLang] = splitSentenceIntoPhrases(secondarySentence);
             } else {
-                finalContent[secondaryLang] = []; // Ensure it's an array even if empty
+                finalContent[secondaryLang] = [];
             }
         } else {
-            finalContent[primaryLang] = Array.isArray(sentencePair[primaryLang]) ? (sentencePair[primaryLang] as string[]).join(' ') : sentencePair[primaryLang];
-            if (secondaryLang && sentencePair[secondaryLang]) {
-                finalContent[secondaryLang] = Array.isArray(sentencePair[secondaryLang]) ? (sentencePair[secondaryLang] as string[]).join(' ') : sentencePair[secondaryLang];
-            }
+            finalContent = contentPair;
         }
         
         segments.push({
             id: generateLocalUniqueId(),
             order: segmentOrder++,
             content: finalContent,
-            type: 'text', // Default type
+            // type is implicitly 'text'
         });
-    });
+    }
 
     return segments;
 }
 
 
 /**
- * Main parser - processes markdown text into a flat array of Segments.
- * It identifies H1 headings, sets the segment `type` accordingly, and removes the '#' from the content.
+ * Main parser - processes a raw markdown string into a flat array of Segments.
+ * It identifies H1 headings, sets the `type`, and cleans the '#' from the content.
+ * It preserves all other markdown characters (`\n`, `**`, etc.) within the content blocks.
  */
 export function parseMarkdownToSegments(markdown: string, origin: string, unit: ContentUnit): Segment[] {
     const segments: Segment[] = [];
     let order = 0;
     const [primaryLang, secondaryLang] = origin.split('-');
 
-    // Split content by lines to easily identify headings
-    const lines = markdown.split(/\r?\n/).filter(line => line.trim() !== '');
+    // Split by newlines to process line-by-line for headings or group into paragraphs
+    const lines = markdown.split(/\r?\n/);
     
-    let isFirstParagraph = true;
+    let paragraphBuffer: string[] = [];
+
+    const flushParagraphBuffer = () => {
+        if (paragraphBuffer.length > 0) {
+            const paragraphText = paragraphBuffer.join('\n');
+            const paragraphSegments = processTextBlockIntoSegments(paragraphText, origin, unit);
+            
+            // Mark the first segment of a new paragraph
+            if (paragraphSegments.length > 0) {
+              paragraphSegments[0].type = 'start_para';
+            }
+
+            paragraphSegments.forEach(seg => {
+                seg.order = order++;
+                segments.push(seg);
+            });
+            paragraphBuffer = [];
+        }
+    };
 
     for (const line of lines) {
         const trimmedLine = line.trim();
         
         if (trimmedLine.startsWith('# ')) {
-            // This is an H1 heading.
+            flushParagraphBuffer(); // Process any preceding paragraph
+            
             const titleContent = trimmedLine.substring(2).trim();
-            const titlePair = extractBilingualTextPairs(titleContent, primaryLang, secondaryLang)[0] || { [primaryLang]: titleContent };
+            const contentPair = extractBilingualPair(titleContent, primaryLang, secondaryLang);
             
             segments.push({
                 id: generateLocalUniqueId(),
                 order: order++,
                 type: 'heading1',
-                content: titlePair,
+                content: contentPair,
             });
-            isFirstParagraph = true; // The next segment after a heading is a new paragraph start
+        } else if (trimmedLine === '') {
+            flushParagraphBuffer(); // Blank line signifies a new paragraph
         } else {
-            // This is regular paragraph content
-            const paragraphSegments = processParagraphIntoSegments(trimmedLine, origin, unit);
-            if (paragraphSegments.length > 0) {
-              if (isFirstParagraph) {
-                paragraphSegments[0].type = 'start_para';
-                isFirstParagraph = false;
-              }
-              paragraphSegments.forEach(seg => {
-                  seg.order = order++;
-                  segments.push(seg);
-              });
-            }
+            paragraphBuffer.push(line);
         }
     }
     
+    flushParagraphBuffer(); // Process any remaining text
+
     return segments;
 }
