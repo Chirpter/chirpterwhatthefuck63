@@ -5,7 +5,7 @@
 // This listener responds to vocabulary events and triggers achievement checks
 // ============================================================================
 
-import { checkAndUnlockAchievements } from '@/services/server/achievement.service';
+import { checkAndUnlockAchievements } from '@/services/server/achievement-service';
 import { vocabularyEvents, VocabularyEventType } from '../events/vocabulary-events';
 
 let unsubscribeItemAdded: (() => void) | null = null;

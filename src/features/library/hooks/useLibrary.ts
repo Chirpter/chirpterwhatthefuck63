@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
 import type { LibraryItem, OverallStatus } from '@/lib/types';
-import { deleteLibraryItem as serviceDeleteLibraryItem, updateLibraryItem } from '@/services/server/library.service';
+import { deleteLibraryItem as serviceDeleteLibraryItem, updateLibraryItem } from '@/services/server/library-service';
 import { useLibraryItems } from './useLibraryItems';
 
 interface UseLibraryProps {

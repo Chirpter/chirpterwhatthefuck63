@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { useUser } from '@/contexts/user-context';
 import type { CreationFormValues, LibraryItem, ContentUnit, Book, Piece } from '@/lib/types';
-import { createLibraryItem } from '@/services/server/creation.service';
+import { createLibraryItem } from '@/services/server/creation-service';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';

@@ -1,7 +1,7 @@
 // src/app/(app)/read/[id]/page.tsx - FINAL VERSION
 import { notFound } from 'next/navigation';
 import { getUserIdFromSession } from '@/services/server/user-service-helpers';
-import { getLibraryItemById } from '@/services/server/library.service'; // ✅ Use existing service
+import { getLibraryItemById } from '@/services/server/library-service'; // ✅ Use existing service
 import BookReader from '@/features/reader/components/book/BookReader';
 import PieceReader from '@/features/reader/components/piece/PieceReader';
 

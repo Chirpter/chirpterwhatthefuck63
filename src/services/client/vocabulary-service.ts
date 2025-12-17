@@ -7,7 +7,7 @@
  */
 
 import { getLocalDbForUser } from '@/services/client/local-database';
-import { enqueueSync } from '@/services/client/sync.service';
+import { enqueueSync } from '@/services/client/sync-service';
 import type { VocabularyItem, SrsState, VocabularyFilters, PaginationState, User } from '@/lib/types';
 import { VOCABULARY_CONSTANTS, FOLDER_CONSTANTS } from '@/features/vocabulary/constants';
 import { removeUndefinedProps } from '@/lib/utils';

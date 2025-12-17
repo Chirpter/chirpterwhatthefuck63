@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icons';
 import { useUser } from '@/contexts/user-context';
-import * as srsService from "@/services/client/srs.service";
+import * as srsService from "@/services/client/srs-service";
 import type { VocabularyItem, SrsState } from '@/lib/types';
 import { AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/useToast';

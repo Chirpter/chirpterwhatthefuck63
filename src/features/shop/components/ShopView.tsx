@@ -19,7 +19,7 @@ import {
 import { Icon, type IconName } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { purchaseGlobalItem } from '@/services/server/user.service';
+import { purchaseGlobalItem } from '@/services/server/user-service';
 import type { Book, CombinedBookmark } from '@/lib/types';
 import { useShop } from '@/features/shop/hooks/useShop';
 import { BookItemCard } from '@/features/library/components/BookItemCard';

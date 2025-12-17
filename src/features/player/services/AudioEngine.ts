@@ -18,8 +18,8 @@ import type {
   VocabularyItem,
   Segment,
 } from '@/lib/types';
-import * as ttsService from '@/services/client/tts.service';
-import { getSystemVoices } from '@/services/client/tts.service';
+import * as ttsService from '@/services/client/tts-service';
+import { getSystemVoices } from '@/services/client/tts-service';
 import { getVocabularyItemsByFolder } from '@/services/client/vocabulary-service';
 
 // ============================================

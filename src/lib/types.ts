@@ -136,6 +136,7 @@ export interface BaseDocument {
     createdAt?: any;
     updatedAt?: any;
     isCompleted?: boolean;
+    debug?: any;
 }
 
 /**

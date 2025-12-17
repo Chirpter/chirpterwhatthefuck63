@@ -4,7 +4,7 @@
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { User, UserAchievement } from '@/lib/types';
 import { ApiServiceError } from '@/lib/errors';
-import { checkAndUnlockAchievements } from './achievement.service';
+import { checkAndUnlockAchievements } from './achievement-service';
 import { getLevelStyles } from '@/lib/utils';
 import { ACHIEVEMENTS } from '@/features/user/constants/achievements';
 import { convertTimestamps } from '@/lib/utils';

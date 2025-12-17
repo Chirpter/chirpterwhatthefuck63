@@ -5,8 +5,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Book, BookmarkMetadata } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
-import { getGlobalBooks } from '@/services/server/library.service';
-import { getBookmarkMetadata, getSystemBookmarks } from '@/services/server/bookmark.service';
+import { getGlobalBooks } from '@/services/server/library-service';
+import { getBookmarkMetadata, getSystemBookmarks } from '@/services/server/bookmark-service';
 import type { DocumentData } from 'firebase/firestore';
 import type { CombinedBookmark } from '@/features/library/hooks/useLibrary';
 import { useAuth } from '@/contexts/auth-context';

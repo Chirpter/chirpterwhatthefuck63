@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/useToast';
 import type { CombinedBookmark, BookmarkMetadata } from '@/lib/types';
 import { removeUndefinedProps } from '@/lib/utils';
-import { getSystemBookmarks, getBookmarkMetadata } from '@/services/server/bookmark.service';
+import { getSystemBookmarks, getBookmarkMetadata } from '@/services/server/bookmark-service';
 import { useBookmarks } from '@/contexts/bookmark-context';
 
 export type BookmarkStatus = 'published' | 'unpublished' | 'maintenance';

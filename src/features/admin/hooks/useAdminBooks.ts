@@ -8,7 +8,7 @@ import { db, storage } from '@/lib/firebase';
 import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/useToast';
 import type { Book, Chapter } from '@/lib/types';
-import { getGlobalBooks } from '@/services/server/library.service';
+import { getGlobalBooks } from '@/services/server/library-service';
 
 type FormValues = {
   title: string;

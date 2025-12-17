@@ -5,13 +5,13 @@
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { Book, CreationFormValues, GenerateBookContentInput, CoverJobType, ContentUnit, MultilingualContent, Segment } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
-import { checkAndUnlockAchievements } from './achievement.service';
+import { checkAndUnlockAchievements } from './achievement-service';
 import { ApiServiceError } from "@/lib/errors";
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH, BOOK_LENGTH_OPTIONS } from '@/lib/constants';
 import { getStorage } from 'firebase-admin/storage';
-import { updateLibraryItem } from "./library.service";
+import { updateLibraryItem } from "./library-service";
 import { segmentize } from '../shared/SegmentParser';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;

@@ -1,12 +1,12 @@
-// src/services/server/piece-creation.service.ts
+// src/services/server/piece-creation-service.ts
 
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { Piece, CreationFormValues, GeneratePieceInput, ContentUnit, MultilingualContent, Segment } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
-import { checkAndUnlockAchievements } from './achievement.service';
-import { updateLibraryItem } from "./library.service";
+import { checkAndUnlockAchievements } from './achievement-service';
+import { updateLibraryItem } from "./library-service";
 import { ApiServiceError } from "@/lib/errors";
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
