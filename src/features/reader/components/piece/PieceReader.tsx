@@ -44,15 +44,11 @@ const getAspectRatioClass = (ratio?: '1:1' | '3:4' | '4:3'): string => {
 interface PieceReaderProps {
   piece: Piece | null;
   isPreview?: boolean;
-  presentationStyle?: 'doc' | 'card';
-  aspectRatio?: '1:1' | '3:4' | '4:3';
 }
 
 export default function PieceReader({
   piece,
   isPreview = false,
-  presentationStyle: externalPresentationStyle,
-  aspectRatio: externalAspectRatio,
 }: PieceReaderProps) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
   const { wordLookupEnabled } = useSettings();
@@ -85,8 +81,8 @@ export default function PieceReader({
     return parseMarkdownToSegments(piece.content, piece.origin, piece.unit);
   }, [piece]);
   
-  const finalPresentationStyle = externalPresentationStyle || piece?.presentationStyle || 'card';
-  const finalAspectRatio = externalAspectRatio || piece?.aspectRatio || '3:4';
+  const finalPresentationStyle = piece?.presentationStyle || 'card';
+  const finalAspectRatio = piece?.aspectRatio || '3:4';
 
   const {
     pages,
@@ -119,7 +115,7 @@ export default function PieceReader({
         const rect = range.getBoundingClientRect();
         
         let sourceLang = displayLang1;
-        let sentenceContext = `...${'${selectedText}'}...`;
+        let sentenceContext = `...${selectedText}...`;
         const startContainer = range.startContainer;
         const segmentElement = (startContainer.nodeType === 3 ? startContainer.parentElement : startContainer as HTMLElement)?.closest<HTMLElement>('[data-segment-id]');
 

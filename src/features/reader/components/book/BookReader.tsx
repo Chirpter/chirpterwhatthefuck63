@@ -10,8 +10,8 @@ import { useSettings } from '@/contexts/settings-context';
 import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
-import type { Book, LibraryItem, VocabContext, Chapter, Segment } from '@/lib/types';
-import { parseMarkdownToSegments } from '@/services/shared/SegmentParser';
+import type { Book, LibraryItem, VocabContext, Chapter, Segment, MultilingualContent } from '@/lib/types';
+import { parseMarkdownToSegments } from '@/services/shared/MarkdownParser';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
@@ -64,27 +64,23 @@ export default function BookReader({ book }: { book: Book }) {
   const { chapters, allBookSegments } = useMemo(() => {
     if (!book.content) return { chapters: [], allBookSegments: [] };
     
-    const segments = parseMarkdownToSegments(book.content, book.origin, book.unit);
+    const allSegments = parseMarkdownToSegments(book.content, book.origin, book.unit);
     const chapterList: Chapter[] = [];
     let currentChapterSegments: Segment[] = [];
     let currentChapterTitle: MultilingualContent = { [displayLang1]: 'Introduction' };
     let currentChapterId = 'implicit-chapter-0';
 
-    segments.forEach((seg, index) => {
+    allSegments.forEach((seg) => {
       if (seg.type === 'heading1') {
-        // If we have segments accumulated, finalize the previous chapter
-        if (currentChapterSegments.length > 0 || chapterList.length === 0) {
-            if (chapterList.length > 0 || currentChapterSegments.length > 0) { // Avoid adding empty implicit first chapter if first line is H1
-                 chapterList.push({
-                    id: currentChapterId,
-                    order: chapterList.length,
-                    title: currentChapterTitle,
-                    segments: currentChapterSegments,
-                    stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 } // Stats can be calculated if needed
-                });
-            }
+        if (chapterList.length > 0 || currentChapterSegments.length > 0) {
+            chapterList.push({
+                id: currentChapterId,
+                order: chapterList.length,
+                title: currentChapterTitle,
+                segments: currentChapterSegments,
+                stats: { totalSegments: 0, totalWords: 0, estimatedReadingTime: 0 }
+            });
         }
-        // Start a new chapter
         currentChapterSegments = [];
         currentChapterTitle = seg.content;
         currentChapterId = seg.id;
@@ -93,7 +89,6 @@ export default function BookReader({ book }: { book: Book }) {
       }
     });
 
-    // Add the last chapter
     if (currentChapterSegments.length > 0) {
         chapterList.push({
             id: currentChapterId,
@@ -104,7 +99,7 @@ export default function BookReader({ book }: { book: Book }) {
         });
     }
 
-    return { chapters: chapterList, allBookSegments: segments };
+    return { chapters: chapterList, allBookSegments };
   }, [book.content, book.origin, book.unit, displayLang1]);
 
 

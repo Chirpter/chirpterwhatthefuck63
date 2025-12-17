@@ -19,7 +19,7 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
 
     const getProgressFromStorage = useCallback(() => {
         if (!user || !itemId) return null;
-        const progressKey = `chirpter_progress_${'${itemId}'}_${'${user.uid}'}`;
+        const progressKey = `chirpter_progress_${itemId}_${user.uid}`;
         try {
             const savedProgressStr = localStorage.getItem(progressKey);
             if (savedProgressStr) {
@@ -38,7 +38,7 @@ export const useItemCardProgress = (itemId: string | null, item: LibraryItem | n
         
         const handleStorageChange = (event: StorageEvent) => {
             if (!user || !itemId) return;
-            const progressKey = `chirpter_progress_${'${itemId}'}_${'${user.uid}'}`;
+            const progressKey = `chirpter_progress_${itemId}_${user.uid}`;
             if (event.key === progressKey) {
                 setProgress(getProgressFromStorage());
             }
