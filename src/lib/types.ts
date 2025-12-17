@@ -17,26 +17,30 @@ export class ApiServiceError extends Error {
 
 /**
  * @typedef {Object.<string, string>} LanguageBlock
- * @description A flexible object to hold content in multiple languages for a single segment part.
+ * @description A flexible object to hold content in multiple languages.
  * The key is the BCP-47 language code (e.g., 'en', 'vi').
- * The value is a string.
+ * The value is the string content for that language.
  */
 export type LanguageBlock = {
   [languageCode: string]: string;
 };
 
-// Re-defining MultilingualContent to be more specific to its use cases now.
-export type MultilingualContent = {
-  [languageCode: string]: string;
-};
-
+// Represents a piece of content, which can be a string (prefix/suffix)
+// or an object containing multilingual versions of the core text.
 export type SegmentContent = (string | LanguageBlock)[];
 
 export interface Segment {
   id: string;
   order: number;
   content: SegmentContent;
+  type?: 'heading1'; // Optional: only for special segments like headings
 }
+
+
+// Re-defining MultilingualContent to be more specific to its use cases now.
+export type MultilingualContent = {
+  [languageCode: string]: string;
+};
 
 export interface Chapter {
   id: string;
@@ -190,6 +194,7 @@ export interface Book extends BaseLibraryItem {
   coverRetries?: number;
   length?: BookLengthOptionValue;
   selectedBookmark?: BookmarkType;
+  content: string; // Markdown content
   chapters: Chapter[];
 }
 
@@ -209,6 +214,7 @@ export interface Piece extends BaseLibraryItem {
     endTime?: number;
   };
   isBilingual?: boolean;
+  content: string; // Markdown content
   generatedContent: Segment[];
 }
 

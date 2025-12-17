@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import type { LibraryItem, EditorSettings, Page, Segment, LanguageBlock, ContentUnit } from '@/lib/types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { cn } from '@/lib/utils';
+import type { LibraryItem, EditorSettings, Page, Segment, LanguageBlock } from '@/lib/types';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 
 interface ContentPageRendererProps {
@@ -41,37 +41,33 @@ const ContentRenderer: React.FC<{
   segmentContent: (string | LanguageBlock)[];
   displayLang1: string;
   displayLang2: string;
-  isBilingualMode: boolean;
   isSegmentPlaying: boolean;
   spokenLang: string | null;
   speechBoundary: { charIndex: number, charLength: number } | null;
-  unit: ContentUnit;
-}> = ({ segmentContent, displayLang1, displayLang2, isBilingualMode, isSegmentPlaying, spokenLang, speechBoundary, unit }) => {
+  unit: 'sentence' | 'phrase';
+}> = ({ segmentContent, displayLang1, displayLang2, isSegmentPlaying, spokenLang, speechBoundary, unit }) => {
   
   const reconstructedMarkdown = useMemo(() => {
-    let text = '';
-    for (const part of segmentContent) {
-      if (typeof part === 'string') {
-        text += part;
-      } else {
-        // This is the language block
-        if (!isBilingualMode) {
-          text += part[displayLang1] || '';
-        } else if (unit === 'sentence') {
-          const primary = part[displayLang1] || '';
-          const secondary = part[displayLang2] || '';
-          // Render on separate lines for sentence mode
-          text += `${primary}\n_${secondary}_`;
-        } else { // phrase mode
-          const primary = part[displayLang1] || '';
-          const secondary = part[displayLang2] || '';
-          // Render inline for phrase mode
-          text += `${primary} (${secondary})`;
-        }
+    let finalString = '';
+    const prefix = typeof segmentContent[0] === 'string' ? segmentContent[0] : '';
+    const suffix = typeof segmentContent[segmentContent.length - 1] === 'string' ? segmentContent[segmentContent.length - 1] : '';
+    const langBlock = segmentContent.find(p => typeof p === 'object') as LanguageBlock | undefined;
+
+    const text1 = langBlock?.[displayLang1] as string || '';
+    const text2 = langBlock?.[displayLang2] as string || '';
+
+    if (displayLang2 !== 'none' && text2) {
+      if (unit === 'phrase') {
+        finalString = `${prefix}${text1} (${text2})${suffix}`;
+      } else { // sentence
+        finalString = `${prefix}${text1}${suffix}\n\n_${text2}_`;
       }
+    } else {
+      finalString = `${prefix}${text1}${suffix}`;
     }
-    return text;
-  }, [segmentContent, displayLang1, displayLang2, isBilingualMode, unit]);
+
+    return finalString;
+  }, [segmentContent, displayLang1, displayLang2, unit]);
 
   // For now, word highlighting is disabled in this new architecture,
   // as it would require parsing the reconstructed markdown.
@@ -132,8 +128,6 @@ export function ContentPageRenderer({
     return 'p-8 md:p-12';
   }, [presentationStyle, editorSettings]);
   
-  const isBilingualMode = displayLang2 !== 'none';
-  
   const contentContainerClasses = cn(
     "max-w-none font-serif w-full h-full",
     proseThemeClass,
@@ -151,7 +145,7 @@ export function ContentPageRenderer({
                 segmentContent={segment.content}
                 displayLang1={displayLang1}
                 displayLang2={displayLang2}
-                isBilingualMode={isBilingualMode}
+                isBilingualMode={displayLang2 !== 'none'}
                 unit={itemData?.unit || 'sentence'}
                 isSegmentPlaying={currentSpokenSegmentId === segment.id}
                 spokenLang={currentSpokenLang}

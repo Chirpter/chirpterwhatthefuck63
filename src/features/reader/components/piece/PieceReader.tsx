@@ -55,24 +55,25 @@ export default function PieceReader({
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const isMobile = useMobile();
   
-  const originParts = piece?.origin.split('-') || [];
-  const [displayLang1, setDisplayLang1] = useState(originParts[0] || piece?.langs[0] || 'en');
-  const [displayLang2, setDisplayLang2] = useState(originParts[1] || 'none');
-  
+  // --- STATE FOR DYNAMIC LANGUAGE DISPLAY ---
+  const [displayLang1, setDisplayLang1] = useState(() => piece?.langs[0] || 'en');
+  const [displayLang2, setDisplayLang2] = useState(() => piece?.langs[1] || 'none');
+
+  useEffect(() => {
+    if (piece) {
+        const originParts = piece.origin.split('-');
+        setDisplayLang1(originParts[0] || piece.langs[0] || 'en');
+        setDisplayLang2(originParts[1] || 'none');
+    }
+  }, [piece]);
+  // --- END LANGUAGE STATE ---
+
   const [lookupState, setLookupState] = useState<LookupState>({ 
     isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', 
     sourceItem: null, sentenceContext: '', context: 'reader' 
   });
 
   const contentContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (piece) {
-      const parts = piece.origin.split('-');
-      setDisplayLang1(parts[0] || piece.langs[0] || 'en');
-      setDisplayLang2(parts[1] || 'none');
-    }
-  }, [piece]);
 
   const allSegments = piece?.generatedContent || [];
   

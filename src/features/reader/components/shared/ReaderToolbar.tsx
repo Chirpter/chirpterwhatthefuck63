@@ -147,80 +147,76 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
       )}
       <TooltipProvider>
         <div className="flex items-center justify-center gap-1">
-           {availableLanguages.length > 1 && (
-            <>
-              {/* --- LANGUAGE DROPDOWNs --- */}
-              <DropdownMenu>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 text-xs md:text-sm">
-                                {getLanguageLabel(displayLang1)}
-                            </Button>
-                        </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent><p>{t('mainLanguageTooltip')}</p></TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent>
-                    <DropdownMenuLabel>{t('mainLanguageTooltip')}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={displayLang1} onValueChange={onDisplayLang1Change}>
-                        {availableLanguages.map(lang => (
-                            <DropdownMenuRadioItem key={`l1-${lang}`} value={lang}>{getLanguageLabel(lang)}</DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+           {/* --- LANGUAGE DROPDOWNs --- */}
+          <DropdownMenu>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs md:text-sm">
+                            {getLanguageLabel(displayLang1)}
+                        </Button>
+                    </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent><p>{t('mainLanguageTooltip')}</p></TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent>
+                <DropdownMenuLabel>{t('mainLanguageTooltip')}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={displayLang1} onValueChange={onDisplayLang1Change}>
+                    {availableLanguages.map(lang => (
+                        <DropdownMenuRadioItem key={`l1-${lang}`} value={lang}>{getLanguageLabel(lang)}</DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-               <DropdownMenu>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 text-xs md:text-sm">
-                                {getLanguageLabel(displayLang2)}
-                            </Button>
-                        </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>{t('secondaryLanguageTooltip')}</p>
-                    </TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent>
-                    <DropdownMenuLabel>{t('secondaryLanguageTooltip')}</DropdownMenuLabel>
+           <DropdownMenu>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs md:text-sm">
+                            {getLanguageLabel(displayLang2)}
+                        </Button>
+                    </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{t('secondaryLanguageTooltip')}</p>
+                </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent>
+                <DropdownMenuLabel>{t('secondaryLanguageTooltip')}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={displayLang2} onValueChange={handleSecondaryLanguageSelect}>
+                    <DropdownMenuRadioItem value="none">{t('viewModes.none')}</DropdownMenuRadioItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={displayLang2} onValueChange={handleSecondaryLanguageSelect}>
-                        <DropdownMenuRadioItem value="none">{t('viewModes.none')}</DropdownMenuRadioItem>
-                        <DropdownMenuSeparator />
-                        {LANGUAGES.map(lang => {
-                            if (lang.value === displayLang1) return null;
-                            const isAlreadyAvailable = availableLanguages.includes(lang.value);
-                            return (
-                                <DropdownMenuRadioItem key={`l2-${lang.value}`} value={lang.value}>
-                                    <div className="flex items-center justify-between w-full">
-                                        <span>{lang.label}</span>
-                                        {!isAlreadyAvailable && onTranslateRequest && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="p-1 -mr-1 rounded-sm" onClick={(e) => e.stopPropagation()}>
-                                                        <Icon name="Sparkles" className="h-4 w-4 text-primary" />
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="right">
-                                                    <p>{t('translateActionTooltip')}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                    </div>
-                                </DropdownMenuRadioItem>
-                            )
-                        })}
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {LANGUAGES.map(lang => {
+                        if (lang.value === displayLang1) return null;
+                        const isAlreadyAvailable = availableLanguages.includes(lang.value);
+                        return (
+                            <DropdownMenuRadioItem key={`l2-${lang.value}`} value={lang.value}>
+                                <div className="flex items-center justify-between w-full">
+                                    <span>{lang.label}</span>
+                                    {!isAlreadyAvailable && onTranslateRequest && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="p-1 -mr-1 rounded-sm" onClick={(e) => e.stopPropagation()}>
+                                                    <Icon name="Sparkles" className="h-4 w-4 text-primary" />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right">
+                                                <p>{t('translateActionTooltip')}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                </div>
+                            </DropdownMenuRadioItem>
+                        )
+                    })}
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-              <Separator orientation="vertical" className="h-6 mx-1" />
-            </>
-           )}
+          <Separator orientation="vertical" className="h-6 mx-1" />
 
            {/* --- FONT SIZE (Book Only) --- */}
            {presentationStyle === 'book' && (

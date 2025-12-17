@@ -48,10 +48,19 @@ export default function BookReader({ book }: { book: Book }) {
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const [isTocOpen, setIsTocOpen] = useState(false);
   
-  const originParts = book.origin.split('-');
-  const [displayLang1, setDisplayLang1] = useState(originParts[0] || book.langs[0] || 'en');
-  const [displayLang2, setDisplayLang2] = useState(originParts[1] || 'none');
-
+  // --- STATE FOR DYNAMIC LANGUAGE DISPLAY ---
+  // Initialize state based on the book's origin property
+  const [displayLang1, setDisplayLang1] = useState(() => book.langs[0] || 'en');
+  const [displayLang2, setDisplayLang2] = useState(() => book.langs[1] || 'none');
+  
+  useEffect(() => {
+    // This effect ensures that the state is correctly initialized from origin on first load.
+    const originParts = book.origin.split('-');
+    setDisplayLang1(originParts[0] || book.langs[0] || 'en');
+    setDisplayLang2(originParts[1] || 'none');
+  }, [book.origin, book.langs]);
+  // --- END LANGUAGE STATE ---
+  
   const [lookupState, setLookupState] = useState<LookupState>({ 
     isOpen: false, text: '', rect: null, sourceLang: '', targetLanguage: '', 
     sourceItem: null, sentenceContext: '', context: 'reader' 
