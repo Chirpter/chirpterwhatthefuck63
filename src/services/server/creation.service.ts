@@ -38,8 +38,9 @@ function validateOriginFormat(formData: CreationFormValues): void {
 
 /**
  * ✅ MAIN FACADE: Routes creation requests to the appropriate service.
+ * Returns an object with the jobId.
  */
-export async function createLibraryItem(type: 'book' | 'piece', formData: CreationFormValues): Promise<string> {
+export async function createLibraryItem(type: 'book' | 'piece', formData: CreationFormValues): Promise<{ jobId: string, debugData: any }> {
   console.log('📝 [Creation Service] Starting creation for type:', type);
   
   const userId = await getUserIdFromSession();
@@ -50,11 +51,13 @@ export async function createLibraryItem(type: 'book' | 'piece', formData: Creati
     if (type === 'book') {
       const bookId = await createBookAndStartGeneration(userId, formData);
       console.log('✅ [Creation Service] Book created:', bookId);
-      return bookId;
+      // Return the correct object structure
+      return { jobId: bookId, debugData: {} };
     } else if (type === 'piece') {
       const pieceId = await createPieceAndStartGeneration(userId, formData);
       console.log('✅ [Creation Service] Piece created:', pieceId);
-      return pieceId;
+      // Return the correct object structure
+      return { jobId: pieceId, debugData: {} };
     } else {
       throw new ApiServiceError(`Unknown content type: ${type}`, 'VALIDATION');
     }
@@ -68,5 +71,3 @@ export async function createLibraryItem(type: 'book' | 'piece', formData: Creati
     throw new ApiServiceError(error.message || 'Creation failed unexpectedly', 'UNKNOWN', error);
   }
 }
-
-    

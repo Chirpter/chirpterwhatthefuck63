@@ -78,6 +78,7 @@ async function processPieceGenerationPipeline(userId: string, pieceId: string, p
             contentState: 'ready',
             status: 'draft',
             contentRetryCount: 0,
+            debug: contentResult.debug,
         };
     } catch (err) {
         const errorMessage = (err as Error).message;
@@ -187,12 +188,19 @@ async function generatePieceContent(
         config: { maxOutputTokens: 1200 }
     });
 
+    let rawResponse = '';
+    let parsedData: any = {};
+    const debugData = { userPrompt, systemPrompt, rawResponse, parsedData };
+    
     try {
         const { output: aiOutput } = await pieceContentGenerationPrompt({ userPrompt, systemPrompt });
 
         if (!aiOutput || !aiOutput.markdownContent) {
             throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
+        
+        rawResponse = aiOutput.markdownContent;
+        debugData.rawResponse = rawResponse;
 
         const lines = aiOutput.markdownContent.trim().split('\n');
         let titleText = `Untitled Piece`;
@@ -206,14 +214,19 @@ async function generatePieceContent(
         const finalTitle = parseBilingualText(titleText, primaryLanguage, secondaryLanguage);
         const segments = parseMarkdownToSegments(contentMarkdown, pieceFormData.origin, pieceFormData.unit, true);
         
+        parsedData = { title: finalTitle, segments };
+        debugData.parsedData = parsedData;
+        
         return {
           title: finalTitle,
           generatedContent: segments,
+          debug: debugData,
         };
 
     } catch (error) {
         const errorMessage = (error as Error).message || 'Unknown AI error';
         console.error(`Piece content generation failed:`, errorMessage);
+        debugData.rawResponse = errorMessage; // Store error as raw response
         throw new Error(errorMessage);
     }
 }

@@ -76,10 +76,15 @@ async function processBookGenerationPipeline(
     processCoverImageForBook(userId, bookId, coverJobType, coverData, contentInput.prompt)
   ]);
 
-  const finalUpdate: Partial<Book> = { status: 'draft' };
+  const finalUpdate: Partial<Book> & { debug?: any } = { status: 'draft' };
+  
+  let finalDebugData = {};
 
   if (contentResult.status === 'fulfilled') {
     Object.assign(finalUpdate, contentResult.value);
+    if(contentResult.value.debug) finalDebugData = { ...finalDebugData, ...contentResult.value.debug };
+    // Remove debug from final update payload to avoid saving it twice if cover fails
+    delete (finalUpdate as any).debug;
   } else {
     finalUpdate.contentState = 'error';
     finalUpdate.contentError = (contentResult.reason as Error).message || 'Content generation failed.';
@@ -91,6 +96,9 @@ async function processBookGenerationPipeline(
     finalUpdate.coverState = 'error';
     finalUpdate.coverError = (coverResult.reason as Error).message || 'Cover generation failed.';
   }
+  
+  // Attach the consolidated debug data
+  finalUpdate.debug = finalDebugData;
 
   await updateLibraryItem(userId, bookId, finalUpdate);
   
@@ -214,7 +222,7 @@ async function processContentGenerationForBook(
     userId: string, 
     bookId: string, 
     contentInput: GenerateBookContentInput,
-): Promise<Partial<Book>> {
+): Promise<Partial<Book> & { debug?: any }> {
     
     // 1. Build User Prompt
     const bookTypeDescription = (contentInput.generationScope === 'full' || !contentInput.totalChapterOutlineCount) 
@@ -251,6 +259,8 @@ async function processContentGenerationForBook(
         output: { schema: BookOutputSchema },
         prompt: `{{{userPrompt}}}\n\n{{{systemPrompt}}}`,
     });
+    
+    const debugData = { systemPrompt, userPrompt, rawResponse: '', parsedData: {} };
 
     try {
         const { output: aiOutput } = await bookContentGenerationPrompt({ userPrompt, systemPrompt });
@@ -259,7 +269,11 @@ async function processContentGenerationForBook(
           throw new ApiServiceError('AI returned empty or invalid content.', "UNAVAILABLE");
         }
         
+        debugData.rawResponse = aiOutput.markdownContent;
+        
         const { title: parsedTitle, chapters: finalChapters, unit: parsedUnit } = parseBookMarkdown(aiOutput.markdownContent, origin);
+        
+        debugData.parsedData = { title: parsedTitle, chapters: finalChapters, unit: parsedUnit };
         
         return {
           title: parsedTitle,
@@ -267,11 +281,15 @@ async function processContentGenerationForBook(
           unit: parsedUnit,
           contentState: 'ready',
           contentRetries: 0,
+          debug: debugData,
         };
 
     } catch (error) {
         const errorMessage = (error as Error).message || 'Unknown AI error';
         console.error(`Content generation failed for book ${bookId}:`, errorMessage);
+        debugData.rawResponse = `ERROR: ${errorMessage}`;
+        // Still return debug data on failure
+        await updateLibraryItem(userId, bookId, { debug: debugData });
         throw new Error(errorMessage);
     }
 }
