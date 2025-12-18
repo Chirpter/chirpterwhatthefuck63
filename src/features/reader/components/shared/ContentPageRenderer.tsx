@@ -98,12 +98,12 @@ export function ContentPageRenderer({
   const layoutClasses = useMemo(() => {
     if (presentationStyle === 'card' || presentationStyle === 'doc') {
         return cn(
-            'flex flex-col h-full p-6 md:p-8',
+            'flex flex-col h-full p-6 md:p-8 dark:bg-slate-800 dark:text-slate-200',
             editorSettings.verticalAlign,
             editorSettings.textAlign
         );
     }
-    return 'p-8 md:p-12';
+    return 'p-8 md:p-12 dark:bg-slate-800 dark:text-slate-200';
   }, [presentationStyle, editorSettings]);
   
   const contentContainerClasses = cn(
