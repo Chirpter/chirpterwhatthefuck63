@@ -28,14 +28,16 @@ export type LanguageBlock = {
 // A piece of content can be:
 // - A string (prefix/suffix).
 // - A LanguageBlock (for a sentence).
-// - An array of LanguageBlocks (for phrases within a sentence).
-export type SegmentContent = (string | LanguageBlock | LanguageBlock[])[];
+// - A PhrasePairBlock (for phrases within a sentence).
+export type PhrasePairBlock = { [languageCode: string]: string[] };
+export type SegmentContent = (string | LanguageBlock | PhrasePairBlock)[];
 
 
 export interface Segment {
   id: string;
   order: number;
   content: SegmentContent;
+  type?: 'heading1' | 'heading2' | 'heading3' | 'paragraph'; // Optional type hint
 }
 
 
