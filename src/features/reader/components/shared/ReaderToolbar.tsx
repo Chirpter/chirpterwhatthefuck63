@@ -370,7 +370,7 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className={buttonClass} onClick={onToggleFocusMode}>
-                    <Icon name="Maximize2" className={iconClass} />
+                    <Icon name="Maximize" className={iconClass} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>

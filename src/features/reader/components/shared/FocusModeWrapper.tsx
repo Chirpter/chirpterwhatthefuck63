@@ -116,7 +116,7 @@ export function FocusModeWrapper({
                     onToggle();
                   }}
                 >
-                  <Icon name="Minimize2" className="h-4 w-4" />
+                  <Icon name="Minimize" className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -162,7 +162,7 @@ export function FocusModeWrapper({
                   onToggle();
                 }}
               >
-                <Icon name="Minimize2" className="h-4 w-4" />
+                <Icon name="Minimize" className="h-4 w-4" />
               </Button>
             </div>
           </div>

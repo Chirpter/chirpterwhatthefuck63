@@ -838,3 +838,167 @@
     }
 }
 
+
+/* ============================================
+   CONTAINER QUERY SUPPORT FOR CARD/DOC
+   ============================================ */
+
+/* Dynamic prose sizing using CQI units for Card and Doc */
+.prose-dynamic {
+  font-size: 1.5cqi; /* 1.5% of container inline size */
+}
+
+.prose-dynamic h1 {
+  font-size: 3cqi;
+  line-height: 1.2;
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+.prose-dynamic h2 {
+  font-size: 2.5cqi;
+  line-height: 1.3;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.prose-dynamic h3 {
+  font-size: 2cqi;
+  line-height: 1.4;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+.prose-dynamic p {
+  margin-top: 0;
+  margin-bottom: 1em;
+  line-height: 1.6;
+}
+
+.prose-dynamic ul,
+.prose-dynamic ol {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+  padding-left: 2em;
+}
+
+.prose-dynamic li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.prose-dynamic blockquote {
+  font-style: italic;
+  padding-left: 1.5em;
+  border-left: 0.25em solid currentColor;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.prose-dynamic em {
+  font-size: 0.95em;
+  opacity: 0.8;
+}
+
+.prose-dynamic strong {
+  font-weight: 600;
+}
+
+/* ============================================
+   FOCUS MODE STYLES
+   ============================================ */
+
+/* Ensure focus mode containers use proper sizing */
+[style*="containerType"] {
+  container-type: size;
+}
+
+/* ============================================
+   READER BACKGROUNDS
+   ============================================ */
+
+.bg-reader-sepia {
+  background-color: #fbf0d9;
+  color: #2c2416;
+}
+
+.bg-reader-slate {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
+.bg-reader-grain {
+  background-color: #faf9f6;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+.bg-reader-lined {
+  background-color: #fff;
+  background-image: linear-gradient(transparent 95%, #ddd 95%);
+  background-size: 100% 1.5em;
+  line-height: 1.5em;
+}
+
+.bg-reader-grid {
+  background-color: #fff;
+  background-image: 
+    linear-gradient(rgba(200, 200, 200, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200, 200, 200, 0.3) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-reader-crumbled {
+  background-color: #f5f3ef;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 800 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='crumble'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.01' numOctaves='5' seed='2'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='20'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23crumble)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+/* ============================================
+   PROSE THEME OVERRIDES
+   ============================================ */
+
+.prose-on-sepia {
+  --tw-prose-body: #2c2416;
+  --tw-prose-headings: #2c2416;
+  --tw-prose-links: #1e40af;
+  --tw-prose-bold: #2c2416;
+  --tw-prose-quotes: #57534e;
+}
+
+.prose-on-slate {
+  --tw-prose-body: #e2e8f0;
+  --tw-prose-headings: #f1f5f9;
+  --tw-prose-links: #60a5fa;
+  --tw-prose-bold: #f1f5f9;
+  --tw-prose-quotes: #94a3b8;
+}
+
+.prose-on-lined-paper,
+.prose-on-grid,
+.prose-on-crumbled {
+  --tw-prose-body: #1f2937;
+  --tw-prose-headings: #111827;
+  --tw-prose-links: #2563eb;
+  --tw-prose-bold: #111827;
+  --tw-prose-quotes: #6b7280;
+}
+
+/* ============================================
+   RESPONSIVE ASPECT RATIOS
+   ============================================ */
+
+/* Ensure aspect ratios work properly with CQI */
+.aspect-\[210\/297\] {
+  aspect-ratio: 210 / 297; /* A4 ratio */
+}
+
+.aspect-\[3\/4\] {
+  aspect-ratio: 3 / 4;
+}
+
+.aspect-\[4\/3\] {
+  aspect-ratio: 4 / 3;
+}
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
