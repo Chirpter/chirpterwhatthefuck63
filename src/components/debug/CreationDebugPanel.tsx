@@ -269,7 +269,7 @@ export function CreationDebugPanel() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 w-[calc(100vw-2rem)] md:w-96 max-h-[80vh] overflow-auto bg-black text-white p-4 rounded-lg shadow-xl font-mono text-xs">
+    <div className="fixed bottom-4 left-4 z-50 w-[calc(100vw-2rem)] md:w-96 max-h-[80vh] overflow-y-auto bg-black text-white p-4 rounded-lg shadow-xl font-mono text-xs">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-bold text-sm">Creation Flow Debug</h3>
         <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)} className="text-white">

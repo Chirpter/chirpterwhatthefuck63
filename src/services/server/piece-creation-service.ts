@@ -51,7 +51,7 @@ function buildLangInstructions(
 
 async function processPieceGenerationPipeline(userId: string, pieceId: string, pieceFormData: CreationFormValues): Promise<void> {
     
-    let finalUpdate: Partial<Piece>;
+    let finalUpdate: Partial<Piece> & { debug?: any };
 
     try {
         const contentResult = await generatePieceContent(pieceFormData);
@@ -216,7 +216,7 @@ async function generatePieceContent(
     } catch (error) {
         const errorMessage = (error as Error).message || 'Unknown AI error';
         console.error(`Piece content generation failed:`, errorMessage);
-        debugData.rawResponse = errorMessage; // Store error as raw response
+        debugData.rawResponse = `ERROR: ${errorMessage}`;
         throw new Error(errorMessage);
     }
 }
