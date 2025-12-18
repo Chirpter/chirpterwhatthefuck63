@@ -170,6 +170,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     generationScope: bookFormData.generationScope,
     chaptersToGenerate: bookFormData.targetChapterCount,
     totalChapterOutlineCount: (bookFormData.bookLength === 'standard-book' || bookFormData.bookLength === 'long-book') ? bookFormData.targetChapterCount : undefined,
+    previousContentSummary: bookFormData.previousContentSummary,
   };
   
   let coverData: File | string | undefined;
@@ -219,7 +220,10 @@ async function processContentGenerationForBook(
       ? 'a full-book'
       : `the first ${chaptersToGenerate} chapters of a book`;
     
-    const userPrompt = `Write ${bookTypeDescription} based on the prompt: "${contentInput.prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
+    let userPrompt = `Write ${bookTypeDescription} based on the prompt: "${contentInput.prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
+    if (contentInput.previousContentSummary) {
+      userPrompt = `You are writing the next chapters of a book. Here is a summary of what happened before: ${contentInput.previousContentSummary}. Now, continue the story based on the user's original request: "${contentInput.prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
+    }
     
     const [primaryLanguage, secondaryLanguage] = origin.split('-');
     const { langInstruction, titleExample, chapterExample } = buildLangInstructions(primaryLanguage, secondaryLanguage);

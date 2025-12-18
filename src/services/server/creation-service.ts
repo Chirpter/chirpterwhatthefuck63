@@ -71,3 +71,4 @@ export async function createLibraryItem(formData: CreationFormValues): Promise<{
     throw new ApiServiceError(error.message || 'Creation failed unexpectedly', 'UNKNOWN', error);
   }
 }
+
