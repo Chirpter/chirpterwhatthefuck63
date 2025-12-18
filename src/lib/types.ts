@@ -180,6 +180,7 @@ export interface Book extends LiteratureItem {
   imageHint?: string;
   coverRetries?: number;
   length?: BookLengthOptionValue;
+  targetChapterCount?: number;
   selectedBookmark?: BookmarkType;
 }
 

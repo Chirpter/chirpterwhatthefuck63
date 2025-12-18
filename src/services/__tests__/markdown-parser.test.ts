@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { 
   segmentize, 
-} from '../shared/SegmentParser'; // Updated import path
+} from '../shared/segment-parser'; // Updated import path
 import type { Book, Piece, MultilingualContent } from '@/lib/types';
 
 describe('SegmentParser - Unified Architecture', () => {

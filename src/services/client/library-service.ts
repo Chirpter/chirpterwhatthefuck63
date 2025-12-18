@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import type { LibraryItem, Segment } from '@/lib/types';
 import { convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-import { segmentize } from '../shared/SegmentParser';
+import { segmentize } from '../shared/segment-parser';
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 

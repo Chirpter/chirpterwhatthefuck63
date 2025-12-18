@@ -11,7 +11,7 @@ import { ApiServiceError } from "@/lib/errors";
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
-import { segmentize } from '../shared/SegmentParser';
+import { segmentize } from '../shared/segment-parser';
 
 const PieceOutputSchema = z.object({
   title: z.string().describe("A concise, fitting title for the piece."),
