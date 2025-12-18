@@ -3,7 +3,7 @@
 'use server';
 
 import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Piece, CreationFormValues, GeneratePieceInput, ContentUnit, MultilingualContent, Segment } from "@/lib/types";
+import type { Piece, CreationFormValues, MultilingualContent, Segment } from "@/lib/types";
 import { removeUndefinedProps } from '@/lib/utils';
 import { checkAndUnlockAchievements } from './achievement-service';
 import { updateLibraryItem } from "./library-service";
@@ -11,7 +11,7 @@ import { ApiServiceError } from "@/lib/errors";
 import { ai } from '@/services/ai/genkit';
 import { z } from 'zod';
 import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
-import { segmentize } from '../shared/segment-parser';
+import { SegmentParser } from '../shared/segment-parser';
 import { OriginService } from '../shared/origin-service';
 
 const MAX_RETRIES = 3;
@@ -122,7 +122,7 @@ async function generatePieceContentInternal(userId: string, pieceId: string): Pr
       }
 
       const title = extractBilingualTitle(output.title, primary, secondary);
-      const segments = segmentize(output.markdownContent, origin);
+      const segments = SegmentParser.parse(output.markdownContent, origin);
 
       await pieceRef.update({
         title,

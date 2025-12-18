@@ -1,304 +1,89 @@
-// src/services/server/piece-creation.service.ts
+// src/services/server/creation-service.ts
 'use server';
 
-import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
-import type { Piece, CreationFormValues, MultilingualContent } from "@/lib/types";
-import { removeUndefinedProps } from '@/lib/utils';
-import { checkAndUnlockAchievements } from './achievement-service';
-import { updateLibraryItem } from "./library-service";
+import type { CreationFormValues, Book, Piece } from '@/lib/types';
+import { createBookAndStartGeneration, regenerateBookContent, editBookCover } from './book-creation-service';
+import { createPieceAndStartGeneration, regeneratePieceContent } from './piece-creation-service';
+import { getAuthAdmin } from '@/lib/firebase-admin';
+import { cookies } from 'next/headers';
 import { OriginService } from '../shared/origin-service';
-import { SegmentParser } from '../shared/segment-parser';
-import { ai } from '@/services/ai/genkit';
-import { z } from 'zod';
-import { LANGUAGES, MAX_PROMPT_LENGTH } from '@/lib/constants';
-
-const MAX_RETRIES = 3;
-
-const PieceOutputSchema = z.object({
-  title: z.string(),
-  markdownContent: z.string(),
-});
-
-const PiecePromptInputSchema = z.object({
-  userPrompt: z.string(),
-  systemPrompt: z.string(),
-});
 
 /**
- * Piece Creation Service - Simplified
- * 
- * Similar to BookCreationService but for shorter content
+ * @fileoverview Main entry point for content creation.
+ * This server action validates the user's session and credit status,
+ * then delegates the creation task to the appropriate service (book or piece).
+ * It acts as a secure gateway for all content generation requests.
  */
-export class PieceCreationService {
-  
-  /**
-   * Create piece and start generation
-   */
-  static async create(userId: string, formData: CreationFormValues): Promise<string> {
-    const adminDb = getAdminDb();
-    let pieceId = '';
-    const creditCost = 1;
 
-    // Transaction: Create piece + deduct credits
-    await adminDb.runTransaction(async (transaction) => {
-      const userDocRef = adminDb.collection('users').doc(userId);
-      const userDoc = await transaction.get(userDocRef);
-      
-      if (!userDoc.exists) throw new Error("User not found");
-      if ((userDoc.data()?.credits || 0) < creditCost) {
-        throw new Error("Insufficient credits");
-      }
-      
-      transaction.update(userDocRef, {
-        credits: FieldValue.increment(-creditCost),
-        'stats.piecesCreated': FieldValue.increment(1)
-      });
 
-      // Create piece document
-      const newPieceRef = adminDb.collection(`users/${userId}/libraryItems`).doc();
-      
-      const initialPieceData: Omit<Piece, 'id'> = {
-        userId,
-        type: 'piece',
-        title: { [formData.primaryLanguage]: formData.aiPrompt.substring(0, 50) },
-        status: 'processing',
-        contentState: 'processing',
-        contentRetries: 0,
-        origin: formData.origin, // Locked here
-        langs: formData.availableLanguages,
-        unit: formData.unit,
-        prompt: formData.aiPrompt,
-        tags: [],
-        presentationStyle: formData.presentationStyle as 'doc' | 'card',
-        aspectRatio: formData.aspectRatio,
-        content: [],
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        isBilingual: formData.availableLanguages.length > 1,
-        labels: [],
-      };
-      
-      transaction.set(newPieceRef, removeUndefinedProps(initialPieceData));
-      pieceId = newPieceRef.id;
-    });
-
-    if (!pieceId) throw new Error("Failed to create piece");
-
-    // Start background generation
-    this.generateContent(userId, pieceId).catch(err => {
-      console.error(`[Piece ${pieceId}] Generation failed:`, err);
-    });
-
-    return pieceId;
-  }
-
-  /**
-   * Generate piece content
-   */
-  private static async generateContent(userId: string, pieceId: string): Promise<void> {
-    const adminDb = getAdminDb();
-    const pieceRef = adminDb.collection(`users/${userId}/libraryItems`).doc(pieceId);
-    
+// Helper to get user ID and validate session
+async function getUserId(): Promise<string> {
+    const sessionCookie = cookies().get('__session')?.value;
+    if (!sessionCookie) {
+        throw new Error('No session cookie found');
+    }
     try {
-      // Read piece from DB
-      const pieceDoc = await pieceRef.get();
-      if (!pieceDoc.exists) throw new Error('Piece not found');
-      
-      const piece = pieceDoc.data() as Piece;
-      const { origin, prompt } = piece;
-
-      // Parse origin
-      const { primary, secondary } = OriginService.parse(origin);
-
-      // Build prompt
-      const { userPrompt, systemPrompt } = this.buildContentPrompt(
-        prompt || '',
-        primary,
-        secondary
-      );
-
-      // Call AI
-      const piecePrompt = ai.definePrompt({
-        name: 'generateUnifiedPieceMarkdown_v7',
-        input: { schema: PiecePromptInputSchema },
-        output: { schema: PieceOutputSchema },
-        prompt: `{{{userPrompt}}}\n\n{{{systemPrompt}}}`,
-        config: { maxOutputTokens: 1200 }
-      });
-
-      const { output } = await piecePrompt({ userPrompt, systemPrompt });
-
-      if (!output || !output.markdownContent) {
-        throw new Error('AI returned empty content');
-      }
-
-      // Parse title
-      const title = this.extractBilingualTitle(output.title, primary, secondary);
-
-      // Parse content to segments
-      const segments = SegmentParser.parse(output.markdownContent, origin);
-
-      // Update piece
-      await pieceRef.update({
-        title,
-        content: segments,
-        contentState: 'ready',
-        status: 'draft',
-        contentRetries: 0,
-        updatedAt: FieldValue.serverTimestamp()
-      });
-
-      // Unlock achievements
-      try {
-        await checkAndUnlockAchievements(userId);
-      } catch (e) {
-        console.warn('[Piece] Achievement check failed:', e);
-      }
-
+        const decodedClaims = await getAuthAdmin().verifySessionCookie(sessionCookie, true);
+        return decodedClaims.uid;
     } catch (error) {
-      await this.handleError(userId, pieceId, error as Error);
+        console.error("Invalid session cookie", error);
+        throw new Error('Invalid or expired session');
     }
-  }
+}
 
-  /**
-   * Handle generation error with retry logic
-   */
-  private static async handleError(
-    userId: string,
-    pieceId: string,
-    error: Error
-  ): Promise<void> {
+/**
+ * Validates the origin format against the provided language settings.
+ * This is a critical security and logic check before proceeding.
+ */
+function validateOrigin(formData: CreationFormValues): void {
+    const { origin, availableLanguages, unit, primaryLanguage } = formData;
+
+    const { 
+        primary: originPrimary, 
+        secondary: originSecondary, 
+        isPhrase: originIsPhrase 
+    } = OriginService.parse(origin);
+
+    // 1. Primary language must match
+    if (originPrimary !== primaryLanguage) {
+        throw new Error(`Origin format '${origin}' doesn't match selected primary language '${primaryLanguage}'.`);
+    }
+
+    // 2. Bilingual mode consistency
+    const isBilingualForm = availableLanguages.length > 1;
+    const isBilingualOrigin = !!originSecondary;
+    if (isBilingualForm !== isBilingualOrigin) {
+        throw new Error(`Bilingual mode selected (${isBilingualForm}) but origin format is ${isBilingualOrigin ? 'bilingual' : 'monolingual'} ('${origin}').`);
+    }
+
+    // 3. Phrase mode consistency
+    const isPhraseForm = unit === 'phrase';
+    if (isPhraseForm !== originIsPhrase) {
+        throw new Error(`Unit type '${unit}' does not match origin format's phrase flag.`);
+    }
     
-    const adminDb = getAdminDb();
-    const pieceRef = adminDb.collection(`users/${userId}/libraryItems`).doc(pieceId);
-    const pieceDoc = await pieceRef.get();
-    const retries = (pieceDoc.data()?.contentRetries || 0) + 1;
+    // 4. Validate structure
+    OriginService.validate(origin);
+}
 
-    if (retries < MAX_RETRIES) {
-      // Retry
-      console.log(`[Piece ${pieceId}] Retry ${retries}/${MAX_RETRIES}`);
-      await pieceRef.update({
-        contentRetries: retries,
-        updatedAt: FieldValue.serverTimestamp()
-      });
 
-      // Schedule retry with exponential backoff
-      setTimeout(() => {
-        this.generateContent(userId, pieceId);
-      }, 1000 * retries);
+/**
+ * Creates a library item (book or piece) based on the form data.
+ * This is the primary server action called from the client.
+ */
+export async function createLibraryItem(formData: CreationFormValues): Promise<string> {
+    const userId = await getUserId();
+    
+    // Server-side validation of the origin
+    validateOrigin(formData);
 
+    if (formData.type === 'book') {
+        const bookId = await createBookAndStartGeneration(userId, formData);
+        return bookId;
+    } else if (formData.type === 'piece') {
+        const pieceId = await createPieceAndStartGeneration(userId, formData);
+        return pieceId;
     } else {
-      // Max retries reached
-      await pieceRef.update({
-        contentState: 'error',
-        contentError: error.message,
-        status: 'draft',
-        updatedAt: FieldValue.serverTimestamp()
-      });
+        throw new Error('Unknown content type specified');
     }
-  }
-
-  /**
-   * Regenerate content
-   */
-  static async regenerateContent(
-    userId: string,
-    pieceId: string,
-    newPrompt?: string
-  ): Promise<void> {
-    
-    const adminDb = getAdminDb();
-    const pieceRef = adminDb.collection(`users/${userId}/libraryItems`).doc(pieceId);
-
-    // Update status
-    await adminDb.runTransaction(async (transaction) => {
-      const pieceSnap = await transaction.get(pieceRef);
-      if (!pieceSnap.exists) throw new Error("Piece not found");
-      
-      const currentData = pieceSnap.data() as Piece;
-      const retries = currentData.contentRetries || 0;
-
-      if (retries >= MAX_RETRIES) {
-        throw new Error("Max retries reached");
-      }
-
-      const updates: any = {
-        contentState: 'processing',
-        status: 'processing',
-        contentRetries: newPrompt ? 0 : retries + 1,
-        updatedAt: FieldValue.serverTimestamp(),
-      };
-
-      if (newPrompt) updates.prompt = newPrompt;
-      
-      transaction.update(pieceRef, updates);
-    });
-
-    // Re-run generation
-    this.generateContent(userId, pieceId).catch(async (err) => {
-      await updateLibraryItem(userId, pieceId, {
-        status: 'draft',
-        contentState: 'error',
-        contentError: err.message,
-      });
-    });
-  }
-
-  // ============================================================================
-  // HELPERS
-  // ============================================================================
-
-  private static buildContentPrompt(
-    userInput: string,
-    primary: string,
-    secondary?: string
-  ): { userPrompt: string; systemPrompt: string } {
-    
-    const primaryLabel = LANGUAGES.find(l => l.value === primary)?.label || primary;
-    const secondaryLabel = secondary ? LANGUAGES.find(l => l.value === secondary)?.label : null;
-
-    let langInstruction = `- Write in ${primaryLabel}.`;
-    let titleExample = `- Title format: My Title`;
-    let sectionExample = `- Section format (if needed): # Section 1`;
-
-    if (secondaryLabel) {
-      langInstruction = `- Bilingual ${primaryLabel} and ${secondaryLabel}. Each sentence followed by translation in {curly braces}.`;
-      titleExample = `- Title format: My Title {Bản dịch}`;
-      sectionExample = `- Section format: # Section 1 {Phần 1}`;
-    }
-
-    const systemInstructions = [
-      langInstruction,
-      titleExample,
-      "- Content in markdown format",
-      sectionExample,
-      "- Keep content under 500 words"
-    ];
-
-    const userPrompt = `Write a short piece: "${userInput.slice(0, MAX_PROMPT_LENGTH)}"`;
-    const systemPrompt = `CRITICAL INSTRUCTIONS:\n${systemInstructions.join('\n')}`;
-
-    return { userPrompt, systemPrompt };
-  }
-
-  private static extractBilingualTitle(
-    title: string,
-    primary: string,
-    secondary?: string
-  ): MultilingualContent {
-    
-    const cleanTitle = title.replace(/^#+\s*/, '').trim();
-    
-    if (secondary) {
-      const match = cleanTitle.match(/^(.*?)\s*\{(.*)\}\s*$/);
-      if (match) {
-        return {
-          [primary]: match[1].trim(),
-          [secondary]: match[2].trim(),
-        };
-      }
-    }
-    
-    return { [primary]: cleanTitle };
-  }
 }

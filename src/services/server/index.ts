@@ -3,6 +3,7 @@ export * from './achievement-service';
 export * from './admin-service';
 export * from './book-creation-service';
 export * from './bookmark-service';
+export * from './creation-service';
 export * from './library-service';
 export * from './piece-creation-service';
 export * from './user-service';

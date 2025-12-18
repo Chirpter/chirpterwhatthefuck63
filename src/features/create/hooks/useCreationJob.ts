@@ -97,17 +97,13 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development' || !user?.uid) return;
     const debugState = {
-      timestamp: new Date().toISOString(),
       hasActiveJob: !!activeId,
       activeJobId: activeId,
       hasFinalizedJob: !!finalizedId,
       finalizedJobId: finalizedId,
-      currentFormOrigin: formData.origin,
-      currentFormLangs: formData.availableLanguages,
-      isBusy,
     };
-    sessionStorage.setItem('creation_debug_state', JSON.stringify(debugState, null, 2));
-  }, [activeId, finalizedId, user?.uid, formData.origin, formData.availableLanguages, isBusy]);
+    sessionStorage.setItem('creation_debug_presubmit', JSON.stringify(debugState, null, 2));
+  }, [activeId, finalizedId, user?.uid]);
 
   const creditCost = useMemo(() => {
     if (type === 'piece') return 1;
@@ -257,7 +253,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
   // ✅ FIX: Stabilize reset dependencies
   const reset = useCallback((newType: 'book' | 'piece') => {
-    console.log('🔄 [Reset] Starting reset for type:', newType);
     
     const defaultData = getInitialFormData('en', getSuggestion);
     let newFormData: Partial<CreationFormValues> = { ...defaultData, type: newType };
@@ -281,8 +276,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       newFormData.availableLanguages!,
       newFormData.unit!
     );
-
-    console.log('🔄 [Reset] New origin:', newFormData.origin);
     
     setFormData(newFormData);
     setIsPromptDefault(true);
@@ -302,10 +295,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   // ✅ FIX: Prevent reset during processing
   useEffect(() => {
     if (isBusy || activeId) {
-      console.log('⏸️ [Reset] Skipped: Job in progress', { isBusy, activeId });
       return;
     }
-    console.log('🎬 [Reset] Triggering reset for type:', type);
     reset(type);
   }, [type, reset, isBusy, activeId]); // Add guards
 
@@ -331,13 +322,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
     // ✅ FIX: Snapshot form data IMMEDIATELY
     const snapshotData = { ...formData, type } as CreationFormValues;
-    const snapshotOrigin = snapshotData.origin;
     
-    console.log('📸 [Submit] Snapshot origin:', snapshotOrigin, {
-      langs: snapshotData.availableLanguages,
-      unit: snapshotData.unit
-    });
-
     setIsBusy(true);
     setFinalizedId(null);
     
@@ -346,28 +331,9 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       // ✅ Use snapshot, not current formData
       const dataToSubmit = { ...snapshotData };
 
-      // Validate origin consistency
-      const expectedOrigin = calculateOrigin(
-        dataToSubmit.primaryLanguage,
-        dataToSubmit.availableLanguages,
-        dataToSubmit.unit
-      );
-      
-      if (dataToSubmit.origin !== expectedOrigin) {
-        console.error('❌ [Submit] Origin mismatch!', {
-          submitted: dataToSubmit.origin,
-          expected: expectedOrigin,
-          langs: dataToSubmit.availableLanguages
-        });
-        dataToSubmit.origin = expectedOrigin;
-      }
-
       if (process.env.NODE_ENV === 'development') {
           const snapshot = {
               submittedAt: new Date().toISOString(),
-              snapshotOrigin,
-              expectedOrigin,
-              originMatch: dataToSubmit.origin === expectedOrigin,
               formDataSent: {
                   ...dataToSubmit,
                   coverImageFile: dataToSubmit.coverImageFile ? { 
@@ -378,19 +344,16 @@ export function useCreationJob({ type }: UseCreationJobParams) {
               },
               creditCost,
               processingJobsCount,
-              submissionStatus,
           };
-          sessionStorage.setItem('creation_debug_submit', JSON.stringify(snapshot, null, 2));
+          sessionStorage.setItem('creation_debug_data', JSON.stringify(snapshot, null, 2));
       }
 
-      const { jobId, debugData } = await createLibraryItem(dataToSubmit);
+      const jobId = await createLibraryItem(dataToSubmit);
       submissionStatus = 'success';
       setActiveId(jobId);
       if(user.uid) {
         sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       }
-      
-      console.log('✅ [Submit] Job created:', jobId, 'with origin:', snapshotOrigin);
       
       toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {
@@ -400,11 +363,11 @@ export function useCreationJob({ type }: UseCreationJobParams) {
       setIsBusy(false);
     } finally {
         if (process.env.NODE_ENV === 'development') {
-            const dataRaw = sessionStorage.getItem('creation_debug_submit');
+            const dataRaw = sessionStorage.getItem('creation_debug_data');
             if(dataRaw) {
                 const data = JSON.parse(dataRaw);
                 data.submissionStatus = submissionStatus;
-                sessionStorage.setItem('creation_debug_submit', JSON.stringify(data, null, 2));
+                sessionStorage.setItem('creation_debug_data', JSON.stringify(data, null, 2));
             }
         }
     }
