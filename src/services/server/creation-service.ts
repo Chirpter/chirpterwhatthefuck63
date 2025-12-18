@@ -7,6 +7,9 @@ import { createPieceAndStartGeneration, regeneratePieceContent } from './piece-c
 import { getAuthAdmin } from '@/lib/firebase-admin';
 import { cookies } from 'next/headers';
 import { OriginService } from '../shared/origin-service';
+import { getAdminDb } from '@/lib/firebase-admin'; // Import admin DB
+
+const MAX_CONCURRENT_JOBS = 3;
 
 /**
  * @fileoverview Main entry point for content creation.
@@ -77,6 +80,16 @@ export async function createLibraryItem(formData: CreationFormValues): Promise<s
     
     // Server-side validation of the origin
     validateOrigin(formData);
+
+    // ✅ NEW: Server-side check for concurrent jobs
+    const adminDb = getAdminDb();
+    const processingJobsQuery = adminDb.collection(`users/${userId}/libraryItems`).where('status', '==', 'processing');
+    const processingJobsSnapshot = await processingJobsQuery.get();
+    
+    if (processingJobsSnapshot.size >= MAX_CONCURRENT_JOBS) {
+        throw new Error(`You already have ${processingJobsSnapshot.size} items being created. Please wait for them to finish.`);
+    }
+
 
     if (formData.type === 'book') {
         const bookId = await createBookAndStartGeneration(userId, formData);

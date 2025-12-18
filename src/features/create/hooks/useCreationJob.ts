@@ -89,7 +89,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   });
   
   const unsubscribeRef = useRef<(() => void) | null>(null);
-
+  
+  // This hook is now for UI feedback only, the critical check is on the server
   const { items: processingItems } = useLibraryItems({ status: 'processing' });
   const processingJobsCount = processingItems.length;
 
@@ -309,16 +310,8 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         return;
     }
 
-    if (processingJobsCount >= 3) {
-        toast({
-            title: t('toast:tooManyJobsTitle'),
-            description: t('toast:tooManyJobsDesc'),
-            variant: 'destructive',
-        });
-        setIsRateLimited(true);
-        setTimeout(() => setIsRateLimited(false), 10000);
-        return;
-    }
+    // REMOVED: This check is now on the server
+    // if (processingJobsCount >= 3) { ... }
 
     // ✅ FIX: Snapshot form data IMMEDIATELY
     const snapshotData = { ...formData, type } as CreationFormValues;
