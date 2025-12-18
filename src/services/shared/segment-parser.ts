@@ -1,4 +1,5 @@
 // src/services/shared/segment-parser.ts
+// ✅ MINIMAL FIX: Chỉ thêm fallback, KHÔNG validate
 
 import type { Segment } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
@@ -479,6 +480,18 @@ export class SegmentParser {
       strategy = new BilingualSentenceStrategy();
     }
 
-    return strategy.parse(markdown, primary, secondary);
+    const segments = strategy.parse(markdown, primary, secondary);
+    
+    // ✅ ONLY CHANGE: Fallback if parser completely fails
+    if (segments.length === 0) {
+      console.warn('[Parser] No segments parsed, falling back to raw markdown');
+      return [{
+        id: generateLocalUniqueId(),
+        order: 0,
+        content: [{ [primary]: markdown }]
+      }];
+    }
+    
+    return segments;
   }
 }
