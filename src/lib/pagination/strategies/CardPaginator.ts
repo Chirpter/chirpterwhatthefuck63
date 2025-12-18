@@ -4,26 +4,30 @@
 import type { Page, Segment } from '@/lib/types';
 
 /**
- * A simple pagination strategy for 'card' and 'doc' styles.
- * It currently puts all content onto a single page.
- * CQI (Container Query Units) in CSS will handle the responsive text sizing.
+ * Card Pagination Strategy
+ * - Single scrollable page (no flip pagination)
+ * - CQI (Container Query Units) handle responsive text sizing
+ * - Aspect ratio enforced at component level
+ * - All content fits on one page with scroll if needed
  */
 export async function paginateCard(
-  segments: Segment[]
+  segments: Segment[],
+  aspectRatio?: '1:1' | '3:4' | '4:3'
 ): Promise<{ pages: Page[]; chapterStartPages: number[] }> {
+  
   if (!segments || segments.length === 0) {
     return { pages: [], chapterStartPages: [] };
   }
 
-  // For card/doc view, we currently render all content on one scrollable page.
+  // For card view, all content goes on a single scrollable page
   const singlePage: Page = {
     pageIndex: 0,
     items: segments,
-    estimatedHeight: 1000 // A placeholder height
+    estimatedHeight: 0 // Height is determined by container aspect ratio
   };
 
   return {
     pages: [singlePage],
-    chapterStartPages: [0] // The first (and only) chapter starts at page 0
+    chapterStartPages: [0] // Single page means single chapter start
   };
 }

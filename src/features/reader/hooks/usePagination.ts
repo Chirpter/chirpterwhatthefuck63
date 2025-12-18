@@ -14,6 +14,8 @@ interface UsePaginationProps {
   displayLang1: string;
   displayLang2: string;
   unit: ContentUnit;
+  itemId?: string;
+  fontSize?: 'sm' | 'base' | 'lg';
 }
 
 export const usePagination = ({
@@ -25,6 +27,8 @@ export const usePagination = ({
   displayLang1,
   displayLang2,
   unit,
+  itemId,
+  fontSize = 'base'
 }: UsePaginationProps) => {
   const [pages, setPages] = useState<Page[]>([]);
   const [chapterStartPages, setChapterStartPages] = useState<number[]>([]);
@@ -34,11 +38,12 @@ export const usePagination = ({
   
   const isCalculatingRef = useRef(false);
   const lastDepsRef = useRef<string>('');
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
 
   const createDepsKey = useCallback(() => {
     const segmentContentKey = segments.map(s => {
-        const langBlock = s.content.find(p => typeof p === 'object') as LanguageBlock | undefined;
-        return langBlock ? `${s.id}-${langBlock[displayLang1]}` : s.id;
+      const langBlock = s.content.find(p => typeof p === 'object') as LanguageBlock | undefined;
+      return langBlock ? `${s.id}-${langBlock[displayLang1]}` : s.id;
     }).join(',');
 
     return JSON.stringify({
@@ -50,8 +55,10 @@ export const usePagination = ({
       unit,
       presentationStyle,
       aspectRatio,
+      fontSize,
+      itemId
     });
-  }, [segments, containerRef, displayLang1, displayLang2, unit, presentationStyle, aspectRatio]);
+  }, [segments, containerRef, displayLang1, displayLang2, unit, presentationStyle, aspectRatio, fontSize, itemId]);
 
   const performPagination = useCallback(async () => {
     if (!isEnabled) {
@@ -92,7 +99,9 @@ export const usePagination = ({
         aspectRatio,
         displayLang1,
         displayLang2,
-        unit
+        unit,
+        itemId,
+        fontSize
       );
       
       if (!result.pages || result.pages.length === 0) {
@@ -107,21 +116,13 @@ export const usePagination = ({
       console.error('[usePagination] ❌ Error:', err);
       setError((err as Error).message);
       
-      // Fallback to a single page containing all content on error
+      // Fallback to a single page containing all content
       setPages([{
         pageIndex: 0,
         items: segments,
         estimatedHeight: 0
       }]);
-      // Calculate chapter starts based on headings in the flat segment list
-      const starts = segments.reduce((acc, segment, index) => {
-        const firstContent = segment.content[0];
-        if (typeof firstContent === 'string' && firstContent.trim().startsWith('#')) {
-          acc.push(index); // Just use index for now, will resolve to page later
-        }
-        return acc;
-      }, [] as number[]);
-      setChapterStartPages(starts.length > 0 ? starts.map(() => 0) : [0]); // Simplified for fallback
+      setChapterStartPages([0]);
       
     } finally {
       isCalculatingRef.current = false;
@@ -136,24 +137,43 @@ export const usePagination = ({
     displayLang1,
     displayLang2,
     unit,
+    itemId,
+    fontSize,
     createDepsKey,
     pages.length
   ]);
 
+  // Debounced pagination trigger
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
       performPagination();
-    }, 100);
+    }, 300);
     
-    return () => clearTimeout(timer);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [performPagination]);
 
+  // Resize observer for container dimension changes
   useEffect(() => {
     if (!containerRef.current) return;
     
     const observer = new ResizeObserver(() => {
       lastDepsRef.current = '';
-      performPagination();
+      
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      debounceTimerRef.current = setTimeout(() => {
+        performPagination();
+      }, 300);
     });
     
     observer.observe(containerRef.current);

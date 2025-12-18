@@ -401,3 +401,11 @@ export const UnifiedContentGenPromptInputSchema = z.object({
     userPrompt: z.string(),
     systemPrompt: z.string(),
 });
+
+// Settings for the content reader (font, size, background, etc.)
+export interface EditorSettings {
+  textAlign: 'text-left' | 'text-center' | 'text-right' | 'text-justify';
+  verticalAlign: 'justify-start' | 'justify-center' | 'justify-end';
+  background: 'bg-background/95' | 'bg-reader-sepia' | 'bg-reader-slate' | 'bg-reader-grain' | 'bg-reader-lined' | 'bg-reader-grid' | 'bg-reader-crumbled';
+  fontSize: 'sm' | 'base' | 'lg';
+}
