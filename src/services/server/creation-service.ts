@@ -2,7 +2,7 @@
 'use server';
 
 import type { CreationFormValues, Book, Piece } from '@/lib/types';
-import { createBookAndStartGeneration, regenerateBookContent, editBookCover } from './book-creation-service';
+import { createBookAndStartGeneration, regenerateBookContent } from './book-creation-service';
 import { createPieceAndStartGeneration, regeneratePieceContent } from './piece-creation-service';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 import { cookies } from 'next/headers';
@@ -18,7 +18,8 @@ import { OriginService } from '../shared/origin-service';
 
 // Helper to get user ID and validate session
 async function getUserId(): Promise<string> {
-    const sessionCookie = cookies().get('__session')?.value;
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('__session')?.value;
     if (!sessionCookie) {
         throw new Error('No session cookie found');
     }
