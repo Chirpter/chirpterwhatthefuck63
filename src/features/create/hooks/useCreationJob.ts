@@ -1,4 +1,6 @@
 // src/features/create/hooks/useCreationJob.ts
+// ✅ FIX: Prevent reset race condition + snapshot origin at submit
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -11,28 +13,17 @@ import { db } from '@/lib/firebase';
 import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
-const getInitialFormDataForBook = (t: (key: string) => string): Partial<CreationFormValues> => {
-  const primaryLang = 'en';
-
-  const suggestions = [
-    t('presets:bedtime_story'),
-    t('presets:life_lesson'),
-    t('presets:kindness_story'),
-    t('presets:fantasy_story'),
-    t('presets:fairy_tale'),
-  ];
-  const defaultPrompt = suggestions[Math.floor(Math.random() * suggestions.length)];
-  
+// ✅ MOVED OUTSIDE: Prevent closure issues
+const getInitialFormData = (primaryLang: string, getSuggestion: () => string): Partial<CreationFormValues> => {
   return {
     type: 'book',
     primaryLanguage: primaryLang,
     availableLanguages: [primaryLang],
-    aiPrompt: defaultPrompt,
+    aiPrompt: getSuggestion(),
     tags: [],
     origin: primaryLang,
     unit: 'sentence',
     presentationStyle: 'book',
-    // Book specific fields
     bookLength: 'short-story',
     targetChapterCount: 3,
     generationScope: 'full',
@@ -41,6 +32,18 @@ const getInitialFormDataForBook = (t: (key: string) => string): Partial<Creation
     coverImageFile: null,
     previousContentSummary: '',
   };
+};
+
+const calculateOrigin = (
+  primaryLanguage: string,
+  availableLanguages: string[],
+  unit: ContentUnit
+): string => {
+  const [primary, secondary] = availableLanguages;
+  let origin = primary;
+  if (secondary) origin += `-${secondary}`;
+  if (unit === 'phrase' && secondary) origin += '-ph';
+  return origin;
 };
 
 interface UseCreationJobParams {
@@ -53,7 +56,22 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const { user } = useUser();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<Partial<CreationFormValues>>(() => getInitialFormDataForBook(t));
+  // ✅ NEW: Create stable suggestion getter
+  const getSuggestion = useCallback(() => {
+    const suggestions = [
+      t('presets:bedtime_story'),
+      t('presets:life_lesson'),
+      t('presets:kindness_story'),
+      t('presets:fantasy_story'),
+      t('presets:fairy_tale'),
+    ];
+    return suggestions[Math.floor(Math.random() * suggestions.length)];
+  }, [t]);
+
+  const [formData, setFormData] = useState<Partial<CreationFormValues>>(() => 
+    getInitialFormData('en', getSuggestion)
+  );
+  
   const [isPromptDefault, setIsPromptDefault] = useState(true);
   const [promptError, setPromptError] = useState<'empty' | 'too_long' | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -75,19 +93,21 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   const { items: processingItems } = useLibraryItems({ status: 'processing' });
   const processingJobsCount = processingItems.length;
 
-  // --- DEBUGGING: Record pre-submission state ---
+  // --- DEBUGGING ---
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development' || !user?.uid) return;
-    const preSubmissionState = {
-        hasActiveJob: !!activeId,
-        activeJobId: activeId,
-        hasFinalizedJob: !!finalizedId,
-        finalizedJobId: finalizedId,
+    const debugState = {
+      timestamp: new Date().toISOString(),
+      hasActiveJob: !!activeId,
+      activeJobId: activeId,
+      hasFinalizedJob: !!finalizedId,
+      finalizedJobId: finalizedId,
+      currentFormOrigin: formData.origin,
+      currentFormLangs: formData.availableLanguages,
+      isBusy,
     };
-    sessionStorage.setItem('creation_debug_presubmit', JSON.stringify(preSubmissionState, null, 2));
-  }, [activeId, finalizedId, user?.uid]);
-  // --- END DEBUGGING ---
-
+    sessionStorage.setItem('creation_debug_state', JSON.stringify(debugState, null, 2));
+  }, [activeId, finalizedId, user?.uid, formData.origin, formData.availableLanguages, isBusy]);
 
   const creditCost = useMemo(() => {
     if (type === 'piece') return 1;
@@ -133,7 +153,6 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
   const canGenerate = useMemo(() => {
     if (validationMessage) return false;
-    
     return user && user.credits >= creditCost;
   }, [validationMessage, user, creditCost]);
   
@@ -199,11 +218,11 @@ export function useCreationJob({ type }: UseCreationJobParams) {
                 (newFormData as any)[key] = value;
         }
 
-        const [primary, secondary] = newFormData.availableLanguages!;
-        let newOrigin = primary;
-        if (secondary) newOrigin += `-${secondary}`;
-        if (newFormData.unit === 'phrase' && secondary) newOrigin += '-ph';
-        newFormData.origin = newOrigin;
+        newFormData.origin = calculateOrigin(
+          newFormData.primaryLanguage!,
+          newFormData.availableLanguages!,
+          newFormData.unit!
+        );
 
         return newFormData;
     });
@@ -224,7 +243,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     if (isPromptDefault) {
       setFormData(prev => ({ ...prev, aiPrompt: '' }));
       setIsPromptDefault(false);
-      setPromptError('empty'); // Set error immediately on focus if default
+      setPromptError('empty');
     }
   }, [isPromptDefault]);
   
@@ -236,8 +255,11 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setFormData(prev => ({ ...prev, aspectRatio }));
   }, []);
   
+  // ✅ FIX: Stabilize reset dependencies
   const reset = useCallback((newType: 'book' | 'piece') => {
-    const defaultData = getInitialFormDataForBook(t);
+    console.log('🔄 [Reset] Starting reset for type:', newType);
+    
+    const defaultData = getInitialFormData('en', getSuggestion);
     let newFormData: Partial<CreationFormValues> = { ...defaultData, type: newType };
 
     if (newType === 'piece') {
@@ -254,6 +276,14 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         delete newFormData.aspectRatio;
     }
     
+    newFormData.origin = calculateOrigin(
+      newFormData.primaryLanguage!,
+      newFormData.availableLanguages!,
+      newFormData.unit!
+    );
+
+    console.log('🔄 [Reset] New origin:', newFormData.origin);
+    
     setFormData(newFormData);
     setIsPromptDefault(true);
     setPromptError(null);
@@ -261,17 +291,23 @@ export function useCreationJob({ type }: UseCreationJobParams) {
     setActiveId(null);
     setJobData(null);
     setFinalizedId(null);
-    if (user?.uid) {
+    
+    // Clear storage INSIDE reset, not in submit
+    if (typeof window !== 'undefined' && user?.uid) {
         sessionStorage.removeItem(`activeJobId_${user.uid}`);
         sessionStorage.removeItem(`finalizedJobId_${user.uid}`);
-        sessionStorage.removeItem('creation_debug_data');
     }
-  }, [user?.uid, t]);
+  }, [user?.uid, getSuggestion]); // Only stable dependencies
 
-
+  // ✅ FIX: Prevent reset during processing
   useEffect(() => {
+    if (isBusy || activeId) {
+      console.log('⏸️ [Reset] Skipped: Job in progress', { isBusy, activeId });
+      return;
+    }
+    console.log('🎬 [Reset] Triggering reset for type:', type);
     reset(type);
-  }, [type, reset]);
+  }, [type, reset, isBusy, activeId]); // Add guards
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,29 +329,58 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         return;
     }
 
+    // ✅ FIX: Snapshot form data IMMEDIATELY
+    const snapshotData = { ...formData, type } as CreationFormValues;
+    const snapshotOrigin = snapshotData.origin;
+    
+    console.log('📸 [Submit] Snapshot origin:', snapshotOrigin, {
+      langs: snapshotData.availableLanguages,
+      unit: snapshotData.unit
+    });
+
     setIsBusy(true);
-    setFinalizedId(null); // Clear previous finalized ID
-    if (user.uid) sessionStorage.removeItem(`finalizedJobId_${user.uid}`);
+    setFinalizedId(null);
     
     let submissionStatus = 'pending_to_server';
     try {
-      const dataToSubmit: CreationFormValues = {
-        ...formData,
-        type: type,
-      } as CreationFormValues;
+      // ✅ Use snapshot, not current formData
+      const dataToSubmit = { ...snapshotData };
+
+      // Validate origin consistency
+      const expectedOrigin = calculateOrigin(
+        dataToSubmit.primaryLanguage,
+        dataToSubmit.availableLanguages,
+        dataToSubmit.unit
+      );
+      
+      if (dataToSubmit.origin !== expectedOrigin) {
+        console.error('❌ [Submit] Origin mismatch!', {
+          submitted: dataToSubmit.origin,
+          expected: expectedOrigin,
+          langs: dataToSubmit.availableLanguages
+        });
+        dataToSubmit.origin = expectedOrigin;
+      }
 
       if (process.env.NODE_ENV === 'development') {
           const snapshot = {
               submittedAt: new Date().toISOString(),
+              snapshotOrigin,
+              expectedOrigin,
+              originMatch: dataToSubmit.origin === expectedOrigin,
               formDataSent: {
                   ...dataToSubmit,
-                  coverImageFile: dataToSubmit.coverImageFile ? { name: dataToSubmit.coverImageFile.name, size: dataToSubmit.coverImageFile.size, type: dataToSubmit.coverImageFile.type } : null
+                  coverImageFile: dataToSubmit.coverImageFile ? { 
+                    name: dataToSubmit.coverImageFile.name, 
+                    size: dataToSubmit.coverImageFile.size, 
+                    type: dataToSubmit.coverImageFile.type 
+                  } : null
               },
               creditCost,
               processingJobsCount,
               submissionStatus,
           };
-          sessionStorage.setItem('creation_debug_data', JSON.stringify(snapshot, null, 2));
+          sessionStorage.setItem('creation_debug_submit', JSON.stringify(snapshot, null, 2));
       }
 
       const { jobId, debugData } = await createLibraryItem(dataToSubmit);
@@ -325,23 +390,25 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         sessionStorage.setItem(`activeJobId_${user.uid}`, jobId);
       }
       
+      console.log('✅ [Submit] Job created:', jobId, 'with origin:', snapshotOrigin);
+      
       toast({ title: t('toast:generationStarted'), description: t('toast:generationStartedDesc') });
     } catch (error: any) {
       submissionStatus = 'failed';
+      console.error('❌ [Submit] Failed:', error);
       toast({ title: t('toast:error'), description: error.message, variant: 'destructive' });
       setIsBusy(false);
     } finally {
         if (process.env.NODE_ENV === 'development') {
-            const dataRaw = sessionStorage.getItem('creation_debug_data');
+            const dataRaw = sessionStorage.getItem('creation_debug_submit');
             if(dataRaw) {
                 const data = JSON.parse(dataRaw);
                 data.submissionStatus = submissionStatus;
-                sessionStorage.setItem('creation_debug_data', JSON.stringify(data, null, 2));
+                sessionStorage.setItem('creation_debug_submit', JSON.stringify(data, null, 2));
             }
         }
     }
   }, [user, validationMessage, formData, t, toast, processingJobsCount, isRateLimited, isPromptDefault, type, creditCost]);
-
 
   useEffect(() => {
     if (!activeId || !user) return;

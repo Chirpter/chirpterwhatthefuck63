@@ -1,4 +1,5 @@
-// src/services/server/book-creation.service.ts
+// src/services/server/book-creation-service.ts
+// ✅ FIX: Lock origin from DB document to prevent race conditions
 
 'use server';
 
@@ -46,6 +47,39 @@ function buildLangInstructions(
       chapterExample: `- Each chapter must begin with a Level 1 Markdown heading, like: # Chapter 1: The First Chapter`
     };
   }
+}
+
+// ✅ Detection only - no auto-correction
+function validateAIResponseFormat(
+  markdown: string,
+  origin: string,
+  title: string
+): { isValid: boolean; warning?: string } {
+  const isBilingualOrigin = origin.includes('-');
+  const bilingualPattern = /\{[^}]+\}/;
+  const hasBilingualFormat = bilingualPattern.test(markdown) || bilingualPattern.test(title);
+
+  if (!isBilingualOrigin && hasBilingualFormat) {
+    const warning = `❌ CRITICAL: Mono origin "${origin}" but AI returned bilingual format. This indicates origin was set incorrectly!`;
+    console.error(warning);
+    
+    return {
+      isValid: false,
+      warning
+    };
+  }
+
+  if (isBilingualOrigin && !hasBilingualFormat) {
+    const warning = `❌ CRITICAL: Bilingual origin "${origin}" but AI returned mono format. This indicates origin was set incorrectly!`;
+    console.error(warning);
+    
+    return {
+      isValid: false,
+      warning
+    };
+  }
+
+  return { isValid: true };
 }
 
 async function processBookGenerationPipeline(
@@ -112,6 +146,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
 
   const primaryLanguage = bookFormData.primaryLanguage;
 
+  console.log('📝 [Book Creation] Starting transaction with origin:', bookFormData.origin);
+
   await adminDb.runTransaction(async (transaction) => {
     const userDocRef = adminDb.collection('users').doc(userId);
     const userDoc = await transaction.get(userDocRef);
@@ -134,6 +170,8 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
     transaction.update(userDocRef, statUpdates);
 
     const newBookRef = adminDb.collection(getLibraryCollectionPath(userId)).doc();
+    
+    // ✅ CRITICAL: Lock origin in DB document
     const initialBookData: Omit<Book, 'id'> = {
         userId,
         type: 'book',
@@ -141,7 +179,7 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         status: 'processing',
         contentState: 'processing',
         coverState: bookFormData.coverImageOption !== 'none' ? 'processing' : 'ignored',
-        origin: bookFormData.origin,
+        origin: bookFormData.origin, // This is the source of truth
         langs: bookFormData.availableLanguages,
         prompt: bookFormData.aiPrompt,
         tags: [],
@@ -155,6 +193,9 @@ export async function createBookAndStartGeneration(userId: string, bookFormData:
         labels: [],
         content: [],
     };
+    
+    console.log('💾 [Book Creation] Saving to DB with origin:', initialBookData.origin);
+    
     transaction.set(newBookRef, removeUndefinedProps(initialBookData));
     bookId = newBookRef.id;
   });
@@ -212,7 +253,31 @@ async function processContentGenerationForBook(
     contentInput: GenerateBookContentInput,
 ): Promise<Partial<Book> & { debug?: any }> {
     
-    const { bookLength, generationScope, origin, chaptersToGenerate, totalChapterOutlineCount } = contentInput;
+    // ✅ CRITICAL FIX: Lock origin from DB document
+    const adminDb = getAdminDb();
+    const bookDocRef = adminDb.collection(getLibraryCollectionPath(userId)).doc(bookId);
+    const bookSnapshot = await bookDocRef.get();
+    
+    if (!bookSnapshot.exists) {
+        throw new ApiServiceError('Book document not found during content generation.', 'UNKNOWN');
+    }
+    
+    const bookData = bookSnapshot.data() as Book;
+    const lockedOrigin = bookData.origin; // Source of truth from DB
+    
+    console.log('🔒 [Content Generation] Locked origin from DB:', lockedOrigin);
+    console.log('📥 [Content Generation] Input origin was:', contentInput.origin);
+    
+    if (lockedOrigin !== contentInput.origin) {
+        console.warn('⚠️ [Content Generation] Origin mismatch detected!', {
+            dbOrigin: lockedOrigin,
+            inputOrigin: contentInput.origin,
+            bookId
+        });
+    }
+    
+    // Use locked origin for ALL subsequent operations
+    const { bookLength, generationScope, chaptersToGenerate, totalChapterOutlineCount, previousContentSummary } = contentInput;
     const bookLengthOption = BOOK_LENGTH_OPTIONS.find(opt => opt.value === bookLength);
     const wordsPerChapter = Math.round(((bookLengthOption?.defaultChapters || 3) * 200) / (chaptersToGenerate || 3));
 
@@ -221,11 +286,13 @@ async function processContentGenerationForBook(
       : `the first ${chaptersToGenerate} chapters of a book`;
     
     let userPrompt = `Write ${bookTypeDescription} based on the prompt: "${contentInput.prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
-    if (contentInput.previousContentSummary) {
-      userPrompt = `You are writing the next chapters of a book. Here is a summary of what happened before: ${contentInput.previousContentSummary}. Now, continue the story based on the user's original request: "${contentInput.prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
-    }
     
-    const [primaryLanguage, secondaryLanguage] = origin.split('-');
+    if (previousContentSummary) {
+      userPrompt = `You are continuing a book. The summary of previous chapters is: "${previousContentSummary}". Now, write the next ${chaptersToGenerate} chapters, continuing the story based on the original prompt: "${contentInput.prompt.slice(0, MAX_PROMPT_LENGTH)}"`;
+    }
+
+    // ✅ Use locked origin
+    const [primaryLanguage, secondaryLanguage] = lockedOrigin.split('-');
     const { langInstruction, titleExample, chapterExample } = buildLangInstructions(primaryLanguage, secondaryLanguage);
 
     const systemInstructions = [
@@ -246,7 +313,15 @@ async function processContentGenerationForBook(
     });
     
     const finalPrompt = `${userPrompt}\n\n${systemPrompt}`;
-    const debugData = { finalPrompt, rawResponse: '', parsedData: {} };
+    const debugData = { 
+      finalPrompt, 
+      rawResponse: '', 
+      parsedData: {},
+      lockedOrigin, // ✅ Track locked origin
+      contentInputOrigin: contentInput.origin, // ✅ Track input origin
+      originMismatch: lockedOrigin !== contentInput.origin, // ✅ Flag mismatch
+      validation: {}
+    };
 
     try {
         const { output: aiOutput } = await bookContentGenerationPrompt({ userPrompt, systemPrompt });
@@ -257,15 +332,37 @@ async function processContentGenerationForBook(
         
         debugData.rawResponse = aiOutput.markdownContent;
         
-        const titlePair = extractBilingualPairFromMarkdown(aiOutput.title, primaryLanguage, secondaryLanguage);
-        const segments = segmentize(aiOutput.markdownContent, origin);
+        // ✅ Validate using locked origin
+        const validation = validateAIResponseFormat(
+          aiOutput.markdownContent,
+          lockedOrigin, // Use locked origin, not input
+          aiOutput.title
+        );
+        debugData.validation = validation;
 
-        debugData.parsedData = { title: titlePair, segmentCount: segments.length };
+        if (!validation.isValid) {
+          console.error(`🚨 [Book ${bookId}] Format validation failed:`, validation.warning);
+          // Let it fail naturally - this indicates a bug
+        }
+        
+        const titlePair = extractBilingualPairFromMarkdown(aiOutput.title, primaryLanguage, secondaryLanguage);
+        
+        // ✅ CRITICAL: Use locked origin for parsing
+        const segments = segmentize(aiOutput.markdownContent, lockedOrigin);
+
+        debugData.parsedData = { 
+          title: titlePair, 
+          segmentCount: segments.length,
+          firstSegmentSample: segments[0],
+          parsedWithOrigin: lockedOrigin, // ✅ Track which origin was used
+        };
+        
+        console.log('✅ [Content Generation] Parsed', segments.length, 'segments with origin:', lockedOrigin);
         
         return {
           title: titlePair,
           content: segments,
-          unit: origin.endsWith('-ph') ? 'phrase' : 'sentence',
+          unit: lockedOrigin.endsWith('-ph') ? 'phrase' : 'sentence',
           contentState: 'ready',
           contentRetries: 0,
           debug: debugData,
@@ -279,7 +376,6 @@ async function processContentGenerationForBook(
         throw new Error(errorMessage);
     }
 }
-
 
 async function processCoverImageForBook(
   userId: string,
@@ -354,9 +450,9 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
 
   const contentInput: GenerateBookContentInput = {
     prompt: newPrompt || bookData.prompt || '',
-    origin: bookData.origin,
+    origin: bookData.origin, // Use origin from DB
     bookLength: bookData.length || 'short-story',
-    generationScope: 'full', // Always full for now, can be changed
+    generationScope: 'full', // Always regenerate full content for now
     chaptersToGenerate: bookData.content.filter(s => typeof s.content[0] === 'string' && s.content[0].startsWith('#')).length || 3,
   };
   
@@ -364,7 +460,7 @@ export async function regenerateBookContent(userId: string, bookId: string, newP
     userId, 
     bookId, 
     contentInput, 
-    'none' // Don't touch the cover during content regen
+    'none'
   ).catch(async (err) => {
     console.error(`Background content regeneration failed for book ${bookId}:`, err);
     await updateLibraryItem(userId, bookId, {
@@ -397,9 +493,12 @@ export async function editBookCover(
     return bookSnap.data() as Book;
   });
 
-  // No need for contentInput here as it's only for cover
-  const contentInput: GenerateBookContentInput = { prompt: bookData.prompt || '', origin: bookData.origin, chaptersToGenerate: 0 };
-
+  const contentInput: GenerateBookContentInput = { 
+    prompt: bookData.prompt || '', 
+    origin: bookData.origin, 
+    chaptersToGenerate: 0,
+    generationScope: 'full'
+  };
 
   processBookGenerationPipeline(
     userId, 
