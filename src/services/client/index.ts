@@ -4,6 +4,6 @@ export * from './library-service';
 export * from './local-database';
 export * from './srs-service';
 export * from './sync-service';
-export * from './text-formatting.service';
+export * from './text-formatting-service';
 export * from './tts-service';
 export * from './vocabulary-service';

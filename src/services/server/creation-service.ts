@@ -3,7 +3,7 @@
 
 import { getUserIdFromSession } from './user-service-helpers';
 import type { CreationFormValues } from '@/lib/types';
-import { createBookAndStartGeneration } from './book-creation.service';
+import { createBookAndStartGeneration } from './book-creation-service';
 import { createPieceAndStartGeneration } from './piece-creation-service';
 import { ApiServiceError } from '@/lib/errors';
 

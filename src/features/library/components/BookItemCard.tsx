@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { regenerateBookContent, editBookCover } from '@/services/server/book-creation.service';
+import { regenerateBookContent, editBookCover } from '@/services/server/book-creation-service';
 import { useToast } from '@/hooks/useToast';
 import { DynamicBookmark } from "./DynamicBookmark";
 import { BookmarkCard } from "@/features/user/components/BookmarkCard";

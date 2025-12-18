@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import type { LibraryItem } from '@/lib/types';
 import { useUser } from '@/contexts/user-context';
-import { regenerateBookContent } from '@/services/server/book-creation.service';
+import { regenerateBookContent } from '@/services/server/book-creation-service';
 import { useToast } from '@/hooks/useToast';
 import { MAX_PROMPT_LENGTH } from '@/lib/constants';
 import { cn } from '@/lib/utils';
