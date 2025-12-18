@@ -1,12 +1,7 @@
 // src/services/shared/segment-parser.ts
-// ✅ CORRECTED VERSION - Based on agreed logic
 
 import type { Segment } from '@/lib/types';
 import { generateLocalUniqueId } from '@/lib/utils';
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
 
 function cleanText(text: string): string {
   if (!text) return '';
@@ -14,67 +9,32 @@ function cleanText(text: string): string {
 }
 
 // ============================================================================
-// PREFIX/SUFFIX EXTRACTOR - CORRECT LOGIC
+// ORIGIN PARSER
 // ============================================================================
 
-interface TextComponents {
-  prefix: string;
-  content: string;
-  suffix: string;
-}
-
-class PrefixSuffixExtractor {
-  /**
-   * ✅ Extract prefix, content, and suffix
-   */
-  static extract(text: string): TextComponents {
-    // 1. Extract prefix
-    const prefix = this.extractPrefix(text);
-    let remaining = text.substring(prefix.length);
-
-    // 2. Extract suffix
-    const suffix = this.extractSuffix(remaining);
-    remaining = remaining.substring(0, remaining.length - suffix.length);
-
-    return {
-      prefix,
-      content: remaining.trim(),
-      suffix
-    };
+class OriginParser {
+  static parse(origin: string): {
+    primary: string;
+    secondary?: string;
+    isPhrase: boolean;
+    isBilingual: boolean;
+  } {
+    const parts = origin.split('-');
+    const [primary, ...rest] = parts;
+    const isPhrase = rest.includes('ph');
+    const secondary = rest.find(part => part !== 'ph');
+    return { primary, secondary, isPhrase, isBilingual: !!secondary };
   }
 
-  /**
-   * ✅ Extract prefix: markdown symbols at START
-   */
-  private static extractPrefix(text: string): string {
-    const match = text.match(/^(#{1,6}\s+|>\s+|[-*+]\s+|\d+\.\s+|\n+)/);
-    return match ? match[0] : '';
-  }
-
-  /**
-   * ✅ Extract suffix: punctuation AFTER } with NO space
-   * Key: {} belongs to lang2, suffix is what comes AFTER }
-   */
-  private static extractSuffix(text: string): string {
-    // Pattern: } followed IMMEDIATELY by punctuation (no space)
-    const match = text.match(/\}([.!?…,;:"'\])\n]+)$/);
-    
-    if (match) {
-      return match[1]; // Return only the punctuation part
+  static validate(origin: string): void {
+    if (!origin || origin.trim() === '') {
+      throw new Error('Origin cannot be empty');
     }
-    
-    // If no {} in text, check for trailing punctuation normally
-    if (!text.includes('}')) {
-      const normalMatch = text.match(/([.!?…,;:"'\])\n]+)$/);
-      return normalMatch ? normalMatch[0] : '';
-    }
-    
-    return '';
   }
 }
 
 // ============================================================================
-// SENTENCE SPLITTER
+// SENTENCE SPLITTER (for Monolingual)
 // ============================================================================
 
 class SentenceSplitter {
@@ -180,6 +140,183 @@ class SentenceSplitter {
 }
 
 // ============================================================================
+// PREFIX/SUFFIX EXTRACTOR (for Monolingual & Phrase)
+// ============================================================================
+
+interface TextComponents {
+  prefix: string;
+  content: string;
+  suffix: string;
+}
+
+class PrefixSuffixExtractor {
+  static extract(text: string): TextComponents {
+    const prefix = this.extractPrefix(text);
+    let remaining = text.substring(prefix.length);
+    const suffix = this.extractSuffix(remaining);
+    remaining = remaining.substring(0, remaining.length - suffix.length);
+
+    return {
+      prefix,
+      content: remaining.trim(),
+      suffix
+    };
+  }
+
+  private static extractPrefix(text: string): string {
+    const match = text.match(/^(\n*#{1,6}\s+|\n*>\s+|\n*[-*+]\s+|\n*\d+\.\s+|\n+)/);
+    return match ? match[0] : '';
+  }
+
+  private static extractSuffix(text: string): string {
+    const match = text.match(/\}([.!?…,;:"'\])\n]?)$/);
+    if (match) {
+      const captured = match[1];
+      if (captured.endsWith('\n\n')) {
+        return captured.slice(0, -1);
+      }
+      return captured;
+    }
+    
+    if (!text.includes('}')) {
+      const normalMatch = text.match(/([.!?…,;:"'\])\n]?)$/);
+      if (normalMatch) {
+        const captured = normalMatch[0];
+        if (captured.endsWith('\n\n')) {
+          return captured.slice(0, -1);
+        }
+        return captured;
+      }
+    }
+    
+    return '';
+  }
+}
+
+// ============================================================================
+// SEQUENTIAL BILINGUAL PARSER
+// ============================================================================
+
+interface SegmentPart {
+  prefix: string;
+  lang1: string;
+  lang2: string;
+  suffix: string;
+}
+
+class SequentialBilingualParser {
+  static parse(text: string): SegmentPart[] {
+    const segments: SegmentPart[] = [];
+    let i = 0;
+    const len = text.length;
+
+    while (i < len) {
+      const part: SegmentPart = {
+        prefix: '',
+        lang1: '',
+        lang2: '',
+        suffix: ''
+      };
+
+      // Extract prefix
+      const prefixResult = this.extractPrefix(text, i);
+      part.prefix = prefixResult.prefix;
+      i = prefixResult.nextIndex;
+
+      // Read lang1 until {
+      while (i < len && text[i] !== '{') {
+        part.lang1 += text[i];
+        i++;
+      }
+
+      if (i >= len) {
+        if (part.lang1.trim()) {
+          segments.push(part);
+        }
+        break;
+      }
+
+      // Skip {
+      i++;
+
+      // Read lang2 until }
+      while (i < len && text[i] !== '}') {
+        part.lang2 += text[i];
+        i++;
+      }
+
+      if (i >= len) {
+        segments.push(part);
+        break;
+      }
+
+      // Skip }
+      i++;
+
+      // Extract suffix
+      const suffixResult = this.extractSuffix(text, i);
+      part.suffix = suffixResult.suffix;
+      i = suffixResult.nextIndex;
+
+      segments.push(part);
+    }
+
+    return segments;
+  }
+
+  private static extractPrefix(text: string, startIndex: number): {
+    prefix: string;
+    nextIndex: number;
+  } {
+    let prefix = '';
+    let i = startIndex;
+    const len = text.length;
+
+    while (i < len && text[i] === '\n') {
+      prefix += text[i];
+      i++;
+    }
+
+    const remaining = text.substring(i);
+    const match = remaining.match(/^(#{1,6}\s+|>\s+|[-*+]\s+|\d+\.\s+)/);
+    
+    if (match) {
+      prefix += match[0];
+      i += match[0].length;
+    }
+
+    return { prefix, nextIndex: i };
+  }
+
+  private static extractSuffix(text: string, startIndex: number): {
+    suffix: string;
+    nextIndex: number;
+  } {
+    let suffix = '';
+    let i = startIndex;
+    const len = text.length;
+    let newlineCount = 0;
+
+    while (i < len && /[.!?…,;:"'\])\n]/.test(text[i])) {
+      if (text[i] === '\n') {
+        newlineCount++;
+        if (newlineCount === 1) {
+          suffix += text[i];
+          i++;
+        } else {
+          break;
+        }
+      } else {
+        suffix += text[i];
+        i++;
+      }
+    }
+
+    return { suffix, nextIndex: i };
+  }
+}
+
+// ============================================================================
 // PARSING STRATEGIES
 // ============================================================================
 
@@ -199,17 +336,13 @@ class MonoStrategy implements ParsingStrategy {
     for (const line of lines) {
       if (!line.trim()) continue;
 
-      // Extract prefix/suffix at LINE level
       const { prefix, content, suffix } = PrefixSuffixExtractor.extract(line);
-
-      // Split content into sentences
       const sentences = SentenceSplitter.split(content, primary);
 
       for (let i = 0; i < sentences.length; i++) {
         const sentence = cleanText(sentences[i]);
         if (!sentence) continue;
 
-        // ✅ Prefix only on first sentence, suffix only on last
         segments.push({
           id: generateLocalUniqueId(),
           order: segments.length,
@@ -234,77 +367,25 @@ class BilingualSentenceStrategy implements ParsingStrategy {
   parse(markdown: string, primary: string, secondary?: string): Segment[] {
     if (!secondary) throw new Error('Secondary language required');
 
+    const parts = SequentialBilingualParser.parse(markdown);
     const segments: Segment[] = [];
-    const lines = markdown.split(/\r?\n/);
 
-    for (const line of lines) {
-      if (!line.trim()) continue;
-
-      // Extract prefix/suffix at LINE level
-      const { prefix, content, suffix } = PrefixSuffixExtractor.extract(line);
-
-      // ✅ Extract bilingual pairs: A {X} B {Y} C {Z}
-      const pairs = this.extractBilingualPairs(content);
-
-      for (let i = 0; i < pairs.length; i++) {
-        const primaryText = cleanText(pairs[i].primary);
-        const secondaryText = cleanText(pairs[i].secondary);
-
-        if (!primaryText && !secondaryText) continue;
-
-        // ✅ Prefix only on first pair, suffix only on last
-        segments.push({
-          id: generateLocalUniqueId(),
-          order: segments.length,
-          content: [
-            i === 0 ? prefix : '',
-            {
-              [primary]: primaryText,
-              [secondary]: secondaryText
-            },
-            i === pairs.length - 1 ? suffix : ''
-          ]
-        });
-      }
-    }
-
-    return segments;
-  }
-
-  /**
-   * ✅ Extract bilingual sentence pairs: A {X} B {Y}
-   * Pattern: Text before {} is primary, text inside {} is secondary
-   */
-  private extractBilingualPairs(text: string): Array<{ primary: string; secondary: string }> {
-    const pairs: Array<{ primary: string; secondary: string }> = [];
-    
-    // Find all {...} blocks
-    const braceRegex = /\{([^{}]*)\}/g;
-    const translations: string[] = [];
-    let match;
-    
-    while ((match = braceRegex.exec(text)) !== null) {
-      translations.push(match[1]);
-    }
-
-    // Remove all {...} to get primary texts
-    const primaryTexts = text
-      .replace(/\{[^{}]*\}/g, '|||')
-      .split('|||')
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
-
-    // Pair them up
-    const maxLength = Math.max(primaryTexts.length, translations.length);
-    
-    for (let i = 0; i < maxLength; i++) {
-      pairs.push({
-        primary: primaryTexts[i] || '',
-        secondary: translations[i] || ''
+    for (const part of parts) {
+      segments.push({
+        id: generateLocalUniqueId(),
+        order: segments.length,
+        content: [
+          part.prefix,
+          {
+            [primary]: cleanText(part.lang1),
+            [secondary]: cleanText(part.lang2)
+          },
+          part.suffix
+        ]
       });
     }
 
-    return pairs;
+    return segments;
   }
 }
 
@@ -322,44 +403,29 @@ class BilingualPhraseStrategy implements ParsingStrategy {
     for (const line of lines) {
       if (!line.trim()) continue;
 
-      // Extract prefix/suffix at LINE level
       const { prefix, content, suffix } = PrefixSuffixExtractor.extract(line);
-
-      // ✅ Extract phrase pairs from the line
       const result = this.extractPhrasePairs(content, primary, secondary);
 
       if (!result) continue;
 
-      // ✅ ONE segment per line with phrase arrays
       segments.push({
         id: generateLocalUniqueId(),
         order: segments.length,
-        content: [
-          prefix,
-          result, // { en: ["A", "B"], vi: ["X", "Y"] }
-          suffix
-        ]
+        content: [prefix, result, suffix]
       });
     }
 
     return segments;
   }
 
-  /**
-   * ✅ Extract phrase pairs and return as language arrays
-   * Input: "A, B, C {X, Y, Z}"
-   * Output: { en: ["A", "B", "C"], vi: ["X", "Y", "Z"] }
-   */
   private extractPhrasePairs(
     text: string, 
     primary: string, 
     secondary: string
   ): Record<string, string[]> | null {
-    // Match pattern: "primary text {secondary text}"
     const match = text.match(/^(.*?)\s*\{(.*?)\}\s*$/);
     
     if (!match) {
-      // No {} found, treat entire text as primary only
       const phrases = this.splitIntoPhrases(text);
       if (phrases.length === 0) return null;
       
@@ -385,9 +451,6 @@ class BilingualPhraseStrategy implements ParsingStrategy {
     };
   }
 
-  /**
-   * Split text into phrases by delimiters: , ; —
-   */
   private splitIntoPhrases(text: string): string[] {
     return text
       .split(/[,;—]/)
@@ -399,27 +462,6 @@ class BilingualPhraseStrategy implements ParsingStrategy {
 // ============================================================================
 // MAIN PARSER
 // ============================================================================
-
-class OriginParser {
-  static parse(origin: string): {
-    primary: string;
-    secondary?: string;
-    isPhrase: boolean;
-    isBilingual: boolean;
-  } {
-    const parts = origin.split('-');
-    const [primary, ...rest] = parts;
-    const isPhrase = rest.includes('ph');
-    const secondary = rest.find(part => part !== 'ph');
-    return { primary, secondary, isPhrase, isBilingual: !!secondary };
-  }
-
-  static validate(origin: string): void {
-    if (!origin || origin.trim() === '') {
-      throw new Error('Origin cannot be empty');
-    }
-  }
-}
 
 export class SegmentParser {
   static parse(markdown: string, origin: string): Segment[] {
