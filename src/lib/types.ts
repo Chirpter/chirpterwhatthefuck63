@@ -390,7 +390,7 @@ export type TierTask =
 | { type: 'ref'; id: string; goal: number }
 | { type: 'inline'; name: string; current: number; goal: number; imageUrl?: string };
 
-// This type was moved here from `piece-creation.service.ts` to be shared
+// This type was moved here from `piece-creation-service.ts` to be shared
 // between both creation services. It represents the input for a Genkit prompt.
 export const UnifiedContentGenPromptInputSchema = z.object({
     userPrompt: z.string(),

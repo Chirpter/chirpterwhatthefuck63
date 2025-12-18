@@ -18,7 +18,7 @@ Chirpter sử dụng **hybrid approach** kết hợp:
 
 ```typescript
 // ✅ Rule #1: Start Simple - Keep in Feature First
-features/create/services/book-creation.service.ts  // Start here
+features/create/services/book-creation-service.ts  // Start here
 
 // ✅ Rule #2: Extract on Pain - Only when duplicate >2 times
 services/server/credit.service.ts                  // Extract here
@@ -146,7 +146,7 @@ features/[feature-name]/
 │   └── use[Feature]Preview.ts
 │
 ├── services/                      # [OPTIONAL] Nếu có logic riêng
-│   ├── [feature]-creation.service.ts  # 'use server'
+│   ├── [feature]-creation-service.ts  # 'use server'
 │   └── [feature]-validation.ts
 │
 ├── contexts/                      # [OPTIONAL] Nếu cần local state
@@ -203,7 +203,7 @@ services/        ├── server/     (Firebase Admin)
 
 | Service Type | Location | Example | When to Use |
 |-------------|----------|---------|-------------|
-| **Feature-Specific** | `features/*/services/` | `book-creation.service.ts` | Chỉ 1 feature dùng |
+| **Feature-Specific** | `features/*/services/` | `book-creation-service.ts` | Chỉ 1 feature dùng |
 | **Shared Business** | `services/server/` | `credit.service.ts` | ≥2 features dùng, server-side |
 | **Shared Client** | `services/client/` | `vocabulary.service.ts` | ≥2 features dùng, browser APIs |
 | **Shared Pure** | `services/shared/` | `markdown-parser.service.ts` | ≥2 features dùng, pure functions |
@@ -292,7 +292,7 @@ touch src/services/server/index.ts
 #### Phase 2: Extract Duplicated Logic (Week 2)
 ```bash
 # Identify duplicate code in feature services
-# Example: Credit deduction in book-creation.service.ts & piece-creation.service.ts
+# Example: Credit deduction in book-creation-service.ts & piece-creation-service.ts
 
 # Extract to shared
 touch src/services/server/credit.service.ts
@@ -355,7 +355,7 @@ src/
 │   │   └── useCreationJob.test.ts   # Hook tests
 │   └── services/
 │       └── __tests__/
-│           └── book-creation.service.test.ts
+│           └── book-creation-service.test.ts
 │
 └── services/
     └── server/

@@ -2,7 +2,7 @@
 'use server';
 
 import type { CreationFormValues, Book, Piece } from '@/lib/types';
-import { createBookAndStartGeneration, regenerateBookContent } from './book-creation.service';
+import { createBookAndStartGeneration, regenerateBookContent } from './book-creation-service';
 import { createPieceAndStartGeneration, regeneratePieceContent } from './piece-creation-service';
 import { getAuthAdmin } from '@/lib/firebase-admin';
 import { cookies } from 'next/headers';

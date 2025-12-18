@@ -3,8 +3,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLibraryItem } from '../creation-service';
 import type { CreationFormValues } from '@/lib/types';
-import * as bookCreationService from '../book-creation.service';
-import * as pieceCreationService from '../piece-creation.service';
+import * as bookCreationService from '../book-creation-service';
+import * as pieceCreationService from '../piece-creation-service';
 
 // Mock dependencies
 vi.mock('@/lib/firebase-admin', () => ({
@@ -44,8 +44,8 @@ vi.mock('next/headers', () => ({
   }))
 }));
 
-vi.mock('../book-creation.service');
-vi.mock('../piece-creation.service');
+vi.mock('../book-creation-service');
+vi.mock('../piece-creation-service');
 
 describe('Creation Flow - Authentication & Authorization', () => {
   beforeEach(() => {

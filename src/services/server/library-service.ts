@@ -6,7 +6,7 @@ import { getAdminDb, FieldValue } from '@/lib/firebase-admin';
 import type { LibraryItem, Book, OverallStatus } from '@/lib/types';
 import { removeUndefinedProps, convertTimestamps } from '@/lib/utils';
 import { ApiServiceError } from '@/lib/errors';
-// KHÔNG import các hàm từ book-creation.service nữa
+// KHÔNG import các hàm từ book-creation-service nữa
 
 const getLibraryCollectionPath = (userId: string) => `users/${userId}/libraryItems`;
 
