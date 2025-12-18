@@ -91,7 +91,7 @@ const VocabularyItemCardComponent: React.FC<VocabularyItemProps> = ({ item, onPr
 
   return (
     <>
-    <Card className={cn("flex flex-col h-full border relative dark:bg-slate-800", isLite && "h-auto")}>
+    <Card className={cn("flex flex-col h-full border relative dark:bg-muted", isLite && "h-auto")}>
         {!isLite && <MemoryStrengthBar memoryStrength={virtualMs} />}
         <CardContent className={cn("p-3 flex flex-row gap-4 flex-grow", isLite ? "pl-2" : "pl-6")}>
             <div className={cn("flex-grow flex flex-col min-w-0", isLite ? 'pr-6' : 'pr-8')}>

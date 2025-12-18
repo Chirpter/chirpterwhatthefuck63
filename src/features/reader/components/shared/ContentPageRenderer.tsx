@@ -28,36 +28,22 @@ function reconstructMarkdown(
     unit: ContentUnit
 ): string {
     const prefix = segment.content[0] as string;
-    const contentData = segment.content[1];
+    const langBlock = segment.content[1] as LanguageBlock;
     const suffix = segment.content[2] as string;
 
-    // Handle Phrase Mode (contentData is an array of pairs)
-    if (unit === 'phrase' && Array.isArray(contentData)) {
-        const phrases = contentData.map(pair => {
-            const primaryText = pair[displayLang1] || '';
-            const secondaryText = pair[displayLang2] || '';
-            if (displayLang2 !== 'none' && secondaryText) {
-                return `${primaryText} <em class="text-muted-foreground/80">(${secondaryText})</em>`;
-            }
-            return primaryText;
-        }).join(' '); // Join phrases with a space
-        return `${prefix}${phrases}${suffix}`;
-    }
+    const primaryText = langBlock[displayLang1] || '';
+    const secondaryText = langBlock[displayLang2] || '';
 
-    // Handle Sentence Mode (contentData is a single object)
-    if (typeof contentData === 'object' && !Array.isArray(contentData)) {
-        const langBlock = contentData as LanguageBlock;
-        const primaryText = langBlock[displayLang1] || '';
-        const secondaryText = langBlock[displayLang2] || '';
-
-        if (displayLang2 !== 'none' && secondaryText) {
-            return `${prefix}${primaryText}${suffix}\n\n<em class="text-muted-foreground">${secondaryText}</em>`;
+    if (displayLang2 !== 'none' && secondaryText) {
+        if (unit === 'phrase') {
+            return `${prefix}${primaryText} (${secondaryText})${suffix}`;
         }
-        return `${prefix}${primaryText}${suffix}`;
+        // Default to sentence mode
+        return `${prefix}${primaryText}${suffix}\n\n<em class="text-muted-foreground">${secondaryText}</em>`;
     }
-    
-    // Fallback for unexpected data structure
-    return '';
+
+    // Monolingual mode
+    return `${prefix}${primaryText}${suffix}`;
 }
 
 export function ContentPageRenderer({ 
@@ -98,12 +84,12 @@ export function ContentPageRenderer({
   const layoutClasses = useMemo(() => {
     if (presentationStyle === 'card' || presentationStyle === 'doc') {
         return cn(
-            'flex flex-col h-full p-6 md:p-8 dark:bg-slate-800 dark:text-slate-200',
+            'flex flex-col h-full p-6 md:p-8 dark:bg-muted dark:text-foreground',
             editorSettings.verticalAlign,
             editorSettings.textAlign
         );
     }
-    return 'p-8 md:p-12 dark:bg-slate-800 dark:text-slate-200';
+    return 'p-8 md:p-12 dark:bg-muted dark:text-foreground';
   }, [presentationStyle, editorSettings]);
   
   const contentContainerClasses = cn(
