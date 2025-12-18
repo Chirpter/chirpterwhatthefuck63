@@ -221,14 +221,9 @@ export function CreationDebugPanel() {
         {firestoreJobState?.debug && (
           <Section title="3. AI / Server Pipeline" defaultOpen={true}>
             <details className="mt-2 text-xs">
-                <summary className="cursor-pointer text-gray-400">View System Prompt</summary>
-                <pre className="whitespace-pre-wrap break-all">{firestoreJobState.debug.systemPrompt}</pre>
-                <Button size="sm" variant="ghost" onClick={() => handleCopy(firestoreJobState.debug.systemPrompt)} className="mt-2 text-xs h-6">Copy</Button>
-            </details>
-             <details className="mt-2 text-xs">
-                <summary className="cursor-pointer text-gray-400">View User Prompt</summary>
-                <pre className="whitespace-pre-wrap break-all">{firestoreJobState.debug.userPrompt}</pre>
-                <Button size="sm" variant="ghost" onClick={() => handleCopy(firestoreJobState.debug.userPrompt)} className="mt-2 text-xs h-6">Copy</Button>
+                <summary className="cursor-pointer text-gray-400">View Final AI Prompt</summary>
+                <pre className="whitespace-pre-wrap break-all">{firestoreJobState.debug.finalPrompt}</pre>
+                <Button size="sm" variant="ghost" onClick={() => handleCopy(firestoreJobState.debug.finalPrompt)} className="mt-2 text-xs h-6">Copy</Button>
             </details>
              <details className="mt-2 text-xs">
                 <summary className="cursor-pointer text-gray-400">View Raw AI Response</summary>

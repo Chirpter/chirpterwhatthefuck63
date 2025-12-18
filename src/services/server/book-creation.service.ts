@@ -241,7 +241,8 @@ async function processContentGenerationForBook(
         prompt: `{{{userPrompt}}}\n\n{{{systemPrompt}}}`,
     });
     
-    const debugData = { systemPrompt, userPrompt, rawResponse: '', parsedData: {} };
+    const finalPrompt = `${userPrompt}\n\n${systemPrompt}`;
+    const debugData = { finalPrompt, rawResponse: '', parsedData: {} };
 
     try {
         const { output: aiOutput } = await bookContentGenerationPrompt({ userPrompt, systemPrompt });

@@ -189,10 +189,9 @@ async function generatePieceContent(
         prompt: `{{{userPrompt}}}\n\n{{{systemPrompt}}}`,
         config: { maxOutputTokens: 1200 }
     });
-
-    let rawResponse = '';
-    let parsedData: any = {};
-    const debugData = { userPrompt, systemPrompt, rawResponse, parsedData };
+    
+    const finalPrompt = `${userPrompt}\n\n${systemPrompt}`;
+    const debugData = { finalPrompt, rawResponse: '', parsedData: {} };
     
     try {
         const { output: aiOutput } = await pieceContentGenerationPrompt({ userPrompt, systemPrompt });
@@ -201,14 +200,12 @@ async function generatePieceContent(
             throw new ApiServiceError("AI returned empty or invalid content for the piece.", "UNKNOWN");
         }
         
-        rawResponse = aiOutput.markdownContent;
-        debugData.rawResponse = rawResponse;
+        debugData.rawResponse = aiOutput.markdownContent;
 
         const titlePair = extractBilingualPairFromMarkdown(aiOutput.title, primaryLanguage, secondaryLanguage);
         const segments = segmentize(aiOutput.markdownContent, pieceFormData.origin);
         
-        parsedData = { title: titlePair, segmentCount: segments.length };
-        debugData.parsedData = parsedData;
+        debugData.parsedData = { title: titlePair, segmentCount: segments.length };
         
         return {
           title: titlePair,
