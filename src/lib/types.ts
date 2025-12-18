@@ -25,9 +25,12 @@ export type LanguageBlock = {
   [languageCode: string]: string;
 };
 
-// Represents a piece of content, which can be a string (prefix/suffix)
-// or an object containing multilingual versions of the core text.
-export type SegmentContent = (string | LanguageBlock)[];
+// A piece of content can be:
+// - A string (prefix/suffix).
+// - A LanguageBlock (for a sentence).
+// - An array of LanguageBlocks (for phrases within a sentence).
+export type SegmentContent = (string | LanguageBlock | LanguageBlock[])[];
+
 
 export interface Segment {
   id: string;

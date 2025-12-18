@@ -20,11 +20,6 @@ interface ContentPageRendererProps {
 
 /**
  * Reconstructs the final markdown string from a segment object based on display settings.
- * @param segment - The structured segment object.
- * @param displayLang1 - The primary language to display.
- * @param displayLang2 - The secondary language to display ('none' if monolingual).
- * @param unit - The unit for bilingual display ('sentence' or 'phrase').
- * @returns A markdown-ready string.
  */
 function reconstructMarkdown(
     segment: Segment,
@@ -33,22 +28,36 @@ function reconstructMarkdown(
     unit: ContentUnit
 ): string {
     const prefix = segment.content[0] as string;
-    const langBlock = segment.content[1] as LanguageBlock;
+    const contentData = segment.content[1];
     const suffix = segment.content[2] as string;
 
-    const primaryText = langBlock[displayLang1] || '';
-    const secondaryText = langBlock[displayLang2] || '';
-
-    if (displayLang2 !== 'none' && secondaryText) {
-        if (unit === 'phrase') {
-            return `${prefix}${primaryText} (${secondaryText})${suffix}`;
-        }
-        // Default to sentence mode
-        return `${prefix}${primaryText}${suffix}\n\n<em class="text-muted-foreground">${secondaryText}</em>`;
+    // Handle Phrase Mode (contentData is an array of pairs)
+    if (unit === 'phrase' && Array.isArray(contentData)) {
+        const phrases = contentData.map(pair => {
+            const primaryText = pair[displayLang1] || '';
+            const secondaryText = pair[displayLang2] || '';
+            if (displayLang2 !== 'none' && secondaryText) {
+                return `${primaryText} <em class="text-muted-foreground/80">(${secondaryText})</em>`;
+            }
+            return primaryText;
+        }).join(' '); // Join phrases with a space
+        return `${prefix}${phrases}${suffix}`;
     }
 
-    // Monolingual mode
-    return `${prefix}${primaryText}${suffix}`;
+    // Handle Sentence Mode (contentData is a single object)
+    if (typeof contentData === 'object' && !Array.isArray(contentData)) {
+        const langBlock = contentData as LanguageBlock;
+        const primaryText = langBlock[displayLang1] || '';
+        const secondaryText = langBlock[displayLang2] || '';
+
+        if (displayLang2 !== 'none' && secondaryText) {
+            return `${prefix}${primaryText}${suffix}\n\n<em class="text-muted-foreground">${secondaryText}</em>`;
+        }
+        return `${prefix}${primaryText}${suffix}`;
+    }
+    
+    // Fallback for unexpected data structure
+    return '';
 }
 
 export function ContentPageRenderer({ 
