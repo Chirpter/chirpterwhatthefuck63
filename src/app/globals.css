@@ -43,6 +43,10 @@
     --level-pink: 330 84% 60%;
     --level-gold: 45 100% 51%;
     --level-orange: 25 95% 53%; /* For Pro */
+
+    /* Header Heights */
+    --header-height-mobile: 56px;
+    --header-height-desktop: 64px;
   }
 
   .dark {
@@ -600,21 +604,12 @@
     .vocab-artifact {
       @apply relative w-[30px] h-10 transition-transform duration-300 ease-in-out;
       transform: rotateY(-25deg) rotateX(10deg);
-      transform-style: preserve-3d;
-    }
-    .vocab-artifact::before, .vocab-artifact::after {
-        content: '';
-        @apply absolute w-full h-full rounded-md border;
     }
     .vocab-artifact::before {
-        @apply bg-primary/10 border-primary/30 flex items-center justify-center;
         content: 'A';
+        @apply absolute w-full h-full rounded-md border flex items-center justify-center;
+        @apply bg-primary/10 border-primary/30;
         @apply text-2xl font-bold text-primary/60;
-        transform: translateZ(1px); /* Bring the front face forward */
-    }
-    .vocab-artifact::after {
-        @apply bg-primary/30 border-primary/50;
-        transform: translateZ(-1px); /* Push the back face backward */
     }
 
     .lib-tab-button:hover .vocab-artifact {
