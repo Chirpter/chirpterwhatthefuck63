@@ -37,16 +37,20 @@ function buildContentPrompt(
   ): { userPrompt: string; systemPrompt: string } {
     
     const primaryLabel = LANGUAGES.find(l => l.value === primary)?.label || primary;
-    const secondaryLabel = secondary ? LANGUAGES.find(l => l.value === secondary)?.label : null;
+    
+    let langInstruction: string;
+    let titleExample: string;
+    let sectionExample: string;
 
-    let langInstruction = `- Write in ${primaryLabel}.`;
-    let titleExample = `- Title format: My Title`;
-    let sectionExample = `- Section format (if needed): # Section 1`;
-
-    if (secondaryLabel) {
-      langInstruction = `- Bilingual ${primaryLabel} and ${secondaryLabel}. Each sentence followed by translation in {curly braces}.`;
-      titleExample = `- Title format: My Title {Bản dịch}`;
-      sectionExample = `- Section format: # Section 1 {Phần 1}`;
+    if (secondary) {
+        const secondaryLabel = LANGUAGES.find(l => l.value === secondary)?.label || secondary;
+        langInstruction = `- Bilingual ${primaryLabel} and ${secondaryLabel}. Each sentence followed by translation in {curly braces}.`;
+        titleExample = `- Title format: My Title {Bản dịch}`;
+        sectionExample = `- Section format: # Section 1 {Phần 1}`;
+    } else {
+        langInstruction = `- Write in ${primaryLabel}.`;
+        titleExample = `- Title format: My Title`;
+        sectionExample = `- Section format (if needed): # Section 1`;
     }
 
     const systemInstructions = [
