@@ -1,4 +1,3 @@
-
 // src/app/(app)/create/page.tsx - REFACTORED
 "use client";
 
@@ -81,7 +80,7 @@ export default function CreatePage() {
                 <aside className={cn(
                     "w-full md:w-96 md:flex-shrink-0 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col transition-[height] duration-300 ease-in-out",
                     // On desktop, height adjusts based on audio player visibility
-                    "md:h-[calc(100vh-var(--header-height))]",
+                    "md:h-auto", // Let flexbox handle height
                     isPlayerVisible ? "md:pb-[68px]" : ""
                 )}>
                     <div className="p-3 border-b">

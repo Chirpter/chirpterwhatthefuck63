@@ -90,8 +90,7 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
         <div className="flex flex-col min-h-screen">
             <AppHeader />
             <main className={cn(
-                "flex-1 bg-background relative", 
-                "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
+                "flex-1 bg-background relative"
             )}>
                 {children}
             </main>
