@@ -1,3 +1,4 @@
+
 // src/app/(app)/create/page.tsx - REFACTORED
 "use client";
 
@@ -49,27 +50,25 @@ export default function CreatePage() {
     // The Preview component, now semantically a <main> element.
     const renderDesktopPreview = () => (
         <main className="hidden md:block flex-1 bg-muted/30 relative">
-            <div className="absolute inset-0">
-                {activeTab === 'book' ? (
-                    <BookGenerationAnimation
-                        isFormBusy={job.isBusy}
-                        bookJobData={job.jobData as Book | null}
-                        finalizedBookId={finalizedId}
-                        bookFormData={job.formData}
-                        onViewBook={job.handleViewResult}
-                        onCreateAnother={() => job.reset('book')}
+            {activeTab === 'book' ? (
+                <BookGenerationAnimation
+                    isFormBusy={job.isBusy}
+                    bookJobData={job.jobData as Book | null}
+                    finalizedBookId={finalizedId}
+                    bookFormData={job.formData}
+                    onViewBook={job.handleViewResult}
+                    onCreateAnother={() => job.reset('book')}
+                />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center p-4">
+                    <PieceReader
+                        piece={job.jobData as Piece}
+                        isPreview
+                        presentationStyle={formData.presentationStyle as 'doc' | 'card'}
+                        aspectRatio={formData.aspectRatio}
                     />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center p-4">
-                        <PieceReader
-                            piece={job.jobData as Piece}
-                            isPreview
-                            presentationStyle={formData.presentationStyle as 'doc' | 'card'}
-                            aspectRatio={formData.aspectRatio}
-                        />
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
         </main>
     );
 
