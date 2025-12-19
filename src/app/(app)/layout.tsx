@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/layout/AppHeader';
 import { Logo } from '@/components/ui/Logo';
 import { AppErrorManager } from '@/services/client/error-manager.service';
+import { usePathname } from 'next/navigation'; // Import usePathname
 
 // --- Reusable Components ---
 
@@ -59,6 +60,7 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
         retryUserFetch
     } = useUser();
     const { logout } = useAuth();
+    const pathname = usePathname(); // Get current path
 
     useEffect(() => {
         AppErrorManager.initialize();
@@ -85,12 +87,17 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
         return <InitialLoader message="Finalizing session..." />;
     }
 
+    // ✅ CONDITIONAL PADDING: Only add padding if it's NOT the create page
+    const isCreatePage = pathname === '/create';
+
     // State 4: Success - render the main app content
     return (
         <div className="flex flex-col min-h-screen">
             <AppHeader />
             <main className={cn(
-                "flex-1 bg-background relative"
+                "flex-1 bg-background relative",
+                // ✅ Apply padding conditionally
+                !isCreatePage && "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
             )}>
                 {children}
             </main>

@@ -18,7 +18,8 @@ import { useCreationJob } from '@/features/create/hooks/useCreationJob';
 import PieceReader from '@/features/reader/components/piece/PieceReader';
 import { CreationDebugPanel } from '@/components/debug/CreationDebugPanel';
 
-// The page now uses a simpler flexbox layout for desktop.
+// ✅ SIMPLIFIED: The root is now a div that acts as the flex container on desktop.
+// It uses negative margins on mobile to break out of the parent padding.
 export default function CreatePage() {
     const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
     const { user } = useUser();
@@ -74,13 +75,13 @@ export default function CreatePage() {
     return (
         <>
             <CreationDebugPanel />
-            {/* The root container now uses flexbox on medium screens and up */}
-            <div className="h-full md:flex">
+            {/* ✅ This div is the new root, managing the mobile-full-width and desktop-flex layout */}
+            <div className="h-full md:flex -mx-4 sm:-mx-6 md:mx-0">
                 {/* The sidebar is now an <aside> element */}
                 <aside className={cn(
                     "w-full md:w-96 md:flex-shrink-0 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col transition-[height] duration-300 ease-in-out",
                     // On desktop, height adjusts based on audio player visibility
-                    "md:h-auto", // Let flexbox handle height
+                    "md:h-auto",
                     isPlayerVisible ? "md:pb-[68px]" : ""
                 )}>
                     <div className="p-3 border-b">
