@@ -363,8 +363,8 @@ export const ReaderToolbar: React.FC<ReaderToolbarProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Focus Mode Button (Book Only) */}
-          {presentationStyle === 'book' && onToggleFocusMode && (
+          {/* Focus Mode Button - ALWAYS SHOWN if handler is provided */}
+          {onToggleFocusMode && (
             <>
               <Separator orientation="vertical" className="h-6 mx-1" />
               <Tooltip>
