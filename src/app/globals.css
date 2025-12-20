@@ -527,10 +527,10 @@
       @apply text-5xl md:text-6xl font-bold font-headline;
     }
     .text-headline-1 {
-      @apply text-lg md:text-2xl font-semibold font-headline;
+      @apply text-xl md:text-[22px] font-semibold font-headline;
     }
     .text-headline-2 {
-      @apply text-base md:text-xl font-semibold font-headline;
+      @apply text-lg md:text-xl font-semibold font-headline;
     }
     .text-body-lg {
       @apply text-base md:text-lg font-body;
@@ -542,7 +542,7 @@
       @apply text-xs md:text-sm font-body;
     }
     .text-caption {
-      @apply text-xs font-body text-muted-foreground;
+      @apply text-[10px] md:text-xs font-body;
     }
     /* End Typography System */
 
@@ -1026,3 +1026,5 @@
     
 
     
+
+  
