@@ -5,6 +5,7 @@ import React from 'react';
 import { useMobile } from '@/hooks/useMobile';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface VideoBasedLayoutProps {
   pageTitle: React.ReactNode;
@@ -30,7 +31,7 @@ export const VideoBasedLayout: React.FC<VideoBasedLayoutProps> = ({
   // Mobile Layout: A single scrollable column
   if (isMobile) {
     return (
-      <div className="space-y-4 pb-6">
+      <div className="learningtool-style space-y-4 pb-6">
         <div className="px-4">{pageTitle}</div>
         <div className="px-4">{searchAndVideoPanel}</div>
         <div className="px-4">{contentPanel}</div>
@@ -42,7 +43,7 @@ export const VideoBasedLayout: React.FC<VideoBasedLayoutProps> = ({
 
   // Desktop Layout: 3-column grid
   return (
-    <div className="space-y-6">
+    <div className="learningtool-style space-y-6">
       {pageTitle}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column */}
