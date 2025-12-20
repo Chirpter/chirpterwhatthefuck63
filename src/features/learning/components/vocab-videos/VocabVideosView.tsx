@@ -271,7 +271,7 @@ function VocabVideosView() {
 
   // Desktop layout - unchanged
   return (
-    <div className="learningtool-style space-y-6">
+    <>
       <LookupPopover 
         isOpen={lookupState.isOpen}
         onOpenChange={(open) => !open && closeLookup()}
@@ -284,81 +284,82 @@ function VocabVideosView() {
         context={lookupState.context}
       />
       
-       <div>
-            <h1 className="text-headline-1">{t('vocabVideos.pageTitle')}</h1>
-            <p className="text-body-sm mt-1">{t('vocabVideos.description')}</p>
+      <div className="learningtool-style space-y-6">
+        <div>
+          <h1 className="text-headline-1">{t('vocabVideos.pageTitle')}</h1>
+          <p className="text-body-sm mt-1">{t('vocabVideos.description')}</p>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Left Column */}
+          <div className="md:col-span-1 flex flex-col gap-6">
+            <Card>
+              <CardContent className="p-3">
+                <form className="flex items-center gap-2" onSubmit={handleSubmit}>
+                  <div className="relative flex-grow w-full">
+                    <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={t('vocabVideos.searchPlaceholder')}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      className="font-body pl-9 h-10"
+                    />
+                  </div>
+                  <Button 
+                    type="submit"
+                    disabled={isLoading || !query.trim()} 
+                    className="h-10 px-4"
+                  >
+                    {isLoading ? (
+                      <Icon name="Loader2" className="animate-spin h-5 w-5" />
+                    ) : (
+                      t('common:search')
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+            
+            <VocabVideoPlayer 
+              ref={playerRef}
+              onVideoEnd={handleVideoEnd}
+            />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column */}
-        <div className="md:col-span-1 flex flex-col gap-6">
-          <Card>
-            <CardContent className="p-3">
-              <form className="flex items-center gap-2" onSubmit={handleSubmit}>
-                <div className="relative flex-grow w-full">
-                  <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t('vocabVideos.searchPlaceholder')}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="font-body pl-9 h-10"
-                  />
-                </div>
-                <Button 
-                  type="submit"
-                  disabled={isLoading || !query.trim()} 
-                  className="h-10 px-4"
-                >
-                  {isLoading ? (
-                    <Icon name="Loader2" className="animate-spin h-5 w-5" />
-                  ) : (
-                    t('common:search')
-                  )}
-                </Button>
-              </form>
-            </CardContent>
+            <ActivitiesPanel />
+          </div>
+          
+          {/* Middle Column - Fixed with ScrollArea */}
+          <Card className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px] bg-reader-grid">
+            <CardHeader className="p-3 border-b flex-shrink-0">
+              <ControlBar
+                onPrevious={handlePrevious}
+                onRepeat={handleReplay}
+                isRepeating={isRepeating}
+                onNext={handleNext}
+                isAutoSkipping={isAutoSkipping}
+                onAutoSkipChange={setIsAutoSkipping}
+                hasPrevious={selectedIndex > 0}
+                hasNext={selectedIndex < clips.length - 1}
+                repeatCount={repeatCount}
+                totalRepeats={3}
+              />
+            </CardHeader>
+            <ScrollArea className="flex-1 min-h-0">
+              <div 
+                onMouseUp={handleSelectionWithContext} 
+                className="p-4 prose-on-grid"
+              >
+                {renderContextState}
+              </div>
+            </ScrollArea>
           </Card>
           
-          <VocabVideoPlayer 
-            ref={playerRef}
-            onVideoEnd={handleVideoEnd}
-          />
-
-          <ActivitiesPanel />
+          {/* Right Column */}
+          <Card className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px]">
+            <MiniVocabView />
+          </Card>
         </div>
-        
-        {/* Middle Column - Fixed with ScrollArea */}
-        <Card className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px] bg-reader-grid">
-          <CardHeader className="p-3 border-b flex-shrink-0">
-            <ControlBar
-              onPrevious={handlePrevious}
-              onRepeat={handleReplay}
-              isRepeating={isRepeating}
-              onNext={handleNext}
-              isAutoSkipping={isAutoSkipping}
-              onAutoSkipChange={setIsAutoSkipping}
-              hasPrevious={selectedIndex > 0}
-              hasNext={selectedIndex < clips.length - 1}
-              repeatCount={repeatCount}
-              totalRepeats={3}
-            />
-          </CardHeader>
-          <ScrollArea className="flex-1 min-h-0">
-            <div 
-              onMouseUp={handleSelectionWithContext} 
-              className="p-4 prose-on-grid"
-            >
-              {renderContextState}
-            </div>
-          </ScrollArea>
-        </Card>
-        
-        {/* Right Column */}
-        <Card className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px]">
-          <MiniVocabView />
-        </Card>
       </div>
-    </div>
+    </>
   );
 }
 
