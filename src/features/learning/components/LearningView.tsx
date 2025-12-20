@@ -47,7 +47,7 @@ export default function LearningView() {
         )}
       >
         <div className="absolute bottom-0 left-0 right-0 z-10 p-2">
-            <div className="relative z-10 text-foreground dark:text-white drop-shadow-md text-center w-full bg-white/40 dark:bg-black/40 p-1 rounded-lg backdrop-blur-sm">
+            <div className="relative z-10 text-foreground drop-shadow-md text-center w-full bg-white/40 dark:bg-black/40 p-1 rounded-lg backdrop-blur-sm">
                 <p className="text-body-sm font-semibold truncate">{t(tool.titleKey)}</p>
             </div>
         </div>
