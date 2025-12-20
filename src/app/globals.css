@@ -423,7 +423,7 @@
     
     .bg-reader-grid {
         background-color: hsl(var(--background));
-        --grid-line-color: hsl(var(--border) / 0.5);
+        --grid-line-color: hsl(var(--border));
         background-image:
             linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
             linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
@@ -431,7 +431,7 @@
     }
     .dark .bg-reader-grid {
         background-color: hsl(var(--background));
-        --grid-line-color: hsl(var(--border) / 0.5);
+        --grid-line-color: hsl(var(--border));
     }
     .prose-on-grid.prose {
         --tw-prose-body: hsl(var(--foreground));
