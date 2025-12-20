@@ -28,7 +28,7 @@ export function MobileNav({ onLinkClick }: MobileNavProps) {
             variant={isActive ? "default" : "ghost"}
             size="lg"
             className={cn(
-              "justify-start w-full py-3 text-body-lg",
+              "justify-start w-full py-3 text-body-base",
               isActive 
                 ? "bg-primary text-primary-foreground hover:bg-primary/90" 
                 : "hover:bg-accent/80 hover:text-accent-foreground" // Use a more subtle hover for consistency
