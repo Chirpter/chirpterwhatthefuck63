@@ -366,7 +366,7 @@ export default function ShadowingView() {
       : transcriptResult?.transcript || [];
 
     return (
-        <Card className="flex flex-col h-full bg-reader-grid">
+        <Card className="flex flex-col h-full bg-background">
             <CardHeader className="p-3 flex-shrink-0">
                 <div className="flex items-center justify-center gap-2">
                     <Button variant={isShadowingMode ? 'default' : 'outline'} size="icon" onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} disabled={!transcriptResult} className="h-11 w-11 transition-colors" title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}><Icon name="Shadowing" className="h-5 w-5" /></Button>

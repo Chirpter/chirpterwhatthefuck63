@@ -47,6 +47,9 @@
     /* Header Heights */
     --header-height-mobile: 56px;
     --header-height-desktop: 64px;
+    
+    /* ✅ NEW: Define a specific color for grid lines */
+    --grid-line-color: 220 13% 91%;
   }
 
   .dark {
@@ -76,7 +79,10 @@
 
     --border: 220 10% 20%;
     --input: 220 10% 20%;
-    --ring: 348 83% 47%; 
+    --ring: 348 83% 47%;
+    
+    /* ✅ NEW: Define a specific color for grid lines in dark mode */
+    --grid-line-color: 220 10% 18%;
   }
 }
 
@@ -422,17 +428,14 @@
     }
     
     .bg-reader-grid {
-        background-color: hsl(var(--background));
-        --grid-line-color: hsl(var(--border));
-        background-image:
-            linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
-            linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
-        background-size: 20px 20px;
+      background-color: hsl(var(--background));
+      /* ✅ UPDATED: Use the dedicated --grid-line-color variable */
+      background-image:
+          linear-gradient(to right, hsl(var(--grid-line-color)) 1px, transparent 1px),
+          linear-gradient(to bottom, hsl(var(--grid-line-color)) 1px, transparent 1px);
+      background-size: 20px 20px;
     }
-    .dark .bg-reader-grid {
-        background-color: hsl(var(--background));
-        --grid-line-color: hsl(var(--border));
-    }
+
     .prose-on-grid.prose {
         --tw-prose-body: hsl(var(--foreground));
         --tw-prose-headings: hsl(var(--foreground));
@@ -959,7 +962,7 @@
 }
 
 .bg-reader-grid {
-  background-color: #fff;
+  background-color: hsl(var(--background));
   background-image: 
     linear-gradient(rgba(200, 200, 200, 0.3) 1px, transparent 1px),
     linear-gradient(90deg, rgba(200, 200, 200, 0.3) 1px, transparent 1px);
@@ -1028,3 +1031,6 @@
     
 
   
+
+
+    
