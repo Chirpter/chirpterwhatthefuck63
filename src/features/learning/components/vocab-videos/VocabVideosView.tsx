@@ -162,13 +162,13 @@ function VocabVideosView() {
           </div>
         );
       }
-
+      
       if (error && !selectedResult) {
         return (
-          <Alert variant="destructive" className="bg-background">
+          <>
             <AlertTitle>{t('vocabVideos.noClipsFoundTitle')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          </>
         );
       }
       
@@ -202,16 +202,14 @@ function VocabVideosView() {
             totalRepeats={3}
           />
         </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-0">
-          <ScrollArea className="h-full">
-            <div className="p-4">
-               <Card className="bg-background">
-                <CardContent className="p-4" onMouseUp={handleSelectionWithContext}>
-                  {innerContent()}
-                </CardContent>
-              </Card>
-            </div>
-          </ScrollArea>
+        <CardContent className="flex-1 min-h-0 p-4">
+            <Alert 
+              variant={error && !selectedResult ? 'destructive' : 'default'}
+              className="bg-card"
+              onMouseUp={handleSelectionWithContext}
+            >
+              {innerContent()}
+            </Alert>
         </CardContent>
       </Card>
     );

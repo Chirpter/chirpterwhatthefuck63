@@ -312,7 +312,7 @@ export default function ShadowingView() {
     const innerContent = () => {
       if (isLoading) {
         return (
-          <div className="p-4 space-y-3">
+          <div className="space-y-3">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
           </div>
         );
@@ -320,9 +320,9 @@ export default function ShadowingView() {
       
       if (error) {
         return (
-          <Alert variant="destructive" className="m-4 bg-background">
-            <AlertTitle className="font-heading">{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle>
-            <AlertDescription className="font-body">{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription>
+          <Alert variant="destructive" className="bg-background">
+            <AlertTitle>{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle>
+            <AlertDescription>{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription>
           </Alert>
         );
       }
@@ -330,7 +330,7 @@ export default function ShadowingView() {
       if (!transcriptResult) return null;
 
       return (
-        <div className="space-y-3 p-4">
+        <div className="space-y-3">
           {listToRender.map((line, index) => (
             <Card key={index} className={cn('transition-all duration-200 bg-background', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
               <CardContent className="p-3">
@@ -373,7 +373,9 @@ export default function ShadowingView() {
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-0">
           <ScrollArea className="h-full">
-            {innerContent()}
+            <div className="p-4">
+              {innerContent()}
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>
