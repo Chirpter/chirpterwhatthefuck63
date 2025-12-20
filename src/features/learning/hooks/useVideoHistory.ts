@@ -13,56 +13,87 @@ export interface HistoryItem {
 }
 
 const HISTORY_KEY = 'chirpter_shadowing_history';
+const CURRENT_VIDEO_KEY = 'chirpter_shadowing_current_video';
 const MAX_HISTORY_SIZE = 6;
 
 export const useVideoHistory = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [currentVideo, setCurrentVideo] = useState<HistoryItem | null>(null);
 
+  // Load history and current video from localStorage on initial mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(HISTORY_KEY);
-      if (saved) setHistory(JSON.parse(saved));
+      const savedHistory = localStorage.getItem(HISTORY_KEY);
+      if (savedHistory) {
+        setHistory(JSON.parse(savedHistory));
+      }
+      
+      const savedCurrent = localStorage.getItem(CURRENT_VIDEO_KEY);
+      if (savedCurrent) {
+        setCurrentVideo(JSON.parse(savedCurrent));
+      }
     } catch (e) {
-      console.error('Failed to load shadowing history', e);
+      console.error('Failed to load video history', e);
     }
   }, []);
 
-  const persist = useCallback((next: HistoryItem[]) => {
+  const persistHistory = useCallback((nextHistory: HistoryItem[]) => {
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
     } catch (e) {
-      console.error('Failed to persist shadowing history', e);
+      console.error('Failed to persist history', e);
     }
   }, []);
+
+  const persistCurrentVideo = useCallback((video: HistoryItem | null) => {
+    try {
+      if (video) {
+        localStorage.setItem(CURRENT_VIDEO_KEY, JSON.stringify(video));
+      } else {
+        localStorage.removeItem(CURRENT_VIDEO_KEY);
+      }
+    } catch (e) {
+      console.error('Failed to persist current video', e);
+    }
+  }, []);
+
 
   const addToHistory = useCallback((item: Omit<HistoryItem, 'lastAccessed'>) => {
-    setHistory(prev => {
-      const existing = prev.find(h => h.videoId === item.videoId);
-      const newItem: HistoryItem = {
+    const newItem: HistoryItem = {
         ...item,
-        // ✅ FIX: Ensure progress is always an array, never undefined
-        progress: existing?.progress ?? item.progress ?? [],
+        progress: [],
         lastAccessed: Date.now(),
-      };
+    };
 
-      const next = [newItem, ...prev.filter(h => h.videoId !== item.videoId)].slice(0, MAX_HISTORY_SIZE);
-      persist(next);
-      return next;
+    setHistory(prev => {
+        const next = [newItem, ...prev.filter(h => h.videoId !== item.videoId)].slice(0, MAX_HISTORY_SIZE);
+        persistHistory(next);
+        return next;
     });
-  }, [persist]);
+
+    setCurrentVideo(newItem);
+    persistCurrentVideo(newItem);
+  }, [persistHistory, persistCurrentVideo]);
+
 
   const updateHistoryProgress = useCallback((videoId: string, progress: number[]) => {
     setHistory(prev => {
-      const next = prev.map(h => h.videoId === videoId ? { ...h, progress, lastAccessed: Date.now() } : h);
-      persist(next);
+      const next = prev.map(h => 
+        h.videoId === videoId 
+          ? { ...h, progress, lastAccessed: Date.now() } 
+          : h
+      );
+      persistHistory(next);
       return next;
     });
-  }, [persist]);
+  }, [persistHistory]);
 
   const clearHistory = useCallback(() => {
     setHistory([]);
+    setCurrentVideo(null); // Also clear the current video
     try { 
       localStorage.removeItem(HISTORY_KEY); 
+      localStorage.removeItem(CURRENT_VIDEO_KEY);
     } catch (e) { 
       console.error(e); 
     }
@@ -70,6 +101,11 @@ export const useVideoHistory = () => {
 
   return { 
     history, 
+    currentVideo,
+    setCurrentVideo: (item: HistoryItem | null) => {
+        setCurrentVideo(item);
+        persistCurrentVideo(item);
+    },
     addToHistory, 
     updateHistoryProgress, 
     clearHistory 

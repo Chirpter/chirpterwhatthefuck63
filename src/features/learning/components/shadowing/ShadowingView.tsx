@@ -48,8 +48,9 @@ export default function ShadowingView() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
   const { toast } = useToast();
   const { user } = useUser();
+  const { history, currentVideo, setCurrentVideo, addToHistory, updateHistoryProgress, clearHistory } = useVideoHistory();
 
-  const [url, setUrl] = useState('');
+  const [urlInput, setUrlInput] = useState('');
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,21 +67,82 @@ export default function ShadowingView() {
   const [openBoxIndex, setOpenBoxIndex] = useState<number | null>(0);
 
   const videoId = useMemo(() => {
-    const trimmed = url.trim();
-    if (!trimmed) return null;
+    const videoUrl = currentVideo?.url;
+    if (!videoUrl) return null;
     try {
-      const u = new URL(trimmed);
+      const u = new URL(videoUrl);
       if (u.hostname === 'youtu.be') return u.pathname.slice(1);
       if (u.hostname.includes('youtube.com')) return u.searchParams.get('v');
     } catch {
       return null;
     }
     return null;
-  }, [url]);
+  }, [currentVideo]);
 
-  const { history, addToHistory, updateHistoryProgress, clearHistory } = useVideoHistory();
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
+  
+  // Set initial input value from history
+  useEffect(() => {
+    if (currentVideo) {
+      setUrlInput(currentVideo.url);
+    }
+  }, [currentVideo]);
+
+  const handleFetchTranscript = useCallback(async (urlToFetch?: string) => {
+    const url = (urlToFetch || urlInput).trim();
+    if (!url) return;
+
+    if (!user) {
+      toast({ title: t('toast:authErrorTitle'), description: t('toast:authErrorDesc'), variant: 'destructive' });
+      return;
+    }
+
+    if (!isValidYouTubeUrl(url)) {
+      setError('invalid_url');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setTranscriptResult(null);
+    setIsShadowingMode(false);
+    setCurrentPlayingLine(null);
+    setIsVideoPlaying(false);
+    setCompletedLinesCount(0);
+    setCorrectlyCompletedLines(new Set());
+    setOpenBoxIndex(0);
+
+    try {
+      const result = await getTranscriptFromUrl(url, user.uid);
+      if (!result || !result.transcript || result.transcript.length === 0) {
+        throw new Error('No transcript available for this video.');
+      }
+      setTranscriptResult(result);
+      const newHistoryItem = {
+        videoId: result.transcript[0]?.videoId || '',
+        url,
+        title: result.title,
+        thumbnail: result.thumbnail,
+        totalLines: result.transcript.length,
+      };
+      addToHistory(newHistoryItem); // This also sets it as currentVideo
+      toast({ title: 'Transcript Loaded', description: `Loaded ${result.transcript.length} lines from "${result.title}"` });
+    } catch (err: any) {
+      const msg = err?.message ?? 'An unknown error occurred. Please try again.';
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [urlInput, user, t, toast, addToHistory]);
+
+  // Load transcript for the current video from history on mount
+  useEffect(() => {
+    if (currentVideo && !transcriptResult && !isLoading) {
+      handleFetchTranscript(currentVideo.url);
+    }
+  }, [currentVideo, transcriptResult, isLoading, handleFetchTranscript]);
+
 
   useEffect(() => {
     if (!videoId) {
@@ -147,53 +209,6 @@ export default function ShadowingView() {
     localStorage.setItem('shadowing-checkMode', checkMode);
   }, [checkMode]);
 
-  const handleFetchTranscript = useCallback(async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    const trimmed = url.trim();
-    if (!trimmed) return;
-
-    if (!user) {
-      toast({ title: t('toast:authErrorTitle'), description: t('toast:authErrorDesc'), variant: 'destructive' });
-      return;
-    }
-
-    if (!isValidYouTubeUrl(trimmed)) {
-      setError('invalid_url');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setTranscriptResult(null);
-    setIsShadowingMode(false);
-    setCurrentPlayingLine(null);
-    setIsVideoPlaying(false);
-    setCompletedLinesCount(0);
-    setCorrectlyCompletedLines(new Set());
-    setOpenBoxIndex(0);
-
-    try {
-      const result = await getTranscriptFromUrl(url, user.uid);
-      if (!result || !result.transcript || result.transcript.length === 0) {
-        throw new Error('No transcript available for this video.');
-      }
-      setTranscriptResult(result);
-      toast({ title: 'Transcript Loaded', description: `Loaded ${result.transcript.length} lines from "${result.title}"` });
-      addToHistory({
-        videoId: videoId!,
-        url,
-        title: result.title,
-        thumbnail: result.thumbnail,
-        totalLines: result.transcript.length
-      });
-    } catch (err: any) {
-      const msg = err?.message ?? 'An unknown error occurred. Please try again.';
-      setError(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [url, user, t, toast, videoId, addToHistory]);
-
   const formatTime = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = Math.floor(seconds % 60).toString().padStart(2, '0');
@@ -238,14 +253,19 @@ export default function ShadowingView() {
   }, [tracking, updateProgress]);
 
   const handleHistoryItemClick = useCallback((item: any) => {
-    setUrl(item.url);
-    setTimeout(() => void handleFetchTranscript(), 100);
+    setUrlInput(item.url);
+    handleFetchTranscript(item.url);
   }, [handleFetchTranscript]);
 
   const handleClearHistory = useCallback(() => {
     clearHistory();
     toast({ title: 'History Cleared', description: 'All video history has been removed.' });
   }, [clearHistory, toast]);
+  
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleFetchTranscript();
+  };
 
   const wordsToDisplay = useMemo(() => tracking.getWordsNeedingAttention(), [tracking]);
   const progressPercentage = transcriptResult ? Math.round((completedLinesCount / transcriptResult.transcript.length) * 100) : 0;
@@ -261,20 +281,19 @@ export default function ShadowingView() {
     <>
       <Card>
         <CardContent className="p-3">
-          <form onSubmit={handleFetchTranscript} className="flex items-center gap-2">
+          <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
             <div className="relative flex-grow w-full">
               <Icon name="Youtube" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder={t('shadowing.urlPlaceholder')}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleFetchTranscript()}
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
                 className="font-body pl-9 h-10 transition-colors"
                 disabled={isLoading}
               />
             </div>
-            <Button type="submit" disabled={isLoading || !url} className="h-10 px-4 transition-colors">
+            <Button type="submit" disabled={isLoading || !urlInput} className="h-10 px-4 transition-colors">
               {isLoading ? (<><Icon name="Loader2" className="animate-spin h-4 w-4 mr-2" />{t('common:loading')}...</>) : t('shadowing.getTranscriptButton')}
             </Button>
           </form>
@@ -320,7 +339,7 @@ export default function ShadowingView() {
       
       if (error) {
         return (
-          <Alert variant="destructive" className="bg-background">
+          <Alert variant="destructive">
             <AlertTitle>{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle>
             <AlertDescription>{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription>
           </Alert>
