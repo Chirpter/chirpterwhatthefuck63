@@ -117,7 +117,7 @@ function VocabVideosView() {
     if (error && !selectedResult) {
       return (
         <div className="flex items-center justify-center h-full p-4">
-          <Alert variant="destructive" className="m-4 max-w-md">
+          <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         </div>

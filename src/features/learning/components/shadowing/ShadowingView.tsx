@@ -348,11 +348,11 @@ export default function ShadowingView() {
       const isInvalid = error === 'invalid_url';
       const isLimit = typeof error === 'string' && error.includes('limit');
       return (
-        <Alert variant="default" className="mt-6 border-destructive/50">
-          <AlertTitle className="font-heading text-destructive">
+        <Alert variant="destructive" className="mt-6">
+          <AlertTitle className="font-heading">
             {isInvalid ? 'Invalid YouTube URL' : isLimit ? 'Error Loading Transcript' : 'Could Not Get Transcript'}
           </AlertTitle>
-          <AlertDescription className="font-body text-destructive/90">
+          <AlertDescription className="font-body">
             {isInvalid ? (
               <div>
                 <p className="mb-3">The URL you entered is not a valid YouTube link.</p>
@@ -578,7 +578,7 @@ export default function ShadowingView() {
 
         {/* Transcript - NOW IN MIDDLE ON MOBILE */}
         <div className="px-4">
-          <Card className="bg-reader-grid">
+          <Card>
             <div className="p-3 flex-shrink-0">
               <div className="flex items-center justify-center gap-2">
                 <Button
