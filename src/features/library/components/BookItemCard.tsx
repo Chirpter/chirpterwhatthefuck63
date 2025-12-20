@@ -375,7 +375,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
                     </Badge>
                   )}
               </div>
-               <CardTitle className="text-body-base leading-snug truncate" title={titleToDisplay}>
+               <CardTitle className="text-headline-2 leading-snug truncate" title={titleToDisplay}>
                  {isReadable && !onPurchase ? (
                     <Link href={`/read/${book.id}`}>{titleToDisplay}</Link>
                   ) : (
