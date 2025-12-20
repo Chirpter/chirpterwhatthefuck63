@@ -155,11 +155,13 @@ function VocabVideosView() {
     const innerContent = () => {
       if (isLoading && !selectedResult) {
         return (
-          <div className="space-y-3">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-2/3" />
-          </div>
+          <AlertDescription>
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-2/3" />
+            </div>
+          </AlertDescription>
         );
       }
       
@@ -173,21 +175,27 @@ function VocabVideosView() {
       }
       
       if (selectedResult) {
-        return <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />;
+        return (
+          <AlertDescription>
+            <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />
+          </AlertDescription>
+        );
       }
       
       return (
-        <div className="text-center text-muted-foreground">
-          <div>
-            <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
+        <AlertDescription>
+          <div className="text-center text-muted-foreground">
+            <div>
+              <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
+            </div>
           </div>
-        </div>
+        </AlertDescription>
       );
     };
 
     return (
-      <Card className="flex flex-col h-full bg-reader-grid">
+      <Card className="flex flex-col h-full bg-background">
         <CardHeader className="p-3 border-b flex-shrink-0">
           <ControlBar
             onPrevious={handlePrevious}
@@ -202,15 +210,17 @@ function VocabVideosView() {
             totalRepeats={3}
           />
         </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-4" onMouseUp={handleSelectionWithContext}>
-          <div className="flex h-full items-start justify-center">
-            <Alert 
-              variant={error && !selectedResult ? 'destructive' : 'default'}
-              className="bg-card w-full"
-            >
-              {innerContent()}
-            </Alert>
-          </div>
+        <CardContent className="flex-1 min-h-0 p-0">
+          <ScrollArea className="h-full">
+            <div className="p-4" onMouseUp={handleSelectionWithContext}>
+              <Alert 
+                variant={error && !selectedResult ? 'destructive' : 'default'}
+                className="bg-card w-full"
+              >
+                {innerContent()}
+              </Alert>
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
     );
