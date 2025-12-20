@@ -94,6 +94,7 @@ export const useVideoHistory = () => {
     };
 
     setHistory(prev => {
+        // Find the video ID of the current Priority 1 item before making changes
         const oldPriority1VideoId = prev[0]?.videoId;
         
         // Remove existing item if it's already in the list to move it to the front
