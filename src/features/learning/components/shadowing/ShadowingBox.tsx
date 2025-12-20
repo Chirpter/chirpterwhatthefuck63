@@ -14,6 +14,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useToast } from '@/hooks/useToast';
 import WordBlockRenderer from './WordBlockRenderer';
 import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export interface ShadowingResult {
     isMatch: boolean;
@@ -328,7 +329,7 @@ export function ShadowingBox({
                         <div className="min-w-0">
                             {diffResult ? (
                                 <div className="space-y-2">
-                                    <div className="min-h-[80px] p-3 text-body-base leading-relaxed font-light border rounded-md bg-muted/30 overflow-auto whitespace-pre-wrap break-words">
+                                    <div className="min-h-[80px] p-3 text-body-base leading-relaxed font-light border rounded-md bg-background overflow-auto whitespace-pre-wrap break-words">
                                         <WordBlockRenderer text={userInput} diff={diffResult.user} hideMode="block" isRevealed={true}/>
                                     </div>
                                 </div>
@@ -366,11 +367,12 @@ export function ShadowingBox({
                     </div>
 
                     {!isSupported && (
-                        <div className="col-span-2 mt-2">
-                            <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 rounded border border-amber-200 dark:border-amber-800">
-                                Speech recognition not supported in your browser. Try Chrome or Edge.
-                            </div>
-                        </div>
+                        <Alert variant="destructive" className="mt-2 text-xs p-2">
+                            <Icon name="Mic" className="h-4 w-4" />
+                            <AlertDescription>
+                                Speech recognition not supported. Try Chrome or Edge.
+                            </AlertDescription>
+                        </Alert>
                     )}
                 </CollapsibleContent>
             </Collapsible>

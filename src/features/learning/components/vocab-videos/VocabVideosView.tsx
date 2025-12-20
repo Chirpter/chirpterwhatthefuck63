@@ -155,14 +155,43 @@ function VocabVideosView() {
 
   const renderContentPanel = () => {
     const renderContextState = () => {
-      if (isLoading && !selectedResult) return <div className="p-4 space-y-3"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-2/3" /></div>;
-      if (error && !selectedResult) return <div className="flex items-center justify-center h-full p-4"><Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert></div>;
-      if (selectedResult) return <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />;
-      return <div className="flex items-center justify-center h-full p-4 text-center text-muted-foreground"><div><Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" /><p className="text-body-base">{t('vocabVideos.searchPrompt')}</p></div></div>;
+      if (isLoading && !selectedResult) {
+        return (
+          <div className="p-4 space-y-3">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-2/3" />
+          </div>
+        );
+      }
+      if (error && !selectedResult) {
+        return (
+          <Alert variant="destructive" className="m-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        );
+      }
+      if (selectedResult) {
+        return (
+          <Card className="bg-background">
+            <CardContent className="p-3">
+              <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />
+            </CardContent>
+          </Card>
+        );
+      }
+      return (
+        <div className="flex items-center justify-center h-full p-4 text-center text-muted-foreground">
+          <div>
+            <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
+            <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
+          </div>
+        </div>
+      );
     };
 
     return (
-      <Card className="md:col-span-1 flex flex-col h-full bg-reader-grid">
+      <Card className="md:col-span-1 flex flex-col h-full bg-muted">
         <CardHeader className="p-3 border-b flex-shrink-0">
           <ControlBar
             onPrevious={handlePrevious}
@@ -178,7 +207,7 @@ function VocabVideosView() {
           />
         </CardHeader>
         <CardContent className="flex-1 min-h-0" onMouseUp={handleSelectionWithContext}>
-          <ScrollArea className="h-full p-4 prose-on-grid">
+          <ScrollArea className="h-full p-4">
             {renderContextState()}
           </ScrollArea>
         </CardContent>

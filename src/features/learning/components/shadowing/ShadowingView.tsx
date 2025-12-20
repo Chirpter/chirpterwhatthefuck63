@@ -317,7 +317,7 @@ export default function ShadowingView() {
               {transcriptResult.transcript.map((line, index) => {
                   if (index > completedLinesCount) return null;
                   return (
-                      <Card key={index} className={cn('transition-all duration-200 bg-reader-grid', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
+                      <Card key={index} className={cn('transition-all duration-200 bg-background', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
                           <CardContent className="p-3">
                               <ShadowingBox line={line.text} startTime={line.start} hideMode={hideMode} checkMode={checkMode} onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })} isCorrect={correctlyCompletedLines.has(index)} onPlay={() => handleBoxPlay(line.start, line.end, index)} onReveal={handleReveal} isPlaying={currentPlayingLine === index && isVideoPlaying} mode="shadowing" isOpen={openBoxIndex === index} onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)} disabled={index < completedLinesCount && correctlyCompletedLines.has(index)} />
                           </CardContent>
@@ -327,12 +327,12 @@ export default function ShadowingView() {
               {completedLinesCount >= transcriptResult.transcript.length && <div className="text-center py-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-800"><Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" /><h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">All Exercises Completed</h3><p className="text-body-base text-green-600 dark:text-green-300 mb-4">Great job! You have finished all shadowing exercises.</p></div>}
           </div>
       ) : (
-          <div className="space-y-3">{transcriptResult.transcript.map((line, index) => <Card key={index} className={cn('group/line transition-all duration-200 bg-reader-grid', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}><CardContent className="p-3"><div className="grid grid-cols-[40px_1fr] gap-3 items-start"><div className="flex flex-col items-center space-y-2"><div className="text-xs font-mono text-primary">{formatTime(line.start)}</div><Button variant="ghost" size="icon" onClick={() => handleBoxPlay(line.start, line.end, index)} className={cn('h-7 w-7 transition-colors', currentPlayingLine === index && isVideoPlaying ? 'text-red-600 bg-red-50' : 'text-foreground hover:text-red-600')}><Icon name={currentPlayingLine === index && isVideoPlaying ? 'Pause' : 'Play'} className="h-4 w-4" /></Button></div><div className="relative"><div className="text-body-base font-light">{line.text}</div></div></div></CardContent></Card>)}</div>
+          <div className="space-y-3">{transcriptResult.transcript.map((line, index) => <Card key={index} className={cn('group/line transition-all duration-200 bg-background', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}><CardContent className="p-3"><div className="grid grid-cols-[40px_1fr] gap-3 items-start"><div className="flex flex-col items-center space-y-2"><div className="text-xs font-mono text-primary">{formatTime(line.start)}</div><Button variant="ghost" size="icon" onClick={() => handleBoxPlay(line.start, line.end, index)} className={cn('h-7 w-7 transition-colors', currentPlayingLine === index && isVideoPlaying ? 'text-red-600 bg-red-50' : 'text-foreground hover:text-red-600')}><Icon name={currentPlayingLine === index && isVideoPlaying ? 'Pause' : 'Play'} className="h-4 w-4" /></Button></div><div className="relative"><div className="text-body-base font-light">{line.text}</div></div></div></CardContent></Card>)}</div>
       );
     };
 
     return (
-      <Card className="flex flex-col h-full bg-reader-grid">
+      <Card className="flex flex-col h-full bg-muted">
         <CardHeader className="p-3 flex-shrink-0">
           <div className="flex items-center justify-center gap-2">
             <Button variant={isShadowingMode ? 'default' : 'outline'} size="icon" onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} disabled={!transcriptResult} className="h-11 w-11 transition-colors" title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}><Icon name="Shadowing" className="h-5 w-5" /></Button>
