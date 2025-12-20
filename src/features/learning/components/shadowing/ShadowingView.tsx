@@ -30,7 +30,7 @@ import { ShadowingAnalysis } from './ShadowingAnalysis';
 import { useShadowingTracking } from '@/features/learning/hooks/useShadowingTracking';
 import { useVideoHistory } from '@/features/learning/hooks/useVideoHistory';
 import { ShadowingPlayer, type ShadowingPlayerHandle } from './ShadowingPlayer';
-import { LearningToolLayout } from '../layout/LearningToolLayout'; // ✅ IMPORT a shared layout
+import { VideoBasedLayout } from '../layout/VideoBasedLayout';
 
 // ... (các import và helper functions không thay đổi) ...
 const isValidYouTubeUrl = (url: string) => {
@@ -358,7 +358,7 @@ export default function ShadowingView() {
   );
 
   return (
-    <LearningToolLayout
+    <VideoBasedLayout
       pageTitle={renderPageTitle()}
       searchAndVideoPanel={renderSearchAndVideoPanel()}
       activityPanel={<ActivitiesPanel />}

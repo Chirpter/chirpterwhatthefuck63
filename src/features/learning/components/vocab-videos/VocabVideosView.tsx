@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useUser } from '@/contexts/user-context';
@@ -15,7 +15,7 @@ import { useMobile } from '@/hooks/useMobile';
 import type { Piece } from '@/lib/types';
 
 import { useVocabVideosContext } from '../../contexts/VocabVideosContext';
-import { LearningToolLayout } from '../layout/LearningToolLayout'; // ✅ IMPORT a shared layout
+import { VideoBasedLayout } from '../layout/VideoBasedLayout';
 import { VocabVideoPlayer, type VocabVideoPlayerHandle } from './VocabVideoPlayer';
 import { ControlBar } from './ControlBar';
 import { ContextSentences } from './ContextSentences';
@@ -205,7 +205,7 @@ function VocabVideosView() {
         sentenceContext={lookupState.sentenceContext}
         context={lookupState.context}
       />
-      <LearningToolLayout
+      <VideoBasedLayout
         pageTitle={renderPageTitle()}
         searchAndVideoPanel={renderSearchAndVideoPanel()}
         activityPanel={<ActivitiesPanel />}

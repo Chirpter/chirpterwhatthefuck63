@@ -1,4 +1,4 @@
-// src/features/learning/components/layout/LearningToolLayout.tsx
+// src/features/learning/components/layout/VideoBasedLayout.tsx
 "use client";
 
 import React from 'react';
@@ -6,7 +6,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface LearningToolLayoutProps {
+interface VideoBasedLayoutProps {
   pageTitle: React.ReactNode;
   searchAndVideoPanel: React.ReactNode;
   activityPanel: React.ReactNode;
@@ -15,10 +15,10 @@ interface LearningToolLayoutProps {
 }
 
 /**
- * A reusable layout component for learning tools (Shadowing, VocabVideos, etc.).
+ * A reusable layout component for video-based learning tools (Shadowing, VocabVideos, etc.).
  * It defines a consistent 3-column structure on desktop and a stacked layout on mobile.
  */
-export const LearningToolLayout: React.FC<LearningToolLayoutProps> = ({
+export const VideoBasedLayout: React.FC<VideoBasedLayoutProps> = ({
   pageTitle,
   searchAndVideoPanel,
   activityPanel,
