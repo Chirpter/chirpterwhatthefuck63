@@ -1,10 +1,11 @@
-
+// FILE 2: src/app/(app)/create/page.tsx - ULTRA SIMPLIFIED
+// ============================================================================
 "use client";
 
 import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // ✅ FIX: Import Tabs and TabsContent
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Icon } from '@/components/ui/icons';
 import { useUser } from '@/contexts/user-context';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
@@ -20,7 +21,7 @@ export default function CreatePage() {
     const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
     const { user } = useUser();
     const audioPlayer = useAudioPlayer();
-    const isPlayerVisible = !!audioPlayer.currentPlayingItem;
+    const audioPlayerHeight = audioPlayer.currentPlayingItem ? 68 : 0;
 
     const [activeTab, setActiveTab] = useState<'book' | 'piece'>('book');
     const job = useCreationJob({ type: activeTab });
@@ -31,73 +32,59 @@ export default function CreatePage() {
         job.reset(tabValue);
     }, [job]);
 
-    const pageTitle = t('createContentTitle');
     const { isBusy, validationMessage, canGenerate, creditCost, finalizedId, isRateLimited, formData } = job;
     const formId = "creation-form";
-
-    const submitButtonText = isRateLimited ? t('common:pleaseWait') : t('generateButton.default');
-    const showCreditBadge = !isBusy && !finalizedId && !isRateLimited;
-    const isSubmitDisabled = isBusy || !!validationMessage || !canGenerate || isRateLimited;
 
     const handleSubmitClick = () => {
         document.getElementById(formId)?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     };
 
+    const submitButtonText = isRateLimited ? t('common:pleaseWait') : t('generateButton.default');
+    const showCreditBadge = !isBusy && !finalizedId && !isRateLimited;
+    const isSubmitDisabled = isBusy || !!validationMessage || !canGenerate || isRateLimited;
+
     return (
         <>
             <CreationDebugPanel />
             
-            <div className="h-[calc(100vh-64px)] flex overflow-hidden">
+            {/* Container: Full height, flex layout */}
+            <div className="h-[calc(100vh-64px)] flex">
                 
-                {/* ============ SIDEBAR ============ */}
-                <aside className="w-full md:w-96 flex-shrink-0 bg-card md:border-r flex flex-col relative">
+                {/* Sidebar: Form + Button */}
+                <aside className="w-full md:w-96 flex-shrink-0 bg-card md:border-r flex flex-col">
                     
                     {/* Header */}
-                    <div className="flex-shrink-0 p-3 border-b">
+                    <div className="p-3 border-b flex-shrink-0">
                         <h2 className="text-lg md:text-xl font-headline font-semibold text-center md:text-left">
-                            {pageTitle}
+                            {t('createContentTitle')}
                         </h2>
                     </div>
                     
-                    {/* ✅ FIX: Wrap the entire tab section in the <Tabs> component */}
-                    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
+                    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col overflow-hidden">
                         {/* Tabs */}
-                        <div className="flex-shrink-0 p-3 md:p-4 border-b">
+                        <div className="p-3 md:p-4 border-b flex-shrink-0">
                             <TabsList className="grid w-full grid-cols-2 font-body h-9 md:h-10">
-                                <TabsTrigger 
-                                    value="book" 
-                                    className={cn(activeTab === 'book' && "data-[state=active]:bg-background")}
-                                >
+                                <TabsTrigger value="book">
                                     {t('tabs.book')}
                                 </TabsTrigger>
-                                <TabsTrigger 
-                                    value="piece" 
-                                    className={cn(activeTab === 'piece' && "data-[state=active]:bg-background")}
-                                >
+                                <TabsTrigger value="piece">
                                     {t('tabs.piece')}
                                 </TabsTrigger>
                             </TabsList>
                         </div>
 
-                        {/* ✅ FIX: Use TabsContent to wrap the form */}
-                        <TabsContent value={activeTab} className="flex-1 overflow-y-auto overscroll-contain mt-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-                            <div className="p-3 md:p-4 pb-32">
+                        {/* Scrollable Form Area */}
+                        <div className="flex-1 overflow-y-auto">
+                            <TabsContent value={activeTab} className="p-3 md:p-4 pb-32 mt-0">
                                 <CreationForm job={job} formId={formId} type={activeTab} />
-                            </div>
-                        </TabsContent>
+                            </TabsContent>
+                        </div>
                     </Tabs>
                     
-                    {/* ✅ FIX: Sticky button - CSS handles everything */}
+                    {/* Sticky Generate Button */}
                     <div 
-                        className={cn(
-                            "sticky border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80",
-                            "p-3 md:p-4 space-y-2 shadow-lg z-20 mt-auto" // Added mt-auto
-                        )}
-                        style={{
-                            // Dynamic bottom based on audio player
-                            bottom: isPlayerVisible ? '68px' : '0',
-                            transition: 'bottom 0.3s ease-in-out'
-                        }}
+                        className="sticky bg-card border-t p-3 md:p-4 space-y-2 mt-auto"
+                        style={{ bottom: `${audioPlayerHeight}px` }}
                     >
                         {!isBusy && validationMessage && (
                             <div className="flex items-center justify-center text-xs text-destructive font-medium">
@@ -108,7 +95,7 @@ export default function CreatePage() {
                         <Button 
                             type="button" 
                             onClick={handleSubmitClick} 
-                            className="w-full font-body h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground relative" 
+                            className="w-full h-10 md:h-11 relative" 
                             disabled={isSubmitDisabled}
                         >
                             {isBusy ? (
@@ -125,7 +112,7 @@ export default function CreatePage() {
                                 <>
                                     {submitButtonText}
                                     {showCreditBadge && user && (
-                                        <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full flex items-center justify-center text-xs shadow-md bg-secondary text-secondary-foreground">
+                                        <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full flex items-center justify-center text-xs bg-secondary text-secondary-foreground">
                                             {creditCost}
                                         </span>
                                     )}
@@ -135,8 +122,8 @@ export default function CreatePage() {
                     </div>
                 </aside>
                 
-                {/* ============ PREVIEW ============ */}
-                <main className="hidden md:flex flex-1 bg-muted/30 items-center justify-center p-4 overflow-hidden">
+                {/* Preview: Desktop only */}
+                <main className="hidden md:flex flex-1 bg-muted/30 items-center justify-center p-4">
                     {activeTab === 'book' ? (
                         <BookGenerationAnimation
                             isFormBusy={job.isBusy}

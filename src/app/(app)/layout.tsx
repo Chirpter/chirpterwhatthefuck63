@@ -1,4 +1,5 @@
-// FILE 1: src/app/(app)/layout.tsx - FIXED
+// ============================================================================
+// FILE 1: src/app/(app)/layout.tsx 
 // ============================================================================
 'use client';
 
@@ -83,15 +84,13 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
         return <InitialLoader message="Finalizing session..." />;
     }
 
-    // ✅ FIX: Create page handles its own layout completely
     const isCreatePage = pathname === '/create';
 
     return (
         <div className="flex flex-col min-h-screen">
             <AppHeader />
-            {/* ✅ FIX: Only add default padding for non-create pages */}
             <main className={cn(
-                "flex-1 bg-background relative",
+                "flex-1 bg-background",
                 !isCreatePage && "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
             )}>
                 {children}
