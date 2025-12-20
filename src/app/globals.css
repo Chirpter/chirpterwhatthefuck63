@@ -429,10 +429,10 @@
     
     .bg-reader-grid {
       background-color: hsl(var(--background));
-      /* ✅ UPDATED: Use the dedicated --grid-line-color variable */
+      /* ✅ UPDATED: Use the --border variable which is context-aware */
       background-image:
-          linear-gradient(to right, hsl(var(--grid-line-color)) 1px, transparent 1px),
-          linear-gradient(to bottom, hsl(var(--grid-line-color)) 1px, transparent 1px);
+          linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+          linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
       background-size: 20px 20px;
     }
 
@@ -959,14 +959,6 @@
   background-image: linear-gradient(transparent 95%, #ddd 95%);
   background-size: 100% 1.5em;
   line-height: 1.5em;
-}
-
-.bg-reader-grid {
-  background-color: hsl(var(--background));
-  background-image: 
-    linear-gradient(rgba(200, 200, 200, 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200, 200, 200, 0.3) 1px, transparent 1px);
-  background-size: 20px 20px;
 }
 
 .bg-reader-crumbled {
