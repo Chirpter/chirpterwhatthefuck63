@@ -1,4 +1,4 @@
-// src/app/(app)/create/page.tsx - FIXED LAYOUT
+// src/app/(app)/create/page.tsx - COMPLETELY FIXED
 "use client";
 
 import React, { useState, useCallback } from 'react';
@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Icon } from '@/components/ui/icons';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMobile } from '@/hooks/useMobile';
 import { useUser } from '@/contexts/user-context';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
@@ -45,6 +44,9 @@ export default function CreatePage() {
         document.getElementById(formId)?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     };
 
+    // Calculate button bottom position based on audio player
+    const buttonBottomClass = isPlayerVisible ? "bottom-[68px]" : "bottom-0";
+
     // Desktop Preview
     const renderDesktopPreview = () => (
         <main className="hidden md:flex flex-1 bg-muted/30 items-center justify-center p-4 overflow-hidden">
@@ -71,47 +73,56 @@ export default function CreatePage() {
     return (
         <>
             <CreationDebugPanel />
-            {/* ✅ Root container: Fixed height = viewport, no overflow */}
-            <div className="h-[calc(100vh-64px)] md:flex -mx-4 sm:-mx-6 md:mx-0 overflow-hidden">
+            
+            {/* ✅ Container: Fixed on mobile, relative on desktop */}
+            <div className="fixed inset-0 top-[64px] md:static md:h-[calc(100vh-64px)] md:flex -mx-4 sm:-mx-6 md:mx-0">
                 
-                {/* ✅ Sidebar: Fixed width, flex column layout */}
-                <aside className="w-full md:w-96 md:flex-shrink-0 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col h-full">
+                {/* ✅ Sidebar: Full height, internal scroll */}
+                <aside className="relative w-full md:w-96 md:flex-shrink-0 bg-card border-r-0 md:border-r shadow-lg z-10 h-full flex flex-col">
                     
-                    {/* Header - Fixed */}
-                    <div className="p-3 border-b flex-shrink-0">
+                    {/* Header - Fixed at top */}
+                    <div className="flex-shrink-0 p-3 border-b bg-card">
                         <h2 className="text-lg md:text-xl font-headline font-semibold text-center md:text-left">
                             {pageTitle}
                         </h2>
                     </div>
                     
-                    {/* Tabs Header - Fixed */}
-                    <Tabs onValueChange={handleTabChange} value={activeTab} className="flex flex-col flex-1 overflow-hidden">
-                        <div className="p-3 md:p-4 border-b flex-shrink-0">
-                            <TabsList className="grid w-full grid-cols-2 font-body h-9 md:h-10">
-                                <TabsTrigger value="book">{t('tabs.book')}</TabsTrigger>
-                                <TabsTrigger value="piece">{t('tabs.piece')}</TabsTrigger>
-                            </TabsList>
-                        </div>
+                    {/* Tabs - Fixed below header */}
+                    <div className="flex-shrink-0 p-3 md:p-4 border-b bg-card">
+                        <TabsList className="grid w-full grid-cols-2 font-body h-9 md:h-10">
+                            <TabsTrigger value="book" onClick={() => handleTabChange('book')}>
+                                {t('tabs.book')}
+                            </TabsTrigger>
+                            <TabsTrigger value="piece" onClick={() => handleTabChange('piece')}>
+                                {t('tabs.piece')}
+                            </TabsTrigger>
+                        </TabsList>
+                    </div>
 
-                        {/* ✅ Scrollable Form Area - Grows to fill space */}
-                        <div className="flex-1 overflow-y-auto">
-                            <div className="p-3 md:p-4">
-                                <CreationForm job={job} formId={formId} type={activeTab} />
-                            </div>
-                            {/* ✅ Spacer for fixed button - only on mobile */}
-                            <div className="h-[120px] md:h-0 flex-shrink-0" aria-hidden="true" />
+                    {/* ✅ Scrollable content area */}
+                    <div 
+                        className="flex-1 overflow-y-auto overscroll-contain"
+                        style={{
+                            // Reserve space for button: button height (44px/48px) + padding (12px*2) + validation (if any)
+                            paddingBottom: '120px'
+                        }}
+                    >
+                        <div className="p-3 md:p-4">
+                            <CreationForm job={job} formId={formId} type={activeTab} />
                         </div>
-                    </Tabs>
+                    </div>
                     
-                    {/* ✅ Generate Button - Fixed at bottom */}
+                    {/* ✅ Fixed button at bottom of sidebar */}
                     <div className={cn(
-                        "fixed bottom-0 left-0 right-0 md:left-0 md:right-auto md:w-96",
-                        "p-3 md:p-4 border-t bg-card space-y-2 z-20",
-                        "transition-[bottom] duration-300 ease-in-out",
-                        isPlayerVisible ? "md:bottom-[68px]" : "md:bottom-0"
+                        "absolute left-0 right-0 p-3 md:p-4 bg-card border-t shadow-lg z-20",
+                        "transition-bottom duration-300",
+                        // Mobile: always at bottom of screen
+                        "md:bottom-0",
+                        // Desktop: adjust for audio player
+                        `md:${buttonBottomClass}`
                     )}>
                         {!isBusy && validationMessage && (
-                            <div className="flex items-center justify-center text-xs text-destructive font-medium">
+                            <div className="flex items-center justify-center text-xs text-destructive font-medium mb-2">
                                 <Icon name="Info" className="mr-1 h-3.5 w-3.5" />
                                 {t(validationMessage)}
                             </div>
@@ -146,7 +157,7 @@ export default function CreatePage() {
                     </div>
                 </aside>
                 
-                {/* ✅ Preview - Takes remaining space, no overflow */}
+                {/* ✅ Preview area */}
                 {renderDesktopPreview()}
             </div>
         </>
