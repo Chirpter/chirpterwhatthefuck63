@@ -88,16 +88,16 @@ export default function CreatePage() {
                     </div>
                     
                     {/* Tabs - Fixed below header */}
-                    <div className="flex-shrink-0 p-3 md:p-4 border-b bg-card">
+                    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-shrink-0 p-3 md:p-4 border-b bg-card">
                         <TabsList className="grid w-full grid-cols-2 font-body h-9 md:h-10">
-                            <TabsTrigger value="book" onClick={() => handleTabChange('book')}>
+                            <TabsTrigger value="book">
                                 {t('tabs.book')}
                             </TabsTrigger>
-                            <TabsTrigger value="piece" onClick={() => handleTabChange('piece')}>
+                            <TabsTrigger value="piece">
                                 {t('tabs.piece')}
                             </TabsTrigger>
                         </TabsList>
-                    </div>
+                    </Tabs>
 
                     {/* ✅ Scrollable content area */}
                     <div 
