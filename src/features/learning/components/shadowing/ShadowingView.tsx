@@ -396,9 +396,8 @@ export default function ShadowingView() {
             
             return (
               <Card key={index} className={cn(
-                'transition-all duration-200 bg-card/80',
-                isPlaying && 'ring-2 ring-red-500 ring-opacity-50',
-                isCompleted && 'opacity-70'
+                'transition-all duration-200',
+                isPlaying && 'ring-2 ring-red-500 ring-opacity-50'
               )}>
                 <CardContent className="p-3">
                   <ShadowingBox
@@ -442,7 +441,7 @@ export default function ShadowingView() {
           const isPlaying = currentPlayingLine === index && isVideoPlaying;
           return (
             <Card key={index} className={cn(
-              'group/line transition-all duration-200 bg-card/80',
+              'group/line transition-all duration-200',
               isPlaying && 'ring-2 ring-red-500 ring-opacity-50'
             )}>
               <CardContent className="p-3">
