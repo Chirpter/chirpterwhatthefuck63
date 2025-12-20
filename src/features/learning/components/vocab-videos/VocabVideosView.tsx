@@ -152,10 +152,10 @@ function VocabVideosView() {
   );
 
   const renderContentPanel = () => {
-    const renderCardInnerContent = () => {
+    const renderInnerContent = () => {
       if (isLoading && !selectedResult) {
         return (
-          <div className="p-4 space-y-3">
+          <div className="space-y-3">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-2/3" />
@@ -165,7 +165,7 @@ function VocabVideosView() {
       
       if (error && !selectedResult) {
         return (
-          <Alert variant="destructive" className="m-0 bg-transparent border-none text-destructive">
+          <Alert variant="destructive" className="bg-background">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         );
@@ -176,7 +176,7 @@ function VocabVideosView() {
       }
       
       return (
-        <div className="flex items-center justify-center h-full text-center text-muted-foreground p-4">
+        <div className="text-center text-muted-foreground">
           <div>
             <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
@@ -202,9 +202,9 @@ function VocabVideosView() {
           />
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-4" onMouseUp={handleSelectionWithContext}>
-          <Card className="bg-card h-full">
-            <CardContent className="p-3 min-h-[5rem] h-full flex items-center justify-center">
-              {renderCardInnerContent()}
+          <Card className="bg-card h-full flex flex-col">
+            <CardContent className="p-3 flex-1 flex items-center justify-center">
+              {renderInnerContent()}
             </CardContent>
           </Card>
         </CardContent>
