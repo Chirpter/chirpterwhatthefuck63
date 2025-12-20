@@ -40,7 +40,7 @@ const ProductCard: React.FC<{
       <p>{description}</p>
     </CardContent>
     <CardFooter>
-      <Button className="w-full" onClick={onPurchase}>
+      <Button className="w-full text-body-base" onClick={onPurchase}>
         {price}
       </Button>
     </CardFooter>
@@ -240,7 +240,7 @@ export default function ShopView() {
         <AlertDialog open={!!itemToPurchase} onOpenChange={(open) => !open && setItemToPurchase(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t('shopPage:confirmPurchaseTitle')}</AlertDialogTitle>
+              <AlertDialogTitle className="text-headline-2">{t('shopPage:confirmPurchaseTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t('shopPage:confirmPurchaseDesc', { 
                   title: itemToPurchase.name || (itemToPurchase as Book).title[(itemToPurchase as Book).origin.split('-')[0]], 
@@ -303,7 +303,7 @@ export function ExploreView() {
           <h3 className="text-headline-2 mb-2">
             {t('explorePage:noBooksFound')}
           </h3>
-          <p className="text-body-base max-w-md">
+          <p className="text-body-sm max-w-md">
             {t('explorePage:noBooksHint')}
           </p>
         </div>

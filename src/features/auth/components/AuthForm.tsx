@@ -83,10 +83,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isSignUp, onSubmit, isSignin
                     <Input id="confirm-password" type="password" placeholder="••••••••" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} disabled={isSigningIn} autoComplete="new-password" />
                 </div>
             )}
-            {displayError && <p className="text-sm text-destructive text-center">{displayError}</p>}
+            {displayError && <p className="text-caption text-destructive text-center">{displayError}</p>}
             <Button 
               type="submit" 
-              className="w-full font-body" 
+              className="w-full text-body-base" 
               disabled={!canSubmit}
             >
                 {isSigningIn ? <Icon name="Loader2" className="animate-spin mr-2 h-4 w-4" /> : null}

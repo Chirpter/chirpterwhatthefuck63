@@ -157,32 +157,32 @@ export const AdminBookForm: React.FC<AdminBookFormProps> = ({ isOpen, onOpenChan
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] font-body">
         <DialogHeader>
-          <DialogTitle className="font-headline">{initialData ? 'Edit Global Book' : 'Add New Global Book'}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-headline-1">{initialData ? 'Edit Global Book' : 'Add New Global Book'}</DialogTitle>
+          <DialogDescription className="text-body-sm">
             Fill in the details for the system-wide book. Content must be a valid JSON array of Chapters.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
           
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">Title</Label>
+            <Label htmlFor="title" className="text-right text-body-sm">Title</Label>
             <Input id="title" {...register('title')} className="col-span-3" />
             {errors.title && <p className="col-span-4 text-right text-xs text-destructive">{errors.title.message}</p>}
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="author" className="text-right">Author</Label>
+            <Label htmlFor="author" className="text-right text-body-sm">Author</Label>
             <Input id="author" {...register('author')} className="col-span-3" />
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="price" className="text-right">Price (Credits)</Label>
+            <Label htmlFor="price" className="text-right text-body-sm">Price (Credits)</Label>
             <Input id="price" type="number" {...register('price')} className="col-span-3" />
             {errors.price && <p className="col-span-4 text-right text-xs text-destructive">{errors.price.message}</p>}
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Languages</Label>
+            <Label className="text-right text-body-sm">Languages</Label>
             <div className="col-span-3 space-y-2">
                 <div className="flex items-center space-x-2">
                     <Controller
@@ -220,7 +220,7 @@ export const AdminBookForm: React.FC<AdminBookFormProps> = ({ isOpen, onOpenChan
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="tags" className="text-right">Tags</Label>
+                <Label htmlFor="tags" className="text-right text-body-sm">Tags</Label>
                 <div className="col-span-3">
                     <div className="flex gap-2">
                         <Input id="tags" value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="e.g., van-hoc-viet-nam" />
@@ -240,7 +240,7 @@ export const AdminBookForm: React.FC<AdminBookFormProps> = ({ isOpen, onOpenChan
           </div>
           
            <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Cover Image</Label>
+            <Label className="text-right text-body-sm">Cover Image</Label>
             <div className="col-span-3">
                 <Controller
                     name="coverImageOption"
@@ -263,7 +263,7 @@ export const AdminBookForm: React.FC<AdminBookFormProps> = ({ isOpen, onOpenChan
 
 
           <div className="grid grid-cols-4 gap-4">
-            <Label htmlFor="content" className="text-right pt-2">Content (JSON)</Label>
+            <Label htmlFor="content" className="text-right pt-2 text-body-sm">Content (JSON)</Label>
             <Textarea id="content" {...register('content')} className="col-span-3 h-48 font-mono" />
             {errors.content && <p className="col-span-4 text-right text-xs text-destructive">{errors.content.message}</p>}
           </div>

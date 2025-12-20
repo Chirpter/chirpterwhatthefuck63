@@ -114,8 +114,8 @@ export default function PlaylistView() {
         <Card className="w-full max-w-lg text-center shadow-lg">
           <CardHeader className="pt-10">
               <Icon name="ListMusic" className="mx-auto h-16 w-16 text-primary mb-4" />
-              <CardTitle className="font-headline text-2xl">{t('emptyPlaylist')}</CardTitle>
-              <CardDescription className="font-body max-w-sm mx-auto">
+              <CardTitle className="text-headline-1">{t('emptyPlaylist')}</CardTitle>
+              <CardDescription className="text-body-base max-w-sm mx-auto">
               {t('emptyPlaylistHint')}
               </CardDescription>
           </CardHeader>
@@ -138,7 +138,7 @@ export default function PlaylistView() {
             <Card className="md:col-span-1 bg-card flex flex-col h-[calc(100vh-140px)] overflow-hidden">
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start">
-                        <CardTitle className="font-headline text-xl md:text-2xl">{t('pageTitle')}</CardTitle>
+                        <CardTitle className="text-headline-1">{t('pageTitle')}</CardTitle>
                         <div className="flex items-center gap-1">
                             <TooltipProvider>
                                <Tooltip>
@@ -165,7 +165,7 @@ export default function PlaylistView() {
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                             <AlertDialogHeader>
-                                                <AlertDialogTitle>{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
+                                                <AlertDialogTitle className="text-headline-2">{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
                                                 <AlertDialogDescription>{t('clearPlaylistConfirmation')}</AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
@@ -230,9 +230,9 @@ export default function PlaylistView() {
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 grid grid-cols-1">
-                                            <p className={cn("font-semibold truncate", isSelected ? "text-primary" : "text-foreground")}>{itemTitle}</p>
-                                            {isBook && <p className="text-sm text-muted-foreground truncate">{bookData?.author}</p>}
-                                            {!isBook && <p className="text-sm text-muted-foreground truncate">{t('vocabFolder')}</p>}
+                                            <p className={cn("font-semibold truncate text-body-base", isSelected ? "text-primary" : "text-foreground")}>{itemTitle}</p>
+                                            {isBook && <p className="text-body-sm">{bookData?.author}</p>}
+                                            {!isBook && <p className="text-body-sm">{t('vocabFolder')}</p>}
                                         </div>
                                         <div className="flex-shrink-0 flex items-center">
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => handlePlayFromPlaylist(item, e)}>
@@ -259,7 +259,7 @@ export default function PlaylistView() {
         <AlertDialog open={!!itemToRemove} onOpenChange={() => setItemToRemove(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
+              <AlertDialogTitle className="text-headline-2">{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t('removeFromPlaylistConfirmation', { title: itemToRemove.title })}
               </AlertDialogDescription>

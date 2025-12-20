@@ -141,7 +141,7 @@ export default function LoginView() {
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex items-center gap-2">
             <Logo className="h-10 w-10 text-primary" />
-            <h1 className="text-4xl font-headline font-bold text-primary">Chirpter</h1>
+            <h1 className="text-display text-primary">Chirpter</h1>
           </div>
         </CardHeader>
         <CardContent>
@@ -199,7 +199,7 @@ export default function LoginView() {
           <div className="space-y-2">
             <Button 
               onClick={handleGoogleSignIn} 
-              className="w-full font-body gap-2" 
+              className="w-full text-body-base gap-2" 
               variant="outline" 
               disabled={isOverallBusy}
             >

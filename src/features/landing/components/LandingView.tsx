@@ -23,8 +23,8 @@ const FeatureCard = ({ icon, title, description, gradient }: { icon: any, title:
         <div className={cn("w-14 h-14 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300", gradient)}>
           <IconComponent className="w-7 h-7 text-white" />
         </div>
-        <h3 className="text-xl font-bold">{title}</h3>
-        <p className="text-gray-400 leading-relaxed">{description}</p>
+        <h3 className="text-headline-2">{title}</h3>
+        <p className="text-body-sm leading-relaxed">{description}</p>
         <div className="flex items-center gap-2 text-sm text-yellow-400 opacity-0 group-hover:opacity-100 transition-opacity">
           Learn more
           <Icon name="ArrowRight" className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -84,10 +84,10 @@ export default function LandingPageV2() {
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
-              <a href="#demo" className="text-gray-300 hover:text-white transition-colors">Demo</a>
-              <Button variant="link" asChild><Link href="/login" className="text-gray-300 hover:text-white">Login</Link></Button>
-              <Button asChild className="px-6 py-2 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg shadow-red-500/50 text-white"><Link href="/login">Get Started Free</Link></Button>
+              <a href="#features" className="text-body-sm hover:text-white transition-colors">Features</a>
+              <a href="#demo" className="text-body-sm hover:text-white transition-colors">Demo</a>
+              <Button variant="link" asChild><Link href="/login" className="text-body-sm hover:text-white">Login</Link></Button>
+              <Button asChild className="px-6 py-2 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg shadow-red-500/50 text-white text-body-base"><Link href="/login">Get Started Free</Link></Button>
             </nav>
 
             {/* Mobile Menu Button */}
@@ -101,10 +101,10 @@ export default function LandingPageV2() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-slate-900/95 backdrop-blur-lg border-t border-slate-800">
             <nav className="container mx-auto px-6 py-6 flex flex-col gap-4">
-              <a href="#features" className="text-gray-300 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
-              <a href="#demo" className="text-gray-300 hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Demo</a>
-              <Button variant="ghost" asChild><Link href="/login" className="text-gray-300 hover:text-white text-left justify-start">Login</Link></Button>
-              <Button asChild className="px-6 py-3 bg-gradient-to-r from-red-600 to-yellow-600 rounded-lg font-semibold text-white"><Link href="/login">Get Started Free</Link></Button>
+              <a href="#features" className="text-body-base hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
+              <a href="#demo" className="text-body-base hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Demo</a>
+              <Button variant="ghost" asChild><Link href="/login" className="text-body-base hover:text-white text-left justify-start">Login</Link></Button>
+              <Button asChild className="px-6 py-3 bg-gradient-to-r from-red-600 to-yellow-600 rounded-lg font-semibold text-white text-body-lg"><Link href="/login">Get Started Free</Link></Button>
             </nav>
           </div>
         )}
@@ -122,8 +122,8 @@ export default function LandingPageV2() {
               <h1 className="text-display leading-tight">Your Ideas,<br /><span className="bg-gradient-to-r from-red-500 via-yellow-400 to-fuchsia-500 bg-clip-text text-transparent animate-gradient">Amplified by AI</span></h1>
               <p className="text-body-lg text-gray-400 leading-relaxed max-w-xl">Create captivating bilingual books, master new languages through interactive stories, and bring your imagination to life with AI-powered tools.</p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" asChild className="group px-8 py-4 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-2xl shadow-red-500/50 text-white text-base h-auto"><Link href="/login">Start Creating Now <Icon name="ArrowRight" className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></Link></Button>
-                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all backdrop-blur-sm text-white text-base h-auto"><Icon name="Play" className="w-5 h-5" />Watch Demo</Button>
+                <Button size="lg" asChild className="group px-8 py-4 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-2xl shadow-red-500/50 text-white text-body-lg h-auto"><Link href="/login">Start Creating Now <Icon name="ArrowRight" className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></Link></Button>
+                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all backdrop-blur-sm text-white text-body-lg h-auto"><Icon name="Play" className="w-5 h-5" />Watch Demo</Button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8">
                 {stats.map((stat, idx) => (
@@ -227,8 +227,8 @@ export default function LandingPageV2() {
               <h2 className="text-5xl md:text-6xl font-bold">Ready to Create?</h2>
               <p className="text-xl text-white/80">Join thousands of creators and start your next masterpiece today. It's free to get started.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button size="lg" asChild className="group px-8 py-4 bg-white text-red-600 hover:bg-gray-100 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-2xl h-auto"><Link href="/login">Sign Up for Free <Icon name="Check" className="w-5 h-5 group-hover:scale-110 transition-transform" /></Link></Button>
-                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl font-bold text-lg transition-all text-white h-auto">Contact Sales</Button>
+                <Button size="lg" asChild className="group px-8 py-4 bg-white text-red-600 hover:bg-gray-100 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-2xl h-auto text-body-lg"><Link href="/login">Sign Up for Free <Icon name="Check" className="w-5 h-5 group-hover:scale-110 transition-transform" /></Link></Button>
+                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl font-bold text-lg transition-all text-white h-auto text-body-lg">Contact Sales</Button>
               </div>
               <p className="text-caption text-white/60 pt-4">✓ No credit card required  ✓ Free forever plan  ✓ Cancel anytime</p>
             </div>
@@ -250,7 +250,7 @@ export default function LandingPageV2() {
               <p className="text-body-sm">Your AI co-pilot for creation and learning.</p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Product</h4>
+              <h4 className="font-semibold mb-4 text-body-base">Product</h4>
               <ul className="space-y-2 text-body-sm">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
@@ -258,7 +258,7 @@ export default function LandingPageV2() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Company</h4>
+              <h4 className="font-semibold mb-4 text-body-base">Company</h4>
               <ul className="space-y-2 text-body-sm">
                 <li><a href="#about" className="hover:text-white transition-colors">About</a></li>
                 <li><a href="#blog" className="hover:text-white transition-colors">Blog</a></li>
@@ -266,7 +266,7 @@ export default function LandingPageV2() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
+              <h4 className="font-semibold mb-4 text-body-base">Legal</h4>
               <ul className="space-y-2 text-body-sm">
                 <li><a href="/privacy" className="hover:text-white transition-colors">Privacy</a></li>
                 <li><a href="#terms" className="hover:text-white transition-colors">Terms</a></li>

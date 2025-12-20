@@ -29,7 +29,7 @@ export function NowPlayingCard({ item, onRemove, onPlay }: { item: TPlaylistItem
      return (
       <div className="text-center text-muted-foreground p-4">
           <Icon name="ListMusic" className="mx-auto h-12 w-12 mb-2" />
-          <p>{t('nowPlaying.selectItem')}</p>
+          <p className="text-body-base">{t('nowPlaying.selectItem')}</p>
       </div>
     );
   }
@@ -101,9 +101,9 @@ export function NowPlayingCard({ item, onRemove, onPlay }: { item: TPlaylistItem
       >
           {renderVisuals()}
           <div>
-              <h3 className="text-2xl font-headline font-bold">{itemTitle}</h3>
-              {isBook && <p className="text-muted-foreground font-body">{t('bookCard:byAuthor', { author: itemAuthor })}</p>}
-              {!isBook && <p className="text-sm text-muted-foreground font-body">{t('vocabFolder')}</p>}
+              <h3 className="text-headline-1">{itemTitle}</h3>
+              {isBook && <p className="text-body-sm">{t('bookCard:byAuthor', { author: itemAuthor })}</p>}
+              {!isBook && <p className="text-body-sm">{t('vocabFolder')}</p>}
           </div>
           <div className="flex items-center gap-4">
               <Button onClick={handlePlayPauseFromPlaylist} size="lg" className="rounded-full h-16 w-16 p-0 shadow-lg">
@@ -117,7 +117,7 @@ export function NowPlayingCard({ item, onRemove, onPlay }: { item: TPlaylistItem
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                       <AlertDialogHeader>
-                      <AlertDialogTitle>{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
+                      <AlertDialogTitle className="text-headline-2">{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
                       <AlertDialogDescription>
                           {t('removeFromPlaylistConfirmation', { title: itemTitle })}
                       </AlertDialogDescription>

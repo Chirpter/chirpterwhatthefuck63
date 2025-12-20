@@ -58,7 +58,7 @@ const AchievementAdminCard: React.FC<{achievement: Achievement}> = ({ achievemen
                 <Icon name={achievement.icon} className="h-full w-full text-primary" />
             </div>
             <div className="flex-grow min-w-0">
-                <p className="font-semibold truncate">{t(achievement.nameKey)}</p>
+                <p className="font-semibold truncate text-body-base">{t(achievement.nameKey)}</p>
                 <div className="flex items-center gap-1 mt-1">
                     {achievement.tiers.map(tier => (
                         <TooltipProvider key={tier.level}>
@@ -67,7 +67,7 @@ const AchievementAdminCard: React.FC<{achievement: Achievement}> = ({ achievemen
                                      <Badge variant="outline">{tier.goal}</Badge>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Level {tier.level}: {tier.creditReward} credits</p>
+                                    <p className="text-caption">Level {tier.level}: {tier.creditReward} credits</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -142,8 +142,8 @@ export default function AdminView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
             <CardHeader>
-                <CardTitle>Achievements Management</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-headline-2">Achievements Management</CardTitle>
+                <CardDescription className="text-body-sm">
                     Assign bookmark rewards to achievements.
                 </CardDescription>
             </CardHeader>
@@ -156,8 +156,8 @@ export default function AdminView() {
         <Card>
             <CardHeader className="flex flex-row justify-between items-center">
                 <div>
-                    <CardTitle>Bookmarks Management</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-headline-2">Bookmarks Management</CardTitle>
+                    <CardDescription className="text-body-sm">
                         Configure how system-wide bookmarks are obtained and priced.
                     </CardDescription>
                 </div>
@@ -194,8 +194,8 @@ export default function AdminView() {
       <Card>
         <CardHeader className="flex flex-row justify-between items-center">
           <div>
-            <CardTitle>Global Books Management</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-headline-2">Global Books Management</CardTitle>
+            <CardDescription className="text-body-sm">
                 Add, edit, or remove books from the system-wide store.
             </CardDescription>
           </div>

@@ -27,8 +27,8 @@ const ErrorView = ({ onRetry }: { onRetry: () => void }) => {
     <Card className="mt-8 text-center">
       <CardHeader>
         <Icon name="AlertCircle" className="mx-auto h-12 w-12 text-destructive" />
-        <CardTitle>{t('error')}</CardTitle>
-        <p className="text-muted-foreground">{t('genericError')}</p>
+        <CardTitle className="text-headline-1">{t('error')}</CardTitle>
+        <p className="text-body-base">{t('genericError')}</p>
         <Button onClick={onRetry} className="mt-4">{t('retry')}</Button>
       </CardHeader>
     </Card>

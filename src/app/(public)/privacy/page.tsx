@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
         <div className="container mx-auto flex justify-between items-center">
            <Link href="/" className="flex items-center gap-3 group cursor-pointer">
               <Logo className="w-10 h-10 text-primary" />
-              <span className="text-2xl font-bold font-headline text-primary">Chirpter</span>
+              <span className="text-headline-2 font-bold text-primary">Chirpter</span>
             </Link>
              <Button variant="outline" asChild>
                 <Link href="/login">Back to App</Link>
@@ -70,7 +70,7 @@ export default function PrivacyPolicyPage() {
           <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page. We encourage you to review this Privacy Policy periodically for any changes.</p>
 
           <h2>7. Contact Us</h2>
-          <p>If you have any questions about this Privacy Policy, please contact us at support@chirpter.com.</p>
+          <p>If you have any questions about this PrivacyPolicy, please contact us at support@chirpter.com.</p>
         </article>
       </main>
     </div>

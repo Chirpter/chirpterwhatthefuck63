@@ -78,7 +78,7 @@ const StatusChangeDialog: React.FC<StatusChangeDialogProps> = ({ isOpen, onOpenC
         <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Change Bookmark Status</AlertDialogTitle>
+                    <AlertDialogTitle className="text-headline-2">Change Bookmark Status</AlertDialogTitle>
                     <AlertDialogDescription>
                         Select a new status. To confirm, you must type the name of the new status. This is a critical action.
                     </AlertDialogDescription>
@@ -208,14 +208,14 @@ export const AdminBookmarkForm: React.FC<AdminBookmarkFormProps> = ({ isOpen, on
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] font-body">
         <DialogHeader>
-          <DialogTitle className="font-headline">Edit Bookmark Metadata</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-headline-2">Edit Bookmark Metadata</DialogTitle>
+          <DialogDescription className="text-body-sm">
             Configure how this bookmark ({initialData?.name}) is accessed by users.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Status</Label>
+              <Label className="text-right text-body-sm">Status</Label>
               <div className="col-span-3 flex items-center justify-between">
                 <div className={cn("px-2.5 py-0.5 text-xs font-semibold rounded-full border", statusColorClasses[initialData?.status || 'unpublished'])}>
                     {initialData?.status || 'unpublished'}
@@ -227,7 +227,7 @@ export const AdminBookmarkForm: React.FC<AdminBookmarkFormProps> = ({ isOpen, on
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="unlockType" className="text-right">Unlock Type</Label>
+            <Label htmlFor="unlockType" className="text-right text-body-sm">Unlock Type</Label>
             <Controller
               name="unlockType"
               control={control}
@@ -245,13 +245,13 @@ export const AdminBookmarkForm: React.FC<AdminBookmarkFormProps> = ({ isOpen, on
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="price" className="text-right">Price (Credits)</Label>
+            <Label htmlFor="price" className="text-right text-body-sm">Price (Credits)</Label>
             <Input id="price" type="number" {...register('price')} className="col-span-3" />
             {errors.price && <p className="col-span-4 text-right text-xs text-destructive">{errors.price.message}</p>}
           </div>
 
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right pt-2">Availability</Label>
+            <Label className="text-right pt-2 text-body-sm">Availability</Label>
              <div className="col-span-3 space-y-2">
                  <Controller
                   name="releaseDate"
