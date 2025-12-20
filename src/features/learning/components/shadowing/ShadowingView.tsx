@@ -30,18 +30,9 @@ import { ShadowingAnalysis } from './ShadowingAnalysis';
 import { useShadowingTracking } from '@/features/learning/hooks/useShadowingTracking';
 import { useVideoHistory } from '@/features/learning/hooks/useVideoHistory';
 import { ShadowingPlayer, type ShadowingPlayerHandle } from './ShadowingPlayer';
-import { useMobile } from '@/hooks/useMobile';
+import { LearningToolLayout } from '../layout/LearningToolLayout'; // ✅ IMPORT a shared layout
 
-interface HistoryItem {
-  videoId: string;
-  url: string;
-  title: string;
-  thumbnail?: string;
-  totalLines?: number;
-  progress?: number[];
-  lastAccessed?: number;
-}
-
+// ... (các import và helper functions không thay đổi) ...
 const isValidYouTubeUrl = (url: string) => {
   const trimmed = url.trim();
   if (!trimmed) return false;
@@ -58,7 +49,6 @@ export default function ShadowingView() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
   const { toast } = useToast();
   const { user } = useUser();
-  const isMobile = useMobile();
 
   const [url, setUrl] = useState('');
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
@@ -90,17 +80,14 @@ export default function ShadowingView() {
   }, [url]);
 
   const { history, addToHistory, updateHistoryProgress, clearHistory } = useVideoHistory();
-  
   const tracking = useShadowingTracking(videoId);
-
   const [progress, setProgress] = useState<number[]>([]);
-  
+
   useEffect(() => {
     if (!videoId) {
       setProgress([]);
       return;
     }
-    
     try {
       const saved = localStorage.getItem(`shadowing-progress-${videoId}`);
       setProgress(saved ? JSON.parse(saved) : []);
@@ -112,10 +99,8 @@ export default function ShadowingView() {
 
   const updateProgress = useCallback((lineIndex: number) => {
     if (!videoId) return;
-    
     setProgress(prev => {
       if (prev.includes(lineIndex)) return prev;
-      
       const next = Array.from(new Set([...prev, lineIndex])).sort((a, b) => a - b);
       try {
         localStorage.setItem(`shadowing-progress-${videoId}`, JSON.stringify(next));
@@ -124,16 +109,6 @@ export default function ShadowingView() {
       }
       return next;
     });
-  }, [videoId]);
-
-  const clearProgress = useCallback(() => {
-    if (!videoId) return;
-    setProgress([]);
-    try {
-      localStorage.removeItem(`shadowing-progress-${videoId}`);
-    } catch (e) {
-      console.error(e);
-    }
   }, [videoId]);
 
   useEffect(() => {
@@ -150,11 +125,9 @@ export default function ShadowingView() {
 
   useEffect(() => {
     if (!videoId || progress.length === 0) return;
-    
     const timer = setTimeout(() => {
       updateHistoryProgress(videoId, progress);
     }, 1000);
-    
     return () => clearTimeout(timer);
   }, [videoId, progress.length, updateHistoryProgress]);
 
@@ -164,9 +137,7 @@ export default function ShadowingView() {
       if (saved) setHideMode(saved as 'block' | 'blur' | 'hidden');
       const savedCheck = localStorage.getItem('shadowing-checkMode');
       if (savedCheck) setCheckMode(savedCheck as 'strict' | 'gentle');
-    } catch (e) {
-      // Ignore
-    }
+    } catch (e) {}
   }, []);
 
   useEffect(() => {
@@ -177,28 +148,13 @@ export default function ShadowingView() {
     localStorage.setItem('shadowing-checkMode', checkMode);
   }, [checkMode]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
-        e.preventDefault();
-        if (transcriptResult) setIsShadowingMode(prev => !prev);
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [transcriptResult]);
-
   const handleFetchTranscript = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
     const trimmed = url.trim();
     if (!trimmed) return;
 
     if (!user) {
-      toast({
-        title: t('toast:authErrorTitle'),
-        description: t('toast:authErrorDesc'),
-        variant: 'destructive'
-      });
+      toast({ title: t('toast:authErrorTitle'), description: t('toast:authErrorDesc'), variant: 'destructive' });
       return;
     }
 
@@ -222,16 +178,10 @@ export default function ShadowingView() {
       if (!result || !result.transcript || result.transcript.length === 0) {
         throw new Error('No transcript available for this video.');
       }
-
       setTranscriptResult(result);
-      toast({
-        title: 'Transcript Loaded',
-        description: `Loaded ${result.transcript.length} lines from "${result.title}"`
-      });
-
-      const vid = videoId!;
+      toast({ title: 'Transcript Loaded', description: `Loaded ${result.transcript.length} lines from "${result.title}"` });
       addToHistory({
-        videoId: vid,
+        videoId: videoId!,
         url,
         title: result.title,
         thumbnail: result.thumbnail,
@@ -268,598 +218,152 @@ export default function ShadowingView() {
     }
   }, [currentPlayingLine, isVideoPlaying, handlePlaySnippet, tracking]);
 
-  const handleReveal = useCallback(() => {
-    tracking.onReveal();
-  }, [tracking]);
-
+  const handleReveal = useCallback(() => tracking.onReveal(), [tracking]);
   const handleVideoEnd = useCallback(() => setCurrentPlayingLine(null), []);
   const handleVideoPlay = useCallback(() => setIsVideoPlaying(true), []);
   const handleVideoPause = useCallback(() => setIsVideoPlaying(false), []);
 
-  const handleCopyToClipboard = useCallback((text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast({
-        title: t('toast:copySuccessTitle'),
-        description: t('toast:copySuccessDesc')
-      });
-    }).catch(() => {
-      toast({ title: 'Copy failed', description: '' });
-    });
-  }, [toast, t]);
-
   const handleLineComplete = useCallback((isCorrect: boolean, result: ShadowingResult) => {
     const { lineIndex } = result;
-
     if (lineIndex === tracking.currentSessionIndex) {
       tracking.onResubmit(result);
     } else {
       tracking.onFirstSubmit(result, lineIndex);
     }
-
     if (isCorrect) {
       updateProgress(lineIndex);
       setCorrectlyCompletedLines(prev => new Set(prev).add(lineIndex));
       setCompletedLinesCount(prev => Math.max(prev, lineIndex + 1));
     }
-
-    if (isCorrect) {
-      setOpenBoxIndex(lineIndex + 1);
-    } else {
-      setOpenBoxIndex(lineIndex);
-    }
+    setOpenBoxIndex(isCorrect ? lineIndex + 1 : lineIndex);
   }, [tracking, updateProgress]);
 
-  const handleHistoryItemClick = useCallback((item: HistoryItem) => {
+  const handleHistoryItemClick = useCallback((item: any) => {
     setUrl(item.url);
     setTimeout(() => void handleFetchTranscript(), 100);
   }, [handleFetchTranscript]);
 
   const handleClearHistory = useCallback(() => {
     clearHistory();
-    toast({
-      title: 'History Cleared',
-      description: 'All video history has been removed.'
-    });
+    toast({ title: 'History Cleared', description: 'All video history has been removed.' });
   }, [clearHistory, toast]);
 
-  const wordsToDisplay = useMemo(() => {
-    return tracking.getWordsNeedingAttention();
-  }, [tracking]);
+  const wordsToDisplay = useMemo(() => tracking.getWordsNeedingAttention(), [tracking]);
+  const progressPercentage = transcriptResult ? Math.round((completedLinesCount / transcriptResult.transcript.length) * 100) : 0;
 
-  const progressPercentage = transcriptResult ?
-    Math.round((completedLinesCount / transcriptResult.transcript.length) * 100) : 0;
+  // ✅ RENDER LOGIC FOR EACH SLOT in the layout
+  
+  const renderPageTitle = () => (
+    <div className="space-y-1">
+      <h1 className="text-headline-1">{t('shadowing.title')}</h1>
+      <p className="text-body-sm text-muted-foreground">{t('shadowing.description')}</p>
+    </div>
+  );
 
-  const transcriptContent = useMemo(() => {
-    if (isLoading) return (
-      <div className="text-center py-10 space-y-4">
-        <div className="flex justify-center">
-          <div className="relative">
-            <Icon name="Wand2" className="h-12 w-12 text-primary animate-pulse" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <p className="text-body-lg text-muted-foreground font-medium">Loading transcript</p>
-          <p className="text-body-sm text-muted-foreground/70">Fetching transcript data...</p>
-        </div>
-      </div>
-    );
-
-    if (error) {
-      const isInvalid = error === 'invalid_url';
-      const isLimit = typeof error === 'string' && error.includes('limit');
-      return (
-        <Alert variant="destructive" className="mt-6">
-          <AlertTitle className="font-heading">
-            {isInvalid ? 'Invalid YouTube URL' : isLimit ? 'Error Loading Transcript' : 'Could Not Get Transcript'}
-          </AlertTitle>
-          <AlertDescription className="font-body">
-            {isInvalid ? (
-              <div>
-                <p className="mb-3">The URL you entered is not a valid YouTube link.</p>
-                <p className="font-medium mb-1">Example:</p>
-                <p className="font-mono text-sm bg-destructive/10 px-2 py-1 rounded">
-                  youtube.com/watch?v=VIDEO_ID
-                </p>
-              </div>
-            ) : isLimit ? error : (
-              <div>
-                <p>{error}</p>
-                <br />
-                <p>This could mean:</p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>The video doesn't have captions enabled (CC)</li>
-                  <li>The video is private, restricted, or doesn't allow embedding</li>
-                  <li>The video is not available in your region</li>
-                  <li>A technical issue occurred while processing</li>
-                </ul>
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
-      );
-    }
-
-    if (!transcriptResult) return null;
-
-    const { transcript } = transcriptResult;
-
-    if (isShadowingMode) {
-      return (
-        <div className="space-y-3">
-          {transcript.map((line, index) => {
-            const shouldShow = index <= completedLinesCount;
-            if (!shouldShow) return null;
-
-            const isPlaying = currentPlayingLine === index && isVideoPlaying;
-            const isCompleted = index < completedLinesCount;
-            const isCorrect = correctlyCompletedLines.has(index);
-            
-            return (
-              <Card key={index} className={cn(
-                'transition-all duration-200 bg-reader-grid',
-                isPlaying && 'ring-2 ring-red-500 ring-opacity-50'
-              )}>
-                <CardContent className="p-3">
-                  <ShadowingBox
-                    line={line.text}
-                    startTime={line.start}
-                    hideMode={hideMode}
-                    checkMode={checkMode}
-                    onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })}
-                    isCorrect={isCorrect}
-                    onPlay={() => handleBoxPlay(line.start, line.end, index)}
-                    onReveal={handleReveal}
-                    isPlaying={isPlaying}
-                    mode="shadowing"
-                    isOpen={openBoxIndex === index}
-                    onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)}
-                    disabled={isCompleted && isCorrect}
-                  />
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {completedLinesCount >= transcript.length && (
-            <div className="text-center py-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">
-                All Exercises Completed
-              </h3>
-              <p className="text-body-base text-green-600 dark:text-green-300 mb-4">
-                Great job! You have finished all shadowing exercises.
-              </p>
+  const renderSearchAndVideoPanel = () => (
+    <>
+      <Card>
+        <CardContent className="p-3">
+          <form onSubmit={handleFetchTranscript} className="flex items-center gap-2">
+            <div className="relative flex-grow w-full">
+              <Icon name="Youtube" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder={t('shadowing.urlPlaceholder')}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleFetchTranscript()}
+                className="font-body pl-9 h-10 transition-colors"
+                disabled={isLoading}
+              />
             </div>
-          )}
-        </div>
+            <Button type="submit" disabled={isLoading || !url} className="h-10 px-4 transition-colors">
+              {isLoading ? (<><Icon name="Loader2" className="animate-spin h-4 w-4 mr-2" />{t('common:loading')}...</>) : t('shadowing.getTranscriptButton')}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+      <div className={cn(isLoading && "animate-pulse")}>
+        {isLoading ? (
+          <Skeleton className="aspect-video w-full rounded-xl" />
+        ) : videoId ? (
+          <div className="aspect-video w-full">
+            <ShadowingPlayer
+              ref={playerRef}
+              videoId={videoId}
+              onVideoEnd={handleVideoEnd}
+              onVideoPlay={handleVideoPlay}
+              onVideoPause={handleVideoPause}
+            />
+          </div>
+        ) : (
+          <div className="aspect-video w-full rounded-xl bg-muted/30 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center">
+            <Icon name="Youtube" className="h-16 w-16 text-muted-foreground/30 mb-4" />
+            <p className="text-headline-2 text-foreground">{t('shadowing.videoPlaceholderTitle')}</p>
+            <p className="text-body-sm text-muted-foreground">{t('shadowing.videoPlaceholderDescription')}</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  const renderContentPanel = () => {
+    const transcriptContent = () => {
+      if (isLoading) return <div className="text-center py-10 space-y-4"><div className="flex justify-center"><div className="relative"><Icon name="Wand2" className="h-12 w-12 text-primary animate-pulse" /></div></div><div className="space-y-2"><p className="text-body-lg text-muted-foreground font-medium">Loading transcript</p><p className="text-body-sm text-muted-foreground/70">Fetching transcript data...</p></div></div>;
+      if (error) return <Alert variant="destructive" className="mt-6"><AlertTitle className="font-heading">{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle><AlertDescription className="font-body">{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription></Alert>;
+      if (!transcriptResult) return null;
+      return isShadowingMode ? (
+          <div className="space-y-3">
+              {transcriptResult.transcript.map((line, index) => {
+                  if (index > completedLinesCount) return null;
+                  return (
+                      <Card key={index} className={cn('transition-all duration-200 bg-reader-grid', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
+                          <CardContent className="p-3">
+                              <ShadowingBox line={line.text} startTime={line.start} hideMode={hideMode} checkMode={checkMode} onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })} isCorrect={correctlyCompletedLines.has(index)} onPlay={() => handleBoxPlay(line.start, line.end, index)} onReveal={handleReveal} isPlaying={currentPlayingLine === index && isVideoPlaying} mode="shadowing" isOpen={openBoxIndex === index} onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)} disabled={index < completedLinesCount && correctlyCompletedLines.has(index)} />
+                          </CardContent>
+                      </Card>
+                  );
+              })}
+              {completedLinesCount >= transcriptResult.transcript.length && <div className="text-center py-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-800"><Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" /><h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">All Exercises Completed</h3><p className="text-body-base text-green-600 dark:text-green-300 mb-4">Great job! You have finished all shadowing exercises.</p></div>}
+          </div>
+      ) : (
+          <div className="space-y-3">{transcriptResult.transcript.map((line, index) => <Card key={index} className={cn('group/line transition-all duration-200 bg-reader-grid', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}><CardContent className="p-3"><div className="grid grid-cols-[40px_1fr] gap-3 items-start"><div className="flex flex-col items-center space-y-2"><div className="text-xs font-mono text-primary">{formatTime(line.start)}</div><Button variant="ghost" size="icon" onClick={() => handleBoxPlay(line.start, line.end, index)} className={cn('h-7 w-7 transition-colors', currentPlayingLine === index && isVideoPlaying ? 'text-red-600 bg-red-50' : 'text-foreground hover:text-red-600')}><Icon name={currentPlayingLine === index && isVideoPlaying ? 'Pause' : 'Play'} className="h-4 w-4" /></Button></div><div className="relative"><div className="text-body-base font-light">{line.text}</div></div></div></CardContent></Card>)}</div>
       );
-    }
+    };
 
     return (
-      <div className="space-y-3">
-        {transcript.map((line, index) => {
-          const isPlaying = currentPlayingLine === index && isVideoPlaying;
-          return (
-            <Card key={index} className={cn(
-              'group/line transition-all duration-200 bg-reader-grid',
-              isPlaying && 'ring-2 ring-red-500 ring-opacity-50'
-            )}>
-              <CardContent className="p-3">
-                <div className="grid grid-cols-[40px_1fr] gap-3 items-start">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="text-xs font-mono text-primary">
-                      {formatTime(line.start)}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleBoxPlay(line.start, line.end, index)}
-                      className={cn(
-                        'h-7 w-7 transition-colors',
-                        isPlaying ? 'text-red-600 bg-red-50' : 'text-foreground hover:text-red-600'
-                      )}
-                    >
-                      <Icon name={isPlaying ? 'Pause' : 'Play'} className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="relative">
-                    <div className="text-body-base font-light">
-                      {line.text}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleCopyToClipboard(line.text)}
-                      className="absolute right-0 top-0 h-7 w-7 opacity-0 group-hover/line:opacity-100 transition-opacity"
-                      aria-label={t('common:copy')}
-                    >
-                      <Icon name="Copy" className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <Card className="flex flex-col h-full bg-card">
+        <CardHeader className="p-3 flex-shrink-0">
+          <div className="flex items-center justify-center gap-2">
+            <Button variant={isShadowingMode ? 'default' : 'outline'} size="icon" onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} disabled={!transcriptResult} className="h-11 w-11 transition-colors" title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}><Icon name="Shadowing" className="h-5 w-5" /></Button>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-11 w-11 transition-colors" disabled={!isShadowingMode || !transcriptResult}><Icon name="Settings" className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel><DropdownMenuRadioGroup value={hideMode} onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}><DropdownMenuRadioItem value="block">{t('shadowing.settings.hiddenWords')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="blur">{t('shadowing.settings.blurredText')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="hidden">{t('shadowing.settings.completelyHidden')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator /><DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel><DropdownMenuRadioGroup value={checkMode} onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}><DropdownMenuRadioItem value="strict">{t('shadowing.settings.strict')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="gentle">{t('shadowing.settings.gentle')}</DropdownMenuRadioItem></DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 min-h-0 p-4">
+          <ScrollArea className="h-full">{transcriptContent()}</ScrollArea>
+        </CardContent>
+      </Card>
     );
-  }, [
-    isLoading,
-    error,
-    transcriptResult,
-    isShadowingMode,
-    completedLinesCount,
-    currentPlayingLine,
-    isVideoPlaying,
-    correctlyCompletedLines,
-    hideMode,
-    checkMode,
-    openBoxIndex,
-    handleLineComplete,
-    handleBoxPlay,
-    handleReveal,
-    handleCopyToClipboard,
-    formatTime,
-    t
-  ]);
-
-  // Mobile layout
-  if (isMobile) {
-    return (
-      <div className="space-y-4 pb-6">
-        <div className="px-4">
-            <h1 className="text-headline-1">{t('shadowing.title')}</h1>
-            <p className="text-body-sm mt-1">{t('shadowing.description')}</p>
-        </div>
-
-        {/* Search Bar */}
-        <div className="px-4">
-          <Card>
-            <CardContent className="p-3">
-              <form onSubmit={handleFetchTranscript} className="flex items-center gap-2">
-                <div className="relative flex-grow w-full">
-                  <Icon name="Youtube" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder={t('shadowing.urlPlaceholder')}
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleFetchTranscript()}
-                    className="font-body pl-9 h-10 transition-colors"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isLoading || !url}
-                  className="h-10 px-4 transition-colors"
-                >
-                  {isLoading ? (
-                    <>
-                      <Icon name="Loader2" className="animate-spin h-4 w-4 mr-2" />
-                      {t('common:loading')}...
-                    </>
-                  ) : t('shadowing.getTranscriptButton')}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Video Player */}
-        <div className="px-4">
-          <div className={cn(isLoading && "animate-pulse")}>
-            {isLoading ? (
-              <Skeleton className="aspect-video w-full rounded-xl" />
-            ) : videoId ? (
-              <div className="aspect-video w-full">
-                <ShadowingPlayer
-                  ref={playerRef}
-                  videoId={videoId}
-                  onVideoEnd={handleVideoEnd}
-                  onVideoPlay={handleVideoPlay}
-                  onVideoPause={handleVideoPause}
-                />
-              </div>
-            ) : (
-              <div className="aspect-video w-full rounded-xl bg-muted/30 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center">
-                <Icon name="Youtube" className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                <p className="font-semibold text-foreground">
-                  {t('shadowing.videoPlaceholderTitle')}
-                </p>
-                <p className="text-body-sm">
-                  {t('shadowing.videoPlaceholderDescription')}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Transcript - NOW IN MIDDLE ON MOBILE */}
-        <div className="px-4">
-          <Card>
-            <CardHeader className="p-3 flex-shrink-0">
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  variant={isShadowingMode ? 'default' : 'outline'}
-                  size="icon"
-                  onClick={() => {
-                    if (!transcriptResult) return;
-                    setIsShadowingMode(prev => !prev);
-                  }}
-                  disabled={!transcriptResult}
-                  className="h-11 w-11 transition-colors"
-                  title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}
-                >
-                  <Icon name="Shadowing" className="h-5 w-5" />
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-11 w-11 transition-colors"
-                      disabled={!isShadowingMode || !transcriptResult}
-                    >
-                      <Icon name="Settings" className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={hideMode}
-                      onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}
-                    >
-                      <DropdownMenuRadioItem value="block">
-                        {t('shadowing.settings.hiddenWords')}
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="blur">
-                        {t('shadowing.settings.blurredText')}
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="hidden">
-                        {t('shadowing.settings.completelyHidden')}
-                      </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-
-                    <DropdownMenuSeparator />
-
-                    <DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={checkMode}
-                      onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}
-                    >
-                      <DropdownMenuRadioItem value="strict">
-                        {t('shadowing.settings.strict')}
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="gentle">
-                        {t('shadowing.settings.gentle')}
-                      </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-4 flex-1 min-h-[300px]">
-              <ScrollArea className="h-full">
-                {transcriptContent}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Activities */}
-        <div className="px-4">
-          <ActivitiesPanel />
-        </div>
-
-        {/* Analysis */}
-        <div className="px-4">
-          <div className="min-h-[350px]">
-            <ShadowingAnalysis
-              errorStats={tracking.errorStats}
-              wordsNeedingAttention={wordsToDisplay}
-              onConfirmWord={tracking.confirmWord}
-              showChart={tracking.shouldShowChart(openBoxIndex || 0)}
-              progressPercentage={progressPercentage}
-              completedLinesCount={completedLinesCount}
-              totalLines={transcriptResult?.transcript.length || 0}
-              isShadowingMode={isShadowingMode}
-            />
-          </div>
-        </div>
-
-        {/* History */}
-        <div className="px-4">
-          <div className="min-h-[200px]">
-            <ShadowingHistory
-              history={history}
-              currentVideoId={videoId}
-              onItemClick={handleHistoryItemClick}
-              onClearHistory={handleClearHistory}
-            />
-          </div>
-        </div>
+  };
+  
+  const renderRightColumn = () => (
+    <div className="flex flex-col gap-4 h-full">
+      <div className="h-[45vh] min-h-[350px] max-h-[500px]">
+        <ShadowingAnalysis errorStats={tracking.errorStats} wordsNeedingAttention={wordsToDisplay} onConfirmWord={tracking.confirmWord} showChart={tracking.shouldShowChart(openBoxIndex || 0)} progressPercentage={progressPercentage} completedLinesCount={completedLinesCount} totalLines={transcriptResult?.transcript.length || 0} isShadowingMode={isShadowingMode} />
       </div>
-    );
-  }
-
-  // Desktop layout
-  return (
-    <div className="space-y-6">
-       <div className="space-y-1">
-            <h1 className="text-headline-1">{t('shadowing.title')}</h1>
-            <p className="text-body-sm text-muted-foreground">{t('shadowing.description')}</p>
-        </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column */}
-        <div className="md:col-span-1 flex flex-col gap-4">
-          <Card>
-            <CardContent className="p-3">
-              <form onSubmit={handleFetchTranscript} className="flex items-center gap-2">
-                <div className="relative flex-grow w-full">
-                  <Icon name="Youtube" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder={t('shadowing.urlPlaceholder')}
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleFetchTranscript()}
-                    className="font-body pl-9 h-10 transition-colors"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isLoading || !url}
-                  className="h-10 px-4 transition-colors"
-                >
-                  {isLoading ? (
-                    <>
-                      <Icon name="Loader2" className="animate-spin h-4 w-4 mr-2" />
-                      {t('common:loading')}...
-                    </>
-                  ) : t('shadowing.getTranscriptButton')}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          <div className={cn(isLoading && "animate-pulse")}>
-            {isLoading ? (
-              <Skeleton className="aspect-video w-full rounded-xl" />
-            ) : videoId ? (
-              <div className="aspect-video w-full">
-                <ShadowingPlayer
-                  ref={playerRef}
-                  videoId={videoId}
-                  onVideoEnd={handleVideoEnd}
-                  onVideoPlay={handleVideoPlay}
-                  onVideoPause={handleVideoPause}
-                />
-              </div>
-            ) : (
-              <div className="aspect-video w-full rounded-xl bg-muted/30 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center">
-                <Icon name="Youtube" className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                <p className="text-headline-2 text-foreground">
-                  {t('shadowing.videoPlaceholderTitle')}
-                </p>
-                <p className="text-body-sm text-muted-foreground">
-                  {t('shadowing.videoPlaceholderDescription')}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <ActivitiesPanel />
-        </div>
-
-        {/* Middle Column - Content Panel */}
-        <Card className="md:col-span-1 flex flex-col h-[70vh] min-h-[500px] max-h-[800px] bg-card">
-          <CardHeader className="p-3 flex-shrink-0">
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant={isShadowingMode ? 'default' : 'outline'}
-                size="icon"
-                onClick={() => {
-                  if (!transcriptResult) return;
-                  setIsShadowingMode(prev => !prev);
-                }}
-                disabled={!transcriptResult}
-                className="h-11 w-11 transition-colors"
-                title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}
-              >
-                <Icon name="Shadowing" className="h-5 w-5" />
-              </Button>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-11 w-11 transition-colors"
-                    disabled={!isShadowingMode || !transcriptResult}
-                  >
-                    <Icon name="Settings" className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent align="start">
-                  <DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={hideMode}
-                    onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}
-                  >
-                    <DropdownMenuRadioItem value="block">
-                      {t('shadowing.settings.hiddenWords')}
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="blur">
-                      {t('shadowing.settings.blurredText')}
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="hidden">
-                      {t('shadowing.settings.completelyHidden')}
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={checkMode}
-                    onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}
-                  >
-                    <DropdownMenuRadioItem value="strict">
-                      {t('shadowing.settings.strict')}
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="gentle">
-                      {t('shadowing.settings.gentle')}
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex-1 min-h-0 p-4">
-            <ScrollArea className="h-full">
-              {transcriptContent}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Right Column - FIXED HEIGHT */}
-        <div className="md:col-span-1 flex flex-col gap-4">
-          {/* Analysis - FIXED height */}
-          <div className="h-[45vh] min-h-[350px] max-h-[500px]">
-            <ShadowingAnalysis
-              errorStats={tracking.errorStats}
-              wordsNeedingAttention={wordsToDisplay}
-              onConfirmWord={tracking.confirmWord}
-              showChart={tracking.shouldShowChart(openBoxIndex || 0)}
-              progressPercentage={progressPercentage}
-              completedLinesCount={completedLinesCount}
-              totalLines={transcriptResult?.transcript.length || 0}
-              isShadowingMode={isShadowingMode}
-            />
-          </div>
-          
-          {/* History - FIXED height with PLACEHOLDER */}
-          <div className="h-[25vh] min-h-[200px] max-h-[300px]">
-            <ShadowingHistory
-              history={history}
-              currentVideoId={videoId}
-              onItemClick={handleHistoryItemClick}
-              onClearHistory={handleClearHistory}
-            />
-          </div>
-        </div>
+      <div className="h-[25vh] min-h-[200px] max-h-[300px]">
+        <ShadowingHistory history={history} currentVideoId={videoId} onItemClick={handleHistoryItemClick} onClearHistory={handleClearHistory} />
       </div>
     </div>
+  );
+
+  return (
+    <LearningToolLayout
+      pageTitle={renderPageTitle()}
+      searchAndVideoPanel={renderSearchAndVideoPanel()}
+      activityPanel={<ActivitiesPanel />}
+      contentPanel={renderContentPanel()}
+      rightColumnPanel={renderRightColumn()}
+    />
   );
 }
