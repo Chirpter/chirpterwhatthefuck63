@@ -13,9 +13,9 @@ export interface HistoryItem {
   lastAccessed?: number;
 }
 
-const HISTORY_KEY = 'chirpter_shadowing_history';
-const CURRENT_VIDEO_KEY = 'chirpter_shadowing_current_video';
+const HISTORY_KEY = 'chirpter_shadowing_history_v2';
 const TRANSCRIPT_CACHE_PREFIX = 'chirpter_transcript_cache_';
+const MAX_HISTORY_SIZE = 3;
 
 // --- CACHE MANAGEMENT ---
 
@@ -30,15 +30,10 @@ const getTranscriptFromCache = (videoId: string): TranscriptResult | null => {
   }
 };
 
-/**
- * Saves a single transcript to the cache, clearing all previous ones first.
- * @param videoId The ID of the video for the new transcript.
- * @param data The transcript data to save.
- */
 const saveTranscriptToCache = (videoId: string, data: TranscriptResult) => {
   if (typeof window === 'undefined') return;
   try {
-    // 1. Clear all existing transcript caches
+    // 1. Clear all existing transcript caches to enforce single-item cache
     Object.keys(localStorage)
       .filter(key => key.startsWith(TRANSCRIPT_CACHE_PREFIX))
       .forEach(key => localStorage.removeItem(key));
@@ -52,22 +47,20 @@ const saveTranscriptToCache = (videoId: string, data: TranscriptResult) => {
   }
 };
 
+// --- MAIN HOOK ---
 
 export const useVideoHistory = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [currentVideo, setCurrentVideo] = useState<HistoryItem | null>(null);
 
-  // Load history and current video from localStorage on initial mount
+  // Load history from localStorage on initial mount
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem(HISTORY_KEY);
       if (savedHistory) {
-        setHistory(JSON.parse(savedHistory));
-      }
-      
-      const savedCurrent = localStorage.getItem(CURRENT_VIDEO_KEY);
-      if (savedCurrent) {
-        setCurrentVideo(JSON.parse(savedCurrent));
+        const parsed = JSON.parse(savedHistory);
+        if (Array.isArray(parsed)) {
+            setHistory(parsed.slice(0, MAX_HISTORY_SIZE)); // Ensure limit on load
+        }
       }
     } catch (e) {
       console.error('Failed to load video history', e);
@@ -76,42 +69,35 @@ export const useVideoHistory = () => {
 
   const persistHistory = useCallback((nextHistory: HistoryItem[]) => {
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+      // Always store only the top N items
+      const historyToSave = nextHistory.slice(0, MAX_HISTORY_SIZE);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(historyToSave));
     } catch (e) {
       console.error('Failed to persist history', e);
     }
   }, []);
 
-  const persistCurrentVideo = useCallback((video: HistoryItem | null) => {
-    try {
-      if (video) {
-        localStorage.setItem(CURRENT_VIDEO_KEY, JSON.stringify(video));
-      } else {
-        localStorage.removeItem(CURRENT_VIDEO_KEY);
-      }
-    } catch (e) {
-      console.error('Failed to persist current video', e);
-    }
-  }, []);
-
-
-  const addToHistory = useCallback((item: Omit<HistoryItem, 'lastAccessed'>) => {
+  const addOrUpdateHistory = useCallback((item: Omit<HistoryItem, 'lastAccessed'>) => {
     const newItem: HistoryItem = {
         ...item,
-        progress: [],
         lastAccessed: Date.now(),
+        progress: item.progress || [],
     };
 
     setHistory(prev => {
-        const next = [newItem, ...prev.filter(h => h.videoId !== item.videoId)];
-        persistHistory(next);
-        return next;
+        // Remove existing item if it's already in the list
+        const filtered = prev.filter(h => h.videoId !== item.videoId);
+        
+        // Add the new/updated item to the front
+        const next = [newItem, ...filtered];
+        
+        // Enforce the size limit
+        const finalHistory = next.slice(0, MAX_HISTORY_SIZE);
+
+        persistHistory(finalHistory);
+        return finalHistory;
     });
-
-    setCurrentVideo(newItem);
-    persistCurrentVideo(newItem);
-  }, [persistHistory, persistCurrentVideo]);
-
+  }, [persistHistory]);
 
   const updateHistoryProgress = useCallback((videoId: string, progress: number[]) => {
     setHistory(prev => {
@@ -120,6 +106,8 @@ export const useVideoHistory = () => {
           ? { ...h, progress, lastAccessed: Date.now() } 
           : h
       );
+      // Sort by lastAccessed to ensure the most recently interacted item is first
+      next.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
       persistHistory(next);
       return next;
     });
@@ -127,10 +115,8 @@ export const useVideoHistory = () => {
 
   const clearHistory = useCallback(() => {
     setHistory([]);
-    setCurrentVideo(null); // Also clear the current video
     try { 
       localStorage.removeItem(HISTORY_KEY); 
-      localStorage.removeItem(CURRENT_VIDEO_KEY);
       // Also clear all transcript caches
       Object.keys(localStorage)
           .filter(key => key.startsWith(TRANSCRIPT_CACHE_PREFIX))
@@ -140,17 +126,15 @@ export const useVideoHistory = () => {
     }
   }, []);
 
+  const currentVideo = history.length > 0 ? history[0] : null;
+
   return { 
-    history, 
-    currentVideo,
-    setCurrentVideo: (item: HistoryItem | null) => {
-        setCurrentVideo(item);
-        persistCurrentVideo(item);
-    },
-    addToHistory, 
+    history,
+    currentVideo, // The most recent item is always the current one
+    addOrUpdateHistory, 
     updateHistoryProgress, 
     clearHistory,
     getTranscriptFromCache,
-    saveTranscriptToCache
+    saveTranscriptToCache,
   };
 };

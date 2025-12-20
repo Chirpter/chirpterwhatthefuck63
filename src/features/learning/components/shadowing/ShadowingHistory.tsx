@@ -1,4 +1,3 @@
-
 // src/features/learning/components/shadowing/ShadowingHistory.tsx
 
 "use client";
@@ -9,16 +8,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
-
-export interface HistoryItem {
-  videoId: string;
-  url: string;
-  title: string;
-  thumbnail?: string;
-  totalLines?: number;
-  progress?: number[];
-  lastAccessed?: number;
-}
+import type { HistoryItem } from '../../hooks/useVideoHistory';
 
 interface ShadowingHistoryProps {
   history: HistoryItem[];
@@ -27,22 +17,6 @@ interface ShadowingHistoryProps {
   onClearHistory: () => void;
 }
 
-const getVideoProgress = (videoId: string, totalLines?: number) => {
-  try {
-    const saved = localStorage.getItem(`shadowing-progress-${videoId}`);
-    if (saved) {
-      const p = JSON.parse(saved);
-      const completed = Array.isArray(p) ? p.length : 0;
-      const percentage = totalLines ? Math.round((completed / totalLines) * 100) : 0;
-      return { completed, percentage };
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  return { completed: 0, percentage: 0 };
-};
-
-// Placeholder frame component
 const PlaceholderFrame = () => (
   <div className="aspect-video relative rounded-md overflow-hidden border border-dashed border-muted-foreground/30 bg-muted/20">
     <div className="absolute inset-0 flex items-center justify-center">
@@ -58,10 +32,10 @@ export const ShadowingHistory: React.FC<ShadowingHistoryProps> = ({
   onClearHistory,
 }) => {
   const { t } = useTranslation('learningPage');
-
-  const recentHistory = history.filter(h => h.videoId !== currentVideoId);
   
-  // Always show 2 slots (either filled with videos or placeholders)
+  // Show the 2nd and 3rd items in history (the ones that are not currently active)
+  const recentHistory = history.slice(1, 3);
+  
   const displaySlots = 2;
 
   return (
@@ -71,7 +45,7 @@ export const ShadowingHistory: React.FC<ShadowingHistoryProps> = ({
           <CardTitle className="font-headline text-base">
             {t('shadowing.historyTitle')}
           </CardTitle>
-          {recentHistory.length > 0 && (
+          {history.length > 0 && (
             <Button
               variant="ghost"
               size="icon"
@@ -88,8 +62,8 @@ export const ShadowingHistory: React.FC<ShadowingHistoryProps> = ({
       <CardContent className="px-4 pb-3 flex-1 min-h-0 overflow-auto">
         <div className="grid grid-cols-2 gap-3">
           {/* Render actual videos */}
-          {recentHistory.slice(0, displaySlots).map(item => {
-            const { completed, percentage } = getVideoProgress(item.videoId, item.totalLines);
+          {recentHistory.map(item => {
+            const percentage = item.totalLines ? Math.round(((item.progress?.length || 0) / item.totalLines) * 100) : 0;
             const thumbnailUrl = item.thumbnail || `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
 
             return (
@@ -132,13 +106,6 @@ export const ShadowingHistory: React.FC<ShadowingHistoryProps> = ({
             <PlaceholderFrame key={`placeholder-${i}`} />
           ))}
         </div>
-        
-        {/* Show message only when NO history at all */}
-        {recentHistory.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            
-          </p>
-        )}
       </CardContent>
     </Card>
   );

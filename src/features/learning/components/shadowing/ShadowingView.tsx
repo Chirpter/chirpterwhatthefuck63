@@ -41,7 +41,6 @@ const getVideoIdFromUrl = (url: string): string | null => {
     if (urlObj.hostname === 'youtu.be') return urlObj.pathname.slice(1);
     if (urlObj.hostname.includes('youtube.com')) return urlObj.searchParams.get('v');
   } catch (e) {
-    // Handle cases where the input is just the ID
     if (url.length === 11 && !url.includes(' ')) return url;
     return null;
   }
@@ -53,10 +52,11 @@ export default function ShadowingView() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
   const { toast } = useToast();
   const { user } = useUser();
+  
   const { 
     history, 
     currentVideo, 
-    addToHistory, 
+    addOrUpdateHistory, 
     updateHistoryProgress, 
     clearHistory,
     getTranscriptFromCache,
@@ -84,9 +84,12 @@ export default function ShadowingView() {
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
+  // Initialize URL input from current video in history
   useEffect(() => {
     if (currentVideo) {
       setUrlInput(currentVideo.url);
+    } else {
+      setUrlInput(''); // Clear input if history is cleared
     }
   }, [currentVideo]);
 
@@ -102,30 +105,18 @@ export default function ShadowingView() {
     setOpenBoxIndex(0);
   }, []);
 
-  const handleFetchTranscript = useCallback(async (urlToFetch?: string) => {
-    const url = (urlToFetch || urlInput).trim();
-    if (!url) return;
-
-    if (!user) {
-      toast({ title: t('toast:authErrorTitle'), description: t('toast:authErrorDesc'), variant: 'destructive' });
-      return;
-    }
+  const loadVideo = useCallback(async (videoToLoad: { videoId: string, url: string }) => {
+    if (!user) return;
     
-    const newVideoId = getVideoIdFromUrl(url);
-    if (!newVideoId) {
-        setError('invalid_url');
-        return;
-    }
-
     resetStateForNewVideo();
 
     // 1. Check cache first
-    const cachedTranscript = getTranscriptFromCache(newVideoId);
+    const cachedTranscript = getTranscriptFromCache(videoToLoad.videoId);
     if (cachedTranscript) {
         setTranscriptResult(cachedTranscript);
-        addToHistory({
-            videoId: newVideoId,
-            url,
+        addOrUpdateHistory({
+            videoId: videoToLoad.videoId,
+            url: videoToLoad.url,
             title: cachedTranscript.title,
             thumbnail: cachedTranscript.thumbnail,
             totalLines: cachedTranscript.transcript.length,
@@ -136,22 +127,20 @@ export default function ShadowingView() {
 
     // 2. If not in cache, fetch from API
     try {
-      const result = await getTranscriptFromUrl(url, user.uid);
+      const result = await getTranscriptFromUrl(videoToLoad.url, user.uid);
       if (!result || !result.transcript || result.transcript.length === 0) {
         throw new Error('No transcript available for this video.');
       }
       
       setTranscriptResult(result);
-      saveTranscriptToCache(newVideoId, result); // Save to cache on success
-      
-      const newHistoryItem = {
-        videoId: newVideoId,
-        url,
+      saveTranscriptToCache(videoToLoad.videoId, result);
+      addOrUpdateHistory({
+        videoId: videoToLoad.videoId,
+        url: videoToLoad.url,
         title: result.title,
         thumbnail: result.thumbnail,
         totalLines: result.transcript.length,
-      };
-      addToHistory(newHistoryItem);
+      });
       toast({ title: 'Transcript Loaded', description: `Loaded ${result.transcript.length} lines from "${result.title}"` });
     } catch (err: any) {
       const msg = err instanceof ApiServiceError ? err.message : (err.message ?? 'An unknown error occurred.');
@@ -159,14 +148,27 @@ export default function ShadowingView() {
     } finally {
       setIsLoading(false);
     }
-  }, [urlInput, user, t, toast, addToHistory, getTranscriptFromCache, saveTranscriptToCache, resetStateForNewVideo]);
+  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache, resetStateForNewVideo]);
 
-  // Load transcript for the current video from history on mount
+  const handleFetchTranscript = useCallback(() => {
+    const url = urlInput.trim();
+    if (!url) return;
+    
+    const newVideoId = getVideoIdFromUrl(url);
+    if (!newVideoId) {
+        setError('invalid_url');
+        return;
+    }
+
+    loadVideo({ videoId: newVideoId, url });
+  }, [urlInput, loadVideo]);
+
+  // Load transcript for the current video from history on mount or when it changes
   useEffect(() => {
     if (currentVideo && !transcriptResult && !isLoading) {
-      handleFetchTranscript(currentVideo.url);
+      loadVideo({ videoId: currentVideo.videoId, url: currentVideo.url });
     }
-  }, [currentVideo, transcriptResult, isLoading, handleFetchTranscript]);
+  }, [currentVideo, transcriptResult, isLoading, loadVideo]);
 
 
   useEffect(() => {
@@ -198,6 +200,14 @@ export default function ShadowingView() {
   }, [videoId]);
 
   useEffect(() => {
+    if (!videoId || progress.length === 0) return;
+    const timer = setTimeout(() => {
+      updateHistoryProgress(videoId, progress);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [videoId, progress, updateHistoryProgress]);
+
+  useEffect(() => {
     if (transcriptResult && progress.length > 0) {
       setCompletedLinesCount(progress.length);
       setCorrectlyCompletedLines(new Set(progress));
@@ -208,14 +218,6 @@ export default function ShadowingView() {
       setOpenBoxIndex(0);
     }
   }, [transcriptResult, progress]);
-
-  useEffect(() => {
-    if (!videoId || progress.length === 0) return;
-    const timer = setTimeout(() => {
-      updateHistoryProgress(videoId, progress);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [videoId, progress.length, updateHistoryProgress]);
 
   useEffect(() => {
     try {
@@ -279,11 +281,15 @@ export default function ShadowingView() {
 
   const handleHistoryItemClick = useCallback((item: any) => {
     setUrlInput(item.url);
-    handleFetchTranscript(item.url);
-  }, [handleFetchTranscript]);
+    const videoId = getVideoIdFromUrl(item.url);
+    if(videoId) {
+      loadVideo({ videoId, url: item.url });
+    }
+  }, [loadVideo]);
 
   const handleClearHistory = useCallback(() => {
     clearHistory();
+    setTranscriptResult(null); // Clear transcript as well
     toast({ title: 'History Cleared', description: 'All video history has been removed.' });
   }, [clearHistory, toast]);
   
@@ -376,7 +382,7 @@ export default function ShadowingView() {
       return (
         <div className="space-y-3">
           {listToRender.map((line, index) => (
-            <Card key={index} className={cn('transition-all duration-200 bg-background', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
+            <Card key={index} className={cn('transition-all duration-200 bg-card', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
               <CardContent className="p-3">
                 <ShadowingBox 
                   line={line.text} 
