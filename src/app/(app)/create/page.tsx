@@ -1,4 +1,4 @@
-// src/app/(app)/create/page.tsx - REFACTORED
+// src/app/(app)/create/page.tsx - FIXED LAYOUT
 "use client";
 
 import React, { useState, useCallback } from 'react';
@@ -18,8 +18,6 @@ import { useCreationJob } from '@/features/create/hooks/useCreationJob';
 import PieceReader from '@/features/reader/components/piece/PieceReader';
 import { CreationDebugPanel } from '@/components/debug/CreationDebugPanel';
 
-// ✅ SIMPLIFIED: The root is now a div that acts as the flex container on desktop.
-// It uses negative margins on mobile to break out of the parent padding.
 export default function CreatePage() {
     const { t } = useTranslation(['createPage', 'common', 'toast', 'presets']);
     const { user } = useUser();
@@ -47,9 +45,9 @@ export default function CreatePage() {
         document.getElementById(formId)?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     };
 
-    // The Preview component, now semantically a <main> element.
+    // Desktop Preview
     const renderDesktopPreview = () => (
-        <main className="hidden md:block flex-1 bg-muted/30 relative">
+        <main className="hidden md:flex flex-1 bg-muted/30 items-center justify-center p-4 overflow-hidden">
             {activeTab === 'book' ? (
                 <BookGenerationAnimation
                     isFormBusy={job.isBusy}
@@ -60,14 +58,12 @@ export default function CreatePage() {
                     onCreateAnother={() => job.reset('book')}
                 />
             ) : (
-                <div className="w-full h-full flex items-center justify-center p-4">
-                    <PieceReader
-                        piece={job.jobData as Piece}
-                        isPreview
-                        presentationStyle={formData.presentationStyle as 'doc' | 'card'}
-                        aspectRatio={formData.aspectRatio}
-                    />
-                </div>
+                <PieceReader
+                    piece={job.jobData as Piece}
+                    isPreview
+                    presentationStyle={formData.presentationStyle as 'doc' | 'card'}
+                    aspectRatio={formData.aspectRatio}
+                />
             )}
         </main>
     );
@@ -75,46 +71,67 @@ export default function CreatePage() {
     return (
         <>
             <CreationDebugPanel />
-            {/* ✅ This div is the new root, managing the mobile-full-width and desktop-flex layout */}
-            <div className="h-full md:flex -mx-4 sm:-mx-6 md:mx-0">
-                {/* The sidebar is now an <aside> element */}
-                <aside className={cn(
-                    "w-full md:w-96 md:flex-shrink-0 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col transition-[height] duration-300 ease-in-out",
-                    // On desktop, height adjusts based on audio player visibility
-                    "md:h-auto",
-                    isPlayerVisible ? "md:pb-[68px]" : ""
-                )}>
-                    <div className="p-3 border-b">
-                        <h2 className="text-lg md:text-xl font-headline font-semibold text-center md:text-left">{pageTitle}</h2>
+            {/* ✅ Root container: Fixed height = viewport, no overflow */}
+            <div className="h-[calc(100vh-64px)] md:flex -mx-4 sm:-mx-6 md:mx-0 overflow-hidden">
+                
+                {/* ✅ Sidebar: Fixed width, flex column layout */}
+                <aside className="w-full md:w-96 md:flex-shrink-0 bg-card border-r-0 md:border-r shadow-lg z-10 flex flex-col h-full">
+                    
+                    {/* Header - Fixed */}
+                    <div className="p-3 border-b flex-shrink-0">
+                        <h2 className="text-lg md:text-xl font-headline font-semibold text-center md:text-left">
+                            {pageTitle}
+                        </h2>
                     </div>
                     
-                    <Tabs onValueChange={handleTabChange} value={activeTab} className="flex flex-col flex-grow overflow-hidden">
-                        <div className="p-3 md:p-4 border-b">
+                    {/* Tabs Header - Fixed */}
+                    <Tabs onValueChange={handleTabChange} value={activeTab} className="flex flex-col flex-1 overflow-hidden">
+                        <div className="p-3 md:p-4 border-b flex-shrink-0">
                             <TabsList className="grid w-full grid-cols-2 font-body h-9 md:h-10">
                                 <TabsTrigger value="book">{t('tabs.book')}</TabsTrigger>
                                 <TabsTrigger value="piece">{t('tabs.piece')}</TabsTrigger>
                             </TabsList>
                         </div>
 
-                        <ScrollArea className="flex-grow">
+                        {/* ✅ Scrollable Form Area - Grows to fill space */}
+                        <div className="flex-1 overflow-y-auto">
                             <div className="p-3 md:p-4">
                                 <CreationForm job={job} formId={formId} type={activeTab} />
                             </div>
-                        </ScrollArea>
+                            {/* ✅ Spacer for fixed button - only on mobile */}
+                            <div className="h-[120px] md:h-0 flex-shrink-0" aria-hidden="true" />
+                        </div>
                     </Tabs>
                     
-                    <div className="p-3 md:p-4 border-t bg-card mt-auto space-y-2">
+                    {/* ✅ Generate Button - Fixed at bottom */}
+                    <div className={cn(
+                        "fixed bottom-0 left-0 right-0 md:left-0 md:right-auto md:w-96",
+                        "p-3 md:p-4 border-t bg-card space-y-2 z-20",
+                        "transition-[bottom] duration-300 ease-in-out",
+                        isPlayerVisible ? "md:bottom-[68px]" : "md:bottom-0"
+                    )}>
                         {!isBusy && validationMessage && (
                             <div className="flex items-center justify-center text-xs text-destructive font-medium">
                                 <Icon name="Info" className="mr-1 h-3.5 w-3.5" />
                                 {t(validationMessage)}
                             </div>
                         )}
-                        <Button type="button" onClick={handleSubmitClick} className="w-full font-body h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground relative" disabled={isSubmitDisabled}>
+                        <Button 
+                            type="button" 
+                            onClick={handleSubmitClick} 
+                            className="w-full font-body h-10 md:h-11 bg-primary hover:bg-primary/90 text-primary-foreground relative shadow-lg" 
+                            disabled={isSubmitDisabled}
+                        >
                             {isBusy ? (
-                                <><Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> {t('status.conceptualizing')}</>
+                                <>
+                                    <Icon name="Wand2" className="mr-2 h-4 w-4 animate-pulse" /> 
+                                    {t('status.conceptualizing')}
+                                </>
                             ) : !canGenerate && !validationMessage && user && !isRateLimited ? (
-                                <><Icon name="Info" className="mr-2 h-4 w-4" /> {t('common:insufficientCreditsTitle')}</>
+                                <>
+                                    <Icon name="Info" className="mr-2 h-4 w-4" /> 
+                                    {t('common:insufficientCreditsTitle')}
+                                </>
                             ) : (
                                 <>
                                     {submitButtonText}
@@ -129,6 +146,7 @@ export default function CreatePage() {
                     </div>
                 </aside>
                 
+                {/* ✅ Preview - Takes remaining space, no overflow */}
                 {renderDesktopPreview()}
             </div>
         </>

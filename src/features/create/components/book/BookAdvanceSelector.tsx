@@ -114,15 +114,14 @@ export const BookAdvanceSelector: React.FC<BookAdvanceSelectorProps> = ({
   const isStandardBook = bookLength === 'standard-book' || bookLength === 'long-book';
 
   return (
-    <Accordion type="single" collapsible className="w-full border rounded-lg p-0">
-      <AccordionItem value="advanced-settings" className="border-b-0">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline text-base font-medium">
+    <AccordionItem value="advanced-settings" className="border rounded-lg overflow-hidden">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline text-base font-medium bg-muted/50">
           <div className="flex items-center">
             <Icon name="Settings" className="h-5 w-5 mr-2 text-primary" />
             {t('advancedSettings.title')}
           </div>
         </AccordionTrigger>
-        <AccordionContent className="px-4 pt-2 pb-4 space-y-6">
+        <AccordionContent className="px-4 pt-4 pb-4 space-y-6">
           <div className="space-y-4">
             <Label className="font-body text-base font-medium">{t('advancedSettings.bookLengthTitle')}</Label>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -182,7 +181,6 @@ export const BookAdvanceSelector: React.FC<BookAdvanceSelectorProps> = ({
           )}
 
         </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+    </AccordionItem>
   );
 };

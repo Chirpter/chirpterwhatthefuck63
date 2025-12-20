@@ -1,12 +1,12 @@
 // src/features/create/components/piece/PresentationStyleSelector.tsx
 
 "use client";
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Label } from '@/components/ui/label';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import type { Piece } from '@/lib/types';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface StyleOption {
   value: 'doc' | 'card';
@@ -44,56 +44,61 @@ export const PresentationStyleSelector: React.FC<PresentationStyleSelectorProps>
   ];
 
   return (
-    <div className="space-y-3 p-4 border rounded-lg">
-      <Label className="font-body text-base font-medium flex items-center">
-        <Icon name="LayoutDashboard" className="h-5 w-5 mr-2 text-primary" /> {t('presentationStyle.title')}
-      </Label>
-      <div className="grid grid-cols-2 gap-3">
-        {mainOptions.map(option => (
-          <div
-            key={option.value}
-            onClick={() => !disabled && onPresentationStyleChange(option.value)}
-            className={cn(
-              "border rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all min-h-[90px]",
-              presentationStyle === option.value
-                ? "ring-2 ring-primary border-primary bg-primary/10"
-                : "border-border",
-              !disabled
-                ? "cursor-pointer hover:border-primary/50 hover:bg-muted"
-                : "cursor-not-allowed opacity-70"
-            )}
-          >
-            <Icon name={option.icon} className="text-primary h-8 w-8" />
-            <p className="text-xs font-medium font-body">{t(option.labelKey)}</p>
-          </div>
-        ))}
-      </div>
-
-      {presentationStyle === 'card' && (
-        <div className="pt-3 border-t">
-          <Label className="text-xs text-muted-foreground">{t('presentationStyle.aspectRatio')}</Label>
-          <div className="grid grid-cols-3 gap-2 mt-2">
-            {aspectRatioOptions.map(ratio => (
-              <div
-                key={ratio}
-                onClick={() => !disabled && onAspectRatioChange(ratio)}
-                className={cn(
-                  "border rounded-md p-2 flex flex-col items-center justify-center gap-1 text-center transition-all h-16",
-                  aspectRatio === ratio
-                    ? "ring-2 ring-primary border-primary bg-primary/10"
-                    : "border-border",
-                  !disabled
-                    ? "cursor-pointer hover:border-primary/50 hover:bg-muted"
-                    : "cursor-not-allowed opacity-70"
-                )}
-              >
-                <Icon name={aspectRatioIcons[ratio]} className="h-5 text-primary/80" />
-                <p className="text-xs font-mono font-medium">{ratio}</p>
-              </div>
-            ))}
-          </div>
+    <AccordionItem value="presentation-style" className="border rounded-lg overflow-hidden">
+      <AccordionTrigger className="px-4 py-3 hover:no-underline text-base font-medium bg-muted/50">
+        <div className="flex items-center">
+          <Icon name="LayoutDashboard" className="h-5 w-5 mr-2 text-primary" />
+          {t('presentationStyle.title')}
         </div>
-      )}
-    </div>
+      </AccordionTrigger>
+      <AccordionContent className="px-4 pt-4 pb-4 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          {mainOptions.map(option => (
+            <div
+              key={option.value}
+              onClick={() => !disabled && onPresentationStyleChange(option.value)}
+              className={cn(
+                "border rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all min-h-[90px]",
+                presentationStyle === option.value
+                  ? "ring-2 ring-primary border-primary bg-primary/10"
+                  : "border-border",
+                !disabled
+                  ? "cursor-pointer hover:border-primary/50 hover:bg-muted"
+                  : "cursor-not-allowed opacity-70"
+              )}
+            >
+              <Icon name={option.icon} className="text-primary h-8 w-8" />
+              <p className="text-xs font-medium font-body">{t(option.labelKey)}</p>
+            </div>
+          ))}
+        </div>
+
+        {presentationStyle === 'card' && (
+          <div className="pt-3 border-t">
+            <Label className="text-xs text-muted-foreground">{t('presentationStyle.aspectRatio')}</Label>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {aspectRatioOptions.map(ratio => (
+                <div
+                  key={ratio}
+                  onClick={() => !disabled && onAspectRatioChange(ratio)}
+                  className={cn(
+                    "border rounded-md p-2 flex flex-col items-center justify-center gap-1 text-center transition-all h-16",
+                    aspectRatio === ratio
+                      ? "ring-2 ring-primary border-primary bg-primary/10"
+                      : "border-border",
+                    !disabled
+                      ? "cursor-pointer hover:border-primary/50 hover:bg-muted"
+                      : "cursor-not-allowed opacity-70"
+                  )}
+                >
+                  <Icon name={aspectRatioIcons[ratio]} className="h-5 text-primary/80" />
+                  <p className="text-xs font-mono font-medium">{ratio}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </AccordionContent>
+    </AccordionItem>
   );
 };

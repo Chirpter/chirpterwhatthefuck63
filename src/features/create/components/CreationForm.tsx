@@ -16,13 +16,14 @@ import { BookGenerationAnimation } from './book/BookGenerationAnimation';
 import { useMobile } from '@/hooks/useMobile';
 import { PresentationStyleSelector } from './piece/PresentationStyleSelector';
 import type { Piece, Book, CreationFormValues } from '@/lib/types';
-import type { useCreationJob } from '../hooks/useCreationJob'; // Import the type
+import type { useCreationJob } from '../hooks/useCreationJob';
 import PieceReader from '@/features/reader/components/piece/PieceReader';
+import { Accordion } from '@/components/ui/accordion';
 
 interface CreationFormProps {
-  job: ReturnType<typeof useCreationJob>; // Use the imported type
+  job: ReturnType<typeof useCreationJob>;
   formId: string;
-  type: 'book' | 'piece'; // Explicitly pass the type
+  type: 'book' | 'piece';
 }
 
 export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type }) => {
@@ -77,7 +78,7 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
 
   return (
     <>
-      <form id={formId} onSubmit={job.handleSubmit} className="space-y-6">
+      <form id={formId} onSubmit={job.handleSubmit} className="space-y-4">
 
         {mobilePreview}
 
@@ -110,57 +111,60 @@ export const CreationForm: React.FC<CreationFormProps> = ({ job, formId, type })
           )}
         </div>
         
-        <CreationLanguageSettings
-          isBilingual={isBilingual}
-          onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
-          isPhraseMode={isPhraseMode}
-          onIsPhraseModeChange={(checked) => handleValueChange('isPhraseMode', checked)}
-          primaryLanguage={formData.primaryLanguage}
-          onPrimaryLangChange={(value) => handleValueChange('primaryLanguage', value)}
-          secondaryLanguage={formData.availableLanguages[1]}
-          onSecondaryLangChange={(value) => handleValueChange('secondaryLanguage', value)}
-          availableLanguages={job.availableLanguages}
-          isDisabled={isBusy}
-          idPrefix={type}
-        />
-
-        {type === 'book' && (
-          <CoverImageSettings
-              coverImageOption={formData.coverImageOption}
-              onCoverOptionChange={(value) => handleValueChange('coverImageOption', value)}
-              coverImageFile={formData.coverImageFile}
-              onCoverFileChange={handleFileChange}
-              coverImageAiPrompt={formData.coverImageAiPrompt}
-              onCoverAiPromptChange={handleInputChange}
-              isDisabled={isBusy}
-              isProUser={isProUser}
-          />
-        )}
-        
-        {type === 'piece' && (
-            <PresentationStyleSelector
-                presentationStyle={formData.presentationStyle as 'doc' | 'card'}
-                aspectRatio={formData.aspectRatio!}
-                onPresentationStyleChange={handlePresentationStyleChange}
-                onAspectRatioChange={handleAspectRatioChange}
-                disabled={isBusy}
-            />
-        )}
-
-        {type === 'book' && (
-          <BookAdvanceSelector
-            bookLength={formData.bookLength}
-            onBookLengthChange={(value) => handleValueChange('bookLength', value)}
-            targetChapterCount={formData.targetChapterCount}
-            onTargetChapterCountChange={handleInputChange}
-            onTargetChapterCountBlur={handleChapterCountBlur}
-            generationScope={formData.generationScope}
-            onGenerationScopeChange={(value) => handleValueChange('generationScope', value)}
+        {/* All settings are now wrapped in a single Accordion */}
+        <Accordion type="single" collapsible className="w-full space-y-3" defaultValue="language-settings">
+          <CreationLanguageSettings
+            isBilingual={isBilingual}
+            onIsBilingualChange={(checked) => handleValueChange('isBilingual', checked)}
+            isPhraseMode={isPhraseMode}
+            onIsPhraseModeChange={(checked) => handleValueChange('isPhraseMode', checked)}
+            primaryLanguage={formData.primaryLanguage}
+            onPrimaryLangChange={(value) => handleValueChange('primaryLanguage', value)}
+            secondaryLanguage={formData.availableLanguages[1]}
+            onSecondaryLangChange={(value) => handleValueChange('secondaryLanguage', value)}
+            availableLanguages={job.availableLanguages}
             isDisabled={isBusy}
-            minChapters={minChaptersForCurrentLength}
-            maxChapters={maxChapters}
+            idPrefix={type}
           />
-        )}
+
+          {type === 'book' && (
+            <CoverImageSettings
+                coverImageOption={formData.coverImageOption}
+                onCoverOptionChange={(value) => handleValueChange('coverImageOption', value)}
+                coverImageFile={formData.coverImageFile}
+                onCoverFileChange={handleFileChange}
+                coverImageAiPrompt={formData.coverImageAiPrompt}
+                onCoverAiPromptChange={handleInputChange}
+                isDisabled={isBusy}
+                isProUser={isProUser}
+            />
+          )}
+          
+          {type === 'piece' && (
+              <PresentationStyleSelector
+                  presentationStyle={formData.presentationStyle as 'doc' | 'card'}
+                  aspectRatio={formData.aspectRatio!}
+                  onPresentationStyleChange={handlePresentationStyleChange}
+                  onAspectRatioChange={handleAspectRatioChange}
+                  disabled={isBusy}
+              />
+          )}
+
+          {type === 'book' && (
+            <BookAdvanceSelector
+              bookLength={formData.bookLength}
+              onBookLengthChange={(value) => handleValueChange('bookLength', value)}
+              targetChapterCount={formData.targetChapterCount}
+              onTargetChapterCountChange={handleInputChange}
+              onTargetChapterCountBlur={handleChapterCountBlur}
+              generationScope={formData.generationScope}
+              onGenerationScopeChange={(value) => handleValueChange('generationScope', value)}
+              isDisabled={isBusy}
+              minChapters={minChaptersForCurrentLength}
+              maxChapters={maxChapters}
+            />
+          )}
+        </Accordion>
       </form>
     </>
   );
