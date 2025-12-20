@@ -1,7 +1,5 @@
 // src/features/learning/components/shadowing/ShadowingBox.tsx
 
-"use client";
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Textarea } from '@/components/ui/textarea';
@@ -146,7 +144,8 @@ export function ShadowingBox({
         const textClasses = cn(
             "w-full text-body-base leading-relaxed font-light",
             hideMode === 'blur' && !isRevealed && !diffResult && "blur-sm select-none",
-            hideMode === 'hidden' && !isRevealed && !diffResult && "invisible"
+            hideMode === 'hidden' && !isRevealed && !diffResult && "invisible",
+            disabled && "line-through" // Strikethrough for completed items
         );
         
         return (
@@ -154,7 +153,7 @@ export function ShadowingBox({
                 <WordBlockRenderer text={line} hideMode={hideMode} isRevealed={isRevealed || !!diffResult} diff={diffResult?.original} />
             </div>
         )
-    }, [line, hideMode, isRevealed, diffResult]);
+    }, [line, hideMode, isRevealed, diffResult, disabled]);
 
     const handleMicClick = useCallback(() => {
         if (disabled) return;
@@ -195,22 +194,9 @@ export function ShadowingBox({
         );
     }
 
-    if (disabled) {
-        return (
-            <div className="grid grid-cols-[40px_1fr] gap-3 items-start opacity-70">
-                <div className="flex flex-col items-center space-y-2">
-                    <div className="text-xs font-mono text-primary">{formatTime(startTime)}</div>
-                    <Icon name="Check" className="h-5 w-5 text-green-500" />
-                </div>
-                <div className="text-body-base leading-relaxed font-light line-through">
-                    {line}
-                </div>
-            </div>
-        );
-    }
-
+    // Main shadowing mode render
     return (
-        <div className="w-full">
+        <div className={cn("w-full", disabled && "opacity-70")}>
             <div className="grid grid-cols-[40px_1fr] gap-3 items-start">
                 <div className="flex flex-col items-center space-y-2">
                     <div className="text-xs font-mono text-primary">{formatTime(startTime)}</div>
@@ -224,7 +210,7 @@ export function ShadowingBox({
                             isPlaying 
                                 ? "text-red-600 bg-red-50" 
                                 : "text-foreground hover:text-red-600",
-                            disabled && "opacity-50 cursor-not-allowed"
+                            disabled && "cursor-not-allowed"
                         )}
                     >
                         <Icon name={isPlaying ? "Pause" : "Play"} className="h-4 w-4" />
@@ -252,22 +238,24 @@ export function ShadowingBox({
                 </div>
             </div>
 
-            <Collapsible open={isOpen} onOpenChange={onToggleOpen} className="w-full mt-3">
+            <Collapsible open={isOpen && !disabled} onOpenChange={onToggleOpen} className="w-full mt-3">
                 <div className="flex w-full items-center">
                     <div className="h-px flex-grow border-b border-dashed border-border mr-2"></div>
-                    <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <svg 
-                                viewBox="0 0 10 10" 
-                                className={cn(
-                                    "h-2.5 w-2.5 fill-current transition-transform duration-200",
-                                    isOpen ? "rotate-180" : "rotate-0"
-                                )}
-                            >
-                                <polygon points="0,0 10,0 5,10" />
-                            </svg>
-                        </Button>
-                    </CollapsibleTrigger>
+                    {!disabled && (
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <svg 
+                                    viewBox="0 0 10 10" 
+                                    className={cn(
+                                        "h-2.5 w-2.5 fill-current transition-transform duration-200",
+                                        isOpen ? "rotate-180" : "rotate-0"
+                                    )}
+                                >
+                                    <polygon points="0,0 10,0 5,10" />
+                                </svg>
+                            </Button>
+                        </CollapsibleTrigger>
+                    )}
                 </div>
                 
                 <CollapsibleContent>

@@ -309,25 +309,67 @@ export default function ShadowingView() {
 
   const renderContentPanel = () => {
     const transcriptContent = () => {
-      if (isLoading) return <div className="text-center py-10 space-y-4"><div className="flex justify-center"><div className="relative"><Icon name="Wand2" className="h-12 w-12 text-primary animate-pulse" /></div></div><div className="space-y-2"><p className="text-body-lg text-muted-foreground font-medium">Loading transcript</p><p className="text-body-sm text-muted-foreground/70">Fetching transcript data...</p></div></div>;
-      if (error) return <Alert variant="destructive" className="mt-6"><AlertTitle className="font-heading">{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle><AlertDescription className="font-body">{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription></Alert>;
-      if (!transcriptResult) return null;
-      return isShadowingMode ? (
-          <div className="space-y-3">
-              {transcriptResult.transcript.map((line, index) => {
-                  if (index > completedLinesCount) return null;
-                  return (
-                      <Card key={index} className={cn('transition-all duration-200 bg-background', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
-                          <CardContent className="p-3">
-                              <ShadowingBox line={line.text} startTime={line.start} hideMode={hideMode} checkMode={checkMode} onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })} isCorrect={correctlyCompletedLines.has(index)} onPlay={() => handleBoxPlay(line.start, line.end, index)} onReveal={handleReveal} isPlaying={currentPlayingLine === index && isVideoPlaying} mode="shadowing" isOpen={openBoxIndex === index} onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)} disabled={index < completedLinesCount && correctlyCompletedLines.has(index)} />
-                          </CardContent>
-                      </Card>
-                  );
-              })}
-              {completedLinesCount >= transcriptResult.transcript.length && <div className="text-center py-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-800"><Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" /><h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">All Exercises Completed</h3><p className="text-body-base text-green-600 dark:text-green-300 mb-4">Great job! You have finished all shadowing exercises.</p></div>}
+      // ✅ Use a single function for consistent rendering
+      const renderInnerContent = () => {
+        if (isLoading) {
+          return (
+            <div className="p-4 text-center">
+              <Icon name="Loader2" className="h-12 w-12 text-primary animate-spin" />
+            </div>
+          );
+        }
+        if (error) {
+          return (
+            <Alert variant="destructive" className="m-4">
+              <AlertTitle className="font-heading">{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle>
+              <AlertDescription className="font-body">{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription>
+            </Alert>
+          );
+        }
+        if (!transcriptResult) {
+          return null; // Empty state is handled by the parent card
+        }
+
+        const listToRender = isShadowingMode ? transcriptResult.transcript.slice(0, completedLinesCount + 1) : transcriptResult.transcript;
+
+        return (
+          <div className="space-y-3 p-4">
+            {listToRender.map((line, index) => (
+              <Card key={index} className={cn('transition-all duration-200 bg-background', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
+                <CardContent className="p-3">
+                  <ShadowingBox 
+                    line={line.text} 
+                    startTime={line.start} 
+                    hideMode={hideMode} 
+                    checkMode={checkMode} 
+                    onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })} 
+                    isCorrect={correctlyCompletedLines.has(index)} 
+                    onPlay={() => handleBoxPlay(line.start, line.end, index)} 
+                    onReveal={handleReveal} 
+                    isPlaying={currentPlayingLine === index && isVideoPlaying} 
+                    mode={isShadowingMode ? "shadowing" : "normal"} 
+                    isOpen={openBoxIndex === index} 
+                    onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)} 
+                    disabled={isShadowingMode && index < completedLinesCount && correctlyCompletedLines.has(index)}
+                  />
+                </CardContent>
+              </Card>
+            ))}
+            {isShadowingMode && completedLinesCount >= transcriptResult.transcript.length && (
+              <div className="text-center py-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                <Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">All Exercises Completed</h3>
+                <p className="text-body-base text-green-600 dark:text-green-300 mb-4">Great job! You have finished all shadowing exercises.</p>
+              </div>
+            )}
           </div>
-      ) : (
-          <div className="space-y-3">{transcriptResult.transcript.map((line, index) => <Card key={index} className={cn('group/line transition-all duration-200 bg-background', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}><CardContent className="p-3"><div className="grid grid-cols-[40px_1fr] gap-3 items-start"><div className="flex flex-col items-center space-y-2"><div className="text-xs font-mono text-primary">{formatTime(line.start)}</div><Button variant="ghost" size="icon" onClick={() => handleBoxPlay(line.start, line.end, index)} className={cn('h-7 w-7 transition-colors', currentPlayingLine === index && isVideoPlaying ? 'text-red-600 bg-red-50' : 'text-foreground hover:text-red-600')}><Icon name={currentPlayingLine === index && isVideoPlaying ? 'Pause' : 'Play'} className="h-4 w-4" /></Button></div><div className="relative"><div className="text-body-base font-light">{line.text}</div></div></div></CardContent></Card>)}</div>
+        );
+      };
+
+      return (
+        <ScrollArea className="h-full prose-on-grid">
+          {renderInnerContent()}
+        </ScrollArea>
       );
     };
 
@@ -339,8 +381,8 @@ export default function ShadowingView() {
             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-11 w-11 transition-colors" disabled={!isShadowingMode || !transcriptResult}><Icon name="Settings" className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel><DropdownMenuRadioGroup value={hideMode} onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}><DropdownMenuRadioItem value="block">{t('shadowing.settings.hiddenWords')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="blur">{t('shadowing.settings.blurredText')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="hidden">{t('shadowing.settings.completelyHidden')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator /><DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel><DropdownMenuRadioGroup value={checkMode} onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}><DropdownMenuRadioItem value="strict">{t('shadowing.settings.strict')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="gentle">{t('shadowing.settings.gentle')}</DropdownMenuRadioItem></DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-4">
-          <ScrollArea className="h-full prose-on-grid">{transcriptContent()}</ScrollArea>
+        <CardContent className="flex-1 min-h-0 p-0">
+          {transcriptContent()}
         </CardContent>
       </Card>
     );
