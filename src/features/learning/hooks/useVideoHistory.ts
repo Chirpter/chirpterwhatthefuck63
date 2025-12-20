@@ -16,8 +16,6 @@ export interface HistoryItem {
 const HISTORY_KEY = 'chirpter_shadowing_history';
 const CURRENT_VIDEO_KEY = 'chirpter_shadowing_current_video';
 const TRANSCRIPT_CACHE_PREFIX = 'chirpter_transcript_cache_';
-const MAX_HISTORY_SIZE = 6;
-const MAX_CACHE_SIZE = 10; // Store up to 10 full transcripts
 
 // --- CACHE MANAGEMENT ---
 
@@ -32,21 +30,25 @@ const getTranscriptFromCache = (videoId: string): TranscriptResult | null => {
   }
 };
 
+/**
+ * Saves a single transcript to the cache, clearing all previous ones first.
+ * @param videoId The ID of the video for the new transcript.
+ * @param data The transcript data to save.
+ */
 const saveTranscriptToCache = (videoId: string, data: TranscriptResult) => {
   if (typeof window === 'undefined') return;
   try {
-    const key = `${TRANSCRIPT_CACHE_PREFIX}${videoId}`;
-    localStorage.setItem(key, JSON.stringify(data));
-    
-    // Cache eviction logic
-    const allCacheKeys = Object.keys(localStorage).filter(k => k.startsWith(TRANSCRIPT_CACHE_PREFIX));
-    if (allCacheKeys.length > MAX_CACHE_SIZE) {
-      // Find the oldest key (simplistic approach, assumes keys are roughly time-ordered)
-      // A more robust approach would store timestamps if needed.
-      localStorage.removeItem(allCacheKeys[0]);
-    }
+    // 1. Clear all existing transcript caches
+    Object.keys(localStorage)
+      .filter(key => key.startsWith(TRANSCRIPT_CACHE_PREFIX))
+      .forEach(key => localStorage.removeItem(key));
+      
+    // 2. Save the new transcript
+    const newKey = `${TRANSCRIPT_CACHE_PREFIX}${videoId}`;
+    localStorage.setItem(newKey, JSON.stringify(data));
+
   } catch (e) {
-    console.error("Failed to save to transcript cache", e);
+    console.error("Failed to save to transcript cache:", e);
   }
 };
 
@@ -101,7 +103,7 @@ export const useVideoHistory = () => {
     };
 
     setHistory(prev => {
-        const next = [newItem, ...prev.filter(h => h.videoId !== item.videoId)].slice(0, MAX_HISTORY_SIZE);
+        const next = [newItem, ...prev.filter(h => h.videoId !== item.videoId)];
         persistHistory(next);
         return next;
     });
