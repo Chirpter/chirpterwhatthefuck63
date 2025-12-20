@@ -539,7 +539,7 @@
       @apply text-sm md:text-base font-body;
     }
     .text-body-sm {
-      @apply text-xs md:text-sm font-body text-muted-foreground;
+      @apply text-xs md:text-sm font-body;
     }
     .text-caption {
       @apply text-xs font-body text-muted-foreground;
@@ -1022,3 +1022,5 @@
   aspect-ratio: 1 / 1;
 }
 
+
+    
