@@ -21,12 +21,12 @@ export default function PrivacyPolicyPage() {
       </header>
       <main className="container mx-auto px-6 md:px-10 py-12">
         <article className="prose dark:prose-invert max-w-4xl mx-auto">
-          <h1>Privacy Policy</h1>
+          <h1 className="text-headline-1">Privacy Policy</h1>
           <p className="lead">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
           <p>Welcome to Chirpter. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, and share information about you when you use our application.</p>
 
-          <h2>1. Information We Collect</h2>
+          <h2 className="text-headline-2">1. Information We Collect</h2>
           <p>We collect information in the following ways:</p>
           <ul>
             <li><strong>Information you provide us:</strong> This includes information you provide when you create an account, such as your name, email address, and profile picture.</li>
@@ -34,7 +34,7 @@ export default function PrivacyPolicyPage() {
             <li><strong>Information collected automatically:</strong> We use cookies and local storage to operate and provide our services.</li>
           </ul>
 
-          <h2>2. How We Use Cookies and Local Storage</h2>
+          <h2 className="text-headline-2">2. How We Use Cookies and Local Storage</h2>
           <p>We use cookies and similar technologies for essential purposes to provide a functional and secure experience. Here’s a breakdown:</p>
           
           <h4>Essential Cookies</h4>
@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
           
           <p>We do not use cookies for advertising or non-essential third-party tracking.</p>
 
-          <h2>3. How We Use Your Information</h2>
+          <h2 className="text-headline-2">3. How We Use Your Information</h2>
           <p>We use the information we collect to:</p>
           <ul>
             <li>Provide, maintain, and improve our services.</li>
@@ -60,16 +60,16 @@ export default function PrivacyPolicyPage() {
             <li>Ensure the security of our platform.</li>
           </ul>
           
-          <h2>4. Data Security</h2>
+          <h2 className="text-headline-2">4. Data Security</h2>
           <p>We take reasonable measures to protect your information from loss, theft, misuse, and unauthorized access. Your account is protected by your password, and we encourage you to use a strong password.</p>
 
-          <h2>5. Your Choices</h2>
+          <h2 className="text-headline-2">5. Your Choices</h2>
           <p>You can manage your account information through your profile settings. You can also clear cookies and site data through your browser settings, though this will log you out and reset your preferences.</p>
 
-          <h2>6. Changes to This Policy</h2>
+          <h2 className="text-headline-2">6. Changes to This Policy</h2>
           <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page. We encourage you to review this Privacy Policy periodically for any changes.</p>
 
-          <h2>7. Contact Us</h2>
+          <h2 className="text-headline-2">7. Contact Us</h2>
           <p>If you have any questions about this PrivacyPolicy, please contact us at support@chirpter.com.</p>
         </article>
       </main>

@@ -101,7 +101,7 @@ export function NowPlayingCard({ item, onRemove, onPlay }: { item: TPlaylistItem
       >
           {renderVisuals()}
           <div>
-              <h3 className="text-headline-1">{itemTitle}</h3>
+              <h3 className="text-headline-2">{itemTitle}</h3>
               {isBook && <p className="text-body-sm">{t('bookCard:byAuthor', { author: itemAuthor })}</p>}
               {!isBook && <p className="text-body-sm">{t('vocabFolder')}</p>}
           </div>

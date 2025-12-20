@@ -250,7 +250,7 @@ export default function LandingPageV2() {
               <p className="text-body-sm">Your AI co-pilot for creation and learning.</p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4 text-body-base">Product</h4>
+              <h4 className="font-semibold text-body-base">Product</h4>
               <ul className="space-y-2 text-body-sm">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
@@ -258,7 +258,7 @@ export default function LandingPageV2() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4 text-body-base">Company</h4>
+              <h4 className="font-semibold text-body-base">Company</h4>
               <ul className="space-y-2 text-body-sm">
                 <li><a href="#about" className="hover:text-white transition-colors">About</a></li>
                 <li><a href="#blog" className="hover:text-white transition-colors">Blog</a></li>
@@ -266,7 +266,7 @@ export default function LandingPageV2() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4 text-body-base">Legal</h4>
+              <h4 className="font-semibold text-body-base">Legal</h4>
               <ul className="space-y-2 text-body-sm">
                 <li><a href="/privacy" className="hover:text-white transition-colors">Privacy</a></li>
                 <li><a href="#terms" className="hover:text-white transition-colors">Terms</a></li>

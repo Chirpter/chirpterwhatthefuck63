@@ -62,13 +62,13 @@ const LevelUpDialog: React.FC<LevelUpDialogProps> = ({ isOpen, onClose, levelUpI
                 <DialogTitle className="text-headline-1">
                     {title}
                 </DialogTitle>
-                <DialogDescription className="text-body-lg">
+                <DialogDescription className="text-body-base">
                     {description}
                 </DialogDescription>
             </DialogHeader>
             <div className="mt-4 text-muted-foreground">
                 <p className="text-body-base">Your current level is <span className="font-bold text-primary">{newLevel}</span>!</p>
-                <p className="text-body-sm mt-1">Keep it up to unlock more rewards.</p>
+                <p className="text-sm mt-1">Keep it up to unlock more rewards.</p>
             </div>
         </div>
         <DialogFooter className="p-4 bg-muted/50 border-t">

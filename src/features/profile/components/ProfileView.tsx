@@ -33,8 +33,8 @@ import { Logo } from '@/components/ui/Logo';
 
 const StatItem = ({ value, label }: { value: string | number, label: string }) => (
   <div className="text-center">
-    <p className="font-bold text-lg">{value}</p>
-    <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
+    <p className="text-body-lg font-bold">{value}</p>
+    <p className="text-caption uppercase tracking-wider">{label}</p>
   </div>
 );
 
@@ -51,14 +51,14 @@ const WishNote = ({ children, x, y, style, contentClass }: { children: React.Rea
               <div className="absolute top-1 right-1 w-2 h-[calc(100%-8px)] bg-amber-300/50 rounded-full"></div>
               <div className="absolute -top-1 left-2 w-[calc(100%-16px)] h-2 bg-amber-300/50 rounded-full"></div>
               <div className="absolute -bottom-1 left-2 w-[calc(100%-16px)] h-2 bg-amber-300/50 rounded-full"></div>
-              <div className={cn("text-xs font-serif italic truncate text-amber-900", contentClass)}>
+              <div className={cn("text-caption font-serif italic truncate text-amber-900", contentClass)}>
                 {children}
               </div>
             </div>
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-3 bg-amber-50 border-amber-200">
-          <p className="text-sm font-serif text-amber-900">{children}</p>
+          <p className="text-body-sm font-serif text-amber-900">{children}</p>
         </PopoverContent>
       </Popover>
     </foreignObject>
@@ -105,10 +105,10 @@ const JourneyTree: React.FC<JourneyTreeProps> = ({ userLevel, userGender }) => {
           <path d="M0 380 Q 200 360, 400 380 L 400 400 L 0 400 Z" fill="url(#leafGradient)" opacity="0.6" />
           <path d="M200,380 Q190,250 160,180 T150,100" stroke="url(#trunkGradient)" strokeWidth="18" fill="none" strokeLinecap="round" />
           <circle cx="150" cy="100" r="50" fill="url(#leafGradient)" opacity="0.8" />
-          <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fill="#fff" fontSize="24" className="font-bold font-headline">
+          <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fill="#fff" className="font-bold font-headline text-headline-1">
             {treeState}
           </text>
-           <text x="50%" y="60%" dominantBaseline="middle" textAnchor="middle" fill="#fff" fontSize="18" className="font-body">
+           <text x="50%" y="60%" dominantBaseline="middle" textAnchor="middle" fill="#fff" className="font-body text-body-base">
             Character: {character}
           </text>
         </g>
@@ -141,7 +141,7 @@ const TimelinePost = ({ icon, title, description, children }: { icon: any, title
         </div>
         <div className="mb-8">
             <h4 className="font-headline font-semibold">{title}</h4>
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-body-sm text-muted-foreground">{description}</p>
             {children && <div className="mt-2">{children}</div>}
         </div>
     </div>
@@ -197,7 +197,7 @@ export default function ProfileView() {
             <div className="flex h-full w-full items-center justify-center">
                 <div className="text-center">
                     <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
-                    <p className="mt-2 text-sm text-muted-foreground">Loading Profile...</p>
+                    <p className="mt-2 text-body-sm">Loading Profile...</p>
                 </div>
             </div>
         );
@@ -247,7 +247,7 @@ export default function ProfileView() {
                                                 <AvatarFallback className="text-4xl">{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                         </div>
-                                        <div className={cn("absolute -bottom-1 left-1/2 -translate-x-1/2 h-6 rounded-md px-3 text-sm font-bold flex items-center justify-center", levelStyles.badgeClasses)}>
+                                        <div className={cn("absolute -bottom-1 left-1/2 -translate-x-1/2 h-6 rounded-md px-3 text-body-sm font-bold flex items-center justify-center", levelStyles.badgeClasses)}>
                                             {user.level}
                                         </div>
                                     </div>
@@ -271,8 +271,8 @@ export default function ProfileView() {
                         {/* Right Column: Name, stats, badges */}
                         <div className="flex-grow pt-20 md:pt-24 flex justify-between items-end">
                             <div className="space-y-1">
-                                <h2 className={cn("text-2xl font-bold font-headline", user.plan === 'pro' && 'text-level-gold')}>{user.displayName}</h2>
-                                <p className="text-sm text-muted-foreground">@{user.username || user.uid.substring(0,8)}</p>
+                                <h2 className={cn("text-headline-1", user.plan === 'pro' && 'text-level-gold')}>{user.displayName}</h2>
+                                <p className="text-body-sm text-muted-foreground">@{user.username || user.uid.substring(0,8)}</p>
                             </div>
                             <div className="hidden md:flex items-center gap-6">
                                <StatItem value={user.stats?.booksCreated || 0} label="posts" />
@@ -294,14 +294,14 @@ export default function ProfileView() {
                 
                 {/* Right Column: The Timeline */}
                 <div>
-                    <h3 className="font-headline text-xl font-semibold mb-4">Journey</h3>
+                    <h3 className="text-headline-2 mb-4">Journey</h3>
                     <div className="max-h-[80vh] overflow-y-auto pr-4">
                         <TimelinePost icon="FileText" title="Published a new work" description="2 days ago">
                              <Card className="p-3 bg-muted/50 flex items-center gap-3">
                                 <Image src="https://images.unsplash.com/photo-1544716278-e513176f20b5?q=80&w=400&auto=format&fit=crop" alt="Book Cover" width={40} height={50} className="rounded-sm" />
                                 <div className="flex-grow">
-                                    <p className="font-semibold">Homebound</p>
-                                    <p className="text-xs text-muted-foreground">A book about dragons.</p>
+                                    <p className="font-semibold text-body-base">Homebound</p>
+                                    <p className="text-caption">A book about dragons.</p>
                                 </div>
                                 <Button size="sm" variant="outline">View</Button>
                             </Card>
@@ -316,7 +316,7 @@ export default function ProfileView() {
                         </TimelinePost>
 
                          <TimelinePost icon="Award" title="Reached a milestone" description="1 week ago">
-                             <p>Congratulations on completing your first course!</p>
+                             <p className="text-body-base">Congratulations on completing your first course!</p>
                         </TimelinePost>
                     </div>
                 </div>

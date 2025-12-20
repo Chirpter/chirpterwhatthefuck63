@@ -96,7 +96,7 @@ const VocabularyItemCardComponent: React.FC<VocabularyItemProps> = ({ item, onPr
         <CardContent className={cn("p-3 flex flex-row gap-4 flex-grow", isLite ? "pl-2" : "pl-6")}>
             <div className={cn("flex-grow flex flex-col min-w-0", isLite ? 'pr-6' : 'pr-8')}>
                 <div className="flex-grow">
-                    <h3 className={cn("text-headline-2 font-bold text-primary", isLite && "text-body-lg")}>{item.term}</h3>
+                    <h3 className={cn("text-headline-2 font-bold text-primary", isLite && "text-body-base")}>{item.term}</h3>
                     <p className={cn("text-body-base text-foreground/90", isLite && "text-body-sm")}>
                         {item.meaning}
                         {item.partOfSpeech && <span className={cn("ml-2 italic text-muted-foreground/80", isLite ? "text-xs" : "text-caption")}>({item.partOfSpeech})</span>}

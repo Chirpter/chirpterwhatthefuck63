@@ -58,7 +58,7 @@ const AchievementAdminCard: React.FC<{achievement: Achievement}> = ({ achievemen
                 <Icon name={achievement.icon} className="h-full w-full text-primary" />
             </div>
             <div className="flex-grow min-w-0">
-                <p className="font-semibold truncate text-body-base">{t(achievement.nameKey)}</p>
+                <p className="font-semibold text-body-base truncate">{t(achievement.nameKey)}</p>
                 <div className="flex items-center gap-1 mt-1">
                     {achievement.tiers.map(tier => (
                         <TooltipProvider key={tier.level}>

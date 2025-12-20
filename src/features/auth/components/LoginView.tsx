@@ -127,7 +127,7 @@ export default function LoginView() {
       <div className="flex h-screen w-full items-center justify-center">
         <div className="text-center">
             <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
-            <p className="mt-2 text-body-sm">Loading...</p>
+            <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -221,7 +221,7 @@ export default function LoginView() {
               <div className="flex flex-col items-center gap-4">
                 <Logo className="h-12 w-12 text-primary animate-pulse" />
                 <div className="text-center space-y-1">
-                  <p className="font-semibold">
+                  <p className="font-semibold text-body-base">
                     {isCreatingSession ? "Creating secure session..." : "Signing you in..."}
                   </p>
                   <p className="text-body-sm">{t('toast:pleaseWait')}</p>

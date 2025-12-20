@@ -106,7 +106,7 @@ export default function AppHeader() {
                         <AvatarFallback>{authUser?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
                 </div>
-                <div className={cn("streaktag absolute -bottom-1 left-1/2 -translate-x-1/2 h-4 rounded-sm px-1.5 text-[10px] md:text-xs font-bold flex items-center justify-center", levelStyles.badgeClasses)}>
+                <div className={cn("streaktag absolute -bottom-1 left-1/2 -translate-x-1/2 h-4 rounded-sm px-1.5 text-caption font-bold flex items-center justify-center", levelStyles.badgeClasses)}>
                     {levelToShow}
                 </div>
             </div>
@@ -114,7 +114,7 @@ export default function AppHeader() {
           <DropdownMenuContent className="w-60 font-body" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className={cn("text-sm font-medium leading-none", user?.plan === 'pro' && 'text-level-gold')}>{authUser?.displayName || 'User'}</p>
+                <p className={cn("text-body-sm font-medium leading-none", user?.plan === 'pro' && 'text-level-gold')}>{authUser?.displayName || 'User'}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {authUser?.email || ''}
                 </p>

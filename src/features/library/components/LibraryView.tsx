@@ -319,7 +319,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
         <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && cancelDelete()}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
+              <AlertDialogTitle className="text-headline-2">{t('common:alertDialog.areYouSure')}</AlertDialogTitle>
               <AlertDialogDescription>
                 {t('common:alertDialog.deleteWarning', { 
                   title: (itemToDelete.title as any).primary || itemToDelete.title[Object.keys(itemToDelete.title)[0]] 
