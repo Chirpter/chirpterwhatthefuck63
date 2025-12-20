@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/icons';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getTranscriptFromUrl, type TranscriptResult } from '@/services/server/shadowing-service';
 import { useToast } from '@/hooks/useToast';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ShadowingBox, type ShadowingResult } from './ShadowingBox';
 import {
@@ -50,7 +50,7 @@ const isValidYouTubeUrl = (url: string) => {
     const host = u.hostname;
     return host === 'youtu.be' || host.includes('youtube.com') || host.includes('youtu.be');
   } catch {
-    return false;
+    return null;
   }
 };
 
@@ -507,7 +507,7 @@ export default function ShadowingView() {
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="learningtool-style space-y-4 pb-6">
+      <div className="space-y-4 pb-6">
         <div className="px-4">
             <h1 className="text-headline-1">{t('shadowing.title')}</h1>
             <p className="text-body-sm mt-1">{t('shadowing.description')}</p>
@@ -580,7 +580,7 @@ export default function ShadowingView() {
         {/* Transcript - NOW IN MIDDLE ON MOBILE */}
         <div className="px-4">
           <Card>
-            <div className="p-3 flex-shrink-0">
+            <CardHeader className="p-3 flex-shrink-0">
               <div className="flex items-center justify-center gap-2">
                 <Button
                   variant={isShadowingMode ? 'default' : 'outline'}
@@ -642,13 +642,13 @@ export default function ShadowingView() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            </div>
+            </CardHeader>
 
-            <div className="flex-1 min-h-[300px] p-4">
+            <CardContent className="p-4 flex-1 min-h-[300px]">
               <ScrollArea className="h-full">
                 {transcriptContent}
               </ScrollArea>
-            </div>
+            </CardContent>
           </Card>
         </div>
 
@@ -690,10 +690,10 @@ export default function ShadowingView() {
 
   // Desktop layout
   return (
-    <div className="learningtool-style space-y-6">
-       <div>
+    <div className="space-y-6">
+       <div className="space-y-1">
             <h1 className="text-headline-1">{t('shadowing.title')}</h1>
-            <p className="text-body-sm mt-1">{t('shadowing.description')}</p>
+            <p className="text-body-sm text-muted-foreground">{t('shadowing.description')}</p>
         </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -760,81 +760,78 @@ export default function ShadowingView() {
           <ActivitiesPanel />
         </div>
 
-        {/* Middle Column - FIXED HEIGHT with internal scroll */}
-        <div className="md:col-span-1">
-          <Card className="flex flex-col h-[70vh] min-h-[500px] max-h-[800px] bg-card">
-            <div className="p-3 flex-shrink-0">
-              <div className="flex items-center justify-center gap-2">
-                <Button
-                  variant={isShadowingMode ? 'default' : 'outline'}
-                  size="icon"
-                  onClick={() => {
-                    if (!transcriptResult) return;
-                    setIsShadowingMode(prev => !prev);
-                  }}
-                  disabled={!transcriptResult}
-                  className="h-11 w-11 transition-colors"
-                  title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}
-                >
-                  <Icon name="Shadowing" className="h-5 w-5" />
-                </Button>
+        {/* Middle Column - Content Panel */}
+        <Card className="md:col-span-1 flex flex-col h-[70vh] min-h-[500px] max-h-[800px] bg-card">
+          <CardHeader className="p-3 flex-shrink-0">
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant={isShadowingMode ? 'default' : 'outline'}
+                size="icon"
+                onClick={() => {
+                  if (!transcriptResult) return;
+                  setIsShadowingMode(prev => !prev);
+                }}
+                disabled={!transcriptResult}
+                className="h-11 w-11 transition-colors"
+                title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}
+              >
+                <Icon name="Shadowing" className="h-5 w-5" />
+              </Button>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-11 w-11 transition-colors"
-                      disabled={!isShadowingMode || !transcriptResult}
-                    >
-                      <Icon name="Settings" className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 transition-colors"
+                    disabled={!isShadowingMode || !transcriptResult}
+                  >
+                    <Icon name="Settings" className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
 
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={hideMode}
-                      onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}
-                    >
-                      <DropdownMenuRadioItem value="block">
-                        {t('shadowing.settings.hiddenWords')}
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="blur">
-                        {t('shadowing.settings.blurredText')}
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="hidden">
-                        {t('shadowing.settings.completelyHidden')}
-                      </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={hideMode}
+                    onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}
+                  >
+                    <DropdownMenuRadioItem value="block">
+                      {t('shadowing.settings.hiddenWords')}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="blur">
+                      {t('shadowing.settings.blurredText')}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="hidden">
+                      {t('shadowing.settings.completelyHidden')}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
 
-                    <DropdownMenuSeparator />
+                  <DropdownMenuSeparator />
 
-                    <DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={checkMode}
-                      onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}
-                    >
-                      <DropdownMenuRadioItem value="strict">
-                        {t('shadowing.settings.strict')}
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="gentle">
-                        {t('shadowing.settings.gentle')}
-                      </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                  <DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={checkMode}
+                    onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}
+                  >
+                    <DropdownMenuRadioItem value="strict">
+                      {t('shadowing.settings.strict')}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="gentle">
+                      {t('shadowing.settings.gentle')}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+          </CardHeader>
 
-            {/* Transcript with FIXED height and internal scroll */}
-            <div className="flex-1 min-h-0 p-4">
-              <ScrollArea className="h-full">
-                {transcriptContent}
-              </ScrollArea>
-            </div>
-          </Card>
-        </div>
+          <CardContent className="flex-1 min-h-0 p-4">
+            <ScrollArea className="h-full">
+              {transcriptContent}
+            </ScrollArea>
+          </CardContent>
+        </Card>
 
         {/* Right Column - FIXED HEIGHT */}
         <div className="md:col-span-1 flex flex-col gap-4">

@@ -172,7 +172,7 @@ function VocabVideosView() {
   // Mobile layout - Video -> Transcript -> Activities -> Vocab
   if (isMobile) {
     return (
-      <div className="learningtool-style space-y-4 pb-6">
+      <div className="space-y-4 pb-6">
         <LookupPopover 
           isOpen={lookupState.isOpen}
           onOpenChange={(open) => !open && closeLookup()}
@@ -245,12 +245,12 @@ function VocabVideosView() {
                 totalRepeats={3}
               />
             </CardHeader>
-            <div 
+            <CardContent 
               onMouseUp={handleSelectionWithContext} 
-              className="p-4 pt-2 prose-on-grid min-h-[200px]"
+              className="p-4 prose-on-grid min-h-[200px]"
             >
               {renderContextState}
-            </div>
+            </CardContent>
           </Card>
         </div>
 
@@ -269,7 +269,7 @@ function VocabVideosView() {
     );
   }
 
-  // Desktop layout - unchanged
+  // Desktop layout
   return (
     <>
       <LookupPopover 
@@ -284,10 +284,10 @@ function VocabVideosView() {
         context={lookupState.context}
       />
       
-      <div className="learningtool-style space-y-6">
-        <div>
+      <div className="space-y-6">
+        <div className="space-y-1">
           <h1 className="text-headline-1">{t('vocabVideos.pageTitle')}</h1>
-          <p className="text-body-sm mt-1">{t('vocabVideos.description')}</p>
+          <p className="text-body-sm text-muted-foreground">{t('vocabVideos.description')}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Left Column */}
@@ -327,7 +327,7 @@ function VocabVideosView() {
             <ActivitiesPanel />
           </div>
           
-          {/* Middle Column - Fixed with ScrollArea */}
+          {/* Middle Column - Content Panel */}
           <Card className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px] bg-reader-grid">
             <CardHeader className="p-3 border-b flex-shrink-0">
               <ControlBar
@@ -343,14 +343,14 @@ function VocabVideosView() {
                 totalRepeats={3}
               />
             </CardHeader>
-            <ScrollArea className="flex-1 min-h-0">
-              <div 
-                onMouseUp={handleSelectionWithContext} 
-                className="p-4 prose-on-grid"
-              >
+            <CardContent
+              className="flex-1 min-h-0"
+              onMouseUp={handleSelectionWithContext}
+            >
+              <ScrollArea className="h-full p-4 prose-on-grid">
                 {renderContextState}
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </CardContent>
           </Card>
           
           {/* Right Column */}
