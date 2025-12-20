@@ -143,7 +143,7 @@ export function ShadowingBox({
 
     const renderOriginalText = useMemo(() => {
         const textClasses = cn(
-            "text-[15px] leading-relaxed font-light w-full",
+            "w-full text-body-base leading-relaxed font-light",
             hideMode === 'blur' && !isRevealed && !diffResult && "blur-sm select-none",
             hideMode === 'hidden' && !isRevealed && !diffResult && "invisible"
         );
@@ -187,7 +187,7 @@ export function ShadowingBox({
                         <Icon name={isPlaying ? "Pause" : "Play"} className="h-4 w-4" />
                     </Button>
                 </div>
-                <div className="text-[15px] leading-relaxed font-light">
+                <div className="text-body-base leading-relaxed font-light">
                     {line}
                 </div>
             </div>
@@ -201,7 +201,7 @@ export function ShadowingBox({
                     <div className="text-xs font-mono text-primary">{formatTime(startTime)}</div>
                     <Icon name="Check" className="h-5 w-5 text-green-500" />
                 </div>
-                <div className="text-[15px] leading-relaxed font-light line-through">
+                <div className="text-body-base leading-relaxed font-light line-through">
                     {line}
                 </div>
             </div>
@@ -328,7 +328,7 @@ export function ShadowingBox({
                         <div className="min-w-0">
                             {diffResult ? (
                                 <div className="space-y-2">
-                                    <div className="min-h-[80px] p-3 text-[15px] leading-relaxed font-light border rounded-md bg-muted/30 overflow-auto whitespace-pre-wrap break-words">
+                                    <div className="min-h-[80px] p-3 text-body-base leading-relaxed font-light border rounded-md bg-muted/30 overflow-auto whitespace-pre-wrap break-words">
                                         <WordBlockRenderer text={userInput} diff={diffResult.user} hideMode="block" isRevealed={true}/>
                                     </div>
                                 </div>
@@ -340,7 +340,7 @@ export function ShadowingBox({
                                         rows={3}
                                         placeholder={isListening ? "Listening... Speak now" : "Type or speak your shadowing..."}
                                         disabled={isChecking || disabled}
-                                        className="text-[15px] leading-relaxed font-light pr-10 transition-colors resize-none"
+                                        className="text-body-base leading-relaxed font-light pr-10 transition-colors resize-none"
                                         onKeyDown={(e) => {
                                             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                                                 e.preventDefault();

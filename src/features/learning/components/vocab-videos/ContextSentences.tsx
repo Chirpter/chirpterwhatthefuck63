@@ -49,7 +49,7 @@ export const ContextSentences: React.FC<ContextSentencesProps> = ({
 
 
   return (
-    <p className="text-sm text-muted-foreground break-words select-text line-clamp-2">
+    <p className="text-body-sm break-words select-text line-clamp-2">
       {highlightedContent}
     </p>
   );

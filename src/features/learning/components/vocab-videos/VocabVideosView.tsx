@@ -1,3 +1,5 @@
+// src/features/learning/components/vocab-videos/VocabVideosView.tsx
+
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -138,7 +140,7 @@ function VocabVideosView() {
       <div className="flex items-center justify-center h-full p-4 text-center text-muted-foreground">
         <div>
           <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">{t('vocabVideos.searchPrompt', { defaultValue: 'Search for a word to see video clips' })}</p>
+          <p className="text-body-base">{t('vocabVideos.searchPrompt', { defaultValue: 'Search for a word to see video clips' })}</p>
         </div>
       </div>
     );
@@ -183,7 +185,7 @@ function VocabVideosView() {
           context={lookupState.context}
         />
         
-        <h2 className="text-xl font-headline font-semibold px-4">
+        <h2 className="text-headline-1 px-4">
           {t('vocabVideos.pageTitle')}
         </h2>
 
@@ -193,7 +195,7 @@ function VocabVideosView() {
             <CardContent className="p-3">
               <form className="flex items-center gap-2" onSubmit={handleSubmit}>
                 <div className="relative flex-grow w-full">
-                  <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Icon name="Youtube" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder={t('vocabVideos.searchPlaceholder')}
                     value={query}
@@ -281,7 +283,7 @@ function VocabVideosView() {
         context={lookupState.context}
       />
       
-      <h2 className="text-xl md:text-2xl font-headline font-semibold">
+      <h2 className="text-headline-1">
         {t('vocabVideos.pageTitle')}
       </h2>
 

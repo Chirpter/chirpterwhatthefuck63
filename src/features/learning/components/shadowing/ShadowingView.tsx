@@ -338,8 +338,8 @@ export default function ShadowingView() {
           </div>
         </div>
         <div className="space-y-2">
-          <p className="text-lg text-muted-foreground font-medium">Loading transcript</p>
-          <p className="text-sm text-muted-foreground/70">Fetching transcript data...</p>
+          <p className="text-body-lg text-muted-foreground font-medium">Loading transcript</p>
+          <p className="text-body-sm text-muted-foreground/70">Fetching transcript data...</p>
         </div>
       </div>
     );
@@ -396,7 +396,7 @@ export default function ShadowingView() {
             
             return (
               <Card key={index} className={cn(
-                'transition-all duration-200',
+                'transition-all duration-200 bg-reader-grid',
                 isPlaying && 'ring-2 ring-red-500 ring-opacity-50'
               )}>
                 <CardContent className="p-3">
@@ -423,10 +423,10 @@ export default function ShadowingView() {
           {completedLinesCount >= transcript.length && (
             <div className="text-center py-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-lg border border-green-200 dark:border-green-800">
               <Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-green-800 dark:text-green-400 mb-2">
+              <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">
                 All Exercises Completed
               </h3>
-              <p className="text-green-600 dark:text-green-300 mb-4">
+              <p className="text-green-600 dark:text-green-300 mb-4 text-body-base">
                 Great job! You have finished all shadowing exercises.
               </p>
             </div>
@@ -441,7 +441,7 @@ export default function ShadowingView() {
           const isPlaying = currentPlayingLine === index && isVideoPlaying;
           return (
             <Card key={index} className={cn(
-              'group/line transition-all duration-200',
+              'group/line transition-all duration-200 bg-reader-grid',
               isPlaying && 'ring-2 ring-red-500 ring-opacity-50'
             )}>
               <CardContent className="p-3">
@@ -464,7 +464,7 @@ export default function ShadowingView() {
                   </div>
 
                   <div className="relative">
-                    <div className="text-[15px] leading-relaxed font-light">
+                    <div className="text-body-base font-light">
                       {line.text}
                     </div>
                     <Button
@@ -508,7 +508,7 @@ export default function ShadowingView() {
   if (isMobile) {
     return (
       <div className="learningtool-style space-y-4 pb-6">
-        <h2 className="text-xl font-headline font-semibold px-4">
+        <h2 className="text-headline-1 px-4">
           {t('shadowing.title')}
         </h2>
 
@@ -568,7 +568,7 @@ export default function ShadowingView() {
                 <p className="font-semibold text-foreground">
                   {t('shadowing.videoPlaceholderTitle')}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body-sm">
                   {t('shadowing.videoPlaceholderDescription')}
                 </p>
               </div>
@@ -690,7 +690,7 @@ export default function ShadowingView() {
   // Desktop layout
   return (
     <div className="learningtool-style space-y-6">
-      <h2 className="text-xl md:text-2xl font-headline font-semibold">
+      <h2 className="text-headline-1">
         {t('shadowing.title')}
       </h2>
 
@@ -745,10 +745,10 @@ export default function ShadowingView() {
             ) : (
               <div className="aspect-video w-full rounded-xl bg-muted/30 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center">
                 <Icon name="Youtube" className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                <p className="font-semibold text-foreground">
+                <p className="text-headline-2 text-foreground">
                   {t('shadowing.videoPlaceholderTitle')}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-body-sm text-muted-foreground">
                   {t('shadowing.videoPlaceholderDescription')}
                 </p>
               </div>
@@ -760,7 +760,7 @@ export default function ShadowingView() {
 
         {/* Middle Column - FIXED HEIGHT with internal scroll */}
         <div className="md:col-span-1">
-          <Card className="flex flex-col h-[70vh] min-h-[500px] max-h-[800px] bg-reader-grid">
+          <Card className="flex flex-col h-[70vh] min-h-[500px] max-h-[800px] bg-card">
             <div className="p-3 flex-shrink-0">
               <div className="flex items-center justify-center gap-2">
                 <Button
