@@ -25,12 +25,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/user-context';
 import { ActivitiesPanel } from '../activities/ActivitiesPanel';
-import { Progress } from '@/components/ui/progress';
 import { ShadowingHistory } from './ShadowingHistory';
 import { ShadowingAnalysis } from './ShadowingAnalysis';
 import { useShadowingTracking } from '@/features/learning/hooks/useShadowingTracking';
 import { useVideoHistory } from '@/features/learning/hooks/useVideoHistory';
 import { ShadowingPlayer, type ShadowingPlayerHandle } from './ShadowingPlayer';
+import { useMobile } from '@/hooks/useMobile';
 
 interface HistoryItem {
   videoId: string;
@@ -58,6 +58,7 @@ export default function ShadowingView() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
   const { toast } = useToast();
   const { user } = useUser();
+  const isMobile = useMobile();
 
   const [url, setUrl] = useState('');
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
@@ -289,7 +290,6 @@ export default function ShadowingView() {
   const handleLineComplete = useCallback((isCorrect: boolean, result: ShadowingResult) => {
     const { lineIndex } = result;
 
-    // Track submission - use session index for tracking
     if (lineIndex === tracking.currentSessionIndex) {
       tracking.onResubmit(result);
     } else {
@@ -302,8 +302,6 @@ export default function ShadowingView() {
       setCompletedLinesCount(prev => Math.max(prev, lineIndex + 1));
     }
 
-    // Only show next box if current box is correct
-    // Box sau chỉ hiện khi submit box trước (và box trước phải đúng)
     if (isCorrect) {
       setOpenBoxIndex(lineIndex + 1);
     } else {
@@ -389,7 +387,6 @@ export default function ShadowingView() {
       return (
         <div className="space-y-3">
           {transcript.map((line, index) => {
-            // Show only current box and next box (if current is correct)
             const shouldShow = index <= completedLinesCount;
             if (!shouldShow) return null;
 
@@ -508,15 +505,198 @@ export default function ShadowingView() {
     t
   ]);
 
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <div className="learningtool-style space-y-4 pb-6">
+        <h2 className="text-xl font-headline font-semibold px-4">
+          {t('shadowing.title')}
+        </h2>
+
+        {/* Search Bar */}
+        <div className="px-4">
+          <Card>
+            <CardContent className="p-3">
+              <form onSubmit={handleFetchTranscript} className="flex items-center gap-2">
+                <div className="relative flex-grow w-full">
+                  <Icon name="Youtube" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder={t('shadowing.urlPlaceholder')}
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleFetchTranscript()}
+                    className="font-body pl-9 h-10 transition-colors"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isLoading || !url}
+                  className="h-10 px-4 transition-colors"
+                >
+                  {isLoading ? (
+                    <>
+                      <Icon name="Loader2" className="animate-spin h-4 w-4 mr-2" />
+                      {t('common:loading')}...
+                    </>
+                  ) : t('shadowing.getTranscriptButton')}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Video Player */}
+        <div className="px-4">
+          <div className={cn(isLoading && "animate-pulse")}>
+            {isLoading ? (
+              <Skeleton className="aspect-video w-full rounded-xl" />
+            ) : videoId ? (
+              <div className="aspect-video w-full">
+                <ShadowingPlayer
+                  ref={playerRef}
+                  videoId={videoId}
+                  onVideoEnd={handleVideoEnd}
+                  onVideoPlay={handleVideoPlay}
+                  onVideoPause={handleVideoPause}
+                />
+              </div>
+            ) : (
+              <div className="aspect-video w-full rounded-xl bg-muted/30 border-2 border-dashed flex flex-col items-center justify-center p-4 text-center">
+                <Icon name="Youtube" className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                <p className="font-semibold text-foreground">
+                  {t('shadowing.videoPlaceholderTitle')}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {t('shadowing.videoPlaceholderDescription')}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Transcript - NOW IN MIDDLE ON MOBILE */}
+        <div className="px-4">
+          <Card className="bg-reader-grid">
+            <div className="p-3 flex-shrink-0">
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  variant={isShadowingMode ? 'default' : 'outline'}
+                  size="icon"
+                  onClick={() => {
+                    if (!transcriptResult) return;
+                    setIsShadowingMode(prev => !prev);
+                  }}
+                  disabled={!transcriptResult}
+                  className="h-11 w-11 transition-colors"
+                  title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}
+                >
+                  <Icon name="Shadowing" className="h-5 w-5" />
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 transition-colors"
+                      disabled={!isShadowingMode || !transcriptResult}
+                    >
+                      <Icon name="Settings" className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={hideMode}
+                      onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}
+                    >
+                      <DropdownMenuRadioItem value="block">
+                        {t('shadowing.settings.hiddenWords')}
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="blur">
+                        {t('shadowing.settings.blurredText')}
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="hidden">
+                        {t('shadowing.settings.completelyHidden')}
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={checkMode}
+                      onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}
+                    >
+                      <DropdownMenuRadioItem value="strict">
+                        {t('shadowing.settings.strict')}
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="gentle">
+                        {t('shadowing.settings.gentle')}
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-[300px] p-4">
+              <ScrollArea className="h-full">
+                {transcriptContent}
+              </ScrollArea>
+            </div>
+          </Card>
+        </div>
+
+        {/* Activities */}
+        <div className="px-4">
+          <ActivitiesPanel />
+        </div>
+
+        {/* Analysis */}
+        <div className="px-4">
+          <div className="min-h-[350px]">
+            <ShadowingAnalysis
+              errorStats={tracking.errorStats}
+              wordsNeedingAttention={wordsToDisplay}
+              onConfirmWord={tracking.confirmWord}
+              showChart={tracking.shouldShowChart(openBoxIndex || 0)}
+              progressPercentage={progressPercentage}
+              completedLinesCount={completedLinesCount}
+              totalLines={transcriptResult?.transcript.length || 0}
+              isShadowingMode={isShadowingMode}
+            />
+          </div>
+        </div>
+
+        {/* History */}
+        <div className="px-4">
+          <div className="min-h-[200px]">
+            <ShadowingHistory
+              history={history}
+              currentVideoId={videoId}
+              onItemClick={handleHistoryItemClick}
+              onClearHistory={handleClearHistory}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop layout
   return (
     <div className="learningtool-style space-y-6">
       <h2 className="text-xl md:text-2xl font-headline font-semibold">
         {t('shadowing.title')}
       </h2>
 
-      {/* UPDATED: Changed from xl:grid-cols-3 to md:grid-cols-3 to match VideoVocab */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Column - Natural height */}
+        {/* Left Column */}
         <div className="md:col-span-1 flex flex-col gap-4">
           <Card>
             <CardContent className="p-3">
@@ -655,9 +835,9 @@ export default function ShadowingView() {
           </Card>
         </div>
 
-        {/* Right Column - FIXED HEIGHT with internal scroll */}
+        {/* Right Column - FIXED HEIGHT */}
         <div className="md:col-span-1 flex flex-col gap-4">
-          {/* Analysis - FIXED height with scroll */}
+          {/* Analysis - FIXED height */}
           <div className="h-[45vh] min-h-[350px] max-h-[500px]">
             <ShadowingAnalysis
               errorStats={tracking.errorStats}
@@ -671,7 +851,7 @@ export default function ShadowingView() {
             />
           </div>
           
-          {/* History - FIXED height */}
+          {/* History - FIXED height with PLACEHOLDER */}
           <div className="h-[25vh] min-h-[200px] max-h-[300px]">
             <ShadowingHistory
               history={history}
@@ -685,5 +865,3 @@ export default function ShadowingView() {
     </div>
   );
 }
-
-    

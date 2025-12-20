@@ -18,12 +18,12 @@ import { usePathname } from 'next/navigation';
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
 
 const InitialLoader = ({ message = "Loading..." }: { message?: string }) => (
-    <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-      <div className="text-center">
-          <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
-          <p className="mt-2 text-sm text-muted-foreground">{message}</p>
-      </div>
+  <div className="flex h-screen w-full items-center justify-center bg-background">
+    <div className="text-center">
+      <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
+      <p className="mt-4 text-sm text-muted-foreground">{message}</p>
     </div>
+  </div>
 );
 
 const UserProfileError = ({ error, onRetry, onLogout }: { 
@@ -31,7 +31,7 @@ const UserProfileError = ({ error, onRetry, onLogout }: {
   onRetry: () => void; 
   onLogout: () => void; 
 }) => (
-  <div className="flex h-full w-full items-center justify-center p-4 bg-background text-foreground">
+  <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
     <div className="text-center max-w-md mx-auto">
       <Icon name="AlertCircle" className="h-16 w-16 text-destructive mx-auto mb-4" />
       <h2 className="text-xl font-semibold mb-2">Unable to Load Profile</h2>
@@ -51,61 +51,71 @@ const UserProfileError = ({ error, onRetry, onLogout }: {
 );
 
 const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { 
-        user, 
-        loading: isUserLoading, 
-        error: userError, 
-        levelUpInfo, 
-        clearLevelUpInfo,
-        retryUserFetch
-    } = useUser();
-    const { logout } = useAuth();
-    const pathname = usePathname();
+  const { 
+    user, 
+    loading: isUserLoading, 
+    error: userError, 
+    levelUpInfo, 
+    clearLevelUpInfo,
+    retryUserFetch
+  } = useUser();
+  const { logout } = useAuth();
+  const pathname = usePathname();
 
-    useEffect(() => {
-        AppErrorManager.initialize();
-    }, []);
+  useEffect(() => {
+    AppErrorManager.initialize();
+  }, []);
 
-    if (isUserLoading) {
-        return <InitialLoader message="Loading your profile..." />;
-    }
+  if (isUserLoading) {
+    return <InitialLoader message="Loading your profile..." />;
+  }
 
-    if (userError && !user) {
-        return (
-            <UserProfileError 
-                error={userError}
-                onRetry={retryUserFetch}
-                onLogout={logout}
-            />
-        );
-    }
-    
-    if (!user) {
-        return <InitialLoader message="Finalizing session..." />;
-    }
-
-    const isCreatePage = pathname === '/create';
-
+  if (userError && !user) {
     return (
-        <div className="flex flex-col min-h-screen">
-            <AppHeader />
-            <main className={cn(
-                "flex-1 bg-background",
-                !isCreatePage && "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
-            )}>
-                {children}
-            </main>
-            <Suspense fallback={null}>
-                {levelUpInfo && (
-                    <LevelUpDialog 
-                        isOpen={!!levelUpInfo}
-                        onClose={clearLevelUpInfo}
-                        levelUpInfo={levelUpInfo}
-                    />
-                )}
-            </Suspense>
-        </div>
+      <UserProfileError 
+        error={userError}
+        onRetry={retryUserFetch}
+        onLogout={logout}
+      />
     );
+  }
+  
+  if (!user) {
+    return <InitialLoader message="Finalizing session..." />;
+  }
+
+  // Special pages that use full viewport
+  const isFullPageView = pathname === '/create' || pathname?.startsWith('/read/');
+
+  return (
+    <>
+      {/* Header - Fixed at top */}
+      <AppHeader />
+      
+      {/* Main Content */}
+      <main 
+        className={cn(
+          "bg-background",
+          isFullPageView 
+            ? "fixed inset-0 top-2 md:top-4" 
+            : "min-h-screen pt-2 md:pt-4 px-4 sm:px-6 pb-24"
+        )}
+      >
+        {children}
+      </main>
+      
+      {/* Level Up Dialog */}
+      <Suspense fallback={null}>
+        {levelUpInfo && (
+          <LevelUpDialog 
+            isOpen={!!levelUpInfo}
+            onClose={clearLevelUpInfo}
+            levelUpInfo={levelUpInfo}
+          />
+        )}
+      </Suspense>
+    </>
+  );
 };
 
 export default function ProtectedAppLayout({ children }: { children: React.ReactNode }) {
@@ -116,7 +126,7 @@ export default function ProtectedAppLayout({ children }: { children: React.React
   }
 
   if (!authUser) {
-     return <InitialLoader message="Redirecting to login..." />;
+    return <InitialLoader message="Redirecting to login..." />;
   }
 
   return <AuthenticatedContent>{children}</AuthenticatedContent>;

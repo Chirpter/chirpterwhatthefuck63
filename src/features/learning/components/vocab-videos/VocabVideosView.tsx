@@ -1,7 +1,3 @@
-
-
-
-
 "use client";
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -22,13 +18,15 @@ import LookupPopover from '@/features/lookup/components/LookupPopover';
 import { VocabVideoPlayer, type VocabVideoPlayerHandle } from './VocabVideoPlayer';
 import type { Piece } from '@/lib/types';
 import { useUser } from '@/contexts/user-context';
-import { Logo } from '@/components/ui/Logo';
+import { useMobile } from '@/hooks/useMobile';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 function VocabVideosView() {
   const { t, i18n } = useTranslation(['learningPage', 'common', 'toast']);
   const searchParams = useSearchParams();
   const playerRef = useRef<VocabVideoPlayerHandle>(null);
   const { user } = useUser();
+  const isMobile = useMobile();
 
   const {
     query,
@@ -167,9 +165,108 @@ function VocabVideosView() {
         };
         handleTextSelection(event, sourceItem, selectedResult.context);
     }
-};
+  };
 
+  // Mobile layout - Video -> Transcript -> Activities -> Vocab
+  if (isMobile) {
+    return (
+      <div className="learningtool-style space-y-4 pb-6">
+        <LookupPopover 
+          isOpen={lookupState.isOpen}
+          onOpenChange={(open) => !open && closeLookup()}
+          rect={lookupState.rect}
+          text={lookupState.text}
+          sourceLanguage={lookupState.sourceLang}
+          targetLanguage={i18n.language}
+          sourceItem={lookupState.sourceItem}
+          sentenceContext={lookupState.sentenceContext}
+          context={lookupState.context}
+        />
+        
+        <h2 className="text-xl font-headline font-semibold px-4">
+          {t('vocabVideos.pageTitle')}
+        </h2>
 
+        {/* Search Bar */}
+        <div className="px-4">
+          <Card>
+            <CardContent className="p-3">
+              <form className="flex items-center gap-2" onSubmit={handleSubmit}>
+                <div className="relative flex-grow w-full">
+                  <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t('vocabVideos.searchPlaceholder')}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="font-body pl-9 h-10"
+                  />
+                </div>
+                <Button 
+                  type="submit"
+                  disabled={isLoading || !query.trim()} 
+                  className="h-10 px-4"
+                >
+                  {isLoading ? (
+                    <Icon name="Loader2" className="animate-spin h-5 w-5" />
+                  ) : (
+                    t('common:search')
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Video Player */}
+        <div className="px-4">
+          <VocabVideoPlayer 
+            ref={playerRef}
+            onVideoEnd={handleVideoEnd}
+          />
+        </div>
+
+        {/* Transcript Content - NOW IN MIDDLE ON MOBILE */}
+        <div className="px-4">
+          <Card className="bg-reader-grid">
+            <CardHeader className="p-3 border-b">
+              <ControlBar
+                onPrevious={handlePrevious}
+                onRepeat={handleReplay}
+                isRepeating={isRepeating}
+                onNext={handleNext}
+                isAutoSkipping={isAutoSkipping}
+                onAutoSkipChange={setIsAutoSkipping}
+                hasPrevious={selectedIndex > 0}
+                hasNext={selectedIndex < clips.length - 1}
+                repeatCount={repeatCount}
+                totalRepeats={3}
+              />
+            </CardHeader>
+            <div 
+              onMouseUp={handleSelectionWithContext} 
+              className="p-4 pt-2 prose-on-grid min-h-[200px]"
+            >
+              {renderContextState}
+            </div>
+          </Card>
+        </div>
+
+        {/* Activities Panel */}
+        <div className="px-4">
+          <ActivitiesPanel />
+        </div>
+
+        {/* Vocabulary Section */}
+        <div className="px-4">
+          <Card className="min-h-[400px]">
+            <MiniVocabView />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop layout - unchanged
   return (
     <div className="learningtool-style space-y-6">
       <LookupPopover 
@@ -189,6 +286,7 @@ function VocabVideosView() {
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left Column */}
         <div className="md:col-span-1 flex flex-col gap-6">
           <Card>
             <CardContent className="p-3">
@@ -225,8 +323,9 @@ function VocabVideosView() {
           <ActivitiesPanel />
         </div>
         
+        {/* Middle Column - Fixed with ScrollArea */}
         <Card className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px] bg-reader-grid">
-          <CardHeader className="p-3 border-b">
+          <CardHeader className="p-3 border-b flex-shrink-0">
             <ControlBar
               onPrevious={handlePrevious}
               onRepeat={handleReplay}
@@ -240,14 +339,17 @@ function VocabVideosView() {
               totalRepeats={3}
             />
           </CardHeader>
-          <div 
-            onMouseUp={handleSelectionWithContext} 
-            className="p-4 pt-0 flex-grow flex flex-col gap-2 prose-on-grid overflow-y-auto"
-          >
-            {renderContextState}
-          </div>
+          <ScrollArea className="flex-1 min-h-0">
+            <div 
+              onMouseUp={handleSelectionWithContext} 
+              className="p-4 prose-on-grid"
+            >
+              {renderContextState}
+            </div>
+          </ScrollArea>
         </Card>
         
+        {/* Right Column */}
         <Card className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px]">
           <MiniVocabView />
         </Card>
@@ -256,6 +358,4 @@ function VocabVideosView() {
   );
 }
 
-// REMOVED: VocabVideosProvider is now global
-// The main export is just the view component now.
 export default VocabVideosView;
