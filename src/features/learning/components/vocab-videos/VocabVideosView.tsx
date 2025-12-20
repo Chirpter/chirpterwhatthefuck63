@@ -155,9 +155,10 @@ function VocabVideosView() {
 
   const renderContentPanel = () => {
     const renderContextState = () => {
+      // State 1: Loading
       if (isLoading && !selectedResult) {
         return (
-          <Card className="bg-background">
+          <Card className="bg-card h-full">
             <CardContent className="p-4 space-y-3">
               <Skeleton className="h-5 w-3/4" />
               <Skeleton className="h-5 w-full" />
@@ -166,24 +167,34 @@ function VocabVideosView() {
           </Card>
         );
       }
+      
+      // State 2: Error
       if (error && !selectedResult) {
         return (
-          <Alert variant="destructive" className="m-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <Card className="bg-card h-full">
+            <CardContent className="p-4">
+               <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
         );
       }
+      
+      // State 3: Content available
       if (selectedResult) {
         return (
-          <Card className="bg-background">
+          <Card className="bg-card">
             <CardContent className="p-3">
               <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />
             </CardContent>
           </Card>
         );
       }
+      
+      // State 4: Initial/empty state
       return (
-        <Card className="bg-background h-full flex items-center justify-center p-4 text-center text-muted-foreground">
+        <Card className="bg-card h-full flex items-center justify-center p-4 text-center text-muted-foreground">
           <div>
             <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
