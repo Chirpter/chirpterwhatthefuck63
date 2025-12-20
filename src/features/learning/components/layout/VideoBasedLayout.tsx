@@ -53,7 +53,7 @@ export const VideoBasedLayout: React.FC<VideoBasedLayoutProps> = ({
         </div>
 
         {/* Middle Column */}
-        <div className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px] max-h-[800px] bg-reader-grid rounded-lg">
+        <div className="md:col-span-1 flex flex-col h-[calc(100vh-12rem)] min-h-[500px] max-h-[800px] bg-reader-grid rounded-lg border-2">
           {contentPanel}
         </div>
 
