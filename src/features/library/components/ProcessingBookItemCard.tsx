@@ -38,7 +38,7 @@ export function ProcessingBookItemCard({ book, onDelete }: ProcessingBookItemCar
                 <CardContent className="p-3 pt-6 pb-4 flex flex-col justify-center">
                     <div className="flex justify-between items-start">
                         <div className="min-w-0">
-                            <CardTitle className="text-body-lg leading-snug truncate" title={title}>
+                            <CardTitle className="text-body-base leading-snug truncate" title={title}>
                                 {title}
                             </CardTitle>
                             <CardDescription className="text-body-sm">
