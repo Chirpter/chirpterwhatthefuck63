@@ -1,6 +1,7 @@
-// src/features/learning/hooks/shadowing/useVideoHistory.ts
+// src/features/learning/hooks/useVideoHistory.ts
 
 import { useState, useCallback, useEffect } from 'react';
+import type { TranscriptResult } from '@/services/server/shadowing-service';
 
 export interface HistoryItem {
   videoId: string;
@@ -14,7 +15,41 @@ export interface HistoryItem {
 
 const HISTORY_KEY = 'chirpter_shadowing_history';
 const CURRENT_VIDEO_KEY = 'chirpter_shadowing_current_video';
+const TRANSCRIPT_CACHE_PREFIX = 'chirpter_transcript_cache_';
 const MAX_HISTORY_SIZE = 6;
+const MAX_CACHE_SIZE = 10; // Store up to 10 full transcripts
+
+// --- CACHE MANAGEMENT ---
+
+const getTranscriptFromCache = (videoId: string): TranscriptResult | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem(`${TRANSCRIPT_CACHE_PREFIX}${videoId}`);
+    return cached ? JSON.parse(cached) : null;
+  } catch (e) {
+    console.error("Failed to read from transcript cache", e);
+    return null;
+  }
+};
+
+const saveTranscriptToCache = (videoId: string, data: TranscriptResult) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const key = `${TRANSCRIPT_CACHE_PREFIX}${videoId}`;
+    localStorage.setItem(key, JSON.stringify(data));
+    
+    // Cache eviction logic
+    const allCacheKeys = Object.keys(localStorage).filter(k => k.startsWith(TRANSCRIPT_CACHE_PREFIX));
+    if (allCacheKeys.length > MAX_CACHE_SIZE) {
+      // Find the oldest key (simplistic approach, assumes keys are roughly time-ordered)
+      // A more robust approach would store timestamps if needed.
+      localStorage.removeItem(allCacheKeys[0]);
+    }
+  } catch (e) {
+    console.error("Failed to save to transcript cache", e);
+  }
+};
+
 
 export const useVideoHistory = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -94,6 +129,10 @@ export const useVideoHistory = () => {
     try { 
       localStorage.removeItem(HISTORY_KEY); 
       localStorage.removeItem(CURRENT_VIDEO_KEY);
+      // Also clear all transcript caches
+      Object.keys(localStorage)
+          .filter(key => key.startsWith(TRANSCRIPT_CACHE_PREFIX))
+          .forEach(key => localStorage.removeItem(key));
     } catch (e) { 
       console.error(e); 
     }
@@ -108,6 +147,8 @@ export const useVideoHistory = () => {
     },
     addToHistory, 
     updateHistoryProgress, 
-    clearHistory 
+    clearHistory,
+    getTranscriptFromCache,
+    saveTranscriptToCache
   };
 };

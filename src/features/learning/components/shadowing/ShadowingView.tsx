@@ -31,24 +31,37 @@ import { useShadowingTracking } from '@/features/learning/hooks/useShadowingTrac
 import { useVideoHistory } from '@/features/learning/hooks/useVideoHistory';
 import { ShadowingPlayer, type ShadowingPlayerHandle } from './ShadowingPlayer';
 import { VideoBasedLayout } from '../layout/VideoBasedLayout';
+import { ApiServiceError } from '@/lib/errors';
 
-const isValidYouTubeUrl = (url: string) => {
-  const trimmed = url.trim();
-  if (!trimmed) return false;
+
+const getVideoIdFromUrl = (url: string): string | null => {
+  if (!url) return null;
   try {
-    const u = new URL(trimmed);
-    const host = u.hostname;
-    return host === 'youtu.be' || host.includes('youtube.com') || host.includes('youtu.be');
-  } catch {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === 'youtu.be') return urlObj.pathname.slice(1);
+    if (urlObj.hostname.includes('youtube.com')) return urlObj.searchParams.get('v');
+  } catch (e) {
+    // Handle cases where the input is just the ID
+    if (url.length === 11 && !url.includes(' ')) return url;
     return null;
   }
+  return null;
 };
+
 
 export default function ShadowingView() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
   const { toast } = useToast();
   const { user } = useUser();
-  const { history, currentVideo, setCurrentVideo, addToHistory, updateHistoryProgress, clearHistory } = useVideoHistory();
+  const { 
+    history, 
+    currentVideo, 
+    addToHistory, 
+    updateHistoryProgress, 
+    clearHistory,
+    getTranscriptFromCache,
+    saveTranscriptToCache,
+  } = useVideoHistory();
 
   const [urlInput, setUrlInput] = useState('');
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
@@ -66,43 +79,18 @@ export default function ShadowingView() {
   const playerRef = useRef<ShadowingPlayerHandle>(null);
   const [openBoxIndex, setOpenBoxIndex] = useState<number | null>(0);
 
-  const videoId = useMemo(() => {
-    const videoUrl = currentVideo?.url;
-    if (!videoUrl) return null;
-    try {
-      const u = new URL(videoUrl);
-      if (u.hostname === 'youtu.be') return u.pathname.slice(1);
-      if (u.hostname.includes('youtube.com')) return u.searchParams.get('v');
-    } catch {
-      return null;
-    }
-    return null;
-  }, [currentVideo]);
+  const videoId = useMemo(() => getVideoIdFromUrl(currentVideo?.url || ''), [currentVideo]);
 
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
-  // Set initial input value from history
   useEffect(() => {
     if (currentVideo) {
       setUrlInput(currentVideo.url);
     }
   }, [currentVideo]);
 
-  const handleFetchTranscript = useCallback(async (urlToFetch?: string) => {
-    const url = (urlToFetch || urlInput).trim();
-    if (!url) return;
-
-    if (!user) {
-      toast({ title: t('toast:authErrorTitle'), description: t('toast:authErrorDesc'), variant: 'destructive' });
-      return;
-    }
-
-    if (!isValidYouTubeUrl(url)) {
-      setError('invalid_url');
-      return;
-    }
-
+  const resetStateForNewVideo = useCallback(() => {
     setIsLoading(true);
     setError(null);
     setTranscriptResult(null);
@@ -112,29 +100,66 @@ export default function ShadowingView() {
     setCompletedLinesCount(0);
     setCorrectlyCompletedLines(new Set());
     setOpenBoxIndex(0);
+  }, []);
 
+  const handleFetchTranscript = useCallback(async (urlToFetch?: string) => {
+    const url = (urlToFetch || urlInput).trim();
+    if (!url) return;
+
+    if (!user) {
+      toast({ title: t('toast:authErrorTitle'), description: t('toast:authErrorDesc'), variant: 'destructive' });
+      return;
+    }
+    
+    const newVideoId = getVideoIdFromUrl(url);
+    if (!newVideoId) {
+        setError('invalid_url');
+        return;
+    }
+
+    resetStateForNewVideo();
+
+    // 1. Check cache first
+    const cachedTranscript = getTranscriptFromCache(newVideoId);
+    if (cachedTranscript) {
+        setTranscriptResult(cachedTranscript);
+        addToHistory({
+            videoId: newVideoId,
+            url,
+            title: cachedTranscript.title,
+            thumbnail: cachedTranscript.thumbnail,
+            totalLines: cachedTranscript.transcript.length,
+        });
+        setIsLoading(false);
+        return;
+    }
+
+    // 2. If not in cache, fetch from API
     try {
       const result = await getTranscriptFromUrl(url, user.uid);
       if (!result || !result.transcript || result.transcript.length === 0) {
         throw new Error('No transcript available for this video.');
       }
+      
       setTranscriptResult(result);
+      saveTranscriptToCache(newVideoId, result); // Save to cache on success
+      
       const newHistoryItem = {
-        videoId: result.transcript[0]?.videoId || '',
+        videoId: newVideoId,
         url,
         title: result.title,
         thumbnail: result.thumbnail,
         totalLines: result.transcript.length,
       };
-      addToHistory(newHistoryItem); // This also sets it as currentVideo
+      addToHistory(newHistoryItem);
       toast({ title: 'Transcript Loaded', description: `Loaded ${result.transcript.length} lines from "${result.title}"` });
     } catch (err: any) {
-      const msg = err?.message ?? 'An unknown error occurred. Please try again.';
+      const msg = err instanceof ApiServiceError ? err.message : (err.message ?? 'An unknown error occurred.');
       setError(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [urlInput, user, t, toast, addToHistory]);
+  }, [urlInput, user, t, toast, addToHistory, getTranscriptFromCache, saveTranscriptToCache, resetStateForNewVideo]);
 
   // Load transcript for the current video from history on mount
   useEffect(() => {
@@ -332,7 +357,7 @@ export default function ShadowingView() {
       if (isLoading) {
         return (
           <div className="space-y-3">
-            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
           </div>
         );
       }
