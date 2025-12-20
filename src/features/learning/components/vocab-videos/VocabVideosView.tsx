@@ -152,7 +152,7 @@ function VocabVideosView() {
   );
 
   const renderContentPanel = () => {
-    const renderInnerContent = () => {
+    const innerContent = () => {
       if (isLoading && !selectedResult) {
         return (
           <div className="space-y-3">
@@ -162,7 +162,7 @@ function VocabVideosView() {
           </div>
         );
       }
-      
+
       if (error && !selectedResult) {
         return (
           <Alert variant="destructive" className="bg-background">
@@ -201,12 +201,12 @@ function VocabVideosView() {
             totalRepeats={3}
           />
         </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-4" onMouseUp={handleSelectionWithContext}>
-          <Card className="bg-card h-full flex flex-col">
-            <CardContent className="p-3 flex-1 flex items-center justify-center">
-              {renderInnerContent()}
-            </CardContent>
-          </Card>
+        <CardContent className="flex-1 min-h-0 p-0">
+          <ScrollArea className="h-full">
+            <div className="p-4" onMouseUp={handleSelectionWithContext}>
+              {innerContent()}
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
     );
