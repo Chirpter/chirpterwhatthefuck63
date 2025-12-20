@@ -426,7 +426,7 @@ export default function ShadowingView() {
               <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">
                 All Exercises Completed
               </h3>
-              <p className="text-green-600 dark:text-green-300 mb-4 text-body-base">
+              <p className="text-body-base text-green-600 dark:text-green-300 mb-4">
                 Great job! You have finished all shadowing exercises.
               </p>
             </div>
@@ -508,9 +508,10 @@ export default function ShadowingView() {
   if (isMobile) {
     return (
       <div className="learningtool-style space-y-4 pb-6">
-        <h2 className="text-headline-1 px-4">
-          {t('shadowing.title')}
-        </h2>
+        <div className="px-4">
+            <h1 className="text-headline-1">{t('shadowing.title')}</h1>
+            <p className="text-body-sm mt-1">{t('shadowing.description')}</p>
+        </div>
 
         {/* Search Bar */}
         <div className="px-4">
@@ -690,9 +691,10 @@ export default function ShadowingView() {
   // Desktop layout
   return (
     <div className="learningtool-style space-y-6">
-      <h2 className="text-headline-1">
-        {t('shadowing.title')}
-      </h2>
+       <div>
+            <h1 className="text-headline-1">{t('shadowing.title')}</h1>
+            <p className="text-body-sm mt-1">{t('shadowing.description')}</p>
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column */}

@@ -185,9 +185,10 @@ function VocabVideosView() {
           context={lookupState.context}
         />
         
-        <h2 className="text-headline-1 px-4">
-          {t('vocabVideos.pageTitle')}
-        </h2>
+         <div className="px-4">
+            <h1 className="text-headline-1">{t('vocabVideos.pageTitle')}</h1>
+            <p className="text-body-sm mt-1">{t('vocabVideos.description')}</p>
+        </div>
 
         {/* Search Bar */}
         <div className="px-4">
@@ -283,9 +284,10 @@ function VocabVideosView() {
         context={lookupState.context}
       />
       
-      <h2 className="text-headline-1">
-        {t('vocabVideos.pageTitle')}
-      </h2>
+       <div>
+            <h1 className="text-headline-1">{t('vocabVideos.pageTitle')}</h1>
+            <p className="text-body-sm mt-1">{t('vocabVideos.description')}</p>
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column */}
