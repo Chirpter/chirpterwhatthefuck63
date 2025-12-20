@@ -47,6 +47,15 @@ const saveTranscriptToCache = (videoId: string, data: TranscriptResult) => {
   }
 };
 
+const removeTranscriptFromCache = (videoId: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.removeItem(`${TRANSCRIPT_CACHE_PREFIX}${videoId}`);
+    } catch (e) {
+        console.error("Failed to remove from transcript cache", e);
+    }
+};
+
 // --- MAIN HOOK ---
 
 export const useVideoHistory = () => {
@@ -85,14 +94,21 @@ export const useVideoHistory = () => {
     };
 
     setHistory(prev => {
-        // Remove existing item if it's already in the list
+        const oldPriority1VideoId = prev[0]?.videoId;
+        
+        // Remove existing item if it's already in the list to move it to the front
         const filtered = prev.filter(h => h.videoId !== item.videoId);
         
-        // Add the new/updated item to the front
+        // Add the new/updated item to the front (making it Priority 1)
         const next = [newItem, ...filtered];
         
         // Enforce the size limit
         const finalHistory = next.slice(0, MAX_HISTORY_SIZE);
+
+        // If the old Priority 1 video is different from the new one, remove its transcript from cache
+        if (oldPriority1VideoId && oldPriority1VideoId !== newItem.videoId) {
+            removeTranscriptFromCache(oldPriority1VideoId);
+        }
 
         persistHistory(finalHistory);
         return finalHistory;

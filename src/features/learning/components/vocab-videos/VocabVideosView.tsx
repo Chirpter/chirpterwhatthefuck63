@@ -202,11 +202,10 @@ function VocabVideosView() {
             totalRepeats={3}
           />
         </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-4">
+        <CardContent className="flex-1 min-h-0 p-4" onMouseUp={handleSelectionWithContext}>
             <Alert 
               variant={error && !selectedResult ? 'destructive' : 'default'}
-              className="bg-card"
-              onMouseUp={handleSelectionWithContext}
+              className="bg-card h-full flex flex-col justify-center"
             >
               {innerContent()}
             </Alert>
