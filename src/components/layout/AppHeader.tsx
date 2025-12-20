@@ -48,7 +48,7 @@ export default function AppHeader() {
   const levelStyles = getLevelStyles(user.level, user.plan);
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 md:h-16 items-center justify-between border-b bg-background/80 px-2 sm:px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-40 flex h-[var(--header-height-mobile)] md:h-[var(--header-height-desktop)] items-center justify-between border-b bg-background/80 px-2 sm:px-6 backdrop-blur-md">
       <div className="flex items-center gap-1">
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <SheetTrigger asChild>

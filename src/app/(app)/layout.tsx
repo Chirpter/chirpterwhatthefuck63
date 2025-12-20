@@ -97,8 +97,8 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
         className={cn(
           "bg-background",
           isFullPageView 
-            ? "fixed inset-0 top-2 md:top-4" 
-            : "min-h-screen pt-2 md:pt-4 px-4 sm:px-6 pb-24"
+            ? "fixed inset-0 top-[var(--header-height-mobile)] md:top-[var(--header-height-desktop)]"
+            : "min-h-screen pt-4 md:pt-6 px-4 sm:px-6 pb-24"
         )}
       >
         {children}

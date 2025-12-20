@@ -47,7 +47,7 @@ export default function CreatePage() {
       <CreationDebugPanel />
       
       {/* Main Container */}
-      <div className="fixed inset-0 top-14 md:top-16 flex flex-col md:flex-row">
+      <div className="fixed inset-0 top-[var(--header-height-mobile)] md:top-[var(--header-height-desktop)] flex flex-col md:flex-row">
         
         {/* LEFT PANEL - Sidebar with Form */}
         <div className="w-full md:w-96 flex flex-col bg-card md:border-r max-h-full">
@@ -61,7 +61,7 @@ export default function CreatePage() {
           
           {/* Tabs */}
           <div className="p-4 border-b flex-shrink-0">
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-10">
                 <TabsTrigger value="book">{t('tabs.book')}</TabsTrigger>
                 <TabsTrigger value="piece">{t('tabs.piece')}</TabsTrigger>
