@@ -195,7 +195,7 @@ function VocabVideosView() {
     };
 
     return (
-      <Card className="flex flex-col h-full bg-background">
+      <Card className="flex flex-col h-full bg-transparent">
         <CardHeader className="p-3 border-b flex-shrink-0">
           <ControlBar
             onPrevious={handlePrevious}
