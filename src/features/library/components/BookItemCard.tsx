@@ -363,7 +363,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
             <div className="flex flex-col gap-1 min-h-[42px] justify-end">
               <div className="min-h-[22px] flex flex-nowrap gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   {(book.tags && book.tags.length > 0) && book.tags.map(tag => (
-                      <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                      <Badge key={tag} variant="outline" className="text-caption">{tag}</Badge>
                   ))}
                   {book.contentState === 'error' && (
                     <Badge variant="destructive" asChild>
@@ -375,7 +375,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
                     </Badge>
                   )}
               </div>
-               <CardTitle className="font-headline text-base font-bold leading-snug truncate" title={titleToDisplay}>
+               <CardTitle className="text-body-base leading-snug truncate" title={titleToDisplay}>
                  {isReadable && !onPurchase ? (
                     <Link href={`/read/${book.id}`}>{titleToDisplay}</Link>
                   ) : (
@@ -387,7 +387,7 @@ export function BookItemCard({ book, onPurchase, onDelete }: BookItemCardProps) 
            {renderProgressBar()}
           {onPurchase && (
             <CardFooter className="p-2">
-                <Button onClick={() => onPurchase(book)} className="w-full font-body" size="sm">
+                <Button onClick={() => onPurchase(book)} className="w-full text-body-base" size="sm">
                     <CreditIcon className="mr-2 h-4 w-4 text-yellow-400" />
                     {book.price || 0} {t('common:credits')}
                 </Button>

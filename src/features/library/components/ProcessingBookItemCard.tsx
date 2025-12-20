@@ -38,10 +38,10 @@ export function ProcessingBookItemCard({ book, onDelete }: ProcessingBookItemCar
                 <CardContent className="p-3 pt-6 pb-4 flex flex-col justify-center">
                     <div className="flex justify-between items-start">
                         <div className="min-w-0">
-                            <CardTitle className="font-headline text-lg font-bold leading-snug truncate" title={title}>
+                            <CardTitle className="text-body-base leading-snug truncate" title={title}>
                                 {title}
                             </CardTitle>
-                            <CardDescription className="text-sm font-body">
+                            <CardDescription className="text-caption">
                                 {isContentFailed && isCoverFailed ? t('processingFailedBoth') :
                                  isContentFailed ? t('processingFailedContent') :
                                  isCoverFailed ? t('processingFailedCover') : t('processing')}
@@ -55,7 +55,7 @@ export function ProcessingBookItemCard({ book, onDelete }: ProcessingBookItemCar
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="font-body">
-                                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete(book)}>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive-foreground" onClick={() => onDelete(book)}>
                                         <Icon name="Trash2" className="mr-2 h-4 w-4" />
                                         {t('deleteBook')}
                                     </DropdownMenuItem>

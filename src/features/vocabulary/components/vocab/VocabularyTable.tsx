@@ -37,13 +37,13 @@ const TableRowItem: React.FC<{ item: VocabItemType } & Omit<VocabularyTableProps
     
     return (
         <TableRow>
-            <TableCell className="font-medium">{item.term} {item.partOfSpeech && <span className="ml-1 text-xs text-muted-foreground italic">({item.partOfSpeech})</span>}</TableCell>
-            <TableCell>{item.meaning}</TableCell>
-            <TableCell className="max-w-xs truncate italic text-muted-foreground">
+            <TableCell className="font-medium text-body-base">{item.term} {item.partOfSpeech && <span className="ml-1 text-caption italic">({item.partOfSpeech})</span>}</TableCell>
+            <TableCell className="text-body-sm">{item.meaning}</TableCell>
+            <TableCell className="max-w-xs truncate text-caption italic">
                 {item.example}
             </TableCell>
             <TableCell>
-                {item.folder ? <Badge variant="secondary">{item.folder}</Badge> : <span className="text-muted-foreground">-</span>}
+                {item.folder ? <Badge variant="secondary" className="text-caption">{item.folder}</Badge> : <span className="text-muted-foreground">-</span>}
             </TableCell>
             <TableCell className="text-right w-[200px]">
                 <VideoSnippetPopover term={item.term}>
@@ -81,11 +81,11 @@ const VocabularyTableComponent: React.FC<VocabularyTableProps> = ({ items, onPro
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="w-[150px]">{t('table.term')}</TableHead>
-                        <TableHead>{t('table.meaning')}</TableHead>
-                        <TableHead>{t('table.example')}</TableHead>
-                        <TableHead>{t('table.folder')}</TableHead>
-                        <TableHead className="text-right w-[200px]">{t('table.actions')}</TableHead>
+                        <TableHead className="w-[150px] text-body-sm">{t('table.term')}</TableHead>
+                        <TableHead className="text-body-sm">{t('table.meaning')}</TableHead>
+                        <TableHead className="text-body-sm">{t('table.example')}</TableHead>
+                        <TableHead className="text-body-sm">{t('table.folder')}</TableHead>
+                        <TableHead className="text-right w-[200px] text-body-sm">{t('table.actions')}</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

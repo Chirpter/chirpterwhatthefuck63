@@ -96,16 +96,16 @@ const VocabularyItemCardComponent: React.FC<VocabularyItemProps> = ({ item, onPr
         <CardContent className={cn("p-3 flex flex-row gap-4 flex-grow", isLite ? "pl-2" : "pl-6")}>
             <div className={cn("flex-grow flex flex-col min-w-0", isLite ? 'pr-6' : 'pr-8')}>
                 <div className="flex-grow">
-                    <h3 className={cn("font-headline font-bold text-primary", isLite ? "text-base" : "text-xl")}>{item.term}</h3>
-                    <p className={cn("font-body text-foreground/90", isLite ? "text-sm" : "")}>
+                    <h3 className={cn("text-headline-2 font-bold text-primary", isLite && "text-body-lg")}>{item.term}</h3>
+                    <p className={cn("text-body-base text-foreground/90", isLite && "text-body-sm")}>
                         {item.meaning}
-                        {item.partOfSpeech && <span className={cn("ml-2 italic text-muted-foreground/80", isLite ? "text-xs" : "")}>({item.partOfSpeech})</span>}
+                        {item.partOfSpeech && <span className={cn("ml-2 italic text-muted-foreground/80", isLite ? "text-xs" : "text-caption")}>({item.partOfSpeech})</span>}
                     </p>
                 </div>
                 
                 {item.example && (
                     <div className={cn("mt-auto pt-3 border-t border-dashed my-2", isLite && "pt-1 my-1")}>
-                        <p className={cn("font-body text-muted-foreground italic", isLite ? "text-xs" : "text-sm")}>
+                        <p className={cn("text-body-sm italic", isLite && "text-caption")}>
                             &ldquo;{item.example}&rdquo;
                         </p>
                     </div>

@@ -79,28 +79,28 @@ const RegeneratePromptDialog: React.FC<RegeneratePromptDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="font-body sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="font-headline">{t('fixAndRetryContent')}</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-headline-1">{t('fixAndRetryContent')}</DialogTitle>
+          <DialogDescription className="text-body-sm">
             {t('fixAndRetryDescription', { title })}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="regenerate-prompt">{t('originalPromptLabel')}</Label>
+            <Label htmlFor="regenerate-prompt" className="text-body-sm">{t('originalPromptLabel')}</Label>
             <Textarea
               id="regenerate-prompt"
               value={newPrompt}
               onChange={(e) => setNewPrompt(e.target.value)}
-              className={cn("font-body", newPrompt.length > MAX_PROMPT_LENGTH && "border-destructive")}
+              className={cn("text-body-base", newPrompt.length > MAX_PROMPT_LENGTH && "border-destructive")}
               rows={6}
               maxLength={MAX_PROMPT_LENGTH}
             />
-            <div className="text-right text-xs text-muted-foreground">
+            <div className="text-caption">
                 {newPrompt.length} / {MAX_PROMPT_LENGTH}
             </div>
           </div>
            {item.type === 'book' && item.contentError && (
-             <div className="text-xs text-destructive bg-destructive/10 p-2 rounded-md">
+             <div className="text-caption text-destructive bg-destructive/10 p-2 rounded-md">
                 <strong>{t('lastErrorLabel')}:</strong> {item.contentError}
             </div>
            )}
