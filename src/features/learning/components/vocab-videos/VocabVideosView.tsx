@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -166,6 +166,7 @@ function VocabVideosView() {
       if (error && !selectedResult) {
         return (
           <Alert variant="destructive" className="bg-background">
+            <AlertTitle>{t('vocabVideos.noClipsFoundTitle')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         );
@@ -186,7 +187,7 @@ function VocabVideosView() {
     };
 
     return (
-      <Card className="md:col-span-1 flex flex-col h-full bg-reader-grid">
+      <Card className="flex flex-col h-full bg-reader-grid">
         <CardHeader className="p-3 border-b flex-shrink-0">
           <ControlBar
             onPrevious={handlePrevious}
@@ -203,8 +204,12 @@ function VocabVideosView() {
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-0">
           <ScrollArea className="h-full">
-            <div className="p-4" onMouseUp={handleSelectionWithContext}>
-              {innerContent()}
+            <div className="p-4">
+               <Card className="bg-background">
+                <CardContent className="p-4" onMouseUp={handleSelectionWithContext}>
+                  {innerContent()}
+                </CardContent>
+              </Card>
             </div>
           </ScrollArea>
         </CardContent>
