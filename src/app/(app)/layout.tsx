@@ -1,4 +1,5 @@
-// src/app/(app)/layout.tsx - REFACTORED
+// FILE 1: src/app/(app)/layout.tsx - FIXED
+// ============================================================================
 'use client';
 
 import React, { useEffect, Suspense } from 'react';
@@ -11,9 +12,7 @@ import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/layout/AppHeader';
 import { Logo } from '@/components/ui/Logo';
 import { AppErrorManager } from '@/services/client/error-manager.service';
-import { usePathname } from 'next/navigation'; // Import usePathname
-
-// --- Reusable Components ---
+import { usePathname } from 'next/navigation';
 
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
 
@@ -60,18 +59,16 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
         retryUserFetch
     } = useUser();
     const { logout } = useAuth();
-    const pathname = usePathname(); // Get current path
+    const pathname = usePathname();
 
     useEffect(() => {
         AppErrorManager.initialize();
     }, []);
 
-    // State 1: User data is loading
     if (isUserLoading) {
         return <InitialLoader message="Loading your profile..." />;
     }
 
-    // State 2: User data failed to load
     if (userError && !user) {
         return (
             <UserProfileError 
@@ -82,21 +79,19 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
         );
     }
     
-    // State 3: User object is still null after loading (edge case)
     if (!user) {
         return <InitialLoader message="Finalizing session..." />;
     }
 
-    // ✅ CONDITIONAL PADDING: Only add padding if it's NOT the create page
+    // ✅ FIX: Create page handles its own layout completely
     const isCreatePage = pathname === '/create';
 
-    // State 4: Success - render the main app content
     return (
         <div className="flex flex-col min-h-screen">
             <AppHeader />
+            {/* ✅ FIX: Only add default padding for non-create pages */}
             <main className={cn(
                 "flex-1 bg-background relative",
-                // ✅ Apply padding conditionally
                 !isCreatePage && "px-4 sm:px-6 pt-2 sm:pt-3 pb-24"
             )}>
                 {children}
@@ -114,21 +109,16 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 };
 
-// --- Main Layout Component ---
-
 export default function ProtectedAppLayout({ children }: { children: React.ReactNode }) {
   const { authUser, loading: isAuthLoading } = useAuth();
 
-  // State 1: Firebase Auth is still initializing
   if (isAuthLoading) {
     return <InitialLoader message="Authenticating..." />;
   }
 
-  // State 2: No authenticated user, redirect is imminent
   if (!authUser) {
      return <InitialLoader message="Redirecting to login..." />;
   }
 
-  // State 3: Authenticated, render the main content which handles user profile loading
   return <AuthenticatedContent>{children}</AuthenticatedContent>;
 }
