@@ -157,11 +157,13 @@ function VocabVideosView() {
     const renderContextState = () => {
       if (isLoading && !selectedResult) {
         return (
-          <div className="p-4 space-y-3">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-2/3" />
-          </div>
+          <Card className="bg-background">
+            <CardContent className="p-4 space-y-3">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-2/3" />
+            </CardContent>
+          </Card>
         );
       }
       if (error && !selectedResult) {
@@ -181,17 +183,17 @@ function VocabVideosView() {
         );
       }
       return (
-        <div className="flex items-center justify-center h-full p-4 text-center text-muted-foreground">
+        <Card className="bg-background h-full flex items-center justify-center p-4 text-center text-muted-foreground">
           <div>
             <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
           </div>
-        </div>
+        </Card>
       );
     };
 
     return (
-      <Card className="md:col-span-1 flex flex-col h-full bg-muted">
+      <Card className="md:col-span-1 flex flex-col h-full bg-reader-grid">
         <CardHeader className="p-3 border-b flex-shrink-0">
           <ControlBar
             onPrevious={handlePrevious}
@@ -206,8 +208,8 @@ function VocabVideosView() {
             totalRepeats={3}
           />
         </CardHeader>
-        <CardContent className="flex-1 min-h-0" onMouseUp={handleSelectionWithContext}>
-          <ScrollArea className="h-full p-4">
+        <CardContent className="flex-1 min-h-0 p-4" onMouseUp={handleSelectionWithContext}>
+          <ScrollArea className="h-full">
             {renderContextState()}
           </ScrollArea>
         </CardContent>

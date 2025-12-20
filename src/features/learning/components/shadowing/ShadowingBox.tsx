@@ -367,7 +367,7 @@ export function ShadowingBox({
                     </div>
 
                     {!isSupported && (
-                        <Alert variant="destructive" className="mt-2 text-xs p-2">
+                        <Alert variant="destructive" className="mt-2 text-xs p-3">
                             <Icon name="Mic" className="h-4 w-4" />
                             <AlertDescription>
                                 Speech recognition not supported. Try Chrome or Edge.
