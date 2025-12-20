@@ -120,8 +120,6 @@ function VocabVideosView() {
     }
   };
 
-  // ✅ RENDER LOGIC FOR EACH SLOT
-  
   const renderPageTitle = () => (
     <div className="space-y-1">
       <h1 className="text-headline-1">{t('vocabVideos.pageTitle')}</h1>
@@ -154,52 +152,36 @@ function VocabVideosView() {
   );
 
   const renderContentPanel = () => {
-    const renderContextState = () => {
-      // State 1: Loading
+    const renderCardInnerContent = () => {
       if (isLoading && !selectedResult) {
         return (
-          <Card className="bg-card h-full">
-            <CardContent className="p-4 space-y-3">
-              <Skeleton className="h-5 w-3/4" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-2/3" />
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-2/3" />
+          </div>
         );
       }
       
-      // State 2: Error
       if (error && !selectedResult) {
         return (
-          <Card className="bg-card h-full">
-            <CardContent className="p-4">
-               <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         );
       }
       
-      // State 3: Content available
       if (selectedResult) {
-        return (
-          <Card className="bg-card">
-            <CardContent className="p-3">
-              <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />
-            </CardContent>
-          </Card>
-        );
+        return <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />;
       }
       
-      // State 4: Initial/empty state
       return (
-        <Card className="bg-card h-full flex items-center justify-center p-4 text-center text-muted-foreground">
+        <div className="flex items-center justify-center h-full text-center text-muted-foreground p-4">
           <div>
             <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
             <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
           </div>
-        </Card>
+        </div>
       );
     };
 
@@ -221,7 +203,11 @@ function VocabVideosView() {
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-4" onMouseUp={handleSelectionWithContext}>
           <ScrollArea className="h-full">
-            {renderContextState()}
+            <Card className="bg-card">
+              <CardContent className="p-3 min-h-[5rem] flex items-center justify-center">
+                {renderCardInnerContent()}
+              </CardContent>
+            </Card>
           </ScrollArea>
         </CardContent>
       </Card>
