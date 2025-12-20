@@ -38,10 +38,16 @@ const getVideoIdFromUrl = (url: string): string | null => {
   if (!url) return null;
   try {
     const urlObj = new URL(url);
-    if (urlObj.hostname === 'youtu.be') return urlObj.pathname.slice(1);
-    if (urlObj.hostname.includes('youtube.com')) return urlObj.searchParams.get('v');
+    if (urlObj.hostname === 'youtu.be') {
+      return urlObj.pathname.slice(1);
+    }
+    if (urlObj.hostname.includes('youtube.com')) {
+      return urlObj.searchParams.get('v');
+    }
   } catch (e) {
-    if (url.length === 11 && !url.includes(' ')) return url;
+    if (url.length === 11 && !url.includes(' ')) {
+      return url;
+    }
     return null;
   }
   return null;
