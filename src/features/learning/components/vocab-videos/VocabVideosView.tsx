@@ -155,7 +155,7 @@ function VocabVideosView() {
     const renderCardInnerContent = () => {
       if (isLoading && !selectedResult) {
         return (
-          <div className="space-y-3">
+          <div className="p-4 space-y-3">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-2/3" />
@@ -165,7 +165,7 @@ function VocabVideosView() {
       
       if (error && !selectedResult) {
         return (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="m-0 bg-transparent border-none text-destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         );
@@ -202,13 +202,11 @@ function VocabVideosView() {
           />
         </CardHeader>
         <CardContent className="flex-1 min-h-0 p-4" onMouseUp={handleSelectionWithContext}>
-          <ScrollArea className="h-full">
-            <Card className="bg-card">
-              <CardContent className="p-3 min-h-[5rem] flex items-center justify-center">
-                {renderCardInnerContent()}
-              </CardContent>
-            </Card>
-          </ScrollArea>
+          <Card className="bg-card h-full">
+            <CardContent className="p-3 min-h-[5rem] h-full flex items-center justify-center">
+              {renderCardInnerContent()}
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
     );
