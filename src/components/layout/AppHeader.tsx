@@ -67,7 +67,7 @@ export default function AppHeader() {
               >
                 <Logo className="h-10 w-10 text-primary" />
                 <SheetTitle asChild>
-                  <h1 className="text-xl font-headline font-semibold text-primary">{t('chirpter')}</h1>
+                  <h1 className="text-headline-2 text-primary">{t('chirpter')}</h1>
                 </SheetTitle>
               </Link>
             </div>
@@ -78,7 +78,7 @@ export default function AppHeader() {
         </Sheet>
         <Link href="/library/book" className="flex items-center gap-1">
           <Logo className="h-9 w-9 md:h-10 md:w-10 text-primary" />
-          <h1 className="text-xl font-headline font-bold text-primary hidden md:block">
+          <h1 className="text-headline-2 text-primary hidden md:block">
             {t('chirpter')}
           </h1>
         </Link>
@@ -89,7 +89,7 @@ export default function AppHeader() {
       </nav>
 
       <div className="flex items-center gap-2 md:gap-4">
-        <div className="flex items-center gap-2 text-xs md:text-sm font-medium p-1.5 md:p-2 rounded-lg bg-secondary/50">
+        <div className="flex items-center gap-2 text-body-sm font-medium p-1.5 md:p-2 rounded-lg bg-secondary/50">
           <CreditIcon className="h-4 w-4 text-primary" />
           <span>{creditsToShow}</span>
           <span className="hidden sm:inline">{t('credits', {ns: 'userMenu'})}</span>

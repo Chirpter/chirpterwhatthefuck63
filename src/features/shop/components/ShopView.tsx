@@ -34,9 +34,9 @@ const ProductCard: React.FC<{
       <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-3">
         <CreditIcon className="h-8 w-8 text-primary-foreground" />
       </div>
-      <CardTitle className="text-lg">{title}</CardTitle>
+      <CardTitle className="text-headline-2">{title}</CardTitle>
     </CardHeader>
-    <CardContent className="text-center text-sm text-muted-foreground flex-1">
+    <CardContent className="text-body-sm text-center flex-1">
       <p>{description}</p>
     </CardContent>
     <CardFooter>
@@ -159,10 +159,10 @@ export default function ShopView() {
       return (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Icon name="Store" className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-headline font-medium mb-2">
+          <h3 className="text-headline-2 mb-2">
             {t('shopPage:emptyShopTitle')}
           </h3>
-          <p className="text-muted-foreground max-w-md">
+          <p className="text-body-sm max-w-md">
             {t('shopPage:emptyShopHint')}
           </p>
         </div>
@@ -212,10 +212,10 @@ export default function ShopView() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl md:text-2xl font-headline font-semibold">
+        <h2 className="text-headline-1">
           {t('shopPage:pageTitle')}
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-body-sm mt-1">
           {t('shopPage:pageDescription')}
         </p>
       </div>
@@ -300,10 +300,10 @@ export function ExploreView() {
       return (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Icon name="SearchX" className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-headline font-medium mb-2">
+          <h3 className="text-headline-2 mb-2">
             {t('explorePage:noBooksFound')}
           </h3>
-          <p className="text-muted-foreground max-w-md">
+          <p className="text-body-base max-w-md">
             {t('explorePage:noBooksHint')}
           </p>
         </div>
@@ -342,7 +342,7 @@ export function ExploreView() {
 
     return (
       <BookmarkStyleProvider items={[]} availableBookmarks={bookmarks}>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
           {bookmarks.map((bm) => {
             const isOwned = ownedBookmarkIds.has(bm.id);
             const status = isOwned ? 'owned' : (bm.unlockType === 'purchase' ? 'for_sale' : 'locked');
@@ -364,10 +364,10 @@ export function ExploreView() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl md:text-2xl font-headline font-semibold">
+        <h2 className="text-headline-1">
           {t('explorePage:title')}
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-body-sm mt-1">
           {t('explorePage:description')}
         </p>
       </div>
@@ -387,7 +387,7 @@ export function ExploreView() {
       {/* Bookmarks Section */}
       {bookmarks.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-headline font-semibold border-b pb-2">
+          <h3 className="text-headline-2 border-b pb-2">
             {t('explorePage:bookmarksTitle')}
           </h3>
           {renderBookmarkContent()}
@@ -396,48 +396,11 @@ export function ExploreView() {
       
       {/* Books Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-headline font-semibold border-b pb-2">
+        <h3 className="text-headline-2 border-b pb-2">
           {t('explorePage:booksTitle')}
         </h3>
         {renderBookContent()}
       </div>
-    </div>
-  );
-}
-
-// ============================================
-// SETTINGS VIEW - Refactored
-// ============================================
-
-export function SettingsView() {
-  const { t } = useTranslation(['settingsPage']);
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h2 className="text-xl md:text-2xl font-headline font-semibold">
-          {t('title')}
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t('subtitle')}
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Icon name="Settings" className="mr-2 h-5 w-5 text-primary" />
-            {t('generalCardTitle')}
-          </CardTitle>
-          <CardDescription>{t('generalCardDescription')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Icon name="Construction" className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">{t('moreSettingsComingSoon')}</p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

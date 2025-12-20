@@ -98,7 +98,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
     >
       <div className="lib-tab-content">
         <div className="lib-tab-text">
-          <p className="font-semibold text-sm md:text-base">{label}</p>
+          <p className="font-semibold text-body-base">{label}</p>
         </div>
         <div className="lib-tab-artifact-wrapper">
           <div className={cn("lib-tab-artifact", artifactClass)} />
@@ -203,8 +203,8 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
       return (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Icon name="SearchX" className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-headline font-medium mb-2">{t('noItemsFound')}</h3>
-          <p className="text-muted-foreground font-body max-w-md">{t('noItemsHint')}</p>
+          <h3 className="text-headline-2 mb-2">{t('noItemsFound')}</h3>
+          <p className="text-body-base max-w-md">{t('noItemsHint')}</p>
         </div>
       );
     }
@@ -282,7 +282,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-          <h2 className="text-lg md:text-2xl font-headline font-semibold hidden sm:block mr-2">
+          <h2 className="text-headline-1 hidden sm:block mr-2">
             {t('library')}
           </h2>
           {renderTabButton('book', t('libraryBookTitle'), 'book-artifact')}
@@ -294,7 +294,7 @@ function LibraryViewContent({ contentType }: LibraryViewProps) {
         <Link href="/diary" className="diary-tab-button hidden sm:flex">
           <div className="lib-tab-content">
             <div className="lib-tab-text">
-              <p className="font-semibold text-sm md:text-base">{t('diaryButton')}</p>
+              <p className="font-semibold text-body-base">{t('diaryButton')}</p>
             </div>
             <div className="lib-tab-artifact-wrapper">
               <div className="lib-tab-artifact diary-artifact" />

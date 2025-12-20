@@ -54,7 +54,7 @@ export default function CreatePage() {
           
           {/* Header */}
           <div className="p-4 border-b flex-shrink-0">
-            <h2 className="text-xl font-headline font-semibold">
+            <h2 className="text-headline-2">
               {t('createContentTitle')}
             </h2>
           </div>
@@ -63,8 +63,8 @@ export default function CreatePage() {
           <div className="p-4 border-b flex-shrink-0">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-10">
-                <TabsTrigger value="book">{t('tabs.book')}</TabsTrigger>
-                <TabsTrigger value="piece">{t('tabs.piece')}</TabsTrigger>
+                <TabsTrigger value="book" className="text-body-base">{t('tabs.book')}</TabsTrigger>
+                <TabsTrigger value="piece" className="text-body-base">{t('tabs.piece')}</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -82,7 +82,7 @@ export default function CreatePage() {
             style={{ marginBottom: audioPlayerHeight }}
           >
             {!isBusy && validationMessage && (
-              <div className="flex items-center justify-center gap-1.5 text-xs text-destructive font-medium">
+              <div className="flex items-center justify-center gap-1.5 text-caption font-medium text-destructive">
                 <Icon name="Info" className="h-3.5 w-3.5 flex-shrink-0" />
                 <span>{t(validationMessage)}</span>
               </div>

@@ -127,7 +127,7 @@ export default function LoginView() {
       <div className="flex h-screen w-full items-center justify-center">
         <div className="text-center">
             <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
-            <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
+            <p className="mt-2 text-body-sm">Loading...</p>
         </div>
       </div>
     );
@@ -153,7 +153,7 @@ export default function LoginView() {
                 isSigningIn={isOverallBusy}
                 error={authError}
               />
-              <p className="mt-4 text-center text-sm text-muted-foreground">
+              <p className="mt-4 text-center text-body-sm">
                 Don&apos;t have an account?{' '}
                 <button 
                   onClick={toggleAuthMode} 
@@ -172,7 +172,7 @@ export default function LoginView() {
                 isSigningIn={isOverallBusy}
                 error={authError}
               />
-              <p className="mt-4 text-center text-sm text-muted-foreground">
+              <p className="mt-4 text-center text-body-sm">
                 Already have an account?{' '}
                 <button 
                   onClick={toggleAuthMode} 
@@ -224,7 +224,7 @@ export default function LoginView() {
                   <p className="font-semibold">
                     {isCreatingSession ? "Creating secure session..." : "Signing you in..."}
                   </p>
-                  <p className="text-sm text-muted-foreground">Please wait a moment.</p>
+                  <p className="text-body-sm">{t('toast:pleaseWait')}</p>
                 </div>
               </div>
             </CardContent>

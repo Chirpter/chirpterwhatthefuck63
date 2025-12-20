@@ -117,10 +117,10 @@ export default function LandingPageV2() {
             <div className="space-y-8 z-10">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-full text-sm text-red-300">
                 <Icon name="Sparkles" className="w-4 h-4" />
-                <span>AI-Powered Storytelling Platform</span>
+                <span className="text-body-sm !text-red-300">AI-Powered Storytelling Platform</span>
               </div>
-              <h1 className="text-5xl md:text-7xl font-bold leading-tight">Your Ideas,<br /><span className="bg-gradient-to-r from-red-500 via-yellow-400 to-fuchsia-500 bg-clip-text text-transparent animate-gradient">Amplified by AI</span></h1>
-              <p className="text-xl text-gray-400 leading-relaxed max-w-xl">Create captivating bilingual books, master new languages through interactive stories, and bring your imagination to life with AI-powered tools.</p>
+              <h1 className="text-display leading-tight">Your Ideas,<br /><span className="bg-gradient-to-r from-red-500 via-yellow-400 to-fuchsia-500 bg-clip-text text-transparent animate-gradient">Amplified by AI</span></h1>
+              <p className="text-body-lg text-gray-400 leading-relaxed max-w-xl">Create captivating bilingual books, master new languages through interactive stories, and bring your imagination to life with AI-powered tools.</p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" asChild className="group px-8 py-4 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-2xl shadow-red-500/50 text-white text-base h-auto"><Link href="/login">Start Creating Now <Icon name="ArrowRight" className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></Link></Button>
                 <Button size="lg" variant="outline" className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all backdrop-blur-sm text-white text-base h-auto"><Icon name="Play" className="w-5 h-5" />Watch Demo</Button>
@@ -129,7 +129,7 @@ export default function LandingPageV2() {
                 {stats.map((stat, idx) => (
                   <div key={idx} className="text-center">
                     <div className="text-2xl font-bold bg-gradient-to-r from-red-400 to-yellow-400 bg-clip-text text-transparent">{stat.number}</div>
-                    <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
+                    <div className="text-caption mt-1">{stat.label}</div>
                   </div>
                 ))}
               </div>
@@ -141,10 +141,10 @@ export default function LandingPageV2() {
                   <div className="relative w-80 h-96 transform-gpu hover:scale-110 transition-transform duration-500" style={{ transformStyle: 'preserve-3d', transform: 'rotateY(-15deg) rotateX(5deg)' }}>
                       <Card className="absolute inset-0 bg-gradient-to-br from-red-600 via-yellow-600 to-fuchsia-600 rounded-2xl shadow-2xl shadow-red-500/50 p-8 flex flex-col justify-between">
                           <div>
-                              <h3 className="text-3xl font-bold mb-2">The Alchemist</h3>
-                              <p className="text-sm opacity-80">Paulo Coelho</p>
+                              <h3 className="text-headline-1">The Alchemist</h3>
+                              <p className="text-body-sm opacity-80">Paulo Coelho</p>
                           </div>
-                          <div className="flex items-center gap-2 text-sm opacity-60">
+                          <div className="flex items-center gap-2 text-caption opacity-60">
                               <Icon name="Languages" className="w-4 h-4" />
                               <span>English • Tiếng Việt</span>
                           </div>
@@ -166,8 +166,8 @@ export default function LandingPageV2() {
       <section id="demo" className="py-24 px-6 relative">
         <div className="container mx-auto">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl md:text-5xl font-bold">Learn with <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Context</span></h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">Click on a vocabulary card to see it used in a real video clip. Understand words in their natural environment.</p>
+            <h2 className="text-5xl font-bold">Learn with <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Context</span></h2>
+            <p className="text-body-lg text-gray-400 max-w-2xl mx-auto">Click on a vocabulary card to see it used in a real video clip. Understand words in their natural environment.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 items-center max-w-6xl mx-auto">
             <div className="md:col-span-2 relative">
@@ -182,7 +182,7 @@ export default function LandingPageV2() {
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
                     <Icon name="Youtube" className="w-20 h-20 text-red-500 mb-4" />
-                    <p className="text-gray-400 text-lg">Video will play here</p>
+                    <p className="text-body-base text-gray-400">Video will play here</p>
                   </div>
                 )}
               </div>
@@ -194,7 +194,7 @@ export default function LandingPageV2() {
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs"><Icon name="Play" className="w-3 h-3" /><span>Click to play</span></div>
                   <h3 className="text-6xl font-bold">Hello</h3>
                   <p className="text-xl text-blue-100">/həˈloʊ/</p>
-                  <div className="pt-4 border-t border-white/20"><p className="text-sm text-blue-100">See this word in action from real conversations!</p></div>
+                  <div className="pt-4 border-t border-white/20"><p className="text-caption text-blue-100">See this word in action from real conversations!</p></div>
                 </div>
                 <div className="absolute -bottom-2 -right-2 w-24 h-24 bg-yellow-400 rounded-full opacity-20 blur-2xl"></div>
               </div>
@@ -207,8 +207,8 @@ export default function LandingPageV2() {
       <section id="features" className="py-24 px-6 relative">
         <div className="container mx-auto">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl md:text-5xl font-bold">The Future of <span className="bg-gradient-to-r from-red-400 to-yellow-400 bg-clip-text text-transparent">Storytelling & Learning</span></h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">From a single idea to mastering a new language, Chirpter streamlines your creative and educational journey.</p>
+            <h2 className="text-5xl font-bold">The Future of <span className="bg-gradient-to-r from-red-400 to-yellow-400 bg-clip-text text-transparent">Storytelling & Learning</span></h2>
+            <p className="text-body-lg text-gray-400 max-w-2xl mx-auto">From a single idea to mastering a new language, Chirpter streamlines your creative and educational journey.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
             {features.map((feature, idx) => (
@@ -224,13 +224,13 @@ export default function LandingPageV2() {
           <div className="relative bg-gradient-to-br from-red-600 via-yellow-600 to-fuchsia-600 rounded-3xl p-12 md:p-20 overflow-hidden">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30"></div>
             <div className="relative text-center space-y-8 max-w-3xl mx-auto">
-              <h2 className="text-4xl md:text-6xl font-bold">Ready to Create?</h2>
+              <h2 className="text-5xl md:text-6xl font-bold">Ready to Create?</h2>
               <p className="text-xl text-white/80">Join thousands of creators and start your next masterpiece today. It's free to get started.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Button size="lg" asChild className="group px-8 py-4 bg-white text-red-600 hover:bg-gray-100 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-2xl h-auto"><Link href="/login">Sign Up for Free <Icon name="Check" className="w-5 h-5 group-hover:scale-110 transition-transform" /></Link></Button>
                 <Button size="lg" variant="outline" className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl font-bold text-lg transition-all text-white h-auto">Contact Sales</Button>
               </div>
-              <p className="text-sm text-white/60 pt-4">✓ No credit card required  ✓ Free forever plan  ✓ Cancel anytime</p>
+              <p className="text-caption text-white/60 pt-4">✓ No credit card required  ✓ Free forever plan  ✓ Cancel anytime</p>
             </div>
           </div>
         </div>
@@ -247,11 +247,11 @@ export default function LandingPageV2() {
                 </div>
                 <span className="text-xl font-bold">Chirpter</span>
               </div>
-              <p className="text-gray-400 text-sm">Your AI co-pilot for creation and learning.</p>
+              <p className="text-body-sm">Your AI co-pilot for creation and learning.</p>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <ul className="space-y-2 text-body-sm">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
                 <li><a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a></li>
@@ -259,7 +259,7 @@ export default function LandingPageV2() {
             </div>
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <ul className="space-y-2 text-body-sm">
                 <li><a href="#about" className="hover:text-white transition-colors">About</a></li>
                 <li><a href="#blog" className="hover:text-white transition-colors">Blog</a></li>
                 <li><a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a></li>
@@ -267,14 +267,14 @@ export default function LandingPageV2() {
             </div>
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <ul className="space-y-2 text-body-sm">
                 <li><a href="/privacy" className="hover:text-white transition-colors">Privacy</a></li>
                 <li><a href="#terms" className="hover:text-white transition-colors">Terms</a></li>
                 <li><a href="#cookies" className="hover:text-white transition-colors">Cookie Policy</a></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-800 mt-12 pt-8 text-center text-gray-400 text-sm">
+          <div className="border-t border-slate-800 mt-12 pt-8 text-center text-caption">
             <p>&copy; {new Date().getFullYear()} Chirpter. All rights reserved.</p>
           </div>
         </div>

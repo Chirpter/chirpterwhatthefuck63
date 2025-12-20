@@ -12,8 +12,8 @@ export const StatCard = ({ icon, label, value, isLoading }: { icon: IconName, la
     return (
         <Card className="flex flex-col items-center justify-center p-4 text-center bg-muted/50">
             <Icon name={icon} className="h-8 w-8 text-primary mb-2" />
-            {isLoading ? <Skeleton className="h-8 w-12 my-1" /> : <p className="text-2xl font-bold font-headline">{value}</p>}
-            <p className="text-sm text-muted-foreground">{label}</p>
+            {isLoading ? <Skeleton className="h-8 w-12 my-1" /> : <p className="text-headline-2">{value}</p>}
+            <p className="text-body-sm">{label}</p>
         </Card>
     );
 };

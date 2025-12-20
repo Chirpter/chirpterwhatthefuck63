@@ -48,7 +48,7 @@ export default function LearningView() {
       >
         <div className="absolute bottom-0 left-0 right-0 z-10 p-2">
             <div className="relative z-10 text-foreground dark:text-white drop-shadow-md text-center w-full bg-white/40 dark:bg-black/40 p-1 rounded-lg backdrop-blur-sm">
-                <p className="text-sm font-semibold font-body truncate">{t(tool.titleKey)}</p>
+                <p className="text-body-sm font-semibold truncate">{t(tool.titleKey)}</p>
             </div>
         </div>
         <div className="relative aspect-square w-full overflow-hidden bg-grid-gradient-red-yellow">
@@ -73,8 +73,8 @@ export default function LearningView() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 className="text-xl md:text-2xl font-headline font-semibold">{t('learningTools')}</h1>
-            <p className="text-muted-foreground font-body mt-1">{t('learningToolsHint')}</p>
+            <h1 className="text-headline-1">{t('learningTools')}</h1>
+            <p className="text-body-sm mt-1">{t('learningToolsHint')}</p>
         </div>
         <Card className="p-3 w-full max-w-sm">
             <div className="flex items-center justify-between space-x-2">
@@ -85,7 +85,7 @@ export default function LearningView() {
                             Enable <span className="bg-accent text-accent-foreground px-1 rounded-sm">Word</span> Lookup
                         </span>
                     </Label>
-                    <p className="text-xs text-muted-foreground ml-7">{t('settingsPage:learningTools.wordLookupDescription')}</p>
+                    <p className="text-caption ml-7">{t('settingsPage:learningTools.wordLookupDescription')}</p>
                 </div>
                 <Switch
                     id="wordLookup"

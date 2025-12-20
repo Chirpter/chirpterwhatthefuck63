@@ -122,8 +122,8 @@ export default function AdminView() {
       <div className="container mx-auto flex h-full items-center justify-center">
         <Card className="max-w-md text-center">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Admin Access Required</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-headline-1">Admin Access Required</CardTitle>
+            <CardDescription className="text-body-base">
               This page is restricted to administrators. Please contact the project owner for access.
             </CardDescription>
           </CardHeader>
@@ -136,7 +136,7 @@ export default function AdminView() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl md:text-3xl font-headline font-semibold">Admin Dashboard</h2>
+        <h2 className="text-headline-1">Admin Dashboard</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -185,7 +185,7 @@ export default function AdminView() {
                         </div>
                     </BookmarkStyleProvider>
                 ) : (
-                    <p className="text-muted-foreground">No system bookmarks found.</p>
+                    <p className="text-body-sm">No system bookmarks found.</p>
                 )}
             </CardContent>
         </Card>
@@ -225,7 +225,7 @@ export default function AdminView() {
                 ))}
             </div>
            ) : (
-             <p className="text-muted-foreground">No global books found.</p>
+             <p className="text-body-sm">No global books found.</p>
            )}
         </CardContent>
       </Card>
