@@ -86,7 +86,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ isSignUp, onSubmit, isSignin
             {displayError && <p className="text-caption text-destructive text-center">{displayError}</p>}
             <Button 
               type="submit" 
-              className="w-full text-body-base" 
+              className="w-full text-sm" 
               disabled={!canSubmit}
             >
                 {isSigningIn ? <Icon name="Loader2" className="animate-spin mr-2 h-4 w-4" /> : null}

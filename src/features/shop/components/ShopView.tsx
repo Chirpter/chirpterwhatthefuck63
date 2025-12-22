@@ -40,7 +40,7 @@ const ProductCard: React.FC<{
       <p>{description}</p>
     </CardContent>
     <CardFooter>
-      <Button className="w-full text-body-base" onClick={onPurchase}>
+      <Button className="w-full text-sm" onClick={onPurchase}>
         {price}
       </Button>
     </CardFooter>

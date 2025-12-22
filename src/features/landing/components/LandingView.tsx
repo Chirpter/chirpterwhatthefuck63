@@ -84,10 +84,10 @@ export default function LandingPageV2() {
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-body-sm hover:text-white transition-colors">Features</a>
-              <a href="#demo" className="text-body-sm hover:text-white transition-colors">Demo</a>
-              <Button variant="link" asChild><Link href="/login" className="text-body-sm hover:text-white">Login</Link></Button>
-              <Button asChild className="px-6 py-2 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg shadow-red-500/50 text-white text-body-base"><Link href="/login">Get Started Free</Link></Button>
+              <a href="#features" className="text-sm hover:text-white transition-colors">Features</a>
+              <a href="#demo" className="text-sm hover:text-white transition-colors">Demo</a>
+              <Button variant="link" asChild><Link href="/login" className="text-sm hover:text-white">Login</Link></Button>
+              <Button asChild className="px-6 py-2 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg shadow-red-500/50 text-white text-sm"><Link href="/login">Get Started Free</Link></Button>
             </nav>
 
             {/* Mobile Menu Button */}
@@ -101,10 +101,10 @@ export default function LandingPageV2() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-slate-900/95 backdrop-blur-lg border-t border-slate-800">
             <nav className="container mx-auto px-6 py-6 flex flex-col gap-4">
-              <a href="#features" className="text-body-base hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
-              <a href="#demo" className="text-body-base hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Demo</a>
-              <Button variant="ghost" asChild><Link href="/login" className="text-body-base hover:text-white text-left justify-start">Login</Link></Button>
-              <Button asChild className="px-6 py-3 bg-gradient-to-r from-red-600 to-yellow-600 rounded-lg font-semibold text-white text-body-lg"><Link href="/login">Get Started Free</Link></Button>
+              <a href="#features" className="text-base hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
+              <a href="#demo" className="text-base hover:text-white transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>Demo</a>
+              <Button variant="ghost" asChild><Link href="/login" className="text-base hover:text-white text-left justify-start">Login</Link></Button>
+              <Button asChild className="px-6 py-3 bg-gradient-to-r from-red-600 to-yellow-600 rounded-lg font-semibold text-white text-lg"><Link href="/login">Get Started Free</Link></Button>
             </nav>
           </div>
         )}
@@ -117,13 +117,13 @@ export default function LandingPageV2() {
             <div className="space-y-8 z-10">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-full text-sm text-red-300">
                 <Icon name="Sparkles" className="w-4 h-4" />
-                <span className="text-body-sm !text-red-300">AI-Powered Storytelling Platform</span>
+                <span className="text-sm !text-red-300">AI-Powered Storytelling Platform</span>
               </div>
               <h1 className="text-display leading-tight">Your Ideas,<br /><span className="bg-gradient-to-r from-red-500 via-yellow-400 to-fuchsia-500 bg-clip-text text-transparent animate-gradient">Amplified by AI</span></h1>
               <p className="text-body-lg text-gray-400 leading-relaxed max-w-xl">Create captivating bilingual books, master new languages through interactive stories, and bring your imagination to life with AI-powered tools.</p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" asChild className="group px-8 py-4 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-2xl shadow-red-500/50 text-white text-body-lg h-auto"><Link href="/login">Start Creating Now <Icon name="ArrowRight" className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></Link></Button>
-                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all backdrop-blur-sm text-white text-body-lg h-auto"><Icon name="Play" className="w-5 h-5" />Watch Demo</Button>
+                <Button size="lg" asChild className="group px-8 py-4 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-2xl shadow-red-500/50 text-white text-base h-auto"><Link href="/login">Start Creating Now <Icon name="ArrowRight" className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></Link></Button>
+                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all backdrop-blur-sm text-white text-base h-auto"><Icon name="Play" className="w-5 h-5" />Watch Demo</Button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8">
                 {stats.map((stat, idx) => (
@@ -227,8 +227,8 @@ export default function LandingPageV2() {
               <h2 className="text-5xl md:text-6xl font-bold">Ready to Create?</h2>
               <p className="text-xl text-white/80">Join thousands of creators and start your next masterpiece today. It's free to get started.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button size="lg" asChild className="group px-8 py-4 bg-white text-red-600 hover:bg-gray-100 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-2xl h-auto text-body-lg"><Link href="/login">Sign Up for Free <Icon name="Check" className="w-5 h-5 group-hover:scale-110 transition-transform" /></Link></Button>
-                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl font-bold text-lg transition-all text-white h-auto text-body-lg">Contact Sales</Button>
+                <Button size="lg" asChild className="group px-8 py-4 bg-white text-red-600 hover:bg-gray-100 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-2xl h-auto text-base"><Link href="/login">Sign Up for Free <Icon name="Check" className="w-5 h-5 group-hover:scale-110 transition-transform" /></Link></Button>
+                <Button size="lg" variant="outline" className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl font-bold text-lg transition-all text-white h-auto text-base">Contact Sales</Button>
               </div>
               <p className="text-caption text-white/60 pt-4">✓ No credit card required  ✓ Free forever plan  ✓ Cancel anytime</p>
             </div>
@@ -247,27 +247,27 @@ export default function LandingPageV2() {
                 </div>
                 <span className="text-xl font-bold">Chirpter</span>
               </div>
-              <p className="text-body-sm">Your AI co-pilot for creation and learning.</p>
+              <p className="text-sm">Your AI co-pilot for creation and learning.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-body-base">Product</h4>
-              <ul className="space-y-2 text-body-sm">
+              <h4 className="font-semibold text-base">Product</h4>
+              <ul className="space-y-2 text-sm">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
                 <li><a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-body-base">Company</h4>
-              <ul className="space-y-2 text-body-sm">
+              <h4 className="font-semibold text-base">Company</h4>
+              <ul className="space-y-2 text-sm">
                 <li><a href="#about" className="hover:text-white transition-colors">About</a></li>
                 <li><a href="#blog" className="hover:text-white transition-colors">Blog</a></li>
                 <li><a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-body-base">Legal</h4>
-              <ul className="space-y-2 text-body-sm">
+              <h4 className="font-semibold text-base">Legal</h4>
+              <ul className="space-y-2 text-sm">
                 <li><a href="/privacy" className="hover:text-white transition-colors">Privacy</a></li>
                 <li><a href="#terms" className="hover:text-white transition-colors">Terms</a></li>
                 <li><a href="#cookies" className="hover:text-white transition-colors">Cookie Policy</a></li>
