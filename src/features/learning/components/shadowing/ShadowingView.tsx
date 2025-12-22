@@ -105,6 +105,21 @@ export default function ShadowingView() {
     setProgress([]);
   }, []);
 
+  const getErrorMessage = useCallback((error: ApiServiceError) => {
+    switch (error.code) {
+        case 'RATE_LIMIT':
+            return t('shadowing.rateLimitError', { defaultValue: 'Daily transcript limit reached. Please try again tomorrow.' });
+        case 'AUTH':
+            return t('toast:authErrorDesc');
+        case 'NETWORK':
+            return t('shadowing.networkError', { defaultValue: 'Network error. Please check your connection and try again.' });
+        case 'UNAVAILABLE':
+            return t('shadowing.unavailableError', { defaultValue: 'A transcript is not available for this video. It may be private or have captions disabled.' });
+        default:
+            return t('shadowing.genericError', { defaultValue: 'An unexpected error occurred while fetching the transcript.' });
+    }
+  }, [t]);
+
   // 🔧 FIX: Unified load video function
   const loadVideo = useCallback(async (url: string, forceReload = false) => {
     if (!user) return;
@@ -161,12 +176,12 @@ export default function ShadowingView() {
       });
       toast({ title: 'Transcript Loaded', description: `Loaded ${result.transcript.length} lines from "${result.title}"` });
     } catch (err: any) {
-      const msg = err instanceof ApiServiceError ? err.message : (err.message ?? 'An unknown error occurred.');
-      setError(msg);
+      const friendlyMessage = err instanceof ApiServiceError ? getErrorMessage(err) : err.message;
+      setError(friendlyMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache]);
+  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache, getErrorMessage]);
 
   // 🔧 FIX: Handle form submit - always force reload
   const handleFetchTranscript = useCallback(() => {
@@ -377,7 +392,7 @@ export default function ShadowingView() {
 
     return (
       <Card className="flex flex-col h-full bg-transparent">
-        <CardHeader className="p-3 flex-shrink-0">
+        <CardHeader className="p-3 border-b flex-shrink-0">
           <div className="flex items-center justify-center gap-2">
             <Button variant={isShadowingMode ? 'default' : 'outline'} size="icon" onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} disabled={!transcriptResult} className="h-11 w-11 transition-colors" title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}><Icon name="Shadowing" className="h-5 w-5" /></Button>
             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-11 w-11 transition-colors" disabled={!isShadowingMode || !transcriptResult}><Icon name="Settings" className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel><DropdownMenuRadioGroup value={hideMode} onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}><DropdownMenuRadioItem value="block">{t('shadowing.settings.hiddenWords')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="blur">{t('shadowing.settings.blurredText')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="hidden">{t('shadowing.settings.completelyHidden')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator /><DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel><DropdownMenuRadioGroup value={checkMode} onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}><DropdownMenuRadioItem value="strict">{t('shadowing.settings.strict')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="gentle">{t('shadowing.settings.gentle')}</DropdownMenuRadioItem></DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
