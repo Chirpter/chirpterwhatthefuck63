@@ -1,4 +1,4 @@
-// src/services/server/shadowing.service.ts
+// src/features/learning/services/shadowing-service.ts
 'use server';
 
 import type { FoundClip } from '@/lib/types';

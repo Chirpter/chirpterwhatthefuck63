@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { getTranscriptFromUrl, type TranscriptResult } from '@/services/server/shadowing-service';
+import { getTranscriptFromUrl, type TranscriptResult } from '@/features/learning/services/shadowing-service';
 import { useToast } from '@/hooks/useToast';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';

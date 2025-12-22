@@ -1,4 +1,6 @@
-// src/services/client/diff-service.ts
+// src/features/learning/services/diff-service.ts
+'use client';
+
 export type DiffSegment = {
   text: string;
   type: 'correct' | 'incorrect' | 'missing' | 'extra';

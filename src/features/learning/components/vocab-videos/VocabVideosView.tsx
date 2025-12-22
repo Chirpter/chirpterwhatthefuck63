@@ -111,9 +111,10 @@ function VocabVideosView() {
             langs: ['en'],
             status: 'draft',
             presentationStyle: 'card',
-            generatedContent: [],
+            content: [],
             contextData: { startTime: selectedResult.start, endTime: selectedResult.end },
             isBilingual: false,
+            unit: 'sentence'
         };
         handleTextSelection(event, sourceItem, selectedResult.context);
     }

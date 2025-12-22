@@ -1,7 +1,7 @@
 // src/features/learning/hooks/useVideoHistory.ts
 
 import { useState, useCallback, useEffect } from 'react';
-import type { TranscriptResult } from '@/services/server/shadowing-service';
+import type { TranscriptResult } from '@/features/learning/services/shadowing-service';
 
 export interface HistoryItem {
   videoId: string;

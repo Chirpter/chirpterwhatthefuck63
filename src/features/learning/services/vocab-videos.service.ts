@@ -1,84 +1,56 @@
-// src/features/learning/services/vocab-videos-service.ts
+// src/features/learning/services/vocab-videos.service.ts
 'use server';
 
-import type { FoundClip } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import type { FoundClip } from '@/lib/types';
 import { ApiServiceError } from '@/lib/errors';
 
-// Supabase response type for type safety
-interface SupabaseClipResponse {
-  id: string;
-  video_id: string;
-  text: string;
-  start_time: number;
-  end_time: number;
-  context: string | null;
-}
-
 /**
- * Search for video clips containing the search term
- * Rate limited on Supabase side (20 searches per day per user)
+ * Searches for video clips containing a specific term using a Supabase RPC.
+ * @param term - The term to search for.
+ * @param userId - The user's UID for rate limiting purposes.
+ * @param limit - The maximum number of clips to return.
+ * @returns A promise that resolves to an array of FoundClip objects.
  */
 export async function searchClipsPaged(
-  searchTerm: string,
+  term: string,
   userId: string,
-  limit = 20,
-  offset = 0
+  limit: number = 10
 ): Promise<FoundClip[]> {
-  // Validate inputs
-  if (!userId) {
-    throw new ApiServiceError('Authentication required', 'AUTH');
-  }
-
-  if (!searchTerm.trim()) {
+  if (!term) {
     return [];
   }
 
-  try {
-    const { data, error } = await supabase.rpc('search_video_sentences_paged', {
-      search_query: searchTerm.trim(),
-      limit_count: limit,
-      offset_count: offset,
-      user_id: userId
-    });
+  const { data, error } = await supabase.rpc('search_clips_paged', {
+    p_search_term: term,
+    p_user_id: userId,
+    p_limit: limit,
+  });
 
-    // Handle errors from Supabase
-    if (error) {
-        // This is the critical part: throw a standardized error.
-        if (error.code === 'PGRST301' || error.message.includes('rate limit')) {
-            throw new ApiServiceError(
-                'Daily search limit reached. Please try again tomorrow.',
-                'RATE_LIMIT'
-            );
-        }
-        // For other database errors, wrap them.
-        throw new Error(error.message);
-    }
+  if (error) {
+    console.error('Error fetching clips from Supabase:', error);
 
-    // No results
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    // Normalize snake_case to camelCase with proper typing
-    return (data as SupabaseClipResponse[]).map((clip) => ({
-      id: clip.id,
-      videoId: clip.video_id,
-      text: clip.text,
-      start: clip.start_time,
-      end: clip.end_time,
-      context: clip.context || '',
-    }));
-    
-  } catch (error) {
-    // Re-throw standardized ApiServiceError as-is
-    if (error instanceof ApiServiceError) {
-      throw error;
+    if (error.code === 'PGRST301' || error.message.includes('rate limit')) {
+      throw new ApiServiceError(
+        'You have reached your daily search limit.',
+        'RATE_LIMIT'
+      );
     }
     
-    // Wrap any other unknown errors into a standard Error object before throwing.
-    // This prevents non-Error objects from being thrown.
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during search.';
-    throw new Error(errorMessage);
+    throw new ApiServiceError(
+      'Failed to search for video clips.',
+      'UNAVAILABLE',
+      error
+    );
   }
+
+  // Ensure data is in the expected format
+  return (data || []).map((item: any) => ({
+    id: `${item.video_id}_${item.start_time}`,
+    videoId: item.video_id,
+    text: item.text,
+    start: item.start_time,
+    end: item.end_time,
+    context: item.context || item.text, // Fallback for context
+  }));
 }

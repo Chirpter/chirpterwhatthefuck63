@@ -12,7 +12,7 @@ import { Icon } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/layout/AppHeader';
 import { Logo } from '@/components/ui/Logo';
-import { AppErrorManager } from '@/services/client/error-manager.service';
+import { AppErrorManager } from '@/services/client/error-manager-service';
 import { usePathname } from 'next/navigation';
 
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
