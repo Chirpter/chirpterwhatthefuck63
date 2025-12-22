@@ -85,21 +85,37 @@ export default function ShadowingView() {
   const playerRef = useRef<ShadowingPlayerHandle>(null);
   const [openBoxIndex, setOpenBoxIndex] = useState<number | null>(0);
 
-  const videoId = useMemo(() => getVideoIdFromUrl(currentVideo?.url || ''), [currentVideo]);
+  const videoId = useMemo(() => getVideoIdFromUrl(urlInput), [urlInput]);
 
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
-  // Initialize URL input from current video in history
-  useEffect(() => {
-    if (currentVideo) {
-      setUrlInput(currentVideo.url);
-    } else {
-      setUrlInput(''); // Clear input if history is cleared
-    }
-  }, [currentVideo]);
+  // 🔧 FIX: Reset all state khi clear history
+  const resetAllState = useCallback(() => {
+    setUrlInput('');
+    setTranscriptResult(null);
+    setIsLoading(false);
+    setError(null);
+    setIsShadowingMode(false);
+    setCurrentPlayingLine(null);
+    setIsVideoPlaying(false);
+    setCompletedLinesCount(0);
+    setCorrectlyCompletedLines(new Set());
+    setOpenBoxIndex(0);
+    setProgress([]);
+  }, []);
 
-  const resetStateForNewVideo = useCallback(() => {
+  // 🔧 FIX: Unified load video function
+  const loadVideo = useCallback(async (url: string, forceReload = false) => {
+    if (!user) return;
+    
+    const newVideoId = getVideoIdFromUrl(url);
+    if (!newVideoId) {
+      setError('invalid_url');
+      return;
+    }
+
+    // Reset state before loading
     setIsLoading(true);
     setError(null);
     setTranscriptResult(null);
@@ -109,40 +125,36 @@ export default function ShadowingView() {
     setCompletedLinesCount(0);
     setCorrectlyCompletedLines(new Set());
     setOpenBoxIndex(0);
-  }, []);
 
-  const loadVideo = useCallback(async (videoToLoad: { videoId: string, url: string }) => {
-    if (!user) return;
-    
-    resetStateForNewVideo();
-
-    // 1. Check cache first
-    const cachedTranscript = getTranscriptFromCache(videoToLoad.videoId);
-    if (cachedTranscript) {
+    // 1. Check cache first (skip if forceReload)
+    if (!forceReload) {
+      const cachedTranscript = getTranscriptFromCache(newVideoId);
+      if (cachedTranscript) {
         setTranscriptResult(cachedTranscript);
         addOrUpdateHistory({
-            videoId: videoToLoad.videoId,
-            url: videoToLoad.url,
-            title: cachedTranscript.title,
-            thumbnail: cachedTranscript.thumbnail,
-            totalLines: cachedTranscript.transcript.length,
+          videoId: newVideoId,
+          url: url,
+          title: cachedTranscript.title,
+          thumbnail: cachedTranscript.thumbnail,
+          totalLines: cachedTranscript.transcript.length,
         });
         setIsLoading(false);
         return;
+      }
     }
 
-    // 2. If not in cache, fetch from API
+    // 2. Fetch from API
     try {
-      const result = await getTranscriptFromUrl(videoToLoad.url, user.uid);
+      const result = await getTranscriptFromUrl(url, user.uid);
       if (!result || !result.transcript || result.transcript.length === 0) {
         throw new Error('No transcript available for this video.');
       }
       
       setTranscriptResult(result);
-      saveTranscriptToCache(videoToLoad.videoId, result);
+      saveTranscriptToCache(newVideoId, result);
       addOrUpdateHistory({
-        videoId: videoToLoad.videoId,
-        url: videoToLoad.url,
+        videoId: newVideoId,
+        url: url,
         title: result.title,
         thumbnail: result.thumbnail,
         totalLines: result.transcript.length,
@@ -154,29 +166,34 @@ export default function ShadowingView() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache, resetStateForNewVideo]);
+  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache]);
 
+  // 🔧 FIX: Handle form submit - always force reload
   const handleFetchTranscript = useCallback(() => {
     const url = urlInput.trim();
     if (!url) return;
     
     const newVideoId = getVideoIdFromUrl(url);
     if (!newVideoId) {
-        setError('invalid_url');
-        return;
+      setError('invalid_url');
+      return;
     }
 
-    loadVideo({ videoId: newVideoId, url });
+    // Force reload to bypass cache
+    loadVideo(url, true);
   }, [urlInput, loadVideo]);
 
-  // Load transcript for the current video from history on mount or when it changes
+  // 🔧 FIX: Initialize from history only once
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (currentVideo && !transcriptResult && !isLoading) {
-      loadVideo({ videoId: currentVideo.videoId, url: currentVideo.url });
+    if (!initializedRef.current && currentVideo && !transcriptResult) {
+      initializedRef.current = true;
+      setUrlInput(currentVideo.url);
+      loadVideo(currentVideo.url, false); // Use cache for history items
     }
-  }, [currentVideo, transcriptResult, isLoading, loadVideo]);
+  }, [currentVideo, transcriptResult, loadVideo]);
 
-
+  // Load progress from localStorage
   useEffect(() => {
     if (!videoId) {
       setProgress([]);
@@ -225,6 +242,7 @@ export default function ShadowingView() {
     }
   }, [transcriptResult, progress]);
 
+  // Load settings
   useEffect(() => {
     try {
       const saved = localStorage.getItem('shadowing-hideMode');
@@ -241,12 +259,6 @@ export default function ShadowingView() {
   useEffect(() => {
     localStorage.setItem('shadowing-checkMode', checkMode);
   }, [checkMode]);
-
-  const formatTime = useCallback((seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  }, []);
 
   const handlePlaySnippet = useCallback((start: number, end: number, lineIndex?: number) => {
     if (playerRef.current) {
@@ -287,17 +299,15 @@ export default function ShadowingView() {
 
   const handleHistoryItemClick = useCallback((item: any) => {
     setUrlInput(item.url);
-    const videoId = getVideoIdFromUrl(item.url);
-    if(videoId) {
-      loadVideo({ videoId, url: item.url });
-    }
+    loadVideo(item.url, false); // Use cache for history
   }, [loadVideo]);
 
+  // 🔧 FIX: Clear history properly
   const handleClearHistory = useCallback(() => {
     clearHistory();
-    setTranscriptResult(null); // Clear transcript as well
+    resetAllState();
     toast({ title: 'History Cleared', description: 'All video history has been removed.' });
-  }, [clearHistory, toast]);
+  }, [clearHistory, resetAllState, toast]);
   
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,61 +376,80 @@ export default function ShadowingView() {
       : transcriptResult?.transcript || [];
 
     return (
-        <Card className="flex flex-col h-full bg-transparent">
-            <CardHeader className="p-3 flex-shrink-0">
-                <div className="flex items-center justify-center gap-2">
-                    <Button variant={isShadowingMode ? 'default' : 'outline'} size="icon" onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} disabled={!transcriptResult} className="h-11 w-11 transition-colors" title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}><Icon name="Shadowing" className="h-5 w-5" /></Button>
-                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-11 w-11 transition-colors" disabled={!isShadowingMode || !transcriptResult}><Icon name="Settings" className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel><DropdownMenuRadioGroup value={hideMode} onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}><DropdownMenuRadioItem value="block">{t('shadowing.settings.hiddenWords')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="blur">{t('shadowing.settings.blurredText')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="hidden">{t('shadowing.settings.completelyHidden')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator /><DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel><DropdownMenuRadioGroup value={checkMode} onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}><DropdownMenuRadioItem value="strict">{t('shadowing.settings.strict')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="gentle">{t('shadowing.settings.gentle')}</DropdownMenuRadioItem></DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
+      <Card className="flex flex-col h-full bg-transparent">
+        <CardHeader className="p-3 flex-shrink-0">
+          <div className="flex items-center justify-center gap-2">
+            <Button variant={isShadowingMode ? 'default' : 'outline'} size="icon" onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} disabled={!transcriptResult} className="h-11 w-11 transition-colors" title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}><Icon name="Shadowing" className="h-5 w-5" /></Button>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-11 w-11 transition-colors" disabled={!isShadowingMode || !transcriptResult}><Icon name="Settings" className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel><DropdownMenuRadioGroup value={hideMode} onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}><DropdownMenuRadioItem value="block">{t('shadowing.settings.hiddenWords')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="blur">{t('shadowing.settings.blurredText')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="hidden">{t('shadowing.settings.completelyHidden')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator /><DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel><DropdownMenuRadioGroup value={checkMode} onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}><DropdownMenuRadioItem value="strict">{t('shadowing.settings.strict')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="gentle">{t('shadowing.settings.gentle')}</DropdownMenuRadioItem></DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 min-h-0 p-0">
+          <ScrollArea className="h-full">
+            <div className="p-4">
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Card key={i} className="bg-card">
+                      <CardContent className="p-3">
+                        <Skeleton className="h-20 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 p-0">
-                <ScrollArea className="h-full">
-                    <div className="p-4">
-                        {isLoading ? (
-                            <div className="space-y-3">
-                                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)}
-                            </div>
-                        ) : error ? (
-                            <Alert variant="destructive">
-                                <AlertTitle>{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle>
-                                <AlertDescription>{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription>
-                            </Alert>
-                        ) : transcriptResult ? (
-                            <div className="space-y-3">
-                                {listToRender.map((line, index) => (
-                                    <Card key={index} className={cn('transition-all duration-200 bg-card', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
-                                        <CardContent className="p-3">
-                                            <ShadowingBox 
-                                                line={line.text} 
-                                                startTime={line.start} 
-                                                hideMode={hideMode} 
-                                                checkMode={checkMode} 
-                                                onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })} 
-                                                isCorrect={correctlyCompletedLines.has(index)} 
-                                                onPlay={() => handleBoxPlay(line.start, line.end, index)} 
-                                                onReveal={handleReveal} 
-                                                isPlaying={currentPlayingLine === index && isVideoPlaying} 
-                                                mode={isShadowingMode ? "shadowing" : "normal"} 
-                                                isOpen={openBoxIndex === index} 
-                                                onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)} 
-                                                disabled={isShadowingMode && index < completedLinesCount && correctlyCompletedLines.has(index)}
-                                            />
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                                {isShadowingMode && completedLinesCount >= transcriptResult.transcript.length && (
-                                    <div className="text-center py-8 bg-card rounded-lg border border-green-200 dark:border-green-800">
-                                        <Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                                        <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">All Exercises Completed</h3>
-                                        <p className="text-body-base text-green-600 dark:text-green-300 mb-4">Great job! You have finished all shadowing exercises.</p>
-                                    </div>
-                                )}
-                            </div>
-                        ) : null}
-                    </div>
-                </ScrollArea>
-            </CardContent>
-        </Card>
+              ) : error ? (
+                <Card className="bg-card border-destructive">
+                  <CardContent className="p-4">
+                    <Alert variant="destructive" className="border-0 bg-transparent p-0">
+                      <AlertTitle>{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle>
+                      <AlertDescription>{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              ) : transcriptResult ? (
+                <div className="space-y-3">
+                  {listToRender.map((line, index) => (
+                    <Card key={index} className={cn('transition-all duration-200 bg-card', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
+                      <CardContent className="p-3">
+                        <ShadowingBox 
+                          line={line.text} 
+                          startTime={line.start} 
+                          hideMode={hideMode} 
+                          checkMode={checkMode} 
+                          onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })} 
+                          isCorrect={correctlyCompletedLines.has(index)} 
+                          onPlay={() => handleBoxPlay(line.start, line.end, index)} 
+                          onReveal={handleReveal} 
+                          isPlaying={currentPlayingLine === index && isVideoPlaying} 
+                          mode={isShadowingMode ? "shadowing" : "normal"} 
+                          isOpen={openBoxIndex === index} 
+                          onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)} 
+                          disabled={isShadowingMode && index < completedLinesCount && correctlyCompletedLines.has(index)}
+                        />
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {isShadowingMode && completedLinesCount >= transcriptResult.transcript.length && (
+                    <Card className="bg-card border-green-200 dark:border-green-800">
+                      <CardContent className="p-6 text-center">
+                        <Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                        <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">All Exercises Completed</h3>
+                        <p className="text-body-base text-green-600 dark:text-green-300">Great job! You have finished all shadowing exercises.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                <Card className="bg-card">
+                  <CardContent className="p-8 text-center">
+                    <Icon name="Youtube" className="h-12 w-12 mx-auto mb-3 opacity-30 text-muted-foreground" />
+                    <p className="text-body-base text-muted-foreground">Enter a YouTube URL above to get started</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
     );
   };
   

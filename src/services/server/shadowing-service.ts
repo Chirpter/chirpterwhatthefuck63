@@ -70,13 +70,13 @@ export async function getTranscriptFromUrl(videoUrl: string, userId: string): Pr
         if (typeof errorData.error === 'string' && errorData.error.includes('limit')) {
             throw new ApiServiceError(errorData.error, 'RATE_LIMIT');
         }
-        throw new ApiServiceError(errorData.error || `Request failed with status ${response.status}`, 'UNKNOWN');
+        throw new ApiServiceError(errorData.error || `Could not connect to the transcript service. Status: ${response.status}`, 'UNKNOWN');
     }
 
     const data = await response.json();
 
     if (!data.success) {
-        throw new ApiServiceError(data.error || 'The worker failed to retrieve the transcript.', 'UNKNOWN');
+        throw new ApiServiceError(data.error || 'Could not get transcript for this video. It might be private or have transcripts disabled.', 'UNAVAILABLE');
     }
     
     // --- NORMALIZATION STEP ---
@@ -107,7 +107,7 @@ export async function getTranscriptFromUrl(videoUrl: string, userId: string): Pr
       throw error;
     }
     
-    const errorMessage = error instanceof Error ? error.message : "Failed to fetch transcript. The worker might be down or the video is private.";
+    const errorMessage = error instanceof Error ? error.message : "Could not connect to the transcript service. Please check your internet connection.";
     throw new ApiServiceError(errorMessage, 'NETWORK');
   }
 }

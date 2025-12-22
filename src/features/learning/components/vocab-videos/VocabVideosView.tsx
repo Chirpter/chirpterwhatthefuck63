@@ -7,11 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useUser } from '@/contexts/user-context';
-import { useMobile } from '@/hooks/useMobile';
 import type { Piece } from '@/lib/types';
 
 import { useVocabVideosContext } from '../../contexts/VocabVideosContext';
@@ -152,48 +151,6 @@ function VocabVideosView() {
   );
 
   const renderContentPanel = () => {
-    const innerContent = () => {
-      if (isLoading && !selectedResult) {
-        return (
-          <AlertDescription>
-            <div className="space-y-3">
-              <Skeleton className="h-5 w-3/4" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-2/3" />
-            </div>
-          </AlertDescription>
-        );
-      }
-      
-      if (error && !selectedResult) {
-        return (
-          <>
-            <AlertTitle>{t('vocabVideos.noClipsFoundTitle')}</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </>
-        );
-      }
-      
-      if (selectedResult) {
-        return (
-          <AlertDescription>
-            <ContextSentences context={selectedResult.context} searchTerm={query} currentSentence={selectedResult.text} />
-          </AlertDescription>
-        );
-      }
-      
-      return (
-        <AlertDescription>
-          <div className="text-center text-muted-foreground">
-            <div>
-              <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="text-body-base">{t('vocabVideos.searchPrompt')}</p>
-            </div>
-          </div>
-        </AlertDescription>
-      );
-    };
-
     return (
       <Card className="flex flex-col h-full bg-transparent">
         <CardHeader className="p-3 border-b flex-shrink-0">
@@ -213,12 +170,43 @@ function VocabVideosView() {
         <CardContent className="flex-1 min-h-0 p-0">
           <ScrollArea className="h-full">
             <div className="p-4" onMouseUp={handleSelectionWithContext}>
-              <Alert 
-                variant={error && !selectedResult ? 'destructive' : 'default'}
-                className="bg-card w-full"
-              >
-                {innerContent()}
-              </Alert>
+              {isLoading && !selectedResult ? (
+                <Card className="bg-card">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-5 w-full" />
+                      <Skeleton className="h-5 w-2/3" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : error && !selectedResult ? (
+                <Card className="bg-card border-destructive">
+                  <CardContent className="p-4">
+                    <Alert variant="destructive" className="border-0 bg-transparent p-0">
+                      <AlertTitle>{t('vocabVideos.noClipsFoundTitle')}</AlertTitle>
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              ) : selectedResult ? (
+                <Card className="bg-card">
+                  <CardContent className="p-4">
+                    <ContextSentences 
+                      context={selectedResult.context} 
+                      searchTerm={query} 
+                      currentSentence={selectedResult.text} 
+                    />
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="bg-card">
+                  <CardContent className="p-8 text-center">
+                    <Icon name="Search" className="h-12 w-12 mx-auto mb-3 opacity-30 text-muted-foreground" />
+                    <p className="text-body-base text-muted-foreground">{t('vocabVideos.searchPrompt')}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </ScrollArea>
         </CardContent>
