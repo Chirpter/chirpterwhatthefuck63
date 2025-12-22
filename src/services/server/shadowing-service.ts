@@ -70,7 +70,7 @@ export async function getTranscriptFromUrl(videoUrl: string, userId: string): Pr
         if (typeof errorData.error === 'string' && errorData.error.includes('limit')) {
             throw new ApiServiceError(errorData.error, 'RATE_LIMIT');
         }
-        throw new ApiServiceError(errorData.error || `Could not connect to the transcript service. Status: ${response.status}`, 'UNKNOWN');
+        throw new ApiServiceError(errorData.error || `Could not connect to the transcript service. Status: ${response.status}`, 'UNAVAILABLE');
     }
 
     const data = await response.json();

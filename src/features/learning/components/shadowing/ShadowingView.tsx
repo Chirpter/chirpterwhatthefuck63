@@ -90,7 +90,7 @@ export default function ShadowingView() {
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
-  // 🔧 FIX: Reset all state khi clear history
+  // ✅ FIX: Reset all state khi clear history
   const resetAllState = useCallback(() => {
     setUrlInput('');
     setTranscriptResult(null);
@@ -120,7 +120,7 @@ export default function ShadowingView() {
     }
   }, [t]);
 
-  // 🔧 FIX: Unified load video function
+  // ✅ FIX: Unified load video function
   const loadVideo = useCallback(async (url: string, forceReload = false) => {
     if (!user) return;
     
@@ -183,7 +183,7 @@ export default function ShadowingView() {
     }
   }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache, getErrorMessage]);
 
-  // 🔧 FIX: Handle form submit - always force reload
+  // ✅ FIX: Handle form submit - always force reload
   const handleFetchTranscript = useCallback(() => {
     const url = urlInput.trim();
     if (!url) return;
@@ -198,7 +198,7 @@ export default function ShadowingView() {
     loadVideo(url, true);
   }, [urlInput, loadVideo]);
 
-  // 🔧 FIX: Initialize from history only once
+  // ✅ FIX: Initialize from history only once
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!initializedRef.current && currentVideo && !transcriptResult) {
@@ -317,7 +317,7 @@ export default function ShadowingView() {
     loadVideo(item.url, false); // Use cache for history
   }, [loadVideo]);
 
-  // 🔧 FIX: Clear history properly
+  // ✅ FIX: Clear history properly
   const handleClearHistory = useCallback(() => {
     clearHistory();
     resetAllState();
