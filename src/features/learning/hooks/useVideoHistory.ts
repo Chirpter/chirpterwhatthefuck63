@@ -14,46 +14,49 @@ export interface HistoryItem {
 }
 
 const HISTORY_KEY = 'chirpter_shadowing_history_v2';
-const TRANSCRIPT_CACHE_PREFIX = 'chirpter_transcript_cache_';
+const TRANSCRIPT_CACHE_KEY = 'chirpter_transcript_cache'; // ✅ Single cache key
 const MAX_HISTORY_SIZE = 3;
 
-// --- CACHE MANAGEMENT ---
-
+// ✅ OPTIMIZED: Cache CHỈ 1 VIDEO FULL (priority 1)
 const getTranscriptFromCache = (videoId: string): TranscriptResult | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const cached = localStorage.getItem(`${TRANSCRIPT_CACHE_PREFIX}${videoId}`);
-    return cached ? JSON.parse(cached) : null;
+    const cached = localStorage.getItem(TRANSCRIPT_CACHE_KEY);
+    if (!cached) return null;
+    
+    const { id, data } = JSON.parse(cached);
+    
+    // Return data chỉ khi match videoId
+    return id === videoId ? data : null;
   } catch (e) {
-    console.error("Failed to read from transcript cache", e);
+    console.error("Failed to read transcript cache", e);
     return null;
   }
 };
 
+// ✅ OPTIMIZED: Lưu transcript của video hiện tại (overwrite)
 const saveTranscriptToCache = (videoId: string, data: TranscriptResult) => {
   if (typeof window === 'undefined') return;
   try {
-    // 1. Clear all existing transcript caches to enforce single-item cache
-    Object.keys(localStorage)
-      .filter(key => key.startsWith(TRANSCRIPT_CACHE_PREFIX))
-      .forEach(key => localStorage.removeItem(key));
-      
-    // 2. Save the new transcript
-    const newKey = `${TRANSCRIPT_CACHE_PREFIX}${videoId}`;
-    localStorage.setItem(newKey, JSON.stringify(data));
-
+    // Single cache entry - auto overwrite khi có video mới
+    localStorage.setItem(TRANSCRIPT_CACHE_KEY, JSON.stringify({
+      id: videoId,
+      data,
+      cachedAt: Date.now()
+    }));
   } catch (e) {
-    console.error("Failed to save to transcript cache:", e);
+    console.error("Failed to save transcript cache:", e);
   }
 };
 
-const removeTranscriptFromCache = (videoId: string) => {
-    if (typeof window === 'undefined') return;
-    try {
-        localStorage.removeItem(`${TRANSCRIPT_CACHE_PREFIX}${videoId}`);
-    } catch (e) {
-        console.error("Failed to remove from transcript cache", e);
-    }
+// ✅ OPTIMIZED: Clear cache khi cần
+const clearTranscriptCache = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(TRANSCRIPT_CACHE_KEY);
+  } catch (e) {
+    console.error("Failed to clear cache", e);
+  }
 };
 
 // --- MAIN HOOK ---
@@ -61,14 +64,14 @@ const removeTranscriptFromCache = (videoId: string) => {
 export const useVideoHistory = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  // Load history from localStorage on initial mount
+  // Load history from localStorage on mount
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem(HISTORY_KEY);
       if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
         if (Array.isArray(parsed)) {
-            setHistory(parsed.slice(0, MAX_HISTORY_SIZE)); // Ensure limit on load
+          setHistory(parsed.slice(0, MAX_HISTORY_SIZE));
         }
       }
     } catch (e) {
@@ -78,7 +81,6 @@ export const useVideoHistory = () => {
 
   const persistHistory = useCallback((nextHistory: HistoryItem[]) => {
     try {
-      // Always store only the top N items
       const historyToSave = nextHistory.slice(0, MAX_HISTORY_SIZE);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(historyToSave));
     } catch (e) {
@@ -86,36 +88,30 @@ export const useVideoHistory = () => {
     }
   }, []);
 
+  // ✅ OPTIMIZED: Add/Update với cache priority logic
   const addOrUpdateHistory = useCallback((item: Omit<HistoryItem, 'lastAccessed'>) => {
     const newItem: HistoryItem = {
-        ...item,
-        lastAccessed: Date.now(),
-        progress: item.progress || [],
+      ...item,
+      lastAccessed: Date.now(),
+      progress: item.progress || [],
     };
 
     setHistory(prev => {
-        // Find the video ID of the current Priority 1 item before making changes
-        const oldPriority1VideoId = prev[0]?.videoId;
-        
-        // Remove existing item if it's already in the list to move it to the front
-        const filtered = prev.filter(h => h.videoId !== item.videoId);
-        
-        // Add the new/updated item to the front (making it Priority 1)
-        const next = [newItem, ...filtered];
-        
-        // Enforce the size limit
-        const finalHistory = next.slice(0, MAX_HISTORY_SIZE);
+      // Remove existing nếu có
+      const filtered = prev.filter(h => h.videoId !== item.videoId);
+      
+      // Add to front (Priority 1)
+      const next = [newItem, ...filtered];
+      
+      // Limit size
+      const finalHistory = next.slice(0, MAX_HISTORY_SIZE);
 
-        // If the old Priority 1 video is different from the new one, remove its transcript from cache
-        if (oldPriority1VideoId && oldPriority1VideoId !== newItem.videoId) {
-            removeTranscriptFromCache(oldPriority1VideoId);
-        }
-
-        persistHistory(finalHistory);
-        return finalHistory;
+      persistHistory(finalHistory);
+      return finalHistory;
     });
   }, [persistHistory]);
 
+  // ✅ OPTIMIZED: Update progress cho video đang xem
   const updateHistoryProgress = useCallback((videoId: string, progress: number[]) => {
     setHistory(prev => {
       const next = prev.map(h => 
@@ -123,21 +119,19 @@ export const useVideoHistory = () => {
           ? { ...h, progress, lastAccessed: Date.now() } 
           : h
       );
-      // Sort by lastAccessed to ensure the most recently interacted item is first
+      // Sort by lastAccessed
       next.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
       persistHistory(next);
       return next;
     });
   }, [persistHistory]);
 
+  // ✅ OPTIMIZED: Clear all
   const clearHistory = useCallback(() => {
     setHistory([]);
     try { 
-      localStorage.removeItem(HISTORY_KEY); 
-      // Also clear all transcript caches
-      Object.keys(localStorage)
-          .filter(key => key.startsWith(TRANSCRIPT_CACHE_PREFIX))
-          .forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem(HISTORY_KEY);
+      clearTranscriptCache(); // Clear transcript cache cùng lúc
     } catch (e) { 
       console.error(e); 
     }
@@ -147,7 +141,7 @@ export const useVideoHistory = () => {
 
   return { 
     history,
-    currentVideo, // The most recent item is always the current one
+    currentVideo, // Video đang xem (Priority 1)
     addOrUpdateHistory, 
     updateHistoryProgress, 
     clearHistory,

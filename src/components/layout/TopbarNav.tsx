@@ -24,7 +24,7 @@ export function TopbarNav() {
             variant="ghost"
             size="sm"
             className={cn(
-              "font-body text-body-base",
+              "font-body text-body-sm",
               isActive 
                 ? "font-semibold bg-primary text-primary-foreground hover:bg-primary/90" 
                 : "text-foreground hover:bg-secondary"

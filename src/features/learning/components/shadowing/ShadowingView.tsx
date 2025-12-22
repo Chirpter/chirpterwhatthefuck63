@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/icons';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getTranscriptFromUrl, type TranscriptResult } from '@/services/server/shadowing-service';
 import { useToast } from '@/hooks/useToast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ShadowingBox, type ShadowingResult } from './ShadowingBox';
 import {
@@ -29,6 +29,7 @@ import { ShadowingHistory } from './ShadowingHistory';
 import { ShadowingAnalysis } from './ShadowingAnalysis';
 import { useShadowingTracking } from '@/features/learning/hooks/useShadowingTracking';
 import { useVideoHistory } from '@/features/learning/hooks/useVideoHistory';
+import { useShadowingSettings } from '@/features/learning/hooks/useShadowingSettings';
 import { ShadowingPlayer, type ShadowingPlayerHandle } from './ShadowingPlayer';
 import { VideoBasedLayout } from '../layout/VideoBasedLayout';
 import { ApiServiceError } from '@/lib/errors';
@@ -69,6 +70,9 @@ export default function ShadowingView() {
     saveTranscriptToCache,
   } = useVideoHistory();
 
+  // ✅ OPTIMIZED: Unified settings
+  const { hideMode, checkMode, setHideMode, setCheckMode } = useShadowingSettings();
+
   const [urlInput, setUrlInput] = useState('');
   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,9 +83,6 @@ export default function ShadowingView() {
   const [currentPlayingLine, setCurrentPlayingLine] = useState<number | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
-  const [hideMode, setHideMode] = useState<'block' | 'blur' | 'hidden'>('block');
-  const [checkMode, setCheckMode] = useState<'strict' | 'gentle'>('gentle');
-
   const playerRef = useRef<ShadowingPlayerHandle>(null);
   const [openBoxIndex, setOpenBoxIndex] = useState<number | null>(0);
 
@@ -90,38 +91,11 @@ export default function ShadowingView() {
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
-  // ✅ FIX: Reset all state khi clear history
-  const resetAllState = useCallback(() => {
-    setUrlInput('');
-    setTranscriptResult(null);
-    setIsLoading(false);
-    setError(null);
-    setIsShadowingMode(false);
-    setCurrentPlayingLine(null);
-    setIsVideoPlaying(false);
-    setCompletedLinesCount(0);
-    setCorrectlyCompletedLines(new Set());
-    setOpenBoxIndex(0);
-    setProgress([]);
-  }, []);
-
-  const getErrorMessage = useCallback((error: ApiServiceError) => {
-    switch (error.code) {
-        case 'RATE_LIMIT':
-            return t('shadowing.rateLimitError', { defaultValue: 'Daily transcript limit reached. Please try again tomorrow.' });
-        case 'AUTH':
-            return t('toast:authErrorDesc');
-        case 'NETWORK':
-            return t('shadowing.networkError', { defaultValue: 'Network error. Please check your connection and try again.' });
-        case 'UNAVAILABLE':
-            return t('shadowing.unavailableError', { defaultValue: 'A transcript is not available for this video. It may be private or have captions disabled.' });
-        default:
-            return t('shadowing.genericError', { defaultValue: 'An unexpected error occurred while fetching the transcript.' });
-    }
-  }, [t]);
-
-  // ✅ FIX: Unified load video function
-  const loadVideo = useCallback(async (url: string, forceReload = false) => {
+  // ✅ OPTIMIZED: Single load function với clear intent
+  const loadVideo = useCallback(async (
+    url: string, 
+    source: 'user_input' | 'history' | 'mount'
+  ) => {
     if (!user) return;
     
     const newVideoId = getVideoIdFromUrl(url);
@@ -130,7 +104,7 @@ export default function ShadowingView() {
       return;
     }
 
-    // Reset state before loading
+    // Reset state
     setIsLoading(true);
     setError(null);
     setTranscriptResult(null);
@@ -141,8 +115,10 @@ export default function ShadowingView() {
     setCorrectlyCompletedLines(new Set());
     setOpenBoxIndex(0);
 
-    // 1. Check cache first (skip if forceReload)
-    if (!forceReload) {
+    // ✅ Cache strategy: Chỉ dùng cache khi KHÔNG phải user input
+    const shouldUseCache = source !== 'user_input';
+    
+    if (shouldUseCache) {
       const cachedTranscript = getTranscriptFromCache(newVideoId);
       if (cachedTranscript) {
         setTranscriptResult(cachedTranscript);
@@ -158,7 +134,7 @@ export default function ShadowingView() {
       }
     }
 
-    // 2. Fetch from API
+    // Fetch from API
     try {
       const result = await getTranscriptFromUrl(url, user.uid);
       if (!result || !result.transcript || result.transcript.length === 0) {
@@ -174,16 +150,22 @@ export default function ShadowingView() {
         thumbnail: result.thumbnail,
         totalLines: result.transcript.length,
       });
-      toast({ title: 'Transcript Loaded', description: `Loaded ${result.transcript.length} lines from "${result.title}"` });
+      
+      toast({ 
+        title: 'Transcript Loaded', 
+        description: `Loaded ${result.transcript.length} lines from "${result.title}"` 
+      });
     } catch (err: any) {
-      const friendlyMessage = err instanceof ApiServiceError ? getErrorMessage(err) : err.message;
-      setError(friendlyMessage);
+      const msg = err instanceof ApiServiceError 
+        ? err.message 
+        : (err.message ?? 'An unknown error occurred.');
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache, getErrorMessage]);
+  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache]);
 
-  // ✅ FIX: Handle form submit - always force reload
+  // ✅ Handle form submit - always force reload
   const handleFetchTranscript = useCallback(() => {
     const url = urlInput.trim();
     if (!url) return;
@@ -194,21 +176,20 @@ export default function ShadowingView() {
       return;
     }
 
-    // Force reload to bypass cache
-    loadVideo(url, true);
+    loadVideo(url, 'user_input');
   }, [urlInput, loadVideo]);
 
-  // ✅ FIX: Initialize from history only once
+  // ✅ Initialize from history (only once)
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!initializedRef.current && currentVideo && !transcriptResult) {
       initializedRef.current = true;
       setUrlInput(currentVideo.url);
-      loadVideo(currentVideo.url, false); // Use cache for history items
+      loadVideo(currentVideo.url, 'mount');
     }
   }, [currentVideo, transcriptResult, loadVideo]);
 
-  // Load progress from localStorage
+  // ✅ OPTIMIZED: Load progress from localStorage
   useEffect(() => {
     if (!videoId) {
       setProgress([]);
@@ -223,28 +204,38 @@ export default function ShadowingView() {
     }
   }, [videoId]);
 
+  // ✅ OPTIMIZED: Single write for progress
   const updateProgress = useCallback((lineIndex: number) => {
     if (!videoId) return;
+    
     setProgress(prev => {
       if (prev.includes(lineIndex)) return prev;
+      
       const next = Array.from(new Set([...prev, lineIndex])).sort((a, b) => a - b);
+      
+      // Save to localStorage
       try {
         localStorage.setItem(`shadowing-progress-${videoId}`, JSON.stringify(next));
       } catch (e) {
         console.error(e);
       }
+      
       return next;
     });
   }, [videoId]);
 
+  // ✅ Auto-sync to history (debounced)
   useEffect(() => {
     if (!videoId || progress.length === 0) return;
+    
     const timer = setTimeout(() => {
       updateHistoryProgress(videoId, progress);
     }, 1000);
+    
     return () => clearTimeout(timer);
   }, [videoId, progress, updateHistoryProgress]);
 
+  // Restore progress on load
   useEffect(() => {
     if (transcriptResult && progress.length > 0) {
       setCompletedLinesCount(progress.length);
@@ -256,24 +247,6 @@ export default function ShadowingView() {
       setOpenBoxIndex(0);
     }
   }, [transcriptResult, progress]);
-
-  // Load settings
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('shadowing-hideMode');
-      if (saved) setHideMode(saved as 'block' | 'blur' | 'hidden');
-      const savedCheck = localStorage.getItem('shadowing-checkMode');
-      if (savedCheck) setCheckMode(savedCheck as 'strict' | 'gentle');
-    } catch (e) {}
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('shadowing-hideMode', hideMode);
-  }, [hideMode]);
-
-  useEffect(() => {
-    localStorage.setItem('shadowing-checkMode', checkMode);
-  }, [checkMode]);
 
   const handlePlaySnippet = useCallback((start: number, end: number, lineIndex?: number) => {
     if (playerRef.current) {
@@ -299,30 +272,43 @@ export default function ShadowingView() {
 
   const handleLineComplete = useCallback((isCorrect: boolean, result: ShadowingResult) => {
     const { lineIndex } = result;
+    
     if (lineIndex === tracking.currentSessionIndex) {
       tracking.onResubmit(result);
     } else {
       tracking.onFirstSubmit(result, lineIndex);
     }
+    
     if (isCorrect) {
       updateProgress(lineIndex);
       setCorrectlyCompletedLines(prev => new Set(prev).add(lineIndex));
       setCompletedLinesCount(prev => Math.max(prev, lineIndex + 1));
     }
+    
     setOpenBoxIndex(isCorrect ? lineIndex + 1 : lineIndex);
   }, [tracking, updateProgress]);
 
   const handleHistoryItemClick = useCallback((item: any) => {
     setUrlInput(item.url);
-    loadVideo(item.url, false); // Use cache for history
+    loadVideo(item.url, 'history');
   }, [loadVideo]);
 
-  // ✅ FIX: Clear history properly
   const handleClearHistory = useCallback(() => {
     clearHistory();
-    resetAllState();
-    toast({ title: 'History Cleared', description: 'All video history has been removed.' });
-  }, [clearHistory, resetAllState, toast]);
+    
+    // Reset all state
+    setUrlInput('');
+    setTranscriptResult(null);
+    setError(null);
+    setIsShadowingMode(false);
+    setProgress([]);
+    initializedRef.current = false;
+    
+    toast({ 
+      title: 'History Cleared', 
+      description: 'All video history has been removed.' 
+    });
+  }, [clearHistory, toast]);
   
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,7 +316,9 @@ export default function ShadowingView() {
   };
 
   const wordsToDisplay = useMemo(() => tracking.getWordsNeedingAttention(), [tracking]);
-  const progressPercentage = transcriptResult ? Math.round((completedLinesCount / transcriptResult.transcript.length) * 100) : 0;
+  const progressPercentage = transcriptResult 
+    ? Math.round((completedLinesCount / transcriptResult.transcript.length) * 100) 
+    : 0;
   
   const renderPageTitle = () => (
     <div className="space-y-1">
@@ -355,12 +343,24 @@ export default function ShadowingView() {
                 disabled={isLoading}
               />
             </div>
-            <Button type="submit" disabled={isLoading || !urlInput} className="h-10 px-4 transition-colors">
-              {isLoading ? (<><Icon name="Loader2" className="animate-spin h-4 w-4 mr-2" />{t('common:loading')}...</>) : t('shadowing.getTranscriptButton')}
+            <Button 
+              type="submit" 
+              disabled={isLoading || !urlInput} 
+              className="h-10 px-4 transition-colors"
+            >
+              {isLoading ? (
+                <>
+                  <Icon name="Loader2" className="animate-spin h-4 w-4 mr-2" />
+                  {t('common:loading')}...
+                </>
+              ) : (
+                t('shadowing.getTranscriptButton')
+              )}
             </Button>
           </form>
         </CardContent>
       </Card>
+      
       <div className={cn(isLoading && "animate-pulse")}>
         {isLoading ? (
           <Skeleton className="aspect-video w-full rounded-xl" />
@@ -392,12 +392,60 @@ export default function ShadowingView() {
 
     return (
       <Card className="flex flex-col h-full bg-transparent">
-        <CardHeader className="p-3 border-b flex-shrink-0">
+        <CardHeader className="p-3 flex-shrink-0">
           <div className="flex items-center justify-center gap-2">
-            <Button variant={isShadowingMode ? 'default' : 'outline'} size="icon" onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} disabled={!transcriptResult} className="h-11 w-11 transition-colors" title={isShadowingMode ? t('shadowing.exitMode') : `${t('shadowing.startMode')} (Ctrl + M)`}><Icon name="Shadowing" className="h-5 w-5" /></Button>
-            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-11 w-11 transition-colors" disabled={!isShadowingMode || !transcriptResult}><Icon name="Settings" className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel><DropdownMenuRadioGroup value={hideMode} onValueChange={(v) => setHideMode(v as 'block' | 'blur' | 'hidden')}><DropdownMenuRadioItem value="block">{t('shadowing.settings.hiddenWords')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="blur">{t('shadowing.settings.blurredText')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="hidden">{t('shadowing.settings.completelyHidden')}</DropdownMenuRadioItem></DropdownMenuRadioGroup><DropdownMenuSeparator /><DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel><DropdownMenuRadioGroup value={checkMode} onValueChange={(v) => setCheckMode(v as 'strict' | 'gentle')}><DropdownMenuRadioItem value="strict">{t('shadowing.settings.strict')}</DropdownMenuRadioItem><DropdownMenuRadioItem value="gentle">{t('shadowing.settings.gentle')}</DropdownMenuRadioItem></DropdownMenuRadioGroup></DropdownMenuContent></DropdownMenu>
+            <Button 
+              variant={isShadowingMode ? 'default' : 'outline'} 
+              size="icon" 
+              onClick={() => transcriptResult && setIsShadowingMode(prev => !prev)} 
+              disabled={!transcriptResult} 
+              className="h-11 w-11 transition-colors" 
+              title={isShadowingMode ? t('shadowing.exitMode') : t('shadowing.startMode')}
+            >
+              <Icon name="Shadowing" className="h-5 w-5" />
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-11 w-11 transition-colors" 
+                  disabled={!isShadowingMode || !transcriptResult}
+                >
+                  <Icon name="Settings" className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>{t('shadowing.settings.textDisplay')}</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={hideMode} onValueChange={(v) => setHideMode(v as any)}>
+                  <DropdownMenuRadioItem value="block">
+                    {t('shadowing.settings.hiddenWords')}
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="blur">
+                    {t('shadowing.settings.blurredText')}
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="hidden">
+                    {t('shadowing.settings.completelyHidden')}
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuLabel>{t('shadowing.settings.checkingMode')}</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={checkMode} onValueChange={(v) => setCheckMode(v as any)}>
+                  <DropdownMenuRadioItem value="strict">
+                    {t('shadowing.settings.strict')}
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="gentle">
+                    {t('shadowing.settings.gentle')}
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
+        
         <CardContent className="flex-1 min-h-0 p-0">
           <ScrollArea className="h-full">
             <div className="p-4">
@@ -415,15 +463,28 @@ export default function ShadowingView() {
                 <Card className="bg-card border-destructive">
                   <CardContent className="p-4">
                     <Alert variant="destructive" className="border-0 bg-transparent p-0">
-                      <AlertTitle>{error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}</AlertTitle>
-                      <AlertDescription>{error === 'invalid_url' ? "Please enter a valid YouTube video URL." : error}</AlertDescription>
+                      <AlertTitle>
+                        {error === 'invalid_url' ? 'Invalid YouTube URL' : 'Could Not Get Transcript'}
+                      </AlertTitle>
+                      <AlertDescription>
+                        {error === 'invalid_url' 
+                          ? "Please enter a valid YouTube video URL." 
+                          : error
+                        }
+                      </AlertDescription>
                     </Alert>
                   </CardContent>
                 </Card>
               ) : transcriptResult ? (
                 <div className="space-y-3">
                   {listToRender.map((line, index) => (
-                    <Card key={index} className={cn('transition-all duration-200 bg-card', currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50')}>
+                    <Card 
+                      key={index} 
+                      className={cn(
+                        'transition-all duration-200 bg-card',
+                        currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50'
+                      )}
+                    >
                       <CardContent className="p-3">
                         <ShadowingBox 
                           line={line.text} 
@@ -443,12 +504,17 @@ export default function ShadowingView() {
                       </CardContent>
                     </Card>
                   ))}
+                  
                   {isShadowingMode && completedLinesCount >= transcriptResult.transcript.length && (
                     <Card className="bg-card border-green-200 dark:border-green-800">
                       <CardContent className="p-6 text-center">
                         <Icon name="Check" className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                        <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">All Exercises Completed</h3>
-                        <p className="text-body-base text-green-600 dark:text-green-300">Great job! You have finished all shadowing exercises.</p>
+                        <h3 className="text-headline-2 text-green-800 dark:text-green-400 mb-2">
+                          All Exercises Completed
+                        </h3>
+                        <p className="text-body-base text-green-600 dark:text-green-300">
+                          Great job! You have finished all shadowing exercises.
+                        </p>
                       </CardContent>
                     </Card>
                   )}
@@ -457,7 +523,9 @@ export default function ShadowingView() {
                 <Card className="bg-card">
                   <CardContent className="p-8 text-center">
                     <Icon name="Youtube" className="h-12 w-12 mx-auto mb-3 opacity-30 text-muted-foreground" />
-                    <p className="text-body-base text-muted-foreground">Enter a YouTube URL above to get started</p>
+                    <p className="text-body-base text-muted-foreground">
+                      Enter a YouTube URL above to get started
+                    </p>
                   </CardContent>
                 </Card>
               )}
@@ -471,10 +539,24 @@ export default function ShadowingView() {
   const renderRightColumn = () => (
     <div className="flex flex-col gap-4 h-full">
       <div className="h-[45vh] min-h-[350px] max-h-[500px]">
-        <ShadowingAnalysis errorStats={tracking.errorStats} wordsNeedingAttention={wordsToDisplay} onConfirmWord={tracking.confirmWord} showChart={tracking.shouldShowChart(openBoxIndex || 0)} progressPercentage={progressPercentage} completedLinesCount={completedLinesCount} totalLines={transcriptResult?.transcript.length || 0} isShadowingMode={isShadowingMode} />
+        <ShadowingAnalysis 
+          errorStats={tracking.errorStats} 
+          wordsNeedingAttention={wordsToDisplay} 
+          onConfirmWord={tracking.confirmWord} 
+          showChart={tracking.shouldShowChart(openBoxIndex || 0)} 
+          progressPercentage={progressPercentage} 
+          completedLinesCount={completedLinesCount} 
+          totalLines={transcriptResult?.transcript.length || 0} 
+          isShadowingMode={isShadowingMode} 
+        />
       </div>
       <div className="h-[25vh] min-h-[200px] max-h-[300px]">
-        <ShadowingHistory history={history} currentVideoId={videoId} onItemClick={handleHistoryItemClick} onClearHistory={handleClearHistory} />
+        <ShadowingHistory 
+          history={history} 
+          currentVideoId={videoId} 
+          onItemClick={handleHistoryItemClick} 
+          onClearHistory={handleClearHistory} 
+        />
       </div>
     </div>
   );

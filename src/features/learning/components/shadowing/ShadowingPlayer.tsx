@@ -40,57 +40,63 @@ export const ShadowingPlayer = forwardRef<
     ref
   ) => {
     const playerRef = useRef<YouTubePlayer | null>(null);
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const currentSnippetRef = useRef({ start: 0, end: 0 });
 
-    const stopMonitoring = useCallback(() => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+    // ✅ OPTIMIZED: Dùng timeout thay vì interval
+    const scheduleSnippetEnd = useCallback(() => {
+      // Clear timeout cũ nếu có
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      if (!playerRef.current) return;
+
+      try {
+        const currentTime = playerRef.current.getCurrentTime();
+        const remaining = currentSnippetRef.current.end - currentTime;
+
+        // Nếu còn thời gian, schedule pause
+        if (remaining > 0) {
+          timeoutRef.current = setTimeout(() => {
+            if (playerRef.current) {
+              playerRef.current.pauseVideo();
+              onVideoEnd();
+            }
+          }, remaining * 1000);
+        }
+      } catch (error) {
+        console.error('Schedule error:', error);
+      }
+    }, [onVideoEnd]);
+
+    const stopSchedule = useCallback(() => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     }, []);
-
-    const startMonitoring = useCallback(() => {
-      stopMonitoring();
-      intervalRef.current = setInterval(() => {
-        // ✅ FIX: Add null check to prevent accessing destroyed player
-        if (!playerRef.current) {
-          stopMonitoring();
-          return;
-        }
-
-        try {
-          const currentTime = playerRef.current.getCurrentTime();
-          if (currentTime >= currentSnippetRef.current.end) {
-            playerRef.current.pauseVideo();
-            stopMonitoring();
-            onVideoEnd();
-          }
-        } catch (error) {
-          console.error('Monitoring error:', error);
-          stopMonitoring();
-        }
-      }, 150);
-    }, [onVideoEnd, stopMonitoring]);
 
     // Cleanup on unmount
     useEffect(() => {
       return () => {
-        stopMonitoring();
+        stopSchedule();
+        playerRef.current = null;
       };
-    }, [stopMonitoring]);
+    }, [stopSchedule]);
 
     useImperativeHandle(ref, () => ({
       play: () => {
         if (playerRef.current) {
           playerRef.current.playVideo();
-          startMonitoring();
+          scheduleSnippetEnd();
         }
       },
       pause: () => {
         if (playerRef.current) {
           playerRef.current.pauseVideo();
-          stopMonitoring();
+          stopSchedule();
         }
       },
       seekToAndPlay: (seconds: number) => {
@@ -105,7 +111,7 @@ export const ShadowingPlayer = forwardRef<
           playerRef.current.seekTo(start, true);
         }
       },
-    }), [startMonitoring, stopMonitoring]);
+    }), [scheduleSnippetEnd, stopSchedule]);
 
     const handlePlayerReady = useCallback(
       (event: { target: YouTubePlayer }) => {
@@ -118,10 +124,12 @@ export const ShadowingPlayer = forwardRef<
     const onPlayerStateChange = useCallback((event: { data: number }) => {
       if (event.data === 1) { // Playing
         onVideoPlay?.();
+        scheduleSnippetEnd(); // ✅ Schedule end khi bắt đầu play
       } else if (event.data === 2) { // Paused
         onVideoPause?.();
+        stopSchedule(); // ✅ Clear schedule khi pause
       }
-    }, [onVideoPlay, onVideoPause]);
+    }, [onVideoPlay, onVideoPause, scheduleSnippetEnd, stopSchedule]);
     
     const opts = {
       height: "100%",
