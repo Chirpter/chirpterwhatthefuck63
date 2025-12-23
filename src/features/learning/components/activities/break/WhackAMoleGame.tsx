@@ -7,10 +7,10 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { Hole, Mole } from './CoffeeMolesDesign';
 
-const GAME_DURATION = 30; // seconds
+const GAME_DURATION = 30;
 const TOTAL_MOLES = 8;
 const MAX_ACTIVE_MOLES = 3;
-const MOLE_SPAWN_INTERVAL = 300 // ms
+const MOLE_SPAWN_INTERVAL = 300;
 
 export const MoleGameIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <div className="relative w-full h-full">
@@ -19,54 +19,194 @@ export const MoleGameIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </div>
 );
 
-const WhackEffect = () => (
-    <motion.svg
-        className="absolute inset-0 w-full h-full text-yellow-400 z-20 pointer-events-none"
-        viewBox="0 0 100 100"
-        initial={{ scale: 0.5, opacity: 1, rotate: 0 }}
-        animate={{ scale: 1.5, opacity: 0, rotate: 45 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-    >
-        <path
-            d="M50 0 L61.8 38.2 L100 38.2 L69.1 61.8 L79.5 100 L50 76.4 L20.5 100 L30.9 61.8 L0 38.2 L38.2 38.2 Z"
-            fill="currentColor"
+// 🎨 LIQUID SPLASH EFFECT - Satisfying blob animation
+const LiquidSplashEffect = () => {
+  const colors = ['#F59E0B', '#EAB308', '#FBBF24', '#FCD34D'];
+  
+  return (
+    <>
+      {/* Main impact blob */}
+      <motion.div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0 }}
+      >
+        <motion.div
+          className="w-16 h-16 rounded-full"
+          style={{
+            background: `radial-gradient(circle, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
+          }}
+          initial={{ scale: 0, opacity: 1 }}
+          animate={{ 
+            scale: [0, 1.5, 1.8, 0],
+            opacity: [1, 0.8, 0.6, 0],
+          }}
+          transition={{ 
+            duration: 0.6, 
+            ease: [0.34, 1.56, 0.64, 1] // Bouncy ease
+          }}
         />
-    </motion.svg>
-);
+      </motion.div>
+
+      {/* Liquid droplets splashing outward */}
+      {[...Array(12)].map((_, i) => {
+        const angle = (i * Math.PI * 2) / 12;
+        const distance = 40 + Math.random() * 20;
+        const size = 8 + Math.random() * 8;
+        
+        return (
+          <motion.div
+            key={`droplet-${i}`}
+            className="absolute rounded-full"
+            style={{
+              width: size,
+              height: size,
+              left: '50%',
+              top: '50%',
+              backgroundColor: colors[i % colors.length],
+              filter: 'blur(1px)',
+            }}
+            initial={{ 
+              x: 0, 
+              y: 0, 
+              scale: 1,
+              opacity: 1 
+            }}
+            animate={{
+              x: Math.cos(angle) * distance,
+              y: Math.sin(angle) * distance,
+              scale: [1, 1.2, 0],
+              opacity: [1, 0.8, 0],
+            }}
+            transition={{
+              duration: 0.5 + Math.random() * 0.2,
+              ease: "easeOut",
+            }}
+          />
+        );
+      })}
+
+      {/* Secondary smaller splash ring */}
+      <motion.div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0 }}
+      >
+        {[...Array(8)].map((_, i) => {
+          const angle = (i * Math.PI * 2) / 8;
+          const distance = 25;
+          
+          return (
+            <motion.div
+              key={`blob-${i}`}
+              className="absolute w-6 h-6 rounded-full"
+              style={{
+                backgroundColor: colors[i % colors.length],
+                filter: 'blur(2px)',
+              }}
+              initial={{ 
+                x: 0, 
+                y: 0,
+                scale: 0,
+                opacity: 1,
+              }}
+              animate={{
+                x: Math.cos(angle) * distance,
+                y: Math.sin(angle) * distance,
+                scale: [0, 1, 0.5, 0],
+                opacity: [1, 0.6, 0],
+              }}
+              transition={{
+                duration: 0.4,
+                ease: "easeOut",
+                delay: 0.05,
+              }}
+            />
+          );
+        })}
+      </motion.div>
+
+      {/* Ripple wave effect */}
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        viewBox="0 0 100 100"
+      >
+        <motion.circle
+          cx="50"
+          cy="50"
+          r="20"
+          fill="none"
+          stroke={colors[0]}
+          strokeWidth="3"
+          opacity="0.6"
+          initial={{ scale: 0, opacity: 0.8 }}
+          animate={{ scale: 2, opacity: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        />
+        <motion.circle
+          cx="50"
+          cy="50"
+          r="15"
+          fill="none"
+          stroke={colors[1]}
+          strokeWidth="2"
+          opacity="0.4"
+          initial={{ scale: 0, opacity: 0.6 }}
+          animate={{ scale: 2.5, opacity: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+        />
+      </svg>
+
+      {/* Score popup with bounce */}
+      <motion.div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-amber-500 font-bold text-3xl pointer-events-none drop-shadow-lg"
+        initial={{ y: 0, opacity: 0, scale: 0.5 }}
+        animate={{ 
+          y: -40, 
+          opacity: [0, 1, 1, 0],
+          scale: [0.5, 1.2, 1, 1],
+        }}
+        transition={{ 
+          duration: 0.8, 
+          ease: [0.34, 1.56, 0.64, 1],
+          times: [0, 0.2, 0.4, 1]
+        }}
+      >
+        +1
+      </motion.div>
+    </>
+  );
+};
 
 
 export default function WhackAMoleGame() {
     const { t } = useTranslation('learningPage');
     
-    // ✅ State đơn giản hơn: Dùng array chứa index của moles đang active
     const [activeMoles, setActiveMoles] = useState<number[]>([]);
     const [score, setScore] = useState(0);
     const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
     const [gameState, setGameState] = useState<'idle' | 'playing' | 'gameOver'>('idle');
     const [whackedMole, setWhackedMole] = useState<number | null>(null);
 
-    // ✅ Spawn mole logic đơn giản hơn
     const spawnMole = useCallback(() => {
         if (gameState !== 'playing') return;
         
         setActiveMoles(prev => {
-            // Nếu đã đủ số lượng moles, ẩn một mole ngẫu nhiên
             if (prev.length >= MAX_ACTIVE_MOLES) {
                 const randomIndex = Math.floor(Math.random() * prev.length);
                 return prev.filter((_, i) => i !== randomIndex);
             }
             
-            // Spawn mole mới tại vị trí ngẫu nhiên chưa có mole
             const randomHole = Math.floor(Math.random() * TOTAL_MOLES);
             
-            // Skip nếu vị trí đã có mole
             if (prev.includes(randomHole)) return prev;
             
             return [...prev, randomHole];
         });
     }, [gameState]);
 
-    // Game loop for timer
     useEffect(() => {
         if (gameState !== 'playing') return;
 
@@ -83,7 +223,6 @@ export default function WhackAMoleGame() {
         return () => clearInterval(timerInterval);
     }, [gameState]);
 
-    // Game loop for mole spawning
     useEffect(() => {
         if (gameState !== 'playing') return;
 
@@ -100,18 +239,14 @@ export default function WhackAMoleGame() {
         setWhackedMole(null);
     };
 
-    // ✅ Logic whack đơn giản và rõ ràng
     const whackMole = useCallback((index: number) => {
-        // KIỂM TRA NGAY ĐẦU: Mole có đang active không?
-        if (!activeMoles.includes(index)) return; // Early exit
+        if (!activeMoles.includes(index)) return;
         
-        // Chỉ chạy khi mole ĐANG ACTIVE
         setScore(prev => prev + 1);
         setActiveMoles(prev => prev.filter(h => h !== index));
         
-        // Visual feedback
         setWhackedMole(index);
-        setTimeout(() => setWhackedMole(null), 300);
+        setTimeout(() => setWhackedMole(null), 800);
     }, [activeMoles]);
 
     const renderContent = () => {
@@ -147,11 +282,17 @@ export default function WhackAMoleGame() {
                         return (
                             <div 
                                 key={index} 
-                                className="relative w-full flex items-center justify-center aspect-square"
+                                className="relative w-full flex items-center justify-center aspect-square cursor-pointer select-none"
                                 onClick={() => whackMole(index)}
                             >
-                                {whackedMole === index && <WhackEffect />}
-                                <Hole className="w-full h-full absolute top-0 left-0" />
+                                <AnimatePresence>
+                                    {whackedMole === index && (
+                                        <LiquidSplashEffect key={`splash-${index}`} />
+                                    )}
+                                </AnimatePresence>
+                                
+                                <Hole className="w-full h-full absolute top-0 left-0 pointer-events-none" />
+                                
                                 <AnimatePresence>
                                 {isUp && (
                                     <motion.div
@@ -164,7 +305,7 @@ export default function WhackAMoleGame() {
                                             damping: 15,
                                             mass: 0.5
                                         }}
-                                        className="absolute inset-0 flex items-end justify-center cursor-pointer"
+                                        className="absolute inset-0 flex items-end justify-center pointer-events-none"
                                     >
                                         <Mole className="w-full h-full" />
                                     </motion.div>

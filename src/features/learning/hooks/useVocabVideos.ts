@@ -7,7 +7,7 @@ import { useUser } from '@/contexts/user-context';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/useToast';
 import { type LibraryItem, type FoundClip, type Piece, ApiServiceError } from '@/lib/types';
-import { searchClipsPaged } from '@/features/learning/services/vocab-videos.service';
+import { searchClipsPaged } from '@/features/learning/services/vocab-videos-service';
 
 interface LookupState {
   isOpen: boolean;
