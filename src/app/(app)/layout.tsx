@@ -1,6 +1,4 @@
-// ============================================================================
-// FILE 1: src/app/(app)/layout.tsx 
-// ============================================================================
+// src/app/(app)/layout.tsx
 'use client';
 
 import React, { useEffect, Suspense } from 'react';
@@ -84,21 +82,21 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
     return <InitialLoader message="Finalizing session..." />;
   }
 
-  // Special pages that use full viewport
-  const isFullPageView = pathname === '/create' || pathname?.startsWith('/read/');
+  // Special pages that use full viewport (reader pages)
+  const isReaderPage = pathname?.startsWith('/read/');
 
   return (
     <>
       {/* Header - Fixed at top */}
       <AppHeader />
       
-      {/* Main Content */}
+      {/* Main Content - Natural flex layout */}
       <main 
         className={cn(
-          "bg-background",
-          isFullPageView 
-            ? "fixed inset-0 top-[var(--header-height-mobile)] md:top-[var(--header-height-desktop)]"
-            : "min-h-screen pt-4 md:pt-6 px-4 sm:px-6 pb-24"
+          "bg-background flex-1 flex flex-col",
+          isReaderPage 
+            ? "" // Reader uses full main height
+            : "pt-4 md:pt-6 px-4 sm:px-6 pb-24" // Normal pages get padding
         )}
       >
         {children}

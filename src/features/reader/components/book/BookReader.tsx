@@ -106,7 +106,6 @@ export default function BookReader({ book }: { book: Book }) {
         }
       }
     });
-    // If no headings found, create a default "Chapter 1"
     if (chapterData.length === 0 && allBookSegments.length > 0) {
       return [{ title: { [displayLang1]: 'Chapter 1' }, segmentId: allBookSegments[0].id }];
     }
@@ -122,7 +121,7 @@ export default function BookReader({ book }: { book: Book }) {
   useEffect(() => {
     if (
       audioPlayer.currentPlayingItem?.id === book.id &&
-      audioPlayer.isActive &&
+      (audioPlayer.isPlaying || audioPlayer.isPaused) &&
       !isCalculating &&
       audioPlayer.position.originalSegmentId
     ) {
@@ -133,7 +132,8 @@ export default function BookReader({ book }: { book: Book }) {
     }
   }, [
     audioPlayer.currentPlayingItem,
-    audioPlayer.isActive,
+    audioPlayer.isPlaying,
+    audioPlayer.isPaused,
     audioPlayer.position,
     currentPageIndex,
     getPageForSegment,
@@ -238,11 +238,7 @@ export default function BookReader({ book }: { book: Book }) {
   );
 
   return (
-    <div
-      id="reader-veil"
-      className="w-full h-full fixed inset-0 z-40"
-      onMouseUp={handleTextSelection}
-    >
+    <>
       <Suspense fallback={null}>
         {lookupState.isOpen && lookupState.rect && (
           <LookupPopover {...lookupState} sourceLanguage={lookupState.sourceLang} targetLanguage={lookupState.targetLanguage} onOpenChange={(open) => setLookupState((s) => ({ ...s, isOpen: open }))} />
@@ -255,117 +251,110 @@ export default function BookReader({ book }: { book: Book }) {
         isMobile={isMobile}
         toolbar={toolbar}
       >
-        <div id="reader-studio-container" className="w-full h-full flex flex-col items-center justify-center">
-          {/* Main content area with proper height calculation */}
-          <div
-            id="reader-content-wrapper"
-            className="relative w-full flex items-center justify-center min-h-0 p-1 group/reader"
-            style={{
-              height: isFocusMode ? '100%' : 'calc(100vh - 56px - 56px)'
-            }}
-          >
-            {/* Toolbar and TOC - only show when not in focus mode */}
-            {!isFocusMode && (
-              <>
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1">
-                  {toolbar}
-                  <Sheet open={isTocOpen} onOpenChange={setIsTocOpen}>
-                    <SheetTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm">
-                        <Icon name="List" className="h-4 w-4" />
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent side={isMobile ? 'bottom' : 'left'} className="w-full max-w-xs p-0 flex flex-col">
-                      <SheetHeader className="p-4 border-b">
-                        <SheetTitle className="font-headline text-lg text-primary truncate">
-                          {(book.title as any)[displayLang1]}
-                        </SheetTitle>
-                      </SheetHeader>
-                      <ScrollArea className="flex-1">
-                        <div className="p-2 font-body">
-                          {chapters?.map((chapter, index) => (
-                            <Button
-                              key={chapter.segmentId}
-                              variant="ghost"
-                              className={cn(
-                                'w-full justify-start text-left h-auto py-2',
-                                index === currentChapterIndex && 'bg-accent text-accent-foreground'
-                              )}
-                              onClick={() => handleChapterSelect(index)}
-                            >
-                              <span className="truncate">{(chapter.title as any)[displayLang1]}</span>
-                            </Button>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </SheetContent>
-                  </Sheet>
-                </div>
+        {/* Reader container - uses full main area */}
+        <div 
+          id="reader-container" 
+          className="relative w-full h-full flex items-center justify-center group/reader"
+          onMouseUp={handleTextSelection}
+        >
+          {/* Toolbar and TOC - only show when not in focus mode */}
+          {!isFocusMode && (
+            <>
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
+                {toolbar}
+                <Sheet open={isTocOpen} onOpenChange={setIsTocOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-9 w-9 bg-background/70 backdrop-blur-sm">
+                      <Icon name="List" className="h-4 w-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side={isMobile ? 'bottom' : 'left'} className="w-full max-w-xs p-0 flex flex-col">
+                    <SheetHeader className="p-4 border-b">
+                      <SheetTitle className="font-headline text-lg text-primary truncate">
+                        {(book.title as any)[displayLang1]}
+                      </SheetTitle>
+                    </SheetHeader>
+                    <ScrollArea className="flex-1">
+                      <div className="p-2 font-body">
+                        {chapters?.map((chapter, index) => (
+                          <Button
+                            key={chapter.segmentId}
+                            variant="ghost"
+                            className={cn(
+                              'w-full justify-start text-left h-auto py-2',
+                              index === currentChapterIndex && 'bg-accent text-accent-foreground'
+                            )}
+                            onClick={() => handleChapterSelect(index)}
+                          >
+                            <span className="truncate">{(chapter.title as any)[displayLang1]}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </SheetContent>
+                </Sheet>
+              </div>
 
-                {/* Navigation buttons */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full z-20 opacity-0 group-hover/reader:opacity-100 transition-opacity disabled:opacity-0"
-                  disabled={currentPageIndex === 0}
-                  onClick={() => goToPage(currentPageIndex - 1)}
-                >
-                  <Icon name="ChevronLeft" className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full z-20 opacity-0 group-hover/reader:opacity-100 transition-opacity disabled:opacity-0"
-                  disabled={currentPageIndex >= pageCount - 1}
-                  onClick={() => goToPage(currentPageIndex + 1)}
-                >
-                  <Icon name="ChevronRight" className="h-5 w-5" />
-                </Button>
+              {/* Navigation buttons */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full z-20 opacity-0 group-hover/reader:opacity-100 transition-opacity disabled:opacity-0"
+                disabled={currentPageIndex === 0}
+                onClick={() => goToPage(currentPageIndex - 1)}
+              >
+                <Icon name="ChevronLeft" className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full z-20 opacity-0 group-hover/reader:opacity-100 transition-opacity disabled:opacity-0"
+                disabled={currentPageIndex >= pageCount - 1}
+                onClick={() => goToPage(currentPageIndex + 1)}
+              >
+                <Icon name="ChevronRight" className="h-5 w-5" />
+              </Button>
 
-                {/* Page counter */}
-                {pageCount > 0 && (
-                  <div className="absolute bottom-4 right-8 z-20 text-xs text-muted-foreground font-sans bg-background/50 px-2 py-1 rounded-md opacity-0 group-hover/reader:opacity-100 transition-opacity">
-                    {currentPageIndex + 1} / {pageCount}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Book content */}
-            <motion.div
-              ref={contentContainerRef}
-              className={cn('w-full max-w-3xl h-full shadow-xl overflow-hidden', editorSettings.background)}
-              drag={isMobile && !isFocusMode ? 'x' : false}
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.2}
-              onDragEnd={handleDragEnd}
-            >
-              {isCalculating ? (
-                <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
-                  <div>
-                    <Icon name="BookOpen" className="h-10 w-10 animate-pulse text-primary mx-auto" />
-                    <p className="mt-2">{t('paginating')}</p>
-                  </div>
-                </div>
-              ) : currentPageData ? (
-                <ContentPageRenderer
-                  page={currentPageData}
-                  presentationStyle="book"
-                  editorSettings={editorSettings}
-                  itemData={book}
-                  displayLang1={displayLang1}
-                  displayLang2={displayLang2}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
-                  <p>No content to display.</p>
+              {/* Page counter */}
+              {pageCount > 0 && (
+                <div className="absolute bottom-4 right-8 z-20 text-xs text-muted-foreground font-sans bg-background/50 px-2 py-1 rounded-md opacity-0 group-hover/reader:opacity-100 transition-opacity">
+                  {currentPageIndex + 1} / {pageCount}
                 </div>
               )}
-            </motion.div>
-          </div>
+            </>
+          )}
 
-          {/* Footer reserve space - empty but maintains layout */}
-          {!isFocusMode && <div className="h-14 md:h-16 w-full" />}
+          {/* Book content */}
+          <motion.div
+            ref={contentContainerRef}
+            className={cn('w-full max-w-3xl h-full shadow-xl overflow-hidden', editorSettings.background)}
+            drag={isMobile && !isFocusMode ? 'x' : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={handleDragEnd}
+          >
+            {isCalculating ? (
+              <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
+                <div>
+                  <Icon name="BookOpen" className="h-10 w-10 animate-pulse text-primary mx-auto" />
+                  <p className="mt-2">{t('paginating')}</p>
+                </div>
+              </div>
+            ) : currentPageData ? (
+              <ContentPageRenderer
+                page={currentPageData}
+                presentationStyle="book"
+                editorSettings={editorSettings}
+                itemData={book}
+                displayLang1={displayLang1}
+                displayLang2={displayLang2}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-center text-muted-foreground p-8">
+                <p>No content to display.</p>
+              </div>
+            )}
+          </motion.div>
         </div>
       </FocusModeWrapper>
 
@@ -380,6 +369,6 @@ export default function BookReader({ book }: { book: Book }) {
         displayLang2={displayLang2}
         unit={book.unit || 'sentence'}
       />
-    </div>
+    </>
   );
 }

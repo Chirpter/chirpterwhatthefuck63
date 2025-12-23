@@ -1,4 +1,4 @@
-
+// src/features/learning/components/activities/focus/FocusHatching.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -13,7 +13,6 @@ import { Egg, CrackedEgg, Chirp, Flamingo, Penguin, Jaybird, Hummingbird, Owl, P
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 
-// --- Types ---
 interface HatchData {
   startTime: number;
   duration: number;
@@ -26,164 +25,98 @@ interface HatchingEggVisualProps {
   hatchedBird: React.FC<any> | null;
 }
 
-// Storage keys
 const getStorageKey = (uid: string) => `chirpter_hatch_${uid}`;
 const COLLECTION_KEY = 'chirpter_hatched_collection';
 
-// All 9 possible birds that can hatch
 const birdComponents = [Chirp, Flamingo, Penguin, Jaybird, Hummingbird, Owl, Parrot, Swan, Peacock];
 
-// --- ENHANCED VISUAL EFFECTS ---
-const RottenSmellEffect = () => (
-  <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-    {/* Multiple smoke streams - larger and more visible */}
-    <motion.path
-      d="M 25 35 Q 30 10, 40 25 T 55 20"
-      stroke="#8B4513"
-      strokeWidth="3"
-      fill="none"
-      strokeLinecap="round"
-      initial={{ y: 0, opacity: 0 }}
-      animate={{ y: -25, opacity: [0, 0.8, 0] }}
-      transition={{ duration: 2, repeat: Infinity, ease: "easeOut", delay: 0.1 }}
-    />
-    <motion.path
-      d="M 40 40 Q 45 15, 55 30 T 70 25"
-      stroke="#654321"
-      strokeWidth="3"
-      fill="none"
-      strokeLinecap="round"
-      initial={{ y: 0, opacity: 0 }}
-      animate={{ y: -30, opacity: [0, 0.7, 0] }}
-      transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut", delay: 0.4 }}
-    />
-    <motion.path
-      d="M 55 45 Q 60 20, 70 35 T 85 30"
-      stroke="#5D4037"
-      strokeWidth="3"
-      fill="none"
-      strokeLinecap="round"
-      initial={{ y: 0, opacity: 0 }}
-      animate={{ y: -35, opacity: [0, 0.6, 0] }}
-      transition={{ duration: 2.4, repeat: Infinity, ease: "easeOut", delay: 0.7 }}
-    />
-  </motion.g>
-);
+// ===== IMPROVED EGG EFFECTS - Clear but not distracting =====
 
-const HolyLightEffect = () => (
-  <motion.g initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
-    {/* Glowing circles */}
-    <motion.circle
-      cx="50"
-      cy="50"
-      r="45"
-      stroke="url(#goldGradient)"
+const SubtleRottenEffect = () => (
+  <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    {/* Smaller, less intrusive smoke */}
+    <motion.path
+      d="M 35 40 Q 38 25, 42 35"
+      stroke="#5D4037"
       strokeWidth="2"
       fill="none"
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: [0, 0.6, 0] }}
-      transition={{ duration: 1.5, repeat: Infinity }}
+      strokeLinecap="round"
+      initial={{ y: 0, opacity: 0 }}
+      animate={{ y: -20, opacity: [0, 0.6, 0] }}
+      transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
     />
+    <motion.path
+      d="M 50 42 Q 53 27, 57 37"
+      stroke="#5D4037"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+      initial={{ y: 0, opacity: 0 }}
+      animate={{ y: -22, opacity: [0, 0.5, 0] }}
+      transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut", delay: 0.3 }}
+    />
+  </motion.g>
+);
+
+const SubtleSuccessEffect = () => (
+  <motion.g initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+    {/* Gentle golden glow */}
     <motion.circle
       cx="50"
       cy="50"
-      r="35"
-      stroke="url(#goldGradient)"
+      r="40"
+      stroke="#FFD700"
       strokeWidth="1.5"
       fill="none"
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: [0, 0.4, 0] }}
-      transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1.2, opacity: [0, 0.4, 0] }}
+      transition={{ duration: 1.5, repeat: Infinity }}
     />
     
-    {/* Light rays */}
-    {[...Array(8)].map((_, i) => (
-      <motion.line
-        key={i}
-        x1="50"
-        y1="50"
-        x2={50 + 40 * Math.cos((i * Math.PI) / 4)}
-        y2={50 + 40 * Math.sin((i * Math.PI) / 4)}
-        stroke="url(#goldGradient)"
-        strokeWidth="2"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: [0, 0.8, 0] }}
-        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.1 }}
-      />
-    ))}
-    
-    <defs>
-      <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#FFD700" />
-        <stop offset="100%" stopColor="#FFA500" />
-      </linearGradient>
-    </defs>
-  </motion.g>
-);
-
-const ParticleExplosion = () => (
-  <motion.g>
-    {[...Array(12)].map((_, i) => (
+    {/* Sparkles - smaller and fewer */}
+    {[...Array(6)].map((_, i) => (
       <motion.circle
         key={i}
-        cx="50"
-        cy="50"
-        r="2"
+        cx={50 + 35 * Math.cos((i * Math.PI) / 3)}
+        cy={50 + 35 * Math.sin((i * Math.PI) / 3)}
+        r="1.5"
         fill="#FFD700"
         initial={{ scale: 0, opacity: 1 }}
-        animate={{
-          scale: 1,
-          opacity: 0,
-          x: 30 * Math.cos((i * Math.PI) / 6),
-          y: 30 * Math.sin((i * Math.PI) / 6),
-        }}
+        animate={{ scale: 1, opacity: 0 }}
         transition={{
-          duration: 1.2,
+          duration: 1,
           ease: "easeOut",
-          delay: i * 0.05,
+          delay: i * 0.15,
+          repeat: Infinity,
+          repeatDelay: 0.5
         }}
       />
     ))}
   </motion.g>
 );
 
-// --- HATCHING EGG VISUAL COMPONENT ---
+// Improved Egg Visual - clearer progression
 const HatchingEgg: React.FC<HatchingEggVisualProps> = ({ 
   hatchState, 
   isFailed, 
   isComplete, 
   hatchedBird: HatchedBirdComponent 
 }) => {
-  const rotation = hatchState * 5;
+  const rotation = hatchState * 3; // Reduced rotation for subtlety
 
   if (isComplete && HatchedBirdComponent) {
     return (
       <div className="relative">
-        {/* Holy Light Background */}
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1.5, opacity: 1 }}
-          transition={{ duration: 0.8 }}
-        >
-          <svg viewBox="0 0 100 100" className="w-24 h-24">
-            <HolyLightEffect />
-          </svg>
-        </motion.div>
-        
-        {/* Particle Explosion */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <svg viewBox="0 0 100 100" className="w-20 h-20">
-            <ParticleExplosion />
+          <svg viewBox="0 0 100 100" className="w-24 h-24">
+            <SubtleSuccessEffect />
           </svg>
         </motion.div>
 
-        {/* Hatched Bird */}
         <motion.div
           initial={{ scale: 0, y: 20, rotate: -180 }}
           animate={{ scale: 1, y: 0, rotate: 0 }}
@@ -208,38 +141,34 @@ const HatchingEgg: React.FC<HatchingEggVisualProps> = ({
         animate={{ scale: 1, y: 0, opacity: 1 }} 
         transition={{ duration: 0.5 }}
       >
-        {/* Dark Brown Egg with sepia filter */}
         <Egg 
           className="h-20 w-20" 
           style={{
-            filter: "sepia(1) hue-rotate(-30deg) saturate(1.8) brightness(0.6) contrast(1.2)"
+            filter: "sepia(1) hue-rotate(-30deg) saturate(1.8) brightness(0.6)"
           }}
         />
         
-        {/* Enhanced Smell Effect */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <svg viewBox="0 0 100 100" className="w-24 h-24 overflow-visible">
-            <RottenSmellEffect />
+          <svg viewBox="0 0 100 100" className="w-20 h-20 overflow-visible">
+            <SubtleRottenEffect />
           </svg>
         </div>
       </motion.div>
     );
   }
   
-  // Show Egg for first half (0-50%), CrackedEgg for second half (50-100%)
   const EggComponent = hatchState >= 2 ? CrackedEgg : Egg;
 
   return (
     <motion.div
       animate={{ rotate: [0, rotation, -rotation, 0] }}
-      transition={{ duration: 5, ease: 'easeInOut', repeat: Infinity }}
+      transition={{ duration: 4, ease: 'easeInOut', repeat: Infinity }}
     >
       <EggComponent className="h-20 w-20 text-primary" />
     </motion.div>
   );
 };
 
-// --- HATCHING TIMER ---
 const HatchingTimer = ({ 
   endTime, 
   onCancel, 
@@ -316,7 +245,6 @@ const HatchingTimer = ({
   );
 };
 
-// --- COLLECTION VIEW ---
 const CollectionView = ({ refreshTrigger }: { refreshTrigger: number }) => {
     const { t } = useTranslation('learningPage');
     const [unlockedBirds, setUnlockedBirds] = useState<string[]>([]);
@@ -336,7 +264,6 @@ const CollectionView = ({ refreshTrigger }: { refreshTrigger: number }) => {
         }
     }, [refreshTrigger]);
 
-    // Map unlocked bird names to their components
     const birdComponentMap: { [key: string]: React.FC<any> } = {
         'Chirp': Chirp,
         'Flamingo': Flamingo,
@@ -380,7 +307,6 @@ const CollectionView = ({ refreshTrigger }: { refreshTrigger: number }) => {
     );
 };
 
-// --- MAIN COMPONENT ---
 export default function FocusHatching() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
   const { user } = useUser();
@@ -416,7 +342,6 @@ export default function FocusHatching() {
     }
   }, []);
 
-  // Load saved hatch state
   useEffect(() => {
     if (!user) return;
 
@@ -430,7 +355,6 @@ export default function FocusHatching() {
           setHatchingState(hatchData);
           setIsComplete(false);
         } else {
-          // Already hatched while user was away
           localStorage.removeItem(storageKey);
           const randomBirdIndex = Math.floor(Math.random() * birdComponents.length);
           const HatchedBird = birdComponents[randomBirdIndex];
@@ -445,7 +369,6 @@ export default function FocusHatching() {
     }
   }, [user, unlockBird]);
 
-  // Update hatch phase
   useEffect(() => {
     if (!hatchingState || isComplete) {
       setCurrentHatchPhase(1);
@@ -528,7 +451,6 @@ export default function FocusHatching() {
     setCurrentHatchPhase(1);
   };
   
-  // Auto cleanup failed state
   useEffect(() => {
     if (!isFailed || !user) return;
     
@@ -541,6 +463,7 @@ export default function FocusHatching() {
     return () => clearTimeout(timer);
   }, [isFailed, user]);
 
+  // Improved layout - consistent height
   const leftContent = showCollection ? 
     <CollectionView refreshTrigger={collectionRefresh} /> : 
     <p className="text-sm text-muted-foreground text-center">{t('focus.description') || 'Focus to hatch eggs and grow your collection!'}</p>;
@@ -558,21 +481,31 @@ export default function FocusHatching() {
     );
   } else {
     rightContent = (
-      <div className="flex flex-col gap-4 w-full items-center">
+      <div className="flex flex-col gap-3 w-full items-center">
         <div className="font-semibold text-center">
           <span className="text-2xl text-primary">{duration}</span>
-          <span className="text-sm text-muted-foreground ml-1">{t('minutes') || 'minutes'}</span>
+          <span className="text-sm text-muted-foreground ml-1">{t('minutes') || 'min'}</span>
         </div>
-        <Slider
-          value={[duration]}
-          onValueChange={(value) => setDuration(value[0])}
-          min={10}
-          max={120}
-          step={5}
-          className="w-full"
-        />
-        <Button onClick={handleStartHatching} className="w-full mt-2">
-          {t('focus.startButton') || 'Start Focus Session'}
+        <div className="w-full space-y-1">
+          <input
+            type="range"
+            min={10}
+            max={120}
+            step={5}
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value))}
+            className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+            style={{
+              background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${((duration - 10) / 110) * 100}%, hsl(var(--muted)) ${((duration - 10) / 110) * 100}%, hsl(var(--muted)) 100%)`
+            }}
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>10</span>
+            <span>120</span>
+          </div>
+        </div>
+        <Button onClick={handleStartHatching} className="w-full" size="sm">
+          {t('focus.startButton') || 'Start'}
         </Button>
       </div>
     );
@@ -580,19 +513,19 @@ export default function FocusHatching() {
 
   return (
     <div className="grid grid-cols-3 items-center justify-items-center gap-4">
-      <div className="w-full relative">
+      <div className="w-full relative min-h-[120px] flex items-center justify-center">
         {leftContent}
         <Button 
           variant="ghost" 
           size="icon" 
-          className="absolute -bottom-4 right-0 h-6 w-6 text-muted-foreground" 
+          className="absolute -bottom-2 right-0 h-6 w-6 text-muted-foreground" 
           onClick={() => setShowCollection(s => !s)}
         >
           <Icon name={showCollection ? 'ChevronLeft' : 'ChevronRight'} className="h-4 w-4" />
         </Button>
       </div>
       
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center min-h-[120px] justify-center">
         <HatchingEgg 
             hatchState={currentHatchPhase} 
             isFailed={isFailed} 
@@ -601,13 +534,9 @@ export default function FocusHatching() {
         />
       </div>
 
-      <div className="w-full max-w-xs">
+      <div className="w-full max-w-xs min-h-[120px] flex items-center justify-center">
         {rightContent}
       </div>
     </div>
   );
 }
-
-    
-
-    
