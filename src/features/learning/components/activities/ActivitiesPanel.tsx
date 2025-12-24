@@ -1,7 +1,7 @@
 // src/features/learning/components/activities/ActivitiesPanel.tsx
 "use client";
 
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,20 +24,47 @@ const activities: Activity[] = [
   { id: 'break', icon: MoleGameIcon, titleKey: 'breakTitle' },
 ];
 
-const LazyDisciplineBetting = lazy(() => import('./discipline/DisciplineBetting'));
-const LazyFocusHatching = lazy(() => import('./focus/FocusHatching'));
-const LazyWhackAMoleGame = lazy(() => import('./break/WhackAMoleGame'));
+const LazyDisciplineBetting = React.lazy(() => import('./discipline/DisciplineBetting'));
+const LazyFocusHatching = React.lazy(() => import('./focus/FocusHatching'));
+const LazyWhackAMoleGame = React.lazy(() => import('./break/WhackAMoleGame'));
+
+// Simple speech bubble component for quotes
+const QuoteBubble = ({ quote, onClose }: { quote: string; onClose: () => void }) => {
+    useEffect(() => {
+        const timer = setTimeout(onClose, 7000); // Auto-hide after 7 seconds
+        return () => clearTimeout(timer);
+    }, [onClose]);
+
+    return (
+        <motion.div
+            className="absolute bottom-full mb-2 w-32 origin-bottom"
+            initial={{ opacity: 0, y: 10, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.8 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
+            <div className="relative rounded-lg bg-background p-2 text-center text-xs font-semibold shadow-lg border">
+                {quote}
+                {/* Speech bubble pointer */}
+                <div className="absolute bottom-0 left-1/2 h-2 w-2 -translate-x-1/2 translate-y-1/2 rotate-45 border-b border-r border-border bg-background" />
+            </div>
+        </motion.div>
+    );
+};
+
 
 const ActivityCard = ({
   icon: IconComponent,
   title,
   onClick,
+  children,
 }: {
   icon: IconName | React.FC<any>;
   title: string;
   onClick: () => void;
+  children?: React.ReactNode;
 }) => (
-  <div className="relative">
+  <div className="relative flex flex-col items-center">
     <Button
       variant="ghost"
       className="flex flex-col items-center justify-center h-24 w-24 p-0 hover:scale-110 transition-transform"
@@ -52,6 +79,7 @@ const ActivityCard = ({
       </div>
       <p className="text-xs font-semibold text-muted-foreground">{title}</p>
     </Button>
+    {children}
   </div>
 );
 
@@ -114,9 +142,29 @@ class FeatureErrorBoundary extends React.Component<
 export const ActivitiesPanel: React.FC = () => {
   const { t } = useTranslation('learningPage');
   const [focusedActivity, setFocusedActivity] = useState<Activity | null>(null);
+  const [quote, setQuote] = useState<string | null>(null);
+
+  // Auto-trigger a quote to appear after a delay
+  useEffect(() => {
+    const quotes = [
+        "Psst... over here!",
+        "Feeling disciplined?",
+        "Ready for a challenge?",
+        "Got a moment?",
+    ];
+
+    const timer = setTimeout(() => {
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        setQuote(randomQuote);
+    }, 5000); // Show quote after 5 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
 
   const handleFocus = (activity: Activity) => {
     setFocusedActivity(activity);
+    setQuote(null); // Hide quote when an activity is focused
   };
 
   const handleBack = () => {
@@ -167,9 +215,9 @@ export const ActivitiesPanel: React.FC = () => {
                   className="w-full"
                 >
                   <FeatureErrorBoundary onReset={handleBack}>
-                    <Suspense fallback={<FeatureLoader />}>
+                    <React.Suspense fallback={<FeatureLoader />}>
                       {renderFocusedContent()}
-                    </Suspense>
+                    </React.Suspense>
                   </FeatureErrorBoundary>
                 </motion.div>
               ) : (
@@ -186,7 +234,13 @@ export const ActivitiesPanel: React.FC = () => {
                         icon={act.icon}
                         title={t(act.titleKey)}
                         onClick={() => handleFocus(act)}
-                    />
+                    >
+                        {act.id === 'discipline' && (
+                            <AnimatePresence>
+                                {quote && <QuoteBubble quote={quote} onClose={() => setQuote(null)} />}
+                            </AnimatePresence>
+                        )}
+                    </ActivityCard>
                   ))}
                 </motion.div>
               )}
