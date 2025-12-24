@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -21,7 +22,8 @@ export const MoleGameIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 // 🎨 LIQUID SPLASH EFFECT - Satisfying blob animation
 const LiquidSplashEffect = () => {
-  const colors = ['#F59E0B', '#EAB308', '#FBBF24', '#FCD34D'];
+  // ✅ NEW: Brown color palette matching the mole
+  const colors = ['#543a21', '#8e6338', '#a17a50', '#b9926a'];
   
   return (
     <>
@@ -35,7 +37,7 @@ const LiquidSplashEffect = () => {
         <motion.div
           className="w-16 h-16 rounded-full"
           style={{
-            background: `radial-gradient(circle, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
+            background: `radial-gradient(circle, ${colors[2]} 0%, ${colors[1]} 50%, ${colors[0]} 100%)`,
           }}
           initial={{ scale: 0, opacity: 1 }}
           animate={{ 
@@ -138,7 +140,7 @@ const LiquidSplashEffect = () => {
           cy="50"
           r="20"
           fill="none"
-          stroke={colors[0]}
+          stroke={colors[1]}
           strokeWidth="3"
           opacity="0.6"
           initial={{ scale: 0, opacity: 0.8 }}
@@ -150,7 +152,7 @@ const LiquidSplashEffect = () => {
           cy="50"
           r="15"
           fill="none"
-          stroke={colors[1]}
+          stroke={colors[2]}
           strokeWidth="2"
           opacity="0.4"
           initial={{ scale: 0, opacity: 0.6 }}
@@ -285,12 +287,6 @@ export default function WhackAMoleGame() {
                                 className="relative w-full flex items-center justify-center aspect-square cursor-pointer select-none"
                                 onClick={() => whackMole(index)}
                             >
-                                <AnimatePresence>
-                                    {whackedMole === index && (
-                                        <LiquidSplashEffect key={`splash-${index}`} />
-                                    )}
-                                </AnimatePresence>
-                                
                                 <Hole className="w-full h-full absolute top-0 left-0 pointer-events-none" />
                                 
                                 <AnimatePresence>
@@ -310,6 +306,15 @@ export default function WhackAMoleGame() {
                                         <Mole className="w-full h-full" />
                                     </motion.div>
                                 )}
+                                </AnimatePresence>
+                                
+                                {/* ✅ MOVED: Effect is now rendered on top */}
+                                <AnimatePresence>
+                                    {whackedMole === index && (
+                                        <div className="absolute inset-0 z-10 pointer-events-none">
+                                            <LiquidSplashEffect key={`splash-${index}`} />
+                                        </div>
+                                    )}
                                 </AnimatePresence>
                             </div>
                         );
