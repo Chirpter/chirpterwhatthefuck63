@@ -1,3 +1,4 @@
+// src/features/learning/components/activities/ActivitiesPanel.tsx
 "use client";
 
 import React, { useState, Suspense, lazy, useEffect, useCallback } from 'react';
@@ -38,47 +39,45 @@ const PIGGY_QUOTES = [
 ];
 
 const QUOTE_STORAGE_KEY = 'chirpter_piggy_last_quote_time';
-const QUOTE_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown
+const QUOTE_COUNT_KEY = 'chirpter_piggy_quote_count';
+const QUOTE_SESSION_KEY = 'chirpter_piggy_session';
+const QUOTE_COOLDOWN = 10 * 60 * 1000; // 10 minutes cooldown
+const MAX_QUOTES_PER_SESSION = 5;
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 interface PiggyQuotesBubbleProps {
+  quote: string;
   onComplete: () => void;
 }
 
-const PiggyQuotesBubble: React.FC<PiggyQuotesBubbleProps> = ({ onComplete }) => {
-  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+const PiggyQuotesBubble: React.FC<PiggyQuotesBubbleProps> = ({ quote, onComplete }) => {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    if (currentQuoteIndex >= PIGGY_QUOTES.length) {
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-        setTimeout(onComplete, 300);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-
+    // Show for 4 seconds then hide
     const timer = setTimeout(() => {
-      setCurrentQuoteIndex(prev => prev + 1);
-    }, 3000);
+      setIsVisible(false);
+      setTimeout(onComplete, 300);
+    }, 4000);
 
     return () => clearTimeout(timer);
-  }, [currentQuoteIndex, onComplete]);
+  }, [onComplete]);
 
-  if (!isVisible || currentQuoteIndex >= PIGGY_QUOTES.length) return null;
+  if (!isVisible) return null;
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.8, y: 20 }}
-      className="absolute -top-16 left-1/2 -translate-x-1/2 z-20 w-64"
+      className="absolute -top-20 left-1/2 -translate-x-1/2 z-20 w-64"
     >
       <div className="relative bg-background border-2 border-primary rounded-2xl px-4 py-3 shadow-xl">
         <p className="text-sm font-medium text-foreground text-center">
-          {PIGGY_QUOTES[currentQuoteIndex]}
+          {quote}
         </p>
         
-        {/* Speech bubble tail */}
+        {/* Speech bubble tail pointing down to piggy */}
         <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-background border-b-2 border-r-2 border-primary rotate-45" />
       </div>
     </motion.div>
@@ -89,18 +88,18 @@ const ActivityCard = ({
   icon: IconComponent, 
   title, 
   onClick, 
-  showQuote, 
+  currentQuote, 
   onQuoteComplete 
 }: { 
   icon: IconName | React.FC<any>; 
   title: string; 
   onClick: () => void;
-  showQuote: boolean;
+  currentQuote: string | null;
   onQuoteComplete: () => void;
 }) => (
   <div className="relative">
     <AnimatePresence>
-      {showQuote && <PiggyQuotesBubble onComplete={onQuoteComplete} />}
+      {currentQuote && <PiggyQuotesBubble quote={currentQuote} onComplete={onQuoteComplete} />}
     </AnimatePresence>
     
     <Button 
@@ -121,7 +120,7 @@ const ActivityCard = ({
 );
 
 const FeatureLoader = () => (
-    <div className="w-full grid grid-cols-3 items-center justify-items-center gap-4">
+    <div className="w-full grid grid-cols-3 items-center justify-items-center gap-4 min-h-[140px]">
         <div className="w-full space-y-2">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-full" />
@@ -179,33 +178,77 @@ class FeatureErrorBoundary extends React.Component<
 export const ActivitiesPanel: React.FC = () => {
   const { t } = useTranslation('learningPage');
   const [focusedActivity, setFocusedActivity] = useState<Activity | null>(null);
-  const [showPiggyQuotes, setShowPiggyQuotes] = useState(false);
+  const [currentQuote, setCurrentQuote] = useState<string | null>(null);
 
-  // 🎯 Check if Piggy should speak on mount
-  useEffect(() => {
+  // 🎯 Get random quote that hasn't been shown yet
+  const getRandomQuote = useCallback(() => {
+    try {
+      const sessionData = localStorage.getItem(QUOTE_SESSION_KEY);
+      const now = Date.now();
+      
+      let session: { startTime: number; shownQuotes: number[]; count: number };
+      
+      if (sessionData) {
+        session = JSON.parse(sessionData);
+        
+        // Reset session if expired
+        if (now - session.startTime > SESSION_DURATION) {
+          session = { startTime: now, shownQuotes: [], count: 0 };
+        }
+      } else {
+        session = { startTime: now, shownQuotes: [], count: 0 };
+      }
+      
+      // Check if max quotes reached
+      if (session.count >= MAX_QUOTES_PER_SESSION) {
+        return null;
+      }
+      
+      // Get available quotes
+      const availableIndices = PIGGY_QUOTES
+        .map((_, i) => i)
+        .filter(i => !session.shownQuotes.includes(i));
+      
+      if (availableIndices.length === 0) {
+        // All quotes shown, reset
+        session.shownQuotes = [];
+      }
+      
+      // Pick random quote
+      const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+      
+      // Update session
+      session.shownQuotes.push(randomIndex);
+      session.count++;
+      localStorage.setItem(QUOTE_SESSION_KEY, JSON.stringify(session));
+      
+      return PIGGY_QUOTES[randomIndex];
+    } catch (error) {
+      console.error('Failed to get random quote:', error);
+      return null;
+    }
+  }, []);
+
+  // 🎯 Trigger quotes only for discipline-related events with cooldown
+  const triggerPiggyQuotes = useCallback(() => {
     try {
       const lastQuoteTime = localStorage.getItem(QUOTE_STORAGE_KEY);
       const now = Date.now();
       
-      if (!lastQuoteTime || now - parseInt(lastQuoteTime, 10) > QUOTE_COOLDOWN) {
-        // Show quotes after a short delay
-        const timer = setTimeout(() => {
-          setShowPiggyQuotes(true);
-          localStorage.setItem(QUOTE_STORAGE_KEY, now.toString());
-        }, 1000);
-        
-        return () => clearTimeout(timer);
+      // Check cooldown
+      if (lastQuoteTime && now - parseInt(lastQuoteTime, 10) < QUOTE_COOLDOWN) {
+        return;
+      }
+      
+      const quote = getRandomQuote();
+      if (quote) {
+        setCurrentQuote(quote);
+        localStorage.setItem(QUOTE_STORAGE_KEY, now.toString());
       }
     } catch (error) {
-      console.error('Failed to check quote cooldown:', error);
+      console.error('Failed to trigger quote:', error);
     }
-  }, []);
-
-  // 🎯 Trigger quotes only for discipline-related events
-  const triggerPiggyQuotes = useCallback(() => {
-    setShowPiggyQuotes(true);
-    localStorage.setItem(QUOTE_STORAGE_KEY, Date.now().toString());
-  }, []);
+  }, [getRandomQuote]);
 
   // Listen for bet-related events only
   useEffect(() => {
@@ -292,8 +335,8 @@ export const ActivitiesPanel: React.FC = () => {
                         icon={act.icon} 
                         title={t(act.titleKey)} 
                         onClick={() => handleFocus(act)}
-                        showQuote={act.id === 'discipline' && showPiggyQuotes}
-                        onQuoteComplete={() => setShowPiggyQuotes(false)}
+                        currentQuote={act.id === 'discipline' ? currentQuote : null}
+                        onQuoteComplete={() => setCurrentQuote(null)}
                     />
                   ))}
                 </motion.div>

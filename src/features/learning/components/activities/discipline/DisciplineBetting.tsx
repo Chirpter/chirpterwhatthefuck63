@@ -29,7 +29,6 @@ const getDaysBetween = (date1: Date, date2: Date) => {
   return Math.floor((utc2 - utc1) / (1000 * 60 * 60 * 24));
 };
 
-// Compact slider component
 const CompactSlider = ({ 
   value, 
   onChange, 
@@ -115,44 +114,48 @@ const StreakTracker = ({ betData }: { betData: BetData }) => {
 
     return (
         <div className="flex flex-col items-center gap-2 w-full text-center">
-            <p className="text-sm font-semibold">{t('betActiveTitle') || 'Active Streak'}</p>
+            <p className="text-sm font-semibold">{t('betActiveTitle') || 'Active'}</p>
             
-            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+            {/* Vertical progress bar */}
+            <div className="relative h-20 w-3 bg-muted rounded-full overflow-hidden">
                 <div 
-                    className="h-full bg-green-500 transition-all duration-500 ease-out"
-                    style={{ width: `${(streakProgress / betData.days) * 100}%` }}
+                    className="absolute bottom-0 w-full bg-green-500 transition-all duration-500 ease-out rounded-full"
+                    style={{ height: `${(streakProgress / betData.days) * 100}%` }}
                 />
             </div>
+            
+            {/* Progress text */}
+            <div className="text-center">
+                <div className="text-xl font-bold text-primary">{streakProgress}/{betData.days}</div>
+                <div className="text-xs text-muted-foreground">days</div>
+            </div>
 
-            <div className="flex flex-wrap justify-center gap-1">
-                {Array.from({ length: Math.min(betData.days, 15) }).map((_, i) => (
+            {/* Compact day circles - max 10 visible */}
+            <div className="flex flex-wrap justify-center gap-1 max-w-[120px]">
+                {Array.from({ length: Math.min(betData.days, 10) }).map((_, i) => (
                     <div 
                         key={i} 
                         className={cn(
-                            "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-300 text-xs",
+                            "h-4 w-4 rounded-full border flex items-center justify-center transition-all duration-300 text-[10px]",
                             i < streakProgress 
-                                ? "bg-green-500 border-green-700 shadow-sm text-white" 
+                                ? "bg-green-500 border-green-700 text-white" 
                                 : "bg-muted border-border"
                         )}
-                        title={`Day ${i + 1}`}
                     >
                       {i < streakProgress && '✓'}
                     </div>
                 ))}
-                {betData.days > 15 && (
-                    <div className="text-xs text-muted-foreground w-full mt-1">
-                        +{betData.days - 15} more days
+                {betData.days > 10 && (
+                    <div className="text-xs text-muted-foreground w-full">
+                        +{betData.days - 10}
                     </div>
                 )}
             </div>
-            <p className="text-xs text-muted-foreground">
-                {t('betProgressDescription', { amount: betData.credits })}
-            </p>
         </div>
     );
 };
 
-export default function DisciplineBetting() {
+export default function DisciplineBetting(): JSX.Element {
     const { t } = useTranslation('learningPage');
     const { toast } = useToast();
     const { user, reloadUser } = useUser();
@@ -218,4 +221,109 @@ export default function DisciplineBetting() {
 
                 const hasCheckedInToday = betData.progress.includes(todayStr);
                 if (!hasCheckedInToday) {
-                    const updatedProgress = [...betData.progress,
+                    const updatedProgress = [...betData.progress, todayStr];
+                    const updatedBetData = { ...betData, progress: updatedProgress };
+                    
+                    localStorage.setItem(betKey, JSON.stringify(updatedBetData));
+                    setActiveBet(updatedBetData);
+                } else {
+                    setActiveBet(betData);
+                }
+            }
+        } catch (error) {
+            console.error("Error handling bet data:", error);
+            localStorage.removeItem(betKey);
+        }
+    }, [user, toast, reloadUser, t]);
+
+    const handleBet = async (credits: number, days: number) => {
+        if (!user) return;
+        if (isLoading) return;
+        
+        if (credits > (user.credits || 0)) {
+            toast({ title: t('notEnoughCredits') || "Not enough credits", variant: "destructive" });
+            return;
+        }
+        
+        setIsLoading(true);
+        
+        const betData: BetData = { 
+            credits, 
+            days, 
+            startDate: new Date().toISOString(), 
+            progress: [getUtcDateString(new Date())]
+        };
+        
+        const betKey = getStorageKey(user.uid);
+        
+        try {
+            const userDocRef = doc(db, 'users', user.uid);
+            
+            await runTransaction(db, async (transaction) => {
+                const userDoc = await transaction.get(userDocRef);
+                
+                if (!userDoc.exists()) {
+                    throw new Error('User document not found');
+                }
+                
+                const currentCredits = userDoc.data()?.credits || 0;
+                
+                if (currentCredits < credits) {
+                    throw new Error('Insufficient credits');
+                }
+                
+                transaction.update(userDocRef, {
+                    credits: increment(-credits)
+                });
+            });
+            
+            localStorage.setItem(betKey, JSON.stringify(betData));
+            setActiveBet(betData);
+            await reloadUser();
+
+            toast({ 
+                title: t('betPlacedTitle') || "Bet placed!", 
+                description: t('betPlacedDescription', { credits, days }) || `You bet ${credits} credits for a ${days}-day streak.` 
+            });
+
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('chirpter:bet-success'));
+            }
+
+        } catch (error: any) {
+            console.error("Error placing bet:", error);
+            
+            const errorMessage = error.message === 'Insufficient credits' 
+                ? t('notEnoughCredits') || "Not enough credits" 
+                : t('betErrorDescription') || "Could not place your bet. Please try again.";
+            
+            toast({ 
+                title: t('errorTitle') || "Error", 
+                description: errorMessage, 
+                variant: "destructive" 
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="grid grid-cols-3 items-center justify-items-center gap-4">
+            <div className="w-full min-h-[120px] flex items-center justify-center">
+                <p className="text-sm text-muted-foreground text-center">{t('betDescription')}</p>
+            </div>
+            
+            <div className="flex items-center justify-center min-h-[120px]">
+                <PiggyBankIcon className="h-20 w-20 text-primary" />
+            </div>
+            
+            <div className="w-full max-w-xs min-h-[120px] flex items-center justify-center">
+                {activeBet ? (
+                    <StreakTracker betData={activeBet} />
+                ) : (
+                    <BetInterface onBet={handleBet} />
+                )}
+            </div>
+        </div>
+    );
+}
