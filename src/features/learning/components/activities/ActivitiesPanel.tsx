@@ -32,7 +32,7 @@ const LazyWhackAMoleGame = React.lazy(() => import('./break/WhackAMoleGame'));
 const QuoteBubble = ({ quote, onClose }: { quote: string; onClose: () => void }) => {
     // This effect ensures the bubble automatically disappears.
     useEffect(() => {
-        const timer = setTimeout(onClose, 2500); // Show for 2.5 seconds
+        const timer = setTimeout(onClose, 7000); // Show for 7 seconds
         return () => clearTimeout(timer);
     }, [onClose]);
 
@@ -157,28 +157,26 @@ export const ActivitiesPanel: React.FC = () => {
     let quoteCount = 0;
     let intervalId: NodeJS.Timeout;
 
-    // Start the sequence after an initial delay
     const initialTimeout = setTimeout(() => {
-        
-        intervalId = setInterval(() => {
+        const showNextQuote = () => {
             if (quoteCount >= 3) {
-                clearInterval(intervalId);
+                if (intervalId) clearInterval(intervalId);
                 return;
             }
             
-            // Pick a random quote that is different from the current one
             let newQuote = quote;
             while(newQuote === quote) {
               newQuote = quotes[Math.floor(Math.random() * quotes.length)];
             }
             setQuote(newQuote);
             quoteCount++;
-            
-        }, 3000); // 3-second interval between quotes
+        };
+        
+        showNextQuote();
+        intervalId = setInterval(showNextQuote, 3000);
 
-    }, 3000); // 3-second initial delay
+    }, 3000);
 
-    // Cleanup function to clear timers on unmount
     return () => {
         clearTimeout(initialTimeout);
         if (intervalId) {

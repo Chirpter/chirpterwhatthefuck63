@@ -12,6 +12,7 @@ import { doc, updateDoc, increment, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { PiggyBankIcon } from './PiggyBankIcon';
 import { CreditIcon } from '@/components/ui/CreditIcon';
+import { motion } from 'framer-motion';
 
 interface BetData {
     credits: number;
@@ -117,21 +118,11 @@ const StreakTracker = ({ betData }: { betData: BetData }) => {
         <div className="flex flex-col items-center gap-2 w-full text-center">
             <p className="text-sm font-semibold">{t('betActiveTitle') || 'Active'}</p>
             
-            {/* Vertical progress bar */}
-            <div className="relative h-20 w-3 bg-muted rounded-full overflow-hidden">
-                <div 
-                    className="absolute bottom-0 w-full bg-green-500 transition-all duration-500 ease-out rounded-full"
-                    style={{ height: `${(streakProgress / betData.days) * 100}%` }}
-                />
-            </div>
-            
-            {/* Progress text */}
             <div className="text-center">
                 <div className="text-xl font-bold text-primary">{streakProgress}/{betData.days}</div>
                 <div className="text-xs text-muted-foreground">days</div>
             </div>
 
-            {/* Compact day circles - max 10 visible */}
             <div className="flex flex-wrap justify-center gap-1 max-w-[120px]">
                 {Array.from({ length: Math.min(betData.days, 10) }).map((_, i) => (
                     <div 
@@ -229,13 +220,12 @@ export default function DisciplineBetting(): JSX.Element {
             }
         } catch (error) {
             console.error("Error handling bet data:", error);
-            localStorage.removeItem(betKey);
+            localStorage.removeItem(getStorageKey(user.uid));
         }
     }, [user, toast, reloadUser, t]);
 
     const handleBet = async (credits: number, days: number) => {
-        if (!user) return;
-        if (isLoading) return;
+        if (!user || isLoading) return;
         
         if (credits > (user.credits || 0)) {
             toast({ title: t('notEnoughCredits') || "Not enough credits", variant: "destructive" });
@@ -307,7 +297,20 @@ export default function DisciplineBetting(): JSX.Element {
             </div>
             
             <div className="flex items-center justify-center min-h-[120px]">
-                <PiggyBankIcon className="h-20 w-20 text-primary" />
+                <motion.div
+                    animate={{
+                        y: [0, -8, 0, -4, 0],
+                        scale: [1, 1.05, 1, 1.02, 1]
+                    }}
+                    transition={{
+                        duration: 2,
+                        ease: "easeInOut",
+                        repeat: Infinity,
+                        repeatDelay: 3
+                    }}
+                >
+                    <PiggyBankIcon className="h-20 w-20 text-primary" />
+                </motion.div>
             </div>
             
             <div className="w-full max-w-xs min-h-[120px] flex items-center justify-center">
