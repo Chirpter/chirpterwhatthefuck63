@@ -239,22 +239,24 @@ export const ActivitiesPanel: React.FC = () => {
     }
   }, [getRandomQuote]);
 
+  // ✅ REFACTORED: This effect runs when the component mounts in the learning views.
   useEffect(() => {
-    if (focusedActivity?.id !== 'discipline') return;
-
+    // Initial welcome quote
     const welcomeTimeout = setTimeout(() => {
       triggerQuote();
-    }, 1000);
+    }, 1000); // Show a quote 1 second after the component is visible.
     
+    // Set up a recurring quote interval
     const quoteInterval = setInterval(() => {
       triggerQuote();
-    }, QUOTE_INTERVAL);
+    }, QUOTE_INTERVAL); // Try to show a quote every 2 minutes.
     
+    // Cleanup function to prevent memory leaks when the user navigates away
     return () => {
       clearTimeout(welcomeTimeout);
       clearInterval(quoteInterval);
     };
-  }, [focusedActivity, triggerQuote]);
+  }, [triggerQuote]);
 
   const handleFocus = (activity: Activity) => {
     setFocusedActivity(activity);
