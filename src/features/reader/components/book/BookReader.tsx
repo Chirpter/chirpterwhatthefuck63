@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { useAudioPlayer } from '@/contexts/audio-player-context';
 import { useSettings } from '@/contexts/settings-context';
@@ -25,6 +24,9 @@ import { PaginationDebugPanel } from '@/components/debug/PaginationDebugPanel';
 
 const LookupPopover = dynamic(() => import('@/features/lookup/components/LookupPopover'), { ssr: false });
 
+// ✅ Audio player height reservation
+const AUDIO_RESERVE_HEIGHT = 72;
+
 interface LookupState {
   isOpen: boolean;
   text: string;
@@ -40,7 +42,6 @@ interface LookupState {
 
 export default function BookReader({ book }: { book: Book }) {
   const { t, i18n } = useTranslation(['readerPage', 'common']);
-  const searchParams = useSearchParams();
   const audioPlayer = useAudioPlayer();
   const { wordLookupEnabled } = useSettings();
   const isMobile = useMobile();
@@ -50,7 +51,6 @@ export default function BookReader({ book }: { book: Book }) {
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
 
-  // Language display state
   const [displayLang1, setDisplayLang1] = useState(() => book.langs[0] || 'en');
   const [displayLang2, setDisplayLang2] = useState(() => book.langs[1] || 'none');
 
@@ -71,7 +71,8 @@ export default function BookReader({ book }: { book: Book }) {
     context: 'reader'
   });
 
-  const contentContainerRef = useRef<HTMLDivElement>(null);
+  // ✅ This ref points to the PAPER (the actual book page)
+  const paperRef = useRef<HTMLDivElement>(null);
   const allBookSegments = useMemo(() => book.content || [], [book.content]);
 
   const {
@@ -85,7 +86,7 @@ export default function BookReader({ book }: { book: Book }) {
     pageCount
   } = usePagination({
     segments: allBookSegments,
-    containerRef: contentContainerRef,
+    containerRef: paperRef,
     isEnabled: true,
     presentationStyle: 'book',
     displayLang1,
@@ -117,7 +118,6 @@ export default function BookReader({ book }: { book: Book }) {
     return chapterStartPages.findLastIndex((startPage) => currentPageIndex >= startPage) ?? 0;
   }, [currentPageIndex, chapterStartPages]);
 
-  // Audio player sync effect
   useEffect(() => {
     if (
       audioPlayer.currentPlayingItem?.id === book.id &&
@@ -218,7 +218,6 @@ export default function BookReader({ book }: { book: Book }) {
 
   const currentPageData = pages[currentPageIndex];
 
-  // Toolbar component
   const toolbar = (
     <ReaderToolbar
       settings={editorSettings}
@@ -251,15 +250,20 @@ export default function BookReader({ book }: { book: Book }) {
         isMobile={isMobile}
         toolbar={toolbar}
       >
-        {/* Reader container - uses full main area */}
+        {/* 
+          ✅ SIMPLE STRUCTURE:
+          
+          Normal mode: Paper = Main height - Audio reserve
+          Focus mode: Paper = 100vh (full screen)
+        */}
         <div 
-          id="reader-container" 
-          className="relative w-full h-full flex items-center justify-center group/reader"
+          className="relative w-full h-full group/reader"
           onMouseUp={handleTextSelection}
         >
-          {/* Toolbar and TOC - only show when not in focus mode */}
+          {/* Controls - only in normal mode */}
           {!isFocusMode && (
             <>
+              {/* Toolbar */}
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
                 {toolbar}
                 <Sheet open={isTocOpen} onOpenChange={setIsTocOpen}>
@@ -295,7 +299,7 @@ export default function BookReader({ book }: { book: Book }) {
                 </Sheet>
               </div>
 
-              {/* Navigation buttons */}
+              {/* Navigation */}
               <Button
                 variant="outline"
                 size="icon"
@@ -324,10 +328,23 @@ export default function BookReader({ book }: { book: Book }) {
             </>
           )}
 
-          {/* Book content */}
+          {/* 
+            ✅ THE PAPER (Book page)
+            - This is what user sees as "the book"
+            - This is what pagination measures
+            - Height: 100% in focus mode, calc(100% - 72px) in normal mode
+            - Width: Limited by max-w-4xl, centered
+          */}
           <motion.div
-            ref={contentContainerRef}
-            className={cn('w-full max-w-3xl h-full shadow-xl overflow-hidden', editorSettings.background)}
+            ref={paperRef}
+            className={cn(
+              'mx-auto shadow-xl overflow-hidden rounded-lg',
+              editorSettings.background,
+              'max-w-4xl', // Limit width on large screens
+            )}
+            style={{
+              height: isFocusMode ? '100%' : `calc(100% - ${AUDIO_RESERVE_HEIGHT}px)`
+            }}
             drag={isMobile && !isFocusMode ? 'x' : false}
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.2}
@@ -364,7 +381,7 @@ export default function BookReader({ book }: { book: Book }) {
         pages={pages}
         currentPageIndex={currentPageIndex}
         isCalculating={isCalculating}
-        containerRef={contentContainerRef}
+        containerRef={paperRef}
         displayLang1={displayLang1}
         displayLang2={displayLang2}
         unit={book.unit || 'sentence'}

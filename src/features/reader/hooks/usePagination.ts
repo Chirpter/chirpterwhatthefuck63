@@ -1,7 +1,7 @@
 // src/features/reader/hooks/usePagination.ts
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Page, Segment, ContentUnit, LanguageBlock } from '@/lib/types';
 import { calculatePages } from '@/lib/pagination/PageCalculator';
 
@@ -37,19 +37,25 @@ export const usePagination = ({
   const [error, setError] = useState<string | null>(null);
   
   const isCalculatingRef = useRef(false);
-  const lastDepsRef = useRef<string>('');
   const debounceTimerRef = useRef<NodeJS.Timeout>();
 
-  const createDepsKey = useCallback(() => {
-    const segmentContentKey = segments.map(s => {
+  // ✅ FIX: Memoize segments content to prevent reference changes
+  const segmentsHash = useMemo(() => {
+    return segments.map(s => {
       const langBlock = s.content.find(p => typeof p === 'object') as LanguageBlock | undefined;
       return langBlock ? `${s.id}-${langBlock[displayLang1]}` : s.id;
-    }).join(',');
+    }).join('|');
+  }, [segments, displayLang1]);
 
+  // ✅ FIX: Memoize container dimensions
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+
+  // ✅ FIX: Stable dependency key
+  const depsKey = useMemo(() => {
     return JSON.stringify({
-      segmentKey: segmentContentKey,
-      containerWidth: containerRef.current?.clientWidth || 0,
-      containerHeight: containerRef.current?.clientHeight || 0,
+      segmentsHash,
+      width: containerDimensions.width,
+      height: containerDimensions.height,
       displayLang1,
       displayLang2,
       unit,
@@ -58,7 +64,21 @@ export const usePagination = ({
       fontSize,
       itemId
     });
-  }, [segments, containerRef, displayLang1, displayLang2, unit, presentationStyle, aspectRatio, fontSize, itemId]);
+  }, [
+    segmentsHash,
+    containerDimensions.width,
+    containerDimensions.height,
+    displayLang1,
+    displayLang2,
+    unit,
+    presentationStyle,
+    aspectRatio,
+    fontSize,
+    itemId
+  ]);
+
+  // ✅ FIX: Track last calculated depsKey
+  const lastCalculatedDepsKey = useRef<string>('');
 
   const performPagination = useCallback(async () => {
     if (!isEnabled) {
@@ -77,19 +97,27 @@ export const usePagination = ({
       return;
     }
     
-    const currentDepsKey = createDepsKey();
-    if (currentDepsKey === lastDepsRef.current && pages.length > 0) {
+    // ✅ FIX: Check if we already calculated for this exact configuration
+    if (depsKey === lastCalculatedDepsKey.current && pages.length > 0) {
+      console.log('[usePagination] 🔄 Skipping - already calculated for this configuration');
       setIsCalculating(false);
       return;
     }
     
+    // ✅ FIX: Prevent concurrent calculations
     if (isCalculatingRef.current) {
+      console.log('[usePagination] ⏸️ Skipping - calculation in progress');
       return;
     }
     
     isCalculatingRef.current = true;
     setIsCalculating(true);
     setError(null);
+    
+    console.log('[usePagination] 🔄 Starting pagination...', {
+      segments: segments.length,
+      depsKey
+    });
     
     try {
       const result = await calculatePages(
@@ -110,7 +138,12 @@ export const usePagination = ({
       
       setPages(result.pages);
       setChapterStartPages(result.chapterStartPages);
-      lastDepsRef.current = currentDepsKey;
+      lastCalculatedDepsKey.current = depsKey;
+      
+      console.log('[usePagination] ✅ Pagination complete:', {
+        pages: result.pages.length,
+        chapters: result.chapterStartPages.length
+      });
       
     } catch (err) {
       console.error('[usePagination] ❌ Error:', err);
@@ -139,14 +172,20 @@ export const usePagination = ({
     unit,
     itemId,
     fontSize,
-    createDepsKey,
+    depsKey,
     pages.length
   ]);
 
-  // Debounced pagination trigger
+  // ✅ FIX: Debounced pagination trigger
   useEffect(() => {
+    // Clear any existing timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
+    }
+
+    // Skip if already calculated for this configuration
+    if (depsKey === lastCalculatedDepsKey.current && pages.length > 0) {
+      return;
     }
 
     debounceTimerRef.current = setTimeout(() => {
@@ -158,27 +197,36 @@ export const usePagination = ({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [performPagination]);
+  }, [depsKey, performPagination, pages.length]);
 
-  // Resize observer for container dimension changes
+  // ✅ FIX: Resize observer with stable callback
   useEffect(() => {
     if (!containerRef.current) return;
     
-    const observer = new ResizeObserver(() => {
-      lastDepsRef.current = '';
+    const updateDimensions = () => {
+      if (!containerRef.current) return;
       
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      
+      setContainerDimensions(prev => {
+        // Only update if dimensions actually changed significantly
+        if (Math.abs(prev.width - width) > 10 || Math.abs(prev.height - height) > 10) {
+          console.log('[usePagination] 📐 Container dimensions changed:', { width, height });
+          return { width, height };
+        }
+        return prev;
+      });
+    };
 
-      debounceTimerRef.current = setTimeout(() => {
-        performPagination();
-      }, 300);
-    });
+    // Initial dimensions
+    updateDimensions();
     
+    const observer = new ResizeObserver(updateDimensions);
     observer.observe(containerRef.current);
+    
     return () => observer.disconnect();
-  }, [containerRef, performPagination]);
+  }, [containerRef]);
 
   const goToPage = useCallback((pageIndex: number) => {
     if (isCalculating) return;
