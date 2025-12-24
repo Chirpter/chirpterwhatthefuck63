@@ -1,7 +1,7 @@
 // src/features/learning/components/activities/ActivitiesPanel.tsx
 "use client";
 
-import React, { useState, Suspense, lazy, useEffect, useCallback } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,87 +28,19 @@ const LazyDisciplineBetting = lazy(() => import('./discipline/DisciplineBetting'
 const LazyFocusHatching = lazy(() => import('./focus/FocusHatching'));
 const LazyWhackAMoleGame = lazy(() => import('./break/WhackAMoleGame'));
 
-// 🎯 PIGGY BANK QUOTES SYSTEM - Auto promotional quotes
-const PIGGY_QUOTES = [
-  "Chúng ta không cược tiền với thời gian, chúng ta cược cả đời mình",
-  "Chỉ những người dám theo tới cuối mới vào",
-  "Đây không phải là động lực, đây là luật chơi",
-  "The winner takes it all",
-  "Dám cược không?",
-  "Beat yourself — or lose to yourself.",
-];
-
-const QUOTE_SESSION_KEY = 'chirpter_piggy_session';
-const QUOTE_INTERVAL = 2 * 60 * 1000; // 2 minutes between quotes
-const MAX_QUOTES_PER_SESSION = 3; // Max 3 quotes per session
-const SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 hours session
-
-interface PiggyQuotesBubbleProps {
-  quote: string;
-  onComplete: () => void;
-}
-
-// 🎯 SIMPLIFIED PIGGY QUOTES BUBBLE - Easy to debug
-const PiggyQuotesBubble: React.FC<PiggyQuotesBubbleProps> = ({ quote, onComplete }) => {
-  const [isVisible, setIsVisible] = useState(true);
-
-  useEffect(() => {
-    // Show for 5 seconds then hide
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(() => {
-        onComplete();
-      }, 300); // Wait for exit animation to finish
-    }, 5000); // Extended to 5 seconds for easier testing
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [quote, onComplete]);
-
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ opacity: 0, y: 10, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.9 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="absolute -top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-        >
-          {/* Simple speech bubble */}
-          <div className="relative bg-primary text-primary-foreground rounded-lg px-3 py-2 shadow-lg max-w-[200px]">
-            <p className="text-xs font-medium text-center leading-tight">
-              {quote}
-            </p>
-            {/* Triangle pointer */}
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-primary" />
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const ActivityCard = ({ 
-  icon: IconComponent, 
-  title, 
-  onClick, 
-  currentQuote, 
-  onQuoteComplete 
-}: { 
-  icon: IconName | React.FC<any>; 
-  title: string; 
+const ActivityCard = ({
+  icon: IconComponent,
+  title,
+  onClick,
+}: {
+  icon: IconName | React.FC<any>;
+  title: string;
   onClick: () => void;
-  currentQuote: string | null;
-  onQuoteComplete: () => void;
 }) => (
   <div className="relative">
-    {currentQuote && <PiggyQuotesBubble quote={currentQuote} onComplete={onQuoteComplete} />}
-    
-    <Button 
-      variant="ghost" 
-      className="flex flex-col items-center justify-center h-24 w-24 p-0 hover:scale-110 transition-transform" 
+    <Button
+      variant="ghost"
+      className="flex flex-col items-center justify-center h-24 w-24 p-0 hover:scale-110 transition-transform"
       onClick={onClick}
     >
       <div className="h-16 w-16 flex items-center justify-center">
@@ -182,81 +114,6 @@ class FeatureErrorBoundary extends React.Component<
 export const ActivitiesPanel: React.FC = () => {
   const { t } = useTranslation('learningPage');
   const [focusedActivity, setFocusedActivity] = useState<Activity | null>(null);
-  const [currentQuote, setCurrentQuote] = useState<string | null>(null);
-
-  const getRandomQuote = useCallback(() => {
-    try {
-      const sessionData = localStorage.getItem(QUOTE_SESSION_KEY);
-      const now = Date.now();
-      
-      let session: { 
-        startTime: number; 
-        shownQuotes: number[]; 
-        count: number;
-        lastShownTime: number;
-      };
-      
-      if (sessionData) {
-        session = JSON.parse(sessionData);
-        if (now - session.startTime > SESSION_DURATION) {
-          session = { startTime: now, shownQuotes: [], count: 0, lastShownTime: 0 };
-        }
-      } else {
-        session = { startTime: now, shownQuotes: [], count: 0, lastShownTime: 0 };
-      }
-      
-      if (session.count >= MAX_QUOTES_PER_SESSION) return null;
-      if (session.count > 0 && now - session.lastShownTime < QUOTE_INTERVAL) return null;
-      
-      const availableIndices = PIGGY_QUOTES
-        .map((_, i) => i)
-        .filter(i => !session.shownQuotes.includes(i));
-      
-      const pool = availableIndices.length > 0 ? availableIndices : PIGGY_QUOTES.map((_, i) => i);
-      if (pool.length === 0) return null;
-
-      const randomIndex = pool[Math.floor(Math.random() * pool.length)];
-      
-      session.shownQuotes.push(randomIndex);
-      if (session.shownQuotes.length >= PIGGY_QUOTES.length) {
-        session.shownQuotes = []; // Reset if all shown
-      }
-      session.count++;
-      session.lastShownTime = now;
-      localStorage.setItem(QUOTE_SESSION_KEY, JSON.stringify(session));
-      
-      return PIGGY_QUOTES[randomIndex];
-    } catch (error) {
-      console.error('Failed to get quote:', error);
-      return null;
-    }
-  }, []);
-
-  const triggerQuote = useCallback(() => {
-    const quote = getRandomQuote();
-    if (quote) {
-      setCurrentQuote(quote);
-    }
-  }, [getRandomQuote]);
-
-  // ✅ REFACTORED: This effect runs when the component mounts in the learning views.
-  useEffect(() => {
-    // Initial welcome quote
-    const welcomeTimeout = setTimeout(() => {
-      triggerQuote();
-    }, 1000); // Show a quote 1 second after the component is visible.
-    
-    // Set up a recurring quote interval
-    const quoteInterval = setInterval(() => {
-      triggerQuote();
-    }, QUOTE_INTERVAL); // Try to show a quote every 2 minutes.
-    
-    // Cleanup function to prevent memory leaks when the user navigates away
-    return () => {
-      clearTimeout(welcomeTimeout);
-      clearInterval(quoteInterval);
-    };
-  }, [triggerQuote]);
 
   const handleFocus = (activity: Activity) => {
     setFocusedActivity(activity);
@@ -265,7 +122,7 @@ export const ActivitiesPanel: React.FC = () => {
   const handleBack = () => {
     setFocusedActivity(null);
   };
-  
+
   let title = focusedActivity ? t(focusedActivity.titleKey) : t('vocabVideos.activitiesTitle');
   if (focusedActivity?.id === 'discipline') title = t('betTitle');
   if (focusedActivity?.id === 'focus') title = t('focus.title');
@@ -273,7 +130,7 @@ export const ActivitiesPanel: React.FC = () => {
 
   const renderFocusedContent = () => {
     if (!focusedActivity) return null;
-    
+
     switch (focusedActivity.id) {
         case 'discipline':
             return <LazyDisciplineBetting />;
@@ -324,13 +181,11 @@ export const ActivitiesPanel: React.FC = () => {
                   className="flex items-center justify-around w-full"
                 >
                   {activities.map(act => (
-                    <ActivityCard 
-                        key={act.id} 
-                        icon={act.icon} 
-                        title={t(act.titleKey)} 
+                    <ActivityCard
+                        key={act.id}
+                        icon={act.icon}
+                        title={t(act.titleKey)}
                         onClick={() => handleFocus(act)}
-                        currentQuote={act.id === 'discipline' ? currentQuote : null}
-                        onQuoteComplete={() => setCurrentQuote(null)}
                     />
                   ))}
                 </motion.div>
