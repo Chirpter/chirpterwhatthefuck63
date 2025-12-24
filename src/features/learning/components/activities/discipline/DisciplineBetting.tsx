@@ -34,38 +34,41 @@ const CompactSlider = ({
   onChange, 
   min, 
   max, 
-  label,
   icon
 }: { 
   value: number; 
   onChange: (val: number) => void;
   min: number;
   max: number;
-  label: string;
   icon: React.ReactNode;
 }) => (
-  <div className="w-full space-y-1">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
+  <div className="w-full">
+    {/* 🎯 BALANCED: Icon + Bar + Number (no extra padding) */}
+    <div className="flex items-center gap-3">
+      {/* Icon - fixed width */}
+      <div className="flex-shrink-0 w-5 flex items-center justify-center">
         {icon}
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
-      <span className="text-xl font-bold text-primary">{value}</span>
-    </div>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
-      style={{
-        background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${((value - min) / (max - min)) * 100}%, hsl(var(--muted)) ${((value - min) / (max - min)) * 100}%, hsl(var(--muted)) 100%)`
-      }}
-    />
-    <div className="flex justify-between text-xs text-muted-foreground">
-      <span>{min}</span>
-      <span>{max}</span>
+      
+      {/* Slider Bar - takes remaining space */}
+      <div className="flex-1 min-w-0">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+          style={{
+            background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${((value - min) / (max - min)) * 100}%, hsl(var(--muted)) ${((value - min) / (max - min)) * 100}%, hsl(var(--muted)) 100%)`
+          }}
+        />
+      </div>
+      
+      {/* Number Display - fixed width */}
+      <div className="flex-shrink-0 w-10 text-right">
+        <span className="text-xl font-bold text-primary tabular-nums">{value}</span>
+      </div>
     </div>
   </div>
 );
@@ -88,7 +91,6 @@ const BetInterface = ({ onBet }: { onBet: (credits: number, days: number) => voi
         onChange={setCredits}
         min={1}
         max={50}
-        label={t('betCreditsLabel') || 'Credits'}
         icon={<CreditIcon className="h-4 w-4 text-primary" />}
       />
 
@@ -97,7 +99,6 @@ const BetInterface = ({ onBet }: { onBet: (credits: number, days: number) => voi
         onChange={setDays}
         min={7}
         max={30}
-        label={t('betDaysLabel') || 'Days'}
         icon={<Icon name="Calendar" className="h-4 w-4 text-primary" />}
       />
 
@@ -209,10 +210,6 @@ export default function DisciplineBetting(): JSX.Element {
                         }).then(reloadUser).catch(err => {
                             console.error("Failed to refund credits:", err);
                         });
-                        
-                        if (typeof window !== 'undefined') {
-                            window.dispatchEvent(new CustomEvent('chirpter:streak-complete'));
-                        }
                     }
                     localStorage.removeItem(betKey);
                     setActiveBet(null);
@@ -285,10 +282,6 @@ export default function DisciplineBetting(): JSX.Element {
                 title: t('betPlacedTitle') || "Bet placed!", 
                 description: t('betPlacedDescription', { credits, days }) || `You bet ${credits} credits for a ${days}-day streak.` 
             });
-
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('chirpter:bet-success'));
-            }
 
         } catch (error: any) {
             console.error("Error placing bet:", error);

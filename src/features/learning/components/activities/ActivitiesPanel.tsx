@@ -28,7 +28,7 @@ const LazyDisciplineBetting = lazy(() => import('./discipline/DisciplineBetting'
 const LazyFocusHatching = lazy(() => import('./focus/FocusHatching'));
 const LazyWhackAMoleGame = lazy(() => import('./break/WhackAMoleGame'));
 
-// 🎯 PIGGY BANK QUOTES SYSTEM
+// 🎯 PIGGY BANK QUOTES SYSTEM - Auto promotional quotes
 const PIGGY_QUOTES = [
   "Chúng ta không cược tiền với thời gian, chúng ta cược cả đời mình",
   "Chỉ những người dám theo tới cuối mới vào",
@@ -38,49 +38,55 @@ const PIGGY_QUOTES = [
   "Beat yourself — or lose to yourself.",
 ];
 
-const QUOTE_STORAGE_KEY = 'chirpter_piggy_last_quote_time';
-const QUOTE_COUNT_KEY = 'chirpter_piggy_quote_count';
 const QUOTE_SESSION_KEY = 'chirpter_piggy_session';
-const QUOTE_COOLDOWN = 10 * 60 * 1000; // 10 minutes cooldown
-const MAX_QUOTES_PER_SESSION = 5;
-const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const QUOTE_INTERVAL = 2 * 60 * 1000; // 2 minutes between quotes
+const MAX_QUOTES_PER_SESSION = 3; // Max 3 quotes per session
+const SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 hours session
 
 interface PiggyQuotesBubbleProps {
   quote: string;
   onComplete: () => void;
 }
 
+// 🎯 SIMPLIFIED PIGGY QUOTES BUBBLE - Easy to debug
 const PiggyQuotesBubble: React.FC<PiggyQuotesBubbleProps> = ({ quote, onComplete }) => {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    // Show for 4 seconds then hide
+    // Show for 5 seconds then hide
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onComplete, 300);
-    }, 4000);
+      setTimeout(() => {
+        onComplete();
+      }, 300); // Wait for exit animation to finish
+    }, 5000); // Extended to 5 seconds for easier testing
 
-    return () => clearTimeout(timer);
-  }, [onComplete]);
-
-  if (!isVisible) return null;
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [quote, onComplete]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8, y: 20 }}
-      className="absolute -top-20 left-1/2 -translate-x-1/2 z-20 w-64"
-    >
-      <div className="relative bg-background border-2 border-primary rounded-2xl px-4 py-3 shadow-xl">
-        <p className="text-sm font-medium text-foreground text-center">
-          {quote}
-        </p>
-        
-        {/* Speech bubble tail pointing down to piggy */}
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-background border-b-2 border-r-2 border-primary rotate-45" />
-      </div>
-    </motion.div>
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 10, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 10, scale: 0.9 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="absolute -top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+        >
+          {/* Simple speech bubble */}
+          <div className="relative bg-primary text-primary-foreground rounded-lg px-3 py-2 shadow-lg max-w-[200px]">
+            <p className="text-xs font-medium text-center leading-tight">
+              {quote}
+            </p>
+            {/* Triangle pointer */}
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-primary" />
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -98,9 +104,7 @@ const ActivityCard = ({
   onQuoteComplete: () => void;
 }) => (
   <div className="relative">
-    <AnimatePresence>
-      {currentQuote && <PiggyQuotesBubble quote={currentQuote} onComplete={onQuoteComplete} />}
-    </AnimatePresence>
+    {currentQuote && <PiggyQuotesBubble quote={currentQuote} onComplete={onQuoteComplete} />}
     
     <Button 
       variant="ghost" 
@@ -180,89 +184,77 @@ export const ActivitiesPanel: React.FC = () => {
   const [focusedActivity, setFocusedActivity] = useState<Activity | null>(null);
   const [currentQuote, setCurrentQuote] = useState<string | null>(null);
 
-  // 🎯 Get random quote that hasn't been shown yet
   const getRandomQuote = useCallback(() => {
     try {
       const sessionData = localStorage.getItem(QUOTE_SESSION_KEY);
       const now = Date.now();
       
-      let session: { startTime: number; shownQuotes: number[]; count: number };
+      let session: { 
+        startTime: number; 
+        shownQuotes: number[]; 
+        count: number;
+        lastShownTime: number;
+      };
       
       if (sessionData) {
         session = JSON.parse(sessionData);
-        
-        // Reset session if expired
         if (now - session.startTime > SESSION_DURATION) {
-          session = { startTime: now, shownQuotes: [], count: 0 };
+          session = { startTime: now, shownQuotes: [], count: 0, lastShownTime: 0 };
         }
       } else {
-        session = { startTime: now, shownQuotes: [], count: 0 };
+        session = { startTime: now, shownQuotes: [], count: 0, lastShownTime: 0 };
       }
       
-      // Check if max quotes reached
-      if (session.count >= MAX_QUOTES_PER_SESSION) {
-        return null;
-      }
+      if (session.count >= MAX_QUOTES_PER_SESSION) return null;
+      if (session.count > 0 && now - session.lastShownTime < QUOTE_INTERVAL) return null;
       
-      // Get available quotes
       const availableIndices = PIGGY_QUOTES
         .map((_, i) => i)
         .filter(i => !session.shownQuotes.includes(i));
       
-      if (availableIndices.length === 0) {
-        // All quotes shown, reset
-        session.shownQuotes = [];
-      }
+      const pool = availableIndices.length > 0 ? availableIndices : PIGGY_QUOTES.map((_, i) => i);
+      if (pool.length === 0) return null;
+
+      const randomIndex = pool[Math.floor(Math.random() * pool.length)];
       
-      // Pick random quote
-      const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-      
-      // Update session
       session.shownQuotes.push(randomIndex);
+      if (session.shownQuotes.length >= PIGGY_QUOTES.length) {
+        session.shownQuotes = []; // Reset if all shown
+      }
       session.count++;
+      session.lastShownTime = now;
       localStorage.setItem(QUOTE_SESSION_KEY, JSON.stringify(session));
       
       return PIGGY_QUOTES[randomIndex];
     } catch (error) {
-      console.error('Failed to get random quote:', error);
+      console.error('Failed to get quote:', error);
       return null;
     }
   }, []);
 
-  // 🎯 Trigger quotes only for discipline-related events with cooldown
-  const triggerPiggyQuotes = useCallback(() => {
-    try {
-      const lastQuoteTime = localStorage.getItem(QUOTE_STORAGE_KEY);
-      const now = Date.now();
-      
-      // Check cooldown
-      if (lastQuoteTime && now - parseInt(lastQuoteTime, 10) < QUOTE_COOLDOWN) {
-        return;
-      }
-      
-      const quote = getRandomQuote();
-      if (quote) {
-        setCurrentQuote(quote);
-        localStorage.setItem(QUOTE_STORAGE_KEY, now.toString());
-      }
-    } catch (error) {
-      console.error('Failed to trigger quote:', error);
+  const triggerQuote = useCallback(() => {
+    const quote = getRandomQuote();
+    if (quote) {
+      setCurrentQuote(quote);
     }
   }, [getRandomQuote]);
 
-  // Listen for bet-related events only
   useEffect(() => {
-    const handleBetSuccess = () => triggerPiggyQuotes();
-    const handleStreakComplete = () => triggerPiggyQuotes();
+    if (focusedActivity?.id !== 'discipline') return;
+
+    const welcomeTimeout = setTimeout(() => {
+      triggerQuote();
+    }, 1000);
     
-    window.addEventListener('chirpter:bet-success', handleBetSuccess);
-    window.addEventListener('chirpter:streak-complete', handleStreakComplete);
+    const quoteInterval = setInterval(() => {
+      triggerQuote();
+    }, QUOTE_INTERVAL);
     
     return () => {
-      window.removeEventListener('chirpter:bet-success', handleBetSuccess);
-      window.removeEventListener('chirpter:streak-complete', handleStreakComplete);
+      clearTimeout(welcomeTimeout);
+      clearInterval(quoteInterval);
     };
-  }, [triggerPiggyQuotes]);
+  }, [focusedActivity, triggerQuote]);
 
   const handleFocus = (activity: Activity) => {
     setFocusedActivity(activity);
