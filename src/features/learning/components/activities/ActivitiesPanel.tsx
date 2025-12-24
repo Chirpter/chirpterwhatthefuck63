@@ -30,8 +30,9 @@ const LazyWhackAMoleGame = React.lazy(() => import('./break/WhackAMoleGame'));
 
 // Simple speech bubble component for quotes
 const QuoteBubble = ({ quote, onClose }: { quote: string; onClose: () => void }) => {
+    // This effect ensures the bubble automatically disappears.
     useEffect(() => {
-        const timer = setTimeout(onClose, 7000); // Auto-hide after 7 seconds
+        const timer = setTimeout(onClose, 2500); // Show for 2.5 seconds
         return () => clearTimeout(timer);
     }, [onClose]);
 
@@ -51,7 +52,6 @@ const QuoteBubble = ({ quote, onClose }: { quote: string; onClose: () => void })
         </motion.div>
     );
 };
-
 
 const ActivityCard = ({
   icon: IconComponent,
@@ -144,22 +144,48 @@ export const ActivitiesPanel: React.FC = () => {
   const [focusedActivity, setFocusedActivity] = useState<Activity | null>(null);
   const [quote, setQuote] = useState<string | null>(null);
 
-  // Auto-trigger a quote to appear after a delay
+  // New logic for sequential quotes
   useEffect(() => {
     const quotes = [
         "Psst... over here!",
         "Feeling disciplined?",
         "Ready for a challenge?",
         "Got a moment?",
+        "Let's make a deal.",
     ];
 
-    const timer = setTimeout(() => {
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-        setQuote(randomQuote);
-    }, 5000); // Show quote after 5 seconds
+    let quoteCount = 0;
+    let intervalId: NodeJS.Timeout;
 
-    return () => clearTimeout(timer);
-  }, []);
+    // Start the sequence after an initial delay
+    const initialTimeout = setTimeout(() => {
+        
+        intervalId = setInterval(() => {
+            if (quoteCount >= 3) {
+                clearInterval(intervalId);
+                return;
+            }
+            
+            // Pick a random quote that is different from the current one
+            let newQuote = quote;
+            while(newQuote === quote) {
+              newQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            }
+            setQuote(newQuote);
+            quoteCount++;
+            
+        }, 3000); // 3-second interval between quotes
+
+    }, 3000); // 3-second initial delay
+
+    // Cleanup function to clear timers on unmount
+    return () => {
+        clearTimeout(initialTimeout);
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+    };
+  }, []); // Run only once on component mount
 
 
   const handleFocus = (activity: Activity) => {
