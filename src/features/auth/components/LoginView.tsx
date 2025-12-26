@@ -13,7 +13,7 @@ import { AuthForm } from '@/features/auth/components/AuthForm';
 import { Logo } from '@/components/ui/Logo';
 import { auth } from '@/lib/firebase';
 import { ApiServiceError } from '@/lib/errors';
-import { useTranslation } from 'react-i18next'; // ✅ IMPORTED useTranslation
+import { useTranslation } from 'react-i18next';
 
 // Helper to navigate using a full page reload for a clean state.
 function navigateTo(path: string) {
@@ -24,17 +24,13 @@ function navigateTo(path: string) {
 
 // Helper to create the session cookie.
 async function createSession(idToken: string): Promise<boolean> {
-    try {
-        const response = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
-        });
-        return response.ok;
-    } catch (error) {
-        console.error("Failed to create session:", error);
-        return false;
-    }
+    const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Ensure cookies are sent with the request
+        body: JSON.stringify({ idToken }),
+    });
+    return response.ok;
 }
 
 
@@ -50,7 +46,7 @@ const GoogleIcon = () => (
 export default function LoginView() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { t } = useTranslation(['toast']); // ✅ FIXED: Added useTranslation hook
+  const { t } = useTranslation(['toast']);
   const { 
     authUser, 
     loading: isAuthLoading, 
@@ -67,23 +63,44 @@ export default function LoginView() {
   const [hasShownToast, setHasShownToast] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
 
-  // Function to handle the complete auth flow after Firebase sign-in
+  // This function is now responsible for the entire post-auth flow.
   const handleAuthSuccess = async () => {
     setIsCreatingSession(true);
     const currentUser = auth.currentUser;
+    
     if (!currentUser) {
         toast({ title: "Authentication Error", description: "User object not found after sign-in.", variant: "destructive" });
         setIsCreatingSession(false);
         return;
     }
     
-    const idToken = await currentUser.getIdToken(true);
-    const cookieSet = await createSession(idToken);
+    // Retry mechanism for creating the session cookie
+    let attempts = 0;
+    const maxRetries = 3;
+    let cookieSet = false;
+
+    while (attempts < maxRetries && !cookieSet) {
+        try {
+            const idToken = await currentUser.getIdToken(true);
+            cookieSet = await createSession(idToken);
+            if (!cookieSet) throw new Error("API did not return OK");
+        } catch (error) {
+            attempts++;
+            console.error(`Failed to create session, attempt ${attempts}:`, error);
+            if (attempts < maxRetries) {
+                await new Promise(res => setTimeout(res, 1000 * attempts)); // Exponential backoff
+            }
+        }
+    }
     
     if (cookieSet) {
         navigateTo('/library/book');
     } else {
-        toast({ title: "Session Error", description: "Could not create a secure session. Please try again.", variant: "destructive" });
+        toast({ 
+            title: "Session Error", 
+            description: "Could not create a server session after multiple attempts. Please try logging in again.", 
+            variant: "destructive" 
+        });
         setIsCreatingSession(false);
     }
   };

@@ -13,7 +13,6 @@ import { VocabVideosProvider } from '@/features/learning/contexts/VocabVideosCon
 import { AudioPlayer } from '@/features/player/components/AudioPlayer';
 import type { CombinedBookmark } from '@/lib/types';
 import { Toaster } from '@/components/ui/toaster';
-import { PerformanceMonitor } from '@/components/dev/PerformanceMonitor';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { Logo } from '@/components/ui/Logo';
 
@@ -92,8 +91,6 @@ export const ClientProviders = ({
                       <AudioPlayer />
                     </Suspense>
                     <Toaster />
-                    {/* The PerformanceMonitor is now disabled for production builds */}
-                    {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
                   </VocabVideosProvider>
                 </AudioPlayerProvider>
               </BookmarkProvider>
