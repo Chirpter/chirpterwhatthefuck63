@@ -13,6 +13,7 @@ import { AuthForm } from '@/features/auth/components/AuthForm';
 import { Logo } from '@/components/ui/Logo';
 import { auth } from '@/lib/firebase';
 import { ApiServiceError } from '@/lib/errors';
+import { useTranslation } from 'react-i18next'; // ✅ IMPORTED useTranslation
 
 // Helper to navigate using a full page reload for a clean state.
 function navigateTo(path: string) {
@@ -49,6 +50,7 @@ const GoogleIcon = () => (
 export default function LoginView() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { t } = useTranslation(['toast']); // ✅ FIXED: Added useTranslation hook
   const { 
     authUser, 
     loading: isAuthLoading, 
