@@ -16,6 +16,11 @@ interface PerformanceMetrics {
 }
 
 export const PerformanceMonitor = () => {
+  // ✅ FIX: Disable this component completely in production environments
+  if (process.env.NODE_ENV !== 'development') {
+    return null;
+  }
+  
   const { authUser, loading: authLoading } = useAuth();
   const { user, loading: userLoading } = useUser();
   
@@ -52,26 +57,11 @@ export const PerformanceMonitor = () => {
     prevUserRef.current = user;
   }, [authUser, user]);
 
-  // Monitor cookie checks
+  // Monitor cookie checks - This logic is the source of the CORS issue
   useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      if (typeof args[0] === 'string' && args[0].includes('/api/auth/session')) {
-        setMetrics(prev => ({
-          ...prev,
-          sessionCookieChecks: prev.sessionCookieChecks + 1,
-        }));
-      }
-      return originalFetch(...args);
-    };
-
-    return () => {
-      window.fetch = originalFetch;
-    };
+    // ✅ FIX: The fetch override is removed to prevent interference with Cloud Workstation auth.
+    // The component can still display other metrics, but it will no longer track fetches.
   }, []);
-
-  // Only show in development
-  if (process.env.NODE_ENV !== 'development') return null;
 
   const hasIssues = 
     metrics.authStateChanges > 5 || 

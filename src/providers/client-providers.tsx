@@ -92,6 +92,7 @@ export const ClientProviders = ({
                       <AudioPlayer />
                     </Suspense>
                     <Toaster />
+                    {/* The PerformanceMonitor is now disabled for production builds */}
                     {process.env.NODE_ENV === 'development' && <PerformanceMonitor />}
                   </VocabVideosProvider>
                 </AudioPlayerProvider>
