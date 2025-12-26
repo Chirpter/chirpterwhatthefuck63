@@ -16,77 +16,82 @@ export async function createOrFetchUserProfile(userId: string): Promise<{ user: 
     const adminDb = getAdminDb();
     const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
 
-    return await adminDb.runTransaction(async (transaction) => {
-        const userDoc = await transaction.get(userDocRef);
+    try {
+        return await adminDb.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
 
-        if (userDoc.exists) {
-            const existingUser = userDoc.data() as User;
-            const todayUtcString = new Date().toISOString().split('T')[0];
+            if (userDoc.exists) {
+                const existingUser = userDoc.data() as User;
+                const todayUtcString = new Date().toISOString().split('T')[0];
 
-            if (existingUser.lastLoginDate === todayUtcString) {
-                return { user: convertTimestamps(existingUser), leveledUpInfo: null };
-            }
-
-            const oldLevel = existingUser.level || 0;
-            const newLevel = oldLevel + 1;
-            
-            const dailyLoginAchievement = ACHIEVEMENTS.find(a => a.id === 'daily_login');
-            let reward = 10;
-
-            if (dailyLoginAchievement && dailyLoginAchievement.tiers[0]) {
-                const tier = dailyLoginAchievement.tiers[0];
-                reward = tier.creditReward;
-
-                const userLevelTier = getLevelStyles(oldLevel, existingUser.plan).tier;
-                if (tier.levelBonus && userLevelTier !== 'gold') {
-                    reward += tier.levelBonus[userLevelTier] || 0;
+                if (existingUser.lastLoginDate === todayUtcString) {
+                    return { user: convertTimestamps(existingUser), leveledUpInfo: null };
                 }
-                if (existingUser.plan === 'pro' && tier.proBonus) {
-                    reward += tier.proBonus;
+
+                const oldLevel = existingUser.level || 0;
+                const newLevel = oldLevel + 1;
+                
+                const dailyLoginAchievement = ACHIEVEMENTS.find(a => a.id === 'daily_login');
+                let reward = 10;
+
+                if (dailyLoginAchievement && dailyLoginAchievement.tiers[0]) {
+                    const tier = dailyLoginAchievement.tiers[0];
+                    reward = tier.creditReward;
+
+                    const userLevelTier = getLevelStyles(oldLevel, existingUser.plan).tier;
+                    if (tier.levelBonus && userLevelTier !== 'gold') {
+                        reward += tier.levelBonus[userLevelTier] || 0;
+                    }
+                    if (existingUser.plan === 'pro' && tier.proBonus) {
+                        reward += tier.proBonus;
+                    }
                 }
+
+                transaction.update(userDocRef, {
+                    lastLoginDate: todayUtcString,
+                    level: newLevel,
+                    'stats.level': newLevel,
+                    credits: FieldValue.increment(reward),
+                });
+                
+                const updatedUser = { ...existingUser, level: newLevel, lastLoginDate: todayUtcString, credits: existingUser.credits + reward };
+                return { user: convertTimestamps(updatedUser), leveledUpInfo: { newLevel, oldLevel } };
+                
+            } else {
+                const { getAuth } = await import('firebase-admin/auth');
+                const authUser = await getAuth().getUser(userId);
+
+                const todayUtcString = new Date().toISOString().split('T')[0];
+                const sanitizedDisplayName = authUser.displayName 
+                    ? authUser.displayName.replace(/[^\p{L}\p{N}\s]/gu, '').trim()
+                    : `User-${userId.substring(0, 5)}`;
+                
+                const newUser: User = {
+                    uid: userId,
+                    email: authUser.email ?? null,
+                    displayName: sanitizedDisplayName || `User-${userId.substring(0, 5)}`,
+                    photoURL: authUser.photoURL ?? null,
+                    coverPhotoURL: '',
+                    isAnonymous: authUser.disabled,
+                    plan: 'free',
+                    credits: 10,
+                    role: 'user',
+                    level: 1,
+                    lastLoginDate: todayUtcString,
+                    stats: { booksCreated: 0, piecesCreated: 0, vocabSaved: 0, flashcardsMastered: 0, coversGeneratedByAI: 0, bilingualBooksCreated: 0, vocabAddedToPlaylist: 0, level: 1 },
+                    achievements: [],
+                    purchasedBookIds: [],
+                    ownedBookmarkIds: [],
+                };
+
+                transaction.set(userDocRef, newUser);
+                return { user: convertTimestamps(newUser), leveledUpInfo: { oldLevel: 0, newLevel: 1 } };
             }
-
-            transaction.update(userDocRef, {
-                lastLoginDate: todayUtcString,
-                level: newLevel,
-                'stats.level': newLevel,
-                credits: FieldValue.increment(reward),
-            });
-            
-            const updatedUser = { ...existingUser, level: newLevel, lastLoginDate: todayUtcString, credits: existingUser.credits + reward };
-            return { user: convertTimestamps(updatedUser), leveledUpInfo: { newLevel, oldLevel } };
-            
-        } else {
-            const { getAuth } = await import('firebase-admin/auth');
-            const authUser = await getAuth().getUser(userId);
-
-            const todayUtcString = new Date().toISOString().split('T')[0];
-            const sanitizedDisplayName = authUser.displayName 
-                ? authUser.displayName.replace(/[^\p{L}\p{N}\s]/gu, '').trim()
-                : `User-${userId.substring(0, 5)}`;
-            
-            const newUser: User = {
-                uid: userId,
-                email: authUser.email ?? null,
-                displayName: sanitizedDisplayName || `User-${userId.substring(0, 5)}`,
-                photoURL: authUser.photoURL ?? null,
-                coverPhotoURL: '',
-                isAnonymous: authUser.disabled,
-                plan: 'free',
-                credits: 10,
-                role: 'user',
-                level: 1,
-                lastLoginDate: todayUtcString,
-                stats: { booksCreated: 0, piecesCreated: 0, vocabSaved: 0, flashcardsMastered: 0, coversGeneratedByAI: 0, bilingualBooksCreated: 0, vocabAddedToPlaylist: 0, level: 1 },
-                achievements: [],
-                purchasedBookIds: [],
-                ownedBookmarkIds: [],
-            };
-
-            transaction.set(userDocRef, newUser);
-            return { user: convertTimestamps(newUser), leveledUpInfo: { oldLevel: 0, newLevel: 1 } };
-        }
-    });
+        });
+    } catch (error: any) {
+        console.error("Transaction failed: ", error);
+        throw new ApiServiceError("Failed to fetch or create user profile.", "FIRESTORE", error);
+    }
 }
 
 export async function getUserProfile(userId: string): Promise<User | null> {
@@ -116,11 +121,6 @@ export async function updateUserProfile(
   const updates: any = {};
   const authUpdates: any = {};
   const returnedUrls: { photoURL?: string; coverPhotoURL?: string } = {};
-
-  if (displayName) {
-    updates.displayName = displayName;
-    authUpdates.displayName = displayName;
-  }
 
   const handleFileUpload = async (file: File, path: string): Promise<string> => {
     const bucket = getStorage().bucket();

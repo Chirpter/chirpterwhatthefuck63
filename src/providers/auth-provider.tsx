@@ -14,7 +14,6 @@ import {
 } from 'firebase/auth';
 import { AuthContext, type AuthContextType } from '@/contexts/auth-context';
 import { useTranslation } from 'react-i18next';
-import { ApiServiceError } from '@/lib/errors';
 
 // --- Helper Functions ---
 

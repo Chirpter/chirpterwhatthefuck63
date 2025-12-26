@@ -29,15 +29,8 @@ vi.mock('firebase/auth', async (importOriginal) => {
   };
 });
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    refresh: vi.fn(),
-  }),
-  useSearchParams: () => ({
-    get: vi.fn(),
-  }),
-}));
+// We don't need to mock next/navigation anymore, as we use window.location
+// vi.mock('next/navigation', ...);
 
 const TestComponent = () => {
   const { authUser, loading, logout } = useAuth();

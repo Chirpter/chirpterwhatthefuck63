@@ -10,7 +10,6 @@ import { Icon } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/layout/AppHeader';
 import { Logo } from '@/components/ui/Logo';
-import { AppErrorManager } from '@/services/client/error-manager-service';
 import { usePathname } from 'next/navigation';
 
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
@@ -60,9 +59,10 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
   const { logout } = useAuth();
   const pathname = usePathname();
 
-  useEffect(() => {
-    AppErrorManager.initialize();
-  }, []);
+  // The AppErrorManager is now initialized in the client providers
+  // useEffect(() => {
+  //   AppErrorManager.initialize();
+  // }, []);
 
   if (isUserLoading) {
     return <InitialLoader message="Loading your profile..." />;

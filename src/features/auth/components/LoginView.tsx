@@ -12,7 +12,6 @@ import { useToast } from '@/hooks/useToast';
 import { AuthForm } from '@/features/auth/components/AuthForm';
 import { Logo } from '@/components/ui/Logo';
 import { auth } from '@/lib/firebase';
-import { ApiServiceError } from '@/lib/errors';
 import { useTranslation } from 'react-i18next';
 
 // Helper to navigate using a full page reload for a clean state.

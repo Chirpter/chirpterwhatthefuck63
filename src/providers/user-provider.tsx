@@ -7,8 +7,15 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { User } from '@/lib/types';
-import { createOrFetchUserProfile } from '@/services/server/user-service';
 import { UserContext, type UserContextType, type LevelUpInfo } from '@/contexts/user-context';
+import { ApiServiceError } from '@/lib/errors';
+
+// Helper to make server action call
+async function createOrFetchUser(uid: string): Promise<{ user: User, leveledUpInfo: LevelUpInfo | null }> {
+    const { createOrFetchUserProfile } = await import('@/services/server/user-service');
+    return createOrFetchUserProfile(uid);
+}
+
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { authUser, loading: authLoading } = useAuth();
@@ -37,7 +44,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     
     try {
-      const { user: userProfile, leveledUpInfo } = await createOrFetchUserProfile(firebaseUser.uid);
+      // ✅ REVERT: Call server action directly.
+      const { user: userProfile, leveledUpInfo } = await createOrFetchUser(firebaseUser.uid);
       
       if (state.currentUserId === firebaseUser.uid) {
         setUser(userProfile);
@@ -45,9 +53,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLevelUpInfo(leveledUpInfo);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[USER_CTX] Error fetching user:', err);
-      setError('Failed to load profile. Please refresh.');
+      // ✅ ENHANCED ERROR HANDLING: Show specific message for ApiServiceError
+      if (err instanceof ApiServiceError) {
+        setError(err.message);
+      } else {
+        setError('Failed to load profile. Please refresh.');
+      }
     } finally {
       if (state.currentUserId === firebaseUser.uid) {
         setLoading(false);
