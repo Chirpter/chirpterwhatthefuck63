@@ -1,18 +1,9 @@
-// src/features/learning/hooks/useShadowingTracking.ts
+// src/features/learning/hooks/useShadowingTracking.ts (REFACTORED)
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-
-// ===== TYPE DEFINITIONS =====
-
-interface WordTracking {
-  word: string;
-  score: number;
-  errorTypes: string[];
-}
-
-interface SessionTracking {
-  wordTracking: Map<string, WordTracking>;
-}
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { SmartErrorTracker, type WordTracking } from '../services/smart-error-tracker';
+import { convertDiffToErrors } from '../services/pattern-detection-helper';
+import type { DiffSegment } from '../services/diff-service';
 
 export interface ErrorStats {
   correct: number;
@@ -21,235 +12,188 @@ export interface ErrorStats {
   wrong_word: number;
   insertion: number;
   ending_sound: number;
+  morphology: number;
 }
 
 export interface DiffResult {
-  original: Array<{ text: string; type: string }>;
-  user: Array<{ text: string; type: string }>;
+  original: DiffSegment[];
+  user: DiffSegment[];
   errorTypes: string[];
   isMatch: boolean;
 }
 
-// ===== SCORING CONSTANTS =====
-const SCORE = {
-  REPLAY: 0.2,
-  REVEAL: 2.0,
-  MISSING: 0.2,
-  ERROR: 1.0,
-  RESUBMIT: 1.0,
-} as const;
+interface LocalBehaviors {
+  replayCount: number;
+  wasRevealed: boolean;
+  startTime: number;
+}
 
-const ATTENTION_THRESHOLD = 4.0;
-
-// ===== MAIN HOOK =====
-
+/**
+ * Simplified tracking hook - wrapper around SmartErrorTracker
+ * 
+ * Responsibilities:
+ * - Track local behaviors (replay, reveal, time) per line
+ * - Convert diff results to error format
+ * - Delegate to SmartErrorTracker for aggregation
+ * - Provide words needing attention for UI
+ */
 export const useShadowingTracking = (videoId: string | null) => {
-  const [currentSessionIndex, setCurrentSessionIndex] = useState(-1);
-  const [currentSession, setCurrentSession] = useState<SessionTracking>({
-    wordTracking: new Map(),
-  });
-  const [needAttentionWords, setNeedAttentionWords] = useState<Map<string, WordTracking>>(new Map());
-  const [errorStats, setErrorStats] = useState<ErrorStats>({
-    correct: 0,
-    omission: 0,
-    spelling: 0,
-    wrong_word: 0,
-    insertion: 0,
-    ending_sound: 0,
+  // Initialize tracker
+  const [tracker] = useState<SmartErrorTracker | null>(() => 
+    videoId ? new SmartErrorTracker(videoId) : null
+  );
+
+  // Local behavior tracking (reset per submission)
+  const [localBehaviors, setLocalBehaviors] = useState<LocalBehaviors>({
+    replayCount: 0,
+    wasRevealed: false,
+    startTime: Date.now(),
   });
 
-  const sentenceScoreRef = useRef(0);
+  // Force re-render when tracker data changes
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+  const triggerUpdate = useCallback(() => setUpdateTrigger(prev => prev + 1), []);
 
-  // Clear state when videoId changes
+  // Reset local behaviors when video changes
   useEffect(() => {
-    setCurrentSessionIndex(-1);
-    setCurrentSession({ wordTracking: new Map() });
-    setNeedAttentionWords(new Map());
-    setErrorStats({ correct: 0, omission: 0, spelling: 0, wrong_word: 0, insertion: 0, ending_sound: 0 });
-    sentenceScoreRef.current = 0;
-    
-    if (videoId) {
-        try {
-          const savedWords = localStorage.getItem(`shadowing-attention-${videoId}`);
-          if (savedWords) {
-            const parsed = JSON.parse(savedWords);
-            setNeedAttentionWords(new Map(Object.entries(parsed)));
-          }
-
-          const savedStats = localStorage.getItem(`shadowing-stats-${videoId}`);
-          if (savedStats) {
-            setErrorStats(JSON.parse(savedStats));
-          }
-        } catch (e) {
-          console.error('Failed to load tracking data', e);
-        }
-    }
+    setLocalBehaviors({
+      replayCount: 0,
+      wasRevealed: false,
+      startTime: Date.now(),
+    });
   }, [videoId]);
-  
 
-  const persistData = useCallback(() => {
-    if (!videoId) return;
-
-    try {
-      const wordsObj = Object.fromEntries(needAttentionWords);
-      localStorage.setItem(`shadowing-attention-${videoId}`, JSON.stringify(wordsObj));
-      localStorage.setItem(`shadowing-stats-${videoId}`, JSON.stringify(errorStats));
-    } catch (e) {
-      console.error('Failed to persist tracking data', e);
-    }
-  }, [videoId, needAttentionWords, errorStats]);
-
-
+  // Track replay
   const onReplay = useCallback(() => {
-    sentenceScoreRef.current += SCORE.REPLAY;
+    setLocalBehaviors(prev => ({
+      ...prev,
+      replayCount: prev.replayCount + 1,
+    }));
   }, []);
 
+  // Track reveal
   const onReveal = useCallback(() => {
-    sentenceScoreRef.current += SCORE.REVEAL;
+    setLocalBehaviors(prev => ({
+      ...prev,
+      wasRevealed: true,
+    }));
   }, []);
 
+  // Main submission handler
+  const onSubmit = useCallback((
+    diffResult: DiffResult,
+    lineIndex: number,
+    lineText: string
+  ) => {
+    if (!tracker) return;
 
-  const onFirstSubmit = useCallback((diffResult: DiffResult, sessionIndex: number) => {
-    if (currentSessionIndex >= 0 && sessionIndex !== currentSessionIndex) {
-      currentSession.wordTracking.forEach((tracking) => {
-        if (tracking.score >= ATTENTION_THRESHOLD) {
-          setNeedAttentionWords(prev => new Map(prev).set(tracking.word, tracking));
-        }
-      });
+    const timeSpent = (Date.now() - localBehaviors.startTime) / 1000;
+
+    // Convert diff to errors
+    const errors = convertDiffToErrors(diffResult, lineIndex, lineText);
+
+    // Track submission
+    tracker.trackSubmission(errors, {
+      replayCount: localBehaviors.replayCount,
+      wasRevealed: localBehaviors.wasRevealed,
+      timeSpent,
+    });
+
+    // Reset local behaviors for next line
+    setLocalBehaviors({
+      replayCount: 0,
+      wasRevealed: false,
+      startTime: Date.now(),
+    });
+
+    // Trigger re-render
+    triggerUpdate();
+  }, [tracker, localBehaviors, triggerUpdate]);
+
+  // Get words needing attention
+  const getWordsNeedingAttention = useCallback((): WordTracking[] => {
+    if (!tracker) return [];
+    return tracker.getWordsNeedingAttention();
+  }, [tracker, updateTrigger]); // Include updateTrigger to force recalculation
+
+  // Dismiss word (false positive)
+  const dismissWord = useCallback((word: string) => {
+    if (!tracker) return;
+    tracker.dismissWord(word);
+    triggerUpdate();
+  }, [tracker, triggerUpdate]);
+
+  // Confirm word (is difficult)
+  const confirmWord = useCallback((word: string) => {
+    if (!tracker) return;
+    tracker.confirmWord(word);
+    triggerUpdate();
+  }, [tracker, triggerUpdate]);
+
+  // Restore dismissed word
+  const restoreWord = useCallback((word: string) => {
+    if (!tracker) return;
+    tracker.restoreWord(word);
+    triggerUpdate();
+  }, [tracker, triggerUpdate]);
+
+  // Compute error stats from all tracked words
+  const errorStats = useMemo((): ErrorStats => {
+    if (!tracker) {
+      return {
+        correct: 0,
+        omission: 0,
+        spelling: 0,
+        wrong_word: 0,
+        insertion: 0,
+        ending_sound: 0,
+        morphology: 0,
+      };
     }
 
-    setCurrentSessionIndex(sessionIndex);
-    const newWordTracking = new Map<string, WordTracking>();
+    const allWords = tracker.getAllStats();
+    const stats: ErrorStats = {
+      correct: 0,
+      omission: 0,
+      spelling: 0,
+      wrong_word: 0,
+      insertion: 0,
+      ending_sound: 0,
+      morphology: 0,
+    };
 
-    diffResult.original.forEach((segment) => {
-      if ((segment.type === 'missing' || segment.type === 'incorrect') && !segment.text.match(/\s+/)) {
-        const word = segment.text.trim().toLowerCase();
-        if (!word) return;
-
-        const baseScore = sentenceScoreRef.current;
-        const errorScore = segment.type === 'missing' ? SCORE.MISSING : SCORE.ERROR;
-        const totalScore = baseScore + errorScore;
-
-        newWordTracking.set(word, {
-          word,
-          score: totalScore,
-          errorTypes: [...diffResult.errorTypes],
-        });
-
-        if (totalScore >= ATTENTION_THRESHOLD) {
-          setNeedAttentionWords(prev => new Map(prev).set(word, {
-            word,
-            score: totalScore,
-            errorTypes: [...diffResult.errorTypes],
-          }));
-        }
-      }
-    });
-
-    setCurrentSession({ wordTracking: newWordTracking });
-
-    setErrorStats(prev => {
-      const next = { ...prev };
-      diffResult.errorTypes.forEach(type => {
-        if (type in next) next[type as keyof ErrorStats]++;
-      });
-
-      const correctCount = diffResult.original.filter(s => 
-        s.type === 'correct' && !s.text.match(/\s+/)
-      ).length;
-      next.correct += correctCount;
-
-      return next;
-    });
-
-    sentenceScoreRef.current = 0;
-    persistData();
-  }, [currentSessionIndex, currentSession, persistData]);
-
-
-  const onResubmit = useCallback((diffResult: DiffResult) => {
-    setCurrentSession(prev => {
-      const updatedWords = new Map(prev.wordTracking);
-
-      diffResult.original.forEach((segment) => {
-        if ((segment.type === 'missing' || segment.type === 'incorrect') && !segment.text.match(/\s+/)) {
-          const word = segment.text.trim().toLowerCase();
-          const existing = updatedWords.get(word);
-
-          if (existing) {
-            const newScore = existing.score + SCORE.RESUBMIT;
-            existing.score = newScore;
-
-            if (newScore >= ATTENTION_THRESHOLD) {
-              setNeedAttentionWords(prevNeed => new Map(prevNeed).set(word, existing));
-            }
-          }
+    allWords.forEach(word => {
+      Object.entries(word.errorBreakdown).forEach(([type, breakdown]) => {
+        if (type === 'substitution') {
+          stats.wrong_word += breakdown.count;
+        } else if (type in stats) {
+          stats[type as keyof ErrorStats] += breakdown.count;
         }
       });
 
-      return { wordTracking: updatedWords };
+      // Count correct occurrences (total - errors)
+      const totalErrors = Object.values(word.errorBreakdown)
+        .reduce((sum, b) => sum + b.count, 0);
+      stats.correct += Math.max(0, word.totalOccurrences - totalErrors);
     });
 
-    setErrorStats(prev => {
-      const next = { ...prev };
-      diffResult.errorTypes.forEach(type => {
-        if (type in next) next[type as keyof ErrorStats]++;
-      });
-      return next;
-    });
+    return stats;
+  }, [tracker, updateTrigger]);
 
-    persistData();
-  }, [persistData]);
-
-
-  const getWordsNeedingAttention = useCallback(() => {
-    const words: Array<{ word: string; score: number; errorTypes: string[] }> = [];
-
-    currentSession.wordTracking.forEach((tracking) => {
-      if (tracking.score >= ATTENTION_THRESHOLD) {
-        words.push(tracking);
-      }
-    });
-
-    return words;
-  }, [currentSession]);
-
-
-  const confirmWord = useCallback((word: string, isHard: boolean) => {
-    if (!isHard) {
-      setCurrentSession(prev => {
-        const updated = new Map(prev.wordTracking);
-        const existing = updated.get(word);
-        if (existing) {
-          existing.score = 0;
-        }
-        return { wordTracking: updated };
-      });
-
-      setNeedAttentionWords(prev => {
-        const updated = new Map(prev);
-        updated.delete(word);
-        return updated;
-      });
-    }
-    persistData();
-  }, [persistData]);
-
-
-  const shouldShowChart = useCallback((sessionIndex: number) => {
-    return (sessionIndex + 1) % 10 === 0;
+  // Show chart every 10 lines
+  const shouldShowChart = useCallback((lineIndex: number) => {
+    return (lineIndex + 1) % 10 === 0;
   }, []);
 
   return {
     onReplay,
     onReveal,
-    onFirstSubmit,
-    onResubmit,
+    onSubmit,
     getWordsNeedingAttention,
+    dismissWord,
     confirmWord,
-    needAttentionWords: Array.from(needAttentionWords.values()),
+    restoreWord,
     errorStats,
     shouldShowChart,
-    currentSessionIndex,
   };
 };

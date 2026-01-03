@@ -1,13 +1,15 @@
-// src/features/learning/components/shadowing/ShadowingAnalysis.tsx
+// src/features/learning/components/shadowing/ShadowingAnalysis.tsx (UPDATED)
 
 "use client";
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icons';
 import { Progress } from '@/components/ui/progress';
+import { InteractiveBubblePanel } from './InteractiveBubblePanel';
+import type { WordTracking } from '@/features/learning/services/smart-error-tracker';
 
 export interface ErrorStats {
   correct: number;
@@ -16,18 +18,14 @@ export interface ErrorStats {
   wrong_word: number;
   insertion: number;
   ending_sound: number;
-}
-
-export interface WordNeedingAttention {
-  word: string;
-  score: number;
-  errorTypes: string[];
+  morphology?: number;
 }
 
 interface ShadowingAnalysisProps {
   errorStats: ErrorStats;
-  wordsNeedingAttention: WordNeedingAttention[];
-  onConfirmWord?: (word: string, isHard: boolean) => void;
+  wordsNeedingAttention: WordTracking[];
+  onConfirmWord?: (word: string) => void;
+  onDismissWord?: (word: string) => void;
   showChart?: boolean;
   progressPercentage?: number;
   completedLinesCount?: number;
@@ -35,14 +33,15 @@ interface ShadowingAnalysisProps {
   isShadowingMode?: boolean;
 }
 
-// DETAILED COLOR SYSTEM for Analysis
+// Chart colors
 const COLORS: { [key: string]: string } = {
-  correct: '#22c55e',      // Green - Correct words
-  wrong_word: '#ef4444',   // Red - Wrong word choice
-  spelling: '#f97316',     // Orange - Spelling errors
-  ending_sound: '#ec4899', // Pink - Ending sound errors
-  omission: '#eab308',     // Yellow - Missing words
-  insertion: '#3b82f6',    // Blue - Extra words
+  correct: '#22c55e',
+  wrong_word: '#ef4444',
+  spelling: '#f97316',
+  ending_sound: '#ec4899',
+  omission: '#eab308',
+  insertion: '#3b82f6',
+  morphology: '#a855f7',
 };
 
 const LABELS: { [key: string]: string } = {
@@ -52,22 +51,14 @@ const LABELS: { [key: string]: string } = {
   ending_sound: 'Ending Sound',
   omission: 'Omission',
   insertion: 'Insertion',
-};
-
-// DETAILED COLOR SYSTEM for word stickers
-const ERROR_TYPE_COLORS: { [key: string]: string } = {
-  wrong_word: '#ef4444',   // Red
-  spelling: '#f97316',     // Orange
-  ending_sound: '#ec4899', // Pink
-  omission: '#eab308',     // Yellow
-  insertion: '#3b82f6',    // Blue
-  unknown: '#64748b',
+  morphology: 'Morphology',
 };
 
 export const ShadowingAnalysis: React.FC<ShadowingAnalysisProps> = ({
   errorStats,
   wordsNeedingAttention,
   onConfirmWord,
+  onDismissWord,
   showChart = false,
   progressPercentage = 0,
   completedLinesCount = 0,
@@ -75,46 +66,12 @@ export const ShadowingAnalysis: React.FC<ShadowingAnalysisProps> = ({
   isShadowingMode = false,
 }) => {
   const { t } = useTranslation('learningPage');
-  const [wordPositions, setWordPositions] = useState<{[key: string]: {top: number, left: number}}>({});
 
   const chartData = useMemo(() => {
     return Object.entries(errorStats)
       .map(([name, value]) => ({ name: LABELS[name] || name, value }))
       .filter(entry => entry.value > 0);
   }, [errorStats]);
-
-  // Generate non-overlapping positions for words
-  useEffect(() => {
-    const positions: {[key: string]: {top: number, left: number}} = {};
-    const usedPositions: {top: number, left: number}[] = [];
-    
-    wordsNeedingAttention.forEach((item, index) => {
-      let attempts = 0;
-      let position: {top: number, left: number} = {top: 0, left: 0};
-      
-      // Try to find a non-overlapping position
-      do {
-        position = {
-          top: Math.random() * 60 + 20, // 20% to 80%
-          left: Math.random() * 60 + 20, // 20% to 80%
-        };
-        attempts++;
-        
-        // Check if this position overlaps with any existing position
-        const isOverlapping = usedPositions.some(used => 
-          Math.abs(used.top - position.top) < 15 && 
-          Math.abs(used.left - position.left) < 15
-        );
-        
-        if (!isOverlapping || attempts > 50) break;
-      } while (attempts < 50);
-      
-      positions[item.word] = position;
-      usedPositions.push(position);
-    });
-    
-    setWordPositions(positions);
-  }, [wordsNeedingAttention]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -129,24 +86,14 @@ export const ShadowingAnalysis: React.FC<ShadowingAnalysisProps> = ({
 
   const hasData = chartData.length > 0;
 
-  const getPrimaryErrorType = (errorTypes: string[]): string => {
-    if (errorTypes.includes('wrong_word')) return 'wrong_word';
-    if (errorTypes.includes('spelling')) return 'spelling';
-    if (errorTypes.includes('ending_sound')) return 'ending_sound';
-    if (errorTypes.includes('omission')) return 'omission';
-    if (errorTypes.includes('insertion')) return 'insertion';
-    return 'unknown';
-  };
-
   return (
     <Card className="flex flex-col h-full">
-      {/* Compact Header with Progress Bar */}
+      {/* Compact Header with Progress */}
       <CardHeader className="pb-3 space-y-3">
         <CardTitle className="font-headline text-lg">
           {t('shadowing.analysisTitle')}
         </CardTitle>
         
-        {/* Progress Bar moved from middle column */}
         {isShadowingMode && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
@@ -166,6 +113,7 @@ export const ShadowingAnalysis: React.FC<ShadowingAnalysisProps> = ({
 
       <CardContent className="flex-1 min-h-0 pb-4">
         {showChart && hasData ? (
+          /* Chart Mode (every 10 lines) */
           <div className="h-full min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -200,56 +148,20 @@ export const ShadowingAnalysis: React.FC<ShadowingAnalysisProps> = ({
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="h-full min-h-[200px] border-2 border-dashed border-border rounded-lg flex items-center justify-center text-center text-muted-foreground p-4 relative">
+          /* Interactive Bubble Mode (default) */
+          <div className="h-full min-h-[200px]">
             {wordsNeedingAttention.length > 0 ? (
-              <>
-                {wordsNeedingAttention.map((item) => {
-                  const position = wordPositions[item.word];
-                  const primaryErrorType = getPrimaryErrorType(item.errorTypes);
-                  const color = ERROR_TYPE_COLORS[primaryErrorType] || ERROR_TYPE_COLORS.unknown;
-
-                  return position ? (
-                    <div
-                      key={item.word}
-                      className="absolute inline-flex items-center gap-2 px-3 py-2 rounded-md shadow-lg border-2 backdrop-blur-sm z-10"
-                      style={{
-                        top: `${position.top}%`,
-                        left: `${position.left}%`,
-                        backgroundColor: `${color}20`,
-                        borderColor: color,
-                        transform: 'translate(-50%, -50%)',
-                        maxWidth: 'fit-content',
-                      }}
-                    >
-                      <span 
-                        className="font-semibold text-sm whitespace-nowrap"
-                        style={{ color }}
-                      >
-                        {item.word}
-                      </span>
-                      
-                      <button
-                        onClick={() => onConfirmWord?.(item.word, false)}
-                        className="text-xs hover:scale-110 transition-transform flex-shrink-0 p-1 rounded bg-gray-100 hover:bg-gray-200"
-                        title="No, remove this word"
-                      >
-                        🗑️
-                      </button>
-                      <button
-                        onClick={() => onConfirmWord?.(item.word, true)}
-                        className="text-xs hover:scale-110 transition-transform flex-shrink-0 p-1 rounded bg-gray-100 hover:bg-gray-200"
-                        title="Yes, this is difficult"
-                      >
-                        😢
-                      </button>
-                    </div>
-                  ) : null;
-                })}
-              </>
+              <InteractiveBubblePanel
+                words={wordsNeedingAttention}
+                onDismiss={onDismissWord || (() => {})}
+                onConfirm={onConfirmWord || (() => {})}
+              />
             ) : (
-              <div>
-                <Icon name="BrainCircuit" className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p>{t('shadowing.analysisComingSoon')}</p>
+              <div className="h-full flex items-center justify-center text-center">
+                <div>
+                  <Icon name="BrainCircuit" className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-muted-foreground">{t('shadowing.analysisComingSoon')}</p>
+                </div>
               </div>
             )}
           </div>

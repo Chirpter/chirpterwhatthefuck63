@@ -1,4 +1,4 @@
-// src/features/learning/components/shadowing/ShadowingView.tsx
+// src/features/learning/components/shadowing/ShadowingView.tsx (REFACTORED)
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -32,7 +32,6 @@ import { ShadowingPlayer, type ShadowingPlayerHandle } from './ShadowingPlayer';
 import { VideoBasedLayout } from '../layout/VideoBasedLayout';
 import { ApiServiceError } from '@/lib/errors';
 
-
 const getVideoIdFromUrl = (url: string): string | null => {
   if (!url) return null;
   try {
@@ -44,7 +43,6 @@ const getVideoIdFromUrl = (url: string): string | null => {
       return urlObj.searchParams.get('v');
     }
   } catch (e) {
-    // Handle cases where the input is just the video ID
     if (url.length === 11 && !url.includes(' ')) {
       return url;
     }
@@ -52,7 +50,6 @@ const getVideoIdFromUrl = (url: string): string | null => {
   }
   return null;
 };
-
 
 export default function ShadowingView() {
   const { t } = useTranslation(['learningPage', 'common', 'toast']);
@@ -66,7 +63,7 @@ export default function ShadowingView() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isShadowingMode, setIsShadowingMode] = useState(false);
-  const [completedLinesCount, setCompletedLinesCount] = useState(0);
+  const [submittedLines, setSubmittedLines] = useState<Set<number>>(new Set());
   const [correctlyCompletedLines, setCorrectlyCompletedLines] = useState<Set<number>>(new Set());
   const [currentPlayingLine, setCurrentPlayingLine] = useState<number | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
@@ -76,13 +73,14 @@ export default function ShadowingView() {
 
   const videoId = useMemo(() => getVideoIdFromUrl(urlInput), [urlInput]);
 
+  // ✨ NEW: Use refactored tracking hook
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
   const clearCacheForVideo = useCallback((id: string) => {
     localStorage.removeItem(`shadowing-transcript-${id}`);
     localStorage.removeItem(`shadowing-progress-${id}`);
-    // The tracking hook will clear its own data based on videoId change
+    localStorage.removeItem(`error-tracking-${id}`);
   }, []);
   
   const loadVideo = useCallback(async (url: string) => {
@@ -94,7 +92,6 @@ export default function ShadowingView() {
       return;
     }
     
-    // Clear old video cache before fetching new
     if (videoId && videoId !== newVideoId) {
       clearCacheForVideo(videoId);
     }
@@ -105,7 +102,7 @@ export default function ShadowingView() {
     setIsShadowingMode(false);
     setCurrentPlayingLine(null);
     setIsVideoPlaying(false);
-    setCompletedLinesCount(0);
+    setSubmittedLines(new Set());
     setCorrectlyCompletedLines(new Set());
     setOpenBoxIndex(0);
 
@@ -132,7 +129,7 @@ export default function ShadowingView() {
     }
   }, [user, toast, videoId, clearCacheForVideo]);
 
-  // Load from cache on initial mount
+  // Load from cache on mount
   useEffect(() => {
     const lastVideoUrl = localStorage.getItem('shadowing-last-url');
     if (lastVideoUrl) {
@@ -161,13 +158,12 @@ export default function ShadowingView() {
     loadVideo(url);
   }, [urlInput, loadVideo]);
 
-  // Update progress cache whenever it changes
+  // Progress persistence
   useEffect(() => {
     if (!videoId) return;
     localStorage.setItem(`shadowing-progress-${videoId}`, JSON.stringify(progress));
   }, [progress, videoId]);
 
-  // Load progress from cache
   useEffect(() => {
     if (!videoId) {
       setProgress([]);
@@ -182,15 +178,14 @@ export default function ShadowingView() {
     }
   }, [videoId]);
 
-
-  // Restore progress on load
+  // Restore progress
   useEffect(() => {
     if (transcriptResult && progress.length > 0) {
-      setCompletedLinesCount(progress.length);
+      setSubmittedLines(new Set(progress));
       setCorrectlyCompletedLines(new Set(progress));
       setOpenBoxIndex(progress.length);
     } else if (transcriptResult) {
-      setCompletedLinesCount(0);
+      setSubmittedLines(new Set());
       setCorrectlyCompletedLines(new Set());
       setOpenBoxIndex(0);
     }
@@ -208,34 +203,36 @@ export default function ShadowingView() {
     if (currentPlayingLine === lineIndex && isVideoPlaying) {
       playerRef.current?.pause();
     } else {
-      tracking.onReplay();
       handlePlaySnippet(start, end, lineIndex);
     }
-  }, [currentPlayingLine, isVideoPlaying, handlePlaySnippet, tracking]);
+  }, [currentPlayingLine, isVideoPlaying, handlePlaySnippet]);
 
   const handleReveal = useCallback(() => tracking.onReveal(), [tracking]);
   const handleVideoEnd = useCallback(() => setCurrentPlayingLine(null), []);
   const handleVideoPlay = useCallback(() => setIsVideoPlaying(true), []);
   const handleVideoPause = useCallback(() => setIsVideoPlaying(false), []);
 
+  // ✨ IMPROVED: Progressive unlock - any submission unlocks next
   const handleLineComplete = useCallback((isCorrect: boolean, result: ShadowingResult) => {
     const { lineIndex } = result;
     
-    if (lineIndex === tracking.currentSessionIndex) {
-      tracking.onResubmit(result);
-    } else {
-      tracking.onFirstSubmit(result, lineIndex);
+    // Track with new system
+    if (transcriptResult) {
+      tracking.onSubmit(result, lineIndex, transcriptResult.transcript[lineIndex].text);
     }
     
+    // Mark as submitted
+    setSubmittedLines(prev => new Set(prev).add(lineIndex));
+    
+    // Track correct completions
     if (isCorrect) {
-      setProgress(prev => Array.from(new Set([...prev, lineIndex])).sort((a,b) => a-b));
+      setProgress(prev => Array.from(new Set([...prev, lineIndex])).sort((a, b) => a - b));
       setCorrectlyCompletedLines(prev => new Set(prev).add(lineIndex));
-      setCompletedLinesCount(prev => Math.max(prev, lineIndex + 1));
     }
     
-    setOpenBoxIndex(isCorrect ? lineIndex + 1 : lineIndex);
-  }, [tracking]);
-
+    // ✨ NEW: Always unlock next box (progressive flow)
+    setOpenBoxIndex(lineIndex + 1);
+  }, [tracking, transcriptResult]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,6 +240,8 @@ export default function ShadowingView() {
   };
 
   const wordsToDisplay = useMemo(() => tracking.getWordsNeedingAttention(), [tracking]);
+  
+  const completedLinesCount = submittedLines.size;
   const progressPercentage = transcriptResult 
     ? Math.round((completedLinesCount / transcriptResult.transcript.length) * 100) 
     : 0;
@@ -313,8 +312,9 @@ export default function ShadowingView() {
   );
 
   const renderContentPanel = () => {
+    // ✨ IMPROVED: Show up to next unlocked line
     const listToRender = isShadowingMode && transcriptResult 
-      ? transcriptResult.transcript.slice(0, completedLinesCount + 1) 
+      ? transcriptResult.transcript.slice(0, Math.max(completedLinesCount + 1, 1))
       : transcriptResult?.transcript || [];
 
     return (
@@ -409,7 +409,8 @@ export default function ShadowingView() {
                       key={index} 
                       className={cn(
                         'transition-all duration-200 bg-card',
-                        currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50'
+                        currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50',
+                        correctlyCompletedLines.has(index) && 'border-green-300/50 dark:border-green-700/50'
                       )}
                     >
                       <CardContent className="p-3">
@@ -421,12 +422,14 @@ export default function ShadowingView() {
                           onComplete={(isCorrect, res) => handleLineComplete(isCorrect, { ...res, lineIndex: index })} 
                           isCorrect={correctlyCompletedLines.has(index)} 
                           onPlay={() => handleBoxPlay(line.start, line.end, index)} 
-                          onReveal={handleReveal} 
+                          onReveal={handleReveal}
+                          onReplay={tracking.onReplay}
                           isPlaying={currentPlayingLine === index && isVideoPlaying} 
                           mode={isShadowingMode ? "shadowing" : "normal"} 
                           isOpen={openBoxIndex === index} 
                           onToggleOpen={(isOpen) => setOpenBoxIndex(isOpen ? index : null)} 
-                          disabled={isShadowingMode && index < completedLinesCount && correctlyCompletedLines.has(index)}
+                          disabled={isShadowingMode && submittedLines.has(index) && correctlyCompletedLines.has(index)}
+                          lineIndex={index}
                         />
                       </CardContent>
                     </Card>
@@ -469,7 +472,8 @@ export default function ShadowingView() {
         <ShadowingAnalysis 
           errorStats={tracking.errorStats} 
           wordsNeedingAttention={wordsToDisplay} 
-          onConfirmWord={tracking.confirmWord} 
+          onConfirmWord={tracking.confirmWord}
+          onDismissWord={tracking.dismissWord}
           showChart={tracking.shouldShowChart(openBoxIndex || 0)} 
           progressPercentage={progressPercentage} 
           completedLinesCount={completedLinesCount} 

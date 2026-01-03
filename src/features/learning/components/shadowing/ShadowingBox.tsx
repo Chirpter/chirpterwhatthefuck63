@@ -1,4 +1,4 @@
-// src/features/learning/components/shadowing/ShadowingBox.tsx
+// src/features/learning/components/shadowing/ShadowingBox.tsx (ENHANCED)
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,8 +11,7 @@ import { getDiff, type DiffSegment } from '@/features/learning/services/diff-ser
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useToast } from '@/hooks/useToast';
 import WordBlockRenderer from './WordBlockRenderer';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export interface ShadowingResult {
     isMatch: boolean;
@@ -31,11 +30,13 @@ interface ShadowingBoxProps {
     isCorrect: boolean;
     onPlay: () => void;
     onReveal?: () => void;
+    onReplay?: () => void;
     isPlaying?: boolean;
     mode: 'normal' | 'shadowing';
     isOpen: boolean;
     onToggleOpen: (isOpen: boolean) => void;
     disabled?: boolean;
+    lineIndex: number;
 }
 
 export function ShadowingBox({ 
@@ -47,11 +48,13 @@ export function ShadowingBox({
     isCorrect, 
     onPlay,
     onReveal,
+    onReplay,
     isPlaying = false,
     mode = 'normal',
     isOpen,
     onToggleOpen,
     disabled = false,
+    lineIndex,
 }: ShadowingBoxProps) {
     const { t } = useTranslation(['learningPage']);
     const { toast } = useToast();
@@ -97,7 +100,7 @@ export function ShadowingBox({
             const result = getDiff(line, userInput, { checkMode });
             setDiffResult(result);
             setIsRevealed(false);
-            onComplete(result.isMatch, { ...result, lineIndex: 0 });
+            onComplete(result.isMatch, { ...result, lineIndex });
 
         } catch (error) {
             toast({
@@ -108,7 +111,7 @@ export function ShadowingBox({
         } finally {
             setIsChecking(false);
         }
-    }, [line, userInput, checkMode, onComplete, toast, disabled]);
+    }, [line, userInput, checkMode, onComplete, toast, disabled, lineIndex]);
 
     const handleEdit = useCallback(() => {
         if (disabled) return;
@@ -123,6 +126,13 @@ export function ShadowingBox({
             onReveal();
         }
     }, [isRevealed, onReveal, disabled]);
+
+    const handlePlayClick = useCallback(() => {
+        onPlay();
+        if (onReplay) {
+            onReplay();
+        }
+    }, [onPlay, onReplay]);
 
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
@@ -142,18 +152,27 @@ export function ShadowingBox({
 
     const renderOriginalText = useMemo(() => {
         const textClasses = cn(
-            "w-full text-body-base leading-relaxed font-light",
+            "w-full text-body-base leading-relaxed font-light transition-all duration-300",
             hideMode === 'blur' && !isRevealed && !diffResult && "blur-sm select-none",
             hideMode === 'hidden' && !isRevealed && !diffResult && "invisible",
-            disabled && "line-through" // Strikethrough for completed items
+            // ✨ NEW: Subtle styling for completed boxes
+            disabled && isCorrect && "opacity-70",
+            disabled && !isCorrect && "opacity-60"
         );
         
         return (
             <div className={textClasses} aria-hidden={hideMode !== 'block' && !isRevealed && !diffResult}>
-                <WordBlockRenderer text={line} hideMode={hideMode} isRevealed={isRevealed || !!diffResult} diff={diffResult?.original} />
+                <WordBlockRenderer 
+                    text={line} 
+                    hideMode={hideMode} 
+                    isRevealed={isRevealed || !!diffResult} 
+                    diff={diffResult?.original}
+                    // ✨ NEW: Show correct state
+                    showCorrect={disabled && isCorrect}
+                />
             </div>
         )
-    }, [line, hideMode, isRevealed, diffResult, disabled]);
+    }, [line, hideMode, isRevealed, diffResult, disabled, isCorrect]);
 
     const handleMicClick = useCallback(() => {
         if (disabled) return;
@@ -176,7 +195,7 @@ export function ShadowingBox({
                     <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={onPlay}
+                        onClick={handlePlayClick}
                         className={cn(
                             "h-7 w-7 transition-colors",
                             isPlaying 
@@ -196,51 +215,63 @@ export function ShadowingBox({
 
     // Main shadowing mode render
     return (
-        <div className={cn("w-full", disabled && "opacity-70")}>
+        <div className={cn(
+            "w-full transition-all duration-300",
+            disabled && "pointer-events-none",
+        )}>
             <div className="grid grid-cols-[40px_1fr] gap-3 items-start">
                 <div className="flex flex-col items-center space-y-2">
                     <div className="text-xs font-mono text-primary">{formatTime(startTime)}</div>
                     <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={onPlay}
+                        onClick={handlePlayClick}
                         disabled={disabled}
                         className={cn(
                             "h-7 w-7 transition-colors",
                             isPlaying 
                                 ? "text-red-600 bg-red-50" 
                                 : "text-foreground hover:text-red-600",
-                            disabled && "cursor-not-allowed"
+                            disabled && "opacity-50"
                         )}
                     >
                         <Icon name={isPlaying ? "Pause" : "Play"} className="h-4 w-4" />
                     </Button>
+                    {/* ✨ NEW: Visual feedback for correct completion */}
                     {isCorrect && (
-                        <Icon name="Check" className="h-5 w-5 text-green-500" />
+                        <div className="relative">
+                            <Icon name="Check" className="h-5 w-5 text-green-500 animate-in zoom-in-50 duration-300" />
+                            <div className="absolute inset-0 rounded-full bg-green-500/20 blur-sm -z-10 animate-pulse" />
+                        </div>
                     )}
                 </div>
 
                 <div className="relative group/shadowing-box">
                     {renderOriginalText}
                     
-                    <div className="absolute top-0 right-0 opacity-0 group-hover/shadowing-box:opacity-100 transition-opacity">
-                        <Button
-                            variant="ghost" 
-                            size="icon"
-                            onClick={handleRevealClick}
-                            disabled={disabled}
-                            className="h-7 w-7"
-                            aria-label={isRevealed ? t('shadowing.hideText') : t('shadowing.showText')}
-                        >
-                            <Icon name="Eye" className="h-4 w-4" />
-                        </Button>
-                    </div>
+                    {!disabled && (
+                        <div className="absolute top-0 right-0 opacity-0 group-hover/shadowing-box:opacity-100 transition-opacity">
+                            <Button
+                                variant="ghost" 
+                                size="icon"
+                                onClick={handleRevealClick}
+                                className="h-7 w-7"
+                                aria-label={isRevealed ? t('shadowing.hideText') : t('shadowing.showText')}
+                            >
+                                <Icon name="Eye" className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* ✨ IMPROVED: Collapsible với disabled state rõ ràng hơn */}
             <Collapsible open={isOpen && !disabled} onOpenChange={onToggleOpen} className="w-full mt-3">
                 <div className="flex w-full items-center">
-                    <div className="h-px flex-grow border-b border-dashed border-border mr-2"></div>
+                    <div className={cn(
+                        "h-px flex-grow border-b border-dashed mr-2 transition-colors",
+                        disabled ? "border-green-300 dark:border-green-800" : "border-border"
+                    )}></div>
                     {!disabled && (
                         <CollapsibleTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -268,13 +299,12 @@ export function ShadowingBox({
                                         variant="ghost"
                                         size="icon"
                                         onClick={handleMicClick}
-                                        disabled={!isSupported || disabled}
+                                        disabled={!isSupported}
                                         className={cn(
                                             "h-7 w-7 transition-colors",
                                             isListening 
                                                 ? "text-red-600 bg-red-50 animate-pulse" 
-                                                : "text-foreground hover:text-red-600",
-                                            disabled && "opacity-50 cursor-not-allowed"
+                                                : "text-foreground hover:text-red-600"
                                         )}
                                         title={!isSupported ? "Speech recognition not supported" : isListening ? "Stop listening" : "Start speaking"}
                                     >
@@ -290,7 +320,7 @@ export function ShadowingBox({
                                                 ? "text-foreground hover:text-red-600" 
                                                 : "text-muted-foreground opacity-50 cursor-not-allowed"
                                         )}
-                                        disabled={!userInput.trim() || isChecking || disabled}
+                                        disabled={!userInput.trim() || isChecking}
                                         title={userInput.trim() ? "Check your answer (Ctrl+Enter)" : "Enter text to check"}
                                     >
                                         {isChecking ? (
@@ -305,7 +335,6 @@ export function ShadowingBox({
                                     variant="ghost" 
                                     size="icon" 
                                     onClick={handleEdit}
-                                    disabled={disabled}
                                     className="h-7 w-7 text-foreground hover:text-red-600 transition-colors"
                                     title="Edit your answer (Esc)"
                                 >
@@ -317,8 +346,17 @@ export function ShadowingBox({
                         <div className="min-w-0">
                             {diffResult ? (
                                 <div className="space-y-2">
-                                    <div className="min-h-[80px] p-3 text-body-base leading-relaxed font-light border rounded-md bg-background overflow-auto whitespace-pre-wrap break-words">
-                                        <WordBlockRenderer text={userInput} diff={diffResult.user} hideMode="block" isRevealed={true}/>
+                                    <div className={cn(
+                                        "min-h-[80px] p-3 text-body-base leading-relaxed font-light border rounded-md bg-background overflow-auto whitespace-pre-wrap break-words transition-colors",
+                                        diffResult.errorTypes.length === 0 && "border-green-300 dark:border-green-700 bg-green-50/30 dark:bg-green-950/20"
+                                    )}>
+                                        <WordBlockRenderer 
+                                            text={userInput} 
+                                            diff={diffResult.user} 
+                                            hideMode="block" 
+                                            isRevealed={true}
+                                            showCorrect={diffResult.errorTypes.length === 0}
+                                        />
                                     </div>
                                 </div>
                             ) : (
@@ -328,7 +366,7 @@ export function ShadowingBox({
                                         onChange={(e) => setUserInput(e.target.value)}
                                         rows={3}
                                         placeholder={isListening ? "Listening... Speak now" : "Type or speak your shadowing..."}
-                                        disabled={isChecking || disabled}
+                                        disabled={isChecking}
                                         className="text-body-base leading-relaxed font-light pr-10 transition-colors resize-none"
                                         onKeyDown={(e) => {
                                             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -343,7 +381,6 @@ export function ShadowingBox({
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => setUserInput('')}
-                                            disabled={disabled}
                                             className="absolute right-2 top-2 h-6 w-6 opacity-60 hover:opacity-100 transition-opacity"
                                         >
                                             <Icon name="X" className="h-3 w-3" />
