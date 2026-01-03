@@ -167,6 +167,7 @@ export function ShadowingBox({
                     hideMode={hideMode} 
                     isRevealed={isRevealed || !!diffResult} 
                     diff={diffResult?.original}
+                    checkMode={checkMode}
                 />
             </div>
         )

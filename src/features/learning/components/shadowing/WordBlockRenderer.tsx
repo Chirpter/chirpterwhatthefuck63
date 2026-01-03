@@ -12,6 +12,7 @@ interface WordBlockRendererProps {
   isRevealed: boolean;
   diff?: DiffSegment[] | null;
   showCorrect?: boolean; // ✨ Deprecated - green always shown for consistency
+  checkMode?: 'strict' | 'gentle'; // ✨ NEW: Hide punctuation errors in gentle mode
 }
 
 // ✨ ENHANCED COLOR SYSTEM - Always show green for correct words in diff mode
@@ -35,7 +36,17 @@ const WordBlockRenderer: React.FC<WordBlockRendererProps> = ({
   isRevealed, 
   diff,
   showCorrect = false,
+  checkMode = 'gentle',
 }) => {
+  // ✨ Helper: Check if difference is only punctuation/capitalization
+  const isPunctuationOnly = (segment: DiffSegment): boolean => {
+    if (checkMode === 'strict') return false; // Strict mode shows all errors
+    
+    // Check if text is only punctuation/whitespace
+    const cleaned = segment.text.replace(/[.,!?;:'"\-—"""''`\s]/g, '');
+    return cleaned.length === 0;
+  };
+
   // If there's a diff result, show with color system
   if (diff) {
     return (
@@ -46,6 +57,12 @@ const WordBlockRenderer: React.FC<WordBlockRendererProps> = ({
           // Don't highlight whitespace
           if (isSpace) {
             return <span key={index}>{segment.text}</span>;
+          }
+
+          // ✨ GENTLE MODE: Don't highlight punctuation-only differences
+          if ((segment.type === 'incorrect' || segment.type === 'missing' || segment.type === 'extra') 
+              && isPunctuationOnly(segment)) {
+            return <span key={index} className="text-foreground">{segment.text}</span>;
           }
 
           // ✨ CONSISTENT: Always show green for correct words

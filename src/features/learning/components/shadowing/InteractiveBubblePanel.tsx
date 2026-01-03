@@ -111,7 +111,7 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
     return (
       <div className="h-full flex items-center justify-center text-center p-4">
         <div>
-          <Icon name="TrendingUp" className="h-10 w-10 mx-auto mb-2 opacity-50" />
+          <Icon name="BrainCircuit" className="h-10 w-10 mx-auto mb-2 opacity-50" />
           <p className="text-muted-foreground">
             No difficult words detected yet.
           </p>
@@ -254,7 +254,7 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
                   title="Click to restore"
                 >
                   {item.word}
-                  <Icon name="RotateCcw" className="h-3 w-3" />
+                  <Icon name="RotateCw" className="h-3 w-3" />
                 </button>
               ))}
             </div>
