@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { updateUserProfile } from '@/services/server/user-service';
 import { LANGUAGES } from '@/lib/constants';
 
 export default function SettingsView() {
-  const { t } = useTranslation(['settingsPage', 'common']);
+  const { t, i18n } = useTranslation(['settingsPage', 'common']);
   const { user, reloadUser } = useUser();
   const { toast } = useToast();
   
@@ -38,6 +38,10 @@ export default function SettingsView() {
         primaryLanguage,
         secondaryLanguage: secondaryLanguage === 'none' ? undefined : secondaryLanguage,
       });
+      // ✅ Also update the UI language immediately
+      if (i18n.language !== primaryLanguage) {
+        i18n.changeLanguage(primaryLanguage);
+      }
       await reloadUser();
       toast({ title: t('common:success'), description: t('saveSuccessToast') });
     } catch (error) {

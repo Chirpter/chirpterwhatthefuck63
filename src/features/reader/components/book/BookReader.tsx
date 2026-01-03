@@ -10,6 +10,7 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
 import type { Book, LibraryItem, VocabContext, Segment, LanguageBlock, MultilingualContent } from '@/lib/types';
+import { useUser } from '@/contexts/user-context'; // ✅ Import useUser
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
@@ -45,6 +46,7 @@ export default function BookReader({ book }: { book: Book }) {
   const audioPlayer = useAudioPlayer();
   const { wordLookupEnabled } = useSettings();
   const isMobile = useMobile();
+  const { user } = useUser(); // ✅ Get user object
 
   const [editorSettings, setEditorSettings] = useEditorSettings(book.id);
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
@@ -144,7 +146,7 @@ export default function BookReader({ book }: { book: Book }) {
 
   const handleTextSelection = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!wordLookupEnabled || !book) return;
+      if (!wordLookupEnabled || !book || !user) return;
       if (lookupState.isOpen) {
         setLookupState((s) => ({ ...s, isOpen: false }));
       }
@@ -175,8 +177,11 @@ export default function BookReader({ book }: { book: Book }) {
             sentenceContext = segmentElement.textContent || '';
           }
         }
+        
+        // ✅ Use user's primary language as the default target
+        const targetLanguage = user.primaryLanguage || i18n.language;
 
-        if (sourceLang === i18n.language) return;
+        if (sourceLang === targetLanguage) return;
 
         const currentChapterInfo = chapters?.[currentChapterIndex];
 
@@ -185,7 +190,7 @@ export default function BookReader({ book }: { book: Book }) {
           text: selectedText,
           rect,
           sourceLang,
-          targetLanguage: i18n.language,
+          targetLanguage: targetLanguage,
           sourceItem: book,
           chapterId: currentChapterInfo?.segmentId,
           segmentId,
@@ -196,7 +201,7 @@ export default function BookReader({ book }: { book: Book }) {
         setLookupState((s) => ({ ...s, isOpen: false }));
       }
     },
-    [wordLookupEnabled, book, i18n.language, currentChapterIndex, lookupState.isOpen, displayLang1, chapters]
+    [wordLookupEnabled, book, i18n.language, currentChapterIndex, lookupState.isOpen, displayLang1, chapters, user]
   );
 
   const handleDragEnd = (event: any, info: any) => {

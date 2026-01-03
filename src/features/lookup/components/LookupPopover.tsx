@@ -52,6 +52,7 @@ const LookupPopoverContent: React.FC<Omit<LookupPopoverProps, 'isOpen' | 'onOpen
   const [error, setError] = useState<string | null>(null);
 
   const handleTranslate = useCallback(async () => {
+    // ✅ FIX: Use targetLanguage from props, which defaults to user's primary language
     if (sourceLanguage === targetLanguage) {
       setTranslationResult({ translation: text }); // No translation needed
       return;

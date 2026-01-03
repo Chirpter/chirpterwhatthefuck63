@@ -20,13 +20,24 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '../ui/Logo';
 import { CreditIcon } from '../ui/CreditIcon';
 import { useTheme } from '@/hooks/useTheme';
+import { updateUserProfile } from '@/services/server/user-service';
+import { useToast } from '@/hooks/useToast';
 
 export default function AppHeader() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const { t, i18n } = useTranslation(['common', 'userMenu', 'playlist', 'settingsPage']);
+  const { t, i18n } = useTranslation(['common', 'userMenu', 'playlist', 'settingsPage', 'toast']);
   const { authUser, logout } = useAuth();
-  const { user } = useUser();
+  const { user, reloadUser } = useUser();
+  const { toast } = useToast();
   const { isDarkMode, toggleDarkMode } = useTheme();
+
+  // ✅ NEW: Synchronize UI language with user's primary language on load
+  useEffect(() => {
+    if (user?.primaryLanguage && user.primaryLanguage !== i18n.language) {
+      i18n.changeLanguage(user.primaryLanguage);
+    }
+  }, [user?.primaryLanguage, i18n]);
+
 
   // Set language attribute on body for potential CSS targeting
   useEffect(() => {
@@ -37,8 +48,23 @@ export default function AppHeader() {
     }
   }, [i18n.language]);
 
-  const setLanguage = (lang: string) => {
+  // ✅ UPDATED: setLanguage now also updates the user's profile
+  const setLanguage = async (lang: string) => {
+    if (!user) return;
     i18n.changeLanguage(lang);
+    try {
+      await updateUserProfile(user.uid, { primaryLanguage: lang });
+      await reloadUser();
+    } catch (error) {
+      console.error("[AppHeader] Failed to save language preference:", error);
+      toast({
+        title: t('common:error'),
+        description: t('toast:languageUpdateFailed'),
+        variant: 'destructive',
+      });
+      // Revert i18n language if the save fails
+      i18n.changeLanguage(user.primaryLanguage || 'en');
+    }
   };
   
   if (!authUser || !user) return null;

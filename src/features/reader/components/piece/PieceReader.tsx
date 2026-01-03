@@ -9,6 +9,7 @@ import { useEditorSettings } from '@/hooks/useEditorSettings';
 import { usePagination } from '@/features/reader/hooks/usePagination';
 import { cn } from '@/lib/utils';
 import type { Piece, LibraryItem, VocabContext } from '@/lib/types';
+import { useUser } from '@/contexts/user-context'; // ✅ Import useUser
 
 import { ReaderToolbar } from '../shared/ReaderToolbar';
 import { ContentPageRenderer } from '../shared/ContentPageRenderer';
@@ -61,6 +62,7 @@ export default function PieceReader({
   const [editorSettings, setEditorSettings] = useEditorSettings(piece?.id ?? null);
   const [isToolbarOpen, setIsToolbarOpen] = useState(false);
   const isMobile = useMobile();
+  const { user } = useUser(); // ✅ Get user object
 
   // Language display state
   const [displayLang1, setDisplayLang1] = useState(() => piece?.langs[0] || 'en');
@@ -105,7 +107,7 @@ export default function PieceReader({
 
   const handleTextSelection = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!wordLookupEnabled || isPreview || !piece) return;
+      if (!wordLookupEnabled || isPreview || !piece || !user) return; // ✅ Check for user
       if (lookupState.isOpen) {
         setLookupState((s) => ({ ...s, isOpen: false }));
       }
@@ -135,14 +137,17 @@ export default function PieceReader({
           }
         }
 
-        if (sourceLang === i18n.language) return;
+        // ✅ Use user's primary language as the default target
+        const targetLanguage = user.primaryLanguage || i18n.language;
+
+        if (sourceLang === targetLanguage) return;
 
         setLookupState({
           isOpen: true,
           text: selectedText,
           rect,
           sourceLang,
-          targetLanguage: i18n.language,
+          targetLanguage: targetLanguage,
           sourceItem: piece,
           sentenceContext,
           context: 'reader'
@@ -151,7 +156,7 @@ export default function PieceReader({
         setLookupState((s) => ({ ...s, isOpen: false }));
       }
     },
-    [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1, isPreview]
+    [wordLookupEnabled, piece, i18n.language, lookupState.isOpen, displayLang1, isPreview, user] // ✅ Add user to dependencies
   );
 
   const handleDragEnd = (event: any, info: any) => {
