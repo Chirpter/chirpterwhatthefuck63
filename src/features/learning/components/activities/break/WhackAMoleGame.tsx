@@ -13,6 +13,19 @@ const TOTAL_MOLES = 8;
 const MAX_ACTIVE_MOLES = 3;
 const MOLE_SPAWN_INTERVAL = 300;
 
+// ✅ NEW: Sound effect for whacking a mole
+const playWhackSound = () => {
+    try {
+        // Simple, free pop sound from a reliable source
+        const audio = new Audio('https://cdn.pixabay.com/audio/2021/08/04/audio_c6cc1ee972.mp3');
+        audio.volume = 0.5; // Adjust volume to not be too loud
+        audio.play().catch(e => console.error("Audio playback failed:", e));
+    } catch (error) {
+        console.error("Could not play sound:", error);
+    }
+};
+
+
 export const MoleGameIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <div className="relative w-full h-full">
         <Hole className="w-full h-full absolute top-0 left-0" />
@@ -160,24 +173,6 @@ const LiquidSplashEffect = () => {
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
         />
       </svg>
-
-      {/* Score popup with bounce */}
-      <motion.div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-amber-500 font-bold text-3xl pointer-events-none drop-shadow-lg"
-        initial={{ y: 0, opacity: 0, scale: 0.5 }}
-        animate={{ 
-          y: -40, 
-          opacity: [0, 1, 1, 0],
-          scale: [0.5, 1.2, 1, 1],
-        }}
-        transition={{ 
-          duration: 0.8, 
-          ease: [0.34, 1.56, 0.64, 1],
-          times: [0, 0.2, 0.4, 1]
-        }}
-      >
-        +1
-      </motion.div>
     </>
   );
 };
@@ -244,6 +239,7 @@ export default function WhackAMoleGame() {
     const whackMole = useCallback((index: number) => {
         if (!activeMoles.includes(index)) return;
         
+        playWhackSound(); // ✅ Play sound on successful whack
         setScore(prev => prev + 1);
         setActiveMoles(prev => prev.filter(h => h !== index));
         
@@ -331,3 +327,5 @@ export default function WhackAMoleGame() {
         </div>
     );
 }
+
+    
