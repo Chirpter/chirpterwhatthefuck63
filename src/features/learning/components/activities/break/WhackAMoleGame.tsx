@@ -27,30 +27,6 @@ const LiquidSplashEffect = () => {
   
   return (
     <>
-      {/* Main impact blob */}
-      <motion.div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        exit={{ scale: 0 }}
-      >
-        <motion.div
-          className="w-16 h-16 rounded-full"
-          style={{
-            background: `radial-gradient(circle, ${colors[2]} 0%, ${colors[1]} 50%, ${colors[0]} 100%)`,
-          }}
-          initial={{ scale: 0, opacity: 1 }}
-          animate={{ 
-            scale: [0, 1.5, 1.8, 0],
-            opacity: [1, 0.8, 0.6, 0],
-          }}
-          transition={{ 
-            duration: 0.6, 
-            ease: [0.34, 1.56, 0.64, 1] // Bouncy ease
-          }}
-        />
-      </motion.div>
-
       {/* Liquid droplets splashing outward */}
       {[...Array(12)].map((_, i) => {
         const angle = (i * Math.PI * 2) / 12;
@@ -313,5 +289,7 @@ export default function WhackAMoleGame() {
         </div>
     );
 }
+
+    
 
     
