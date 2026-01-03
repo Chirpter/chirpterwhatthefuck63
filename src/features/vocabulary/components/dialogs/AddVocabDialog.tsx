@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUser } from '@/contexts/user-context'; // Import useUser
+import { useUser } from '@/contexts/user-context';
 import { useToast } from '@/hooks/useToast';
 import type { VocabularyItem, VocabContext, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -40,8 +40,8 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
   initialFolder,
   context = 'manual'
 }) => {
-  const { user } = useUser(); // Use the app's user object, not authUser
-  const { t, i18n } = useTranslation(['vocabularyPage', 'common', 'toast']);
+  const { user } = useUser();
+  const { t } = useTranslation(['vocabularyPage', 'common', 'toast']);
   const { toast } = useToast();
   
   const [newVocabItem, setNewVocabItem] = useState({ 
@@ -49,8 +49,8 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
     meaning: '', 
     example: '', 
     folder: initialFolder || FOLDER_CONSTANTS.UNORGANIZED, 
-    termLanguage: i18n.language, 
-    meaningLanguage: i18n.language 
+    termLanguage: user?.secondaryLanguage && user.secondaryLanguage !== 'none' ? user.secondaryLanguage : 'en',
+    meaningLanguage: user?.primaryLanguage || 'vi',
   });
 
   const {
@@ -70,7 +70,6 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
       onOpenChange(false);
     },
     onSubmitError: (error: any) => {
-      // Error is now handled by the handleSubmit logic, just need to show a toast
       toast({
         title: "Error",
         description: isVocabularyError(error) ? error.message : "Failed to add vocabulary item",
@@ -90,12 +89,12 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
         meaning: '', 
         example: '', 
         folder: initialFolder || FOLDER_CONSTANTS.UNORGANIZED, 
-        termLanguage: i18n.language, 
-        meaningLanguage: i18n.language 
+        termLanguage: user?.secondaryLanguage && user.secondaryLanguage !== 'none' ? user.secondaryLanguage : 'en',
+        meaningLanguage: user?.primaryLanguage || 'vi',
       });
       resetForm();
     }
-  }, [isOpen, i18n.language, initialFolder, resetForm]);
+  }, [isOpen, user, initialFolder, resetForm]);
 
   const handleAddNewVocabItem = useCallback(async () => {
     if (!user) {
@@ -103,14 +102,12 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
       return;
     }
     
-    // The submitFn now just calls the onSuccess prop from the parent
     await handleSubmit({ ...newVocabItem }, (data) => {
         onSuccess({ ...data, context });
         return Promise.resolve();
     });
 
   }, [user, newVocabItem, context, handleSubmit, onSuccess, toast, t]);
-
 
   const handleDialogClose = useCallback((open: boolean) => {
     if (!isSubmitting) {
@@ -256,7 +253,7 @@ const AddVocabDialog: React.FC<AddVocabDialogProps> = ({
               {vocabValidation.error}
             </div>
           )}
-
+          
           {error && !vocabValidation.error && !folderValidation.error && (
             <div className="col-span-4 text-center text-sm text-destructive bg-destructive/10 p-2 rounded">
               {error}
