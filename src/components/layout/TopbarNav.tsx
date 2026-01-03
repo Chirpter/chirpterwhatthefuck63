@@ -24,10 +24,10 @@ export function TopbarNav() {
             variant="ghost"
             size="sm"
             className={cn(
-              "font-body text-sm text-foreground", // Always use default foreground color
+              "font-body text-sm",
               isActive 
-                ? "font-semibold bg-primary hover:bg-primary/90" 
-                : "hover:bg-secondary"
+                ? "font-semibold bg-accent text-accent-foreground hover:bg-accent/90" 
+                : "text-foreground hover:bg-secondary"
             )}
           >
             <Link href={link.href}>
