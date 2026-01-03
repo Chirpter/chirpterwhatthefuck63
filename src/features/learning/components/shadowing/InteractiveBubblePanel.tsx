@@ -111,8 +111,13 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
     return (
       <div className="h-full flex items-center justify-center text-center p-4">
         <div>
-          <Icon name="BrainCircuit" className="h-10 w-10 mx-auto mb-2 opacity-50" />
-          <p className="text-muted-foreground">{t('shadowing.analysisComingSoon')}</p>
+          <Icon name="TrendingUp" className="h-10 w-10 mx-auto mb-2 opacity-50" />
+          <p className="text-muted-foreground">
+            No difficult words detected yet.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Keep practicing - words will appear here as patterns emerge!
+          </p>
         </div>
       </div>
     );

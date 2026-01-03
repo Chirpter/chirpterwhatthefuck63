@@ -212,7 +212,7 @@ export default function ShadowingView() {
   const handleVideoPlay = useCallback(() => setIsVideoPlaying(true), []);
   const handleVideoPause = useCallback(() => setIsVideoPlaying(false), []);
 
-  // ✨ IMPROVED: Progressive unlock - any submission unlocks next
+  // ✨ IMPROVED: Smart progressive unlock
   const handleLineComplete = useCallback((isCorrect: boolean, result: ShadowingResult) => {
     const { lineIndex } = result;
     
@@ -230,9 +230,38 @@ export default function ShadowingView() {
       setCorrectlyCompletedLines(prev => new Set(prev).add(lineIndex));
     }
     
-    // ✨ NEW: Always unlock next box (progressive flow)
-    setOpenBoxIndex(lineIndex + 1);
+    // ✨ SMART UNLOCK: Check if can unlock next box
+    // Rules: 
+    // 1. Fully correct → unlock next
+    // 2. OR 80%+ correct words → unlock next
+    // 3. OR has correct words near end (last 30% of sentence) → unlock next
+    const shouldUnlock = isCorrect || calculateUnlockEligibility(result);
+    
+    if (shouldUnlock) {
+      setOpenBoxIndex(lineIndex + 1);
+    }
   }, [tracking, transcriptResult]);
+  
+  // Helper: Calculate if submission is good enough to unlock next box
+  const calculateUnlockEligibility = useCallback((result: ShadowingResult): boolean => {
+    const totalWords = result.original.filter(s => !s.text.match(/\s+/)).length;
+    const correctWords = result.original.filter(s => s.type === 'correct' && !s.text.match(/\s+/)).length;
+    
+    // Rule 1: 80%+ correct
+    const correctPercentage = totalWords > 0 ? (correctWords / totalWords) : 0;
+    if (correctPercentage >= 0.8) return true;
+    
+    // Rule 2: Has correct words in last 30% of sentence
+    const last30PercentIndex = Math.floor(totalWords * 0.7);
+    const wordsInLastSection = result.original
+      .filter(s => !s.text.match(/\s+/))
+      .slice(last30PercentIndex);
+    const hasCorrectAtEnd = wordsInLastSection.some(s => s.type === 'correct');
+    
+    if (hasCorrectAtEnd && correctPercentage >= 0.5) return true;
+    
+    return false;
+  }, []);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();

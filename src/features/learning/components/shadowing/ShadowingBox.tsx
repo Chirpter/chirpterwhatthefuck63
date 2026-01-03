@@ -167,8 +167,6 @@ export function ShadowingBox({
                     hideMode={hideMode} 
                     isRevealed={isRevealed || !!diffResult} 
                     diff={diffResult?.original}
-                    // ✨ NEW: Show correct state
-                    showCorrect={disabled && isCorrect}
                 />
             </div>
         )

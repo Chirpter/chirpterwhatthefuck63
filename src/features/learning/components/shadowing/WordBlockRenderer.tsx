@@ -11,15 +11,13 @@ interface WordBlockRendererProps {
   hideMode: 'block' | 'blur' | 'hidden';
   isRevealed: boolean;
   diff?: DiffSegment[] | null;
-  showCorrect?: boolean; // ✨ NEW: Show subtle green for all-correct
+  showCorrect?: boolean; // ✨ Deprecated - green always shown for consistency
 }
 
-// ✨ ENHANCED COLOR SYSTEM
+// ✨ ENHANCED COLOR SYSTEM - Always show green for correct words in diff mode
 const DIFF_COLORS = {
-  // Correct words - subtle green glow when showCorrect=true
-  correct: (showCorrect: boolean) => showCorrect 
-    ? 'relative px-0.5 text-foreground after:content-[""] after:absolute after:inset-0 after:bg-green-500/10 after:rounded-sm after:-z-10'
-    : 'text-foreground',
+  // Correct words - subtle green background (always, not just when showCorrect=true)
+  correct: 'bg-green-500/10 text-foreground rounded-sm px-0.5',
   
   // Wrong words (ALL incorrect types) - RED
   incorrect: 'bg-red-500/20 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-300/30 rounded-[4px] px-1 mx-0.5',
@@ -50,12 +48,12 @@ const WordBlockRenderer: React.FC<WordBlockRendererProps> = ({
             return <span key={index}>{segment.text}</span>;
           }
 
-          // ✨ ENHANCED: Show correct words with subtle green when all correct
+          // ✨ CONSISTENT: Always show green for correct words
           if (segment.type === 'correct') {
             return (
               <span
                 key={index}
-                className={cn(DIFF_COLORS.correct(showCorrect))}
+                className={DIFF_COLORS.correct}
               >
                 {segment.text}
               </span>
