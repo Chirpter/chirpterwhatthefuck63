@@ -39,10 +39,12 @@ export const useShadowingSettings = () => {
 
   // Auto-persist to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch (e) {
-      console.error('Failed to save settings', e);
+    if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        } catch (e) {
+          console.error('Failed to save settings', e);
+        }
     }
   }, [settings]);
 

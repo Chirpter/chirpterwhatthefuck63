@@ -44,6 +44,7 @@ const getVideoIdFromUrl = (url: string): string | null => {
       return urlObj.searchParams.get('v');
     }
   } catch (e) {
+    // Handle cases where the input is just the video ID
     if (url.length === 11 && !url.includes(' ')) {
       return url;
     }
@@ -58,7 +59,6 @@ export default function ShadowingView() {
   const { toast } = useToast();
   const { user } = useUser();
   
-  // ✅ REMOVED: useVideoHistory hook and related state
   const { hideMode, checkMode, setHideMode, setCheckMode } = useShadowingSettings();
 
   const [urlInput, setUrlInput] = useState('');
@@ -79,7 +79,12 @@ export default function ShadowingView() {
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
-  // ✅ REFACTORED: Simplified loadVideo without history or caching
+  const clearCacheForVideo = useCallback((id: string) => {
+    localStorage.removeItem(`shadowing-transcript-${id}`);
+    localStorage.removeItem(`shadowing-progress-${id}`);
+    // The tracking hook will clear its own data based on videoId change
+  }, []);
+  
   const loadVideo = useCallback(async (url: string) => {
     if (!user) return;
     
@@ -88,8 +93,12 @@ export default function ShadowingView() {
       setError('invalid_url');
       return;
     }
+    
+    // Clear old video cache before fetching new
+    if (videoId && videoId !== newVideoId) {
+      clearCacheForVideo(videoId);
+    }
 
-    // Reset state for new video
     setIsLoading(true);
     setError(null);
     setTranscriptResult(null);
@@ -107,6 +116,7 @@ export default function ShadowingView() {
       }
       
       setTranscriptResult(result);
+      localStorage.setItem(`shadowing-transcript-${newVideoId}`, JSON.stringify(result));
       
       toast({ 
         title: 'Transcript Loaded', 
@@ -120,9 +130,23 @@ export default function ShadowingView() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, videoId, clearCacheForVideo]);
 
-  // ✅ REFACTORED: Simplified fetch handler
+  // Load from cache on initial mount
+  useEffect(() => {
+    const lastVideoUrl = localStorage.getItem('shadowing-last-url');
+    if (lastVideoUrl) {
+      setUrlInput(lastVideoUrl);
+      const cachedVideoId = getVideoIdFromUrl(lastVideoUrl);
+      if (cachedVideoId) {
+        const cachedTranscript = localStorage.getItem(`shadowing-transcript-${cachedVideoId}`);
+        if (cachedTranscript) {
+          setTranscriptResult(JSON.parse(cachedTranscript));
+        }
+      }
+    }
+  }, []);
+
   const handleFetchTranscript = useCallback(() => {
     const url = urlInput.trim();
     if (!url) return;
@@ -133,12 +157,17 @@ export default function ShadowingView() {
       return;
     }
 
+    localStorage.setItem('shadowing-last-url', url);
     loadVideo(url);
   }, [urlInput, loadVideo]);
 
-  // ✅ REMOVED: useEffect for loading from history on mount
+  // Update progress cache whenever it changes
+  useEffect(() => {
+    if (!videoId) return;
+    localStorage.setItem(`shadowing-progress-${videoId}`, JSON.stringify(progress));
+  }, [progress, videoId]);
 
-  // ✅ OPTIMIZED: Load progress from localStorage
+  // Load progress from cache
   useEffect(() => {
     if (!videoId) {
       setProgress([]);
@@ -153,26 +182,6 @@ export default function ShadowingView() {
     }
   }, [videoId]);
 
-  // ✅ OPTIMIZED: Single write for progress
-  const updateProgress = useCallback((lineIndex: number) => {
-    if (!videoId) return;
-    
-    setProgress(prev => {
-      if (prev.includes(lineIndex)) return prev;
-      
-      const next = Array.from(new Set([...prev, lineIndex])).sort((a, b) => a - b);
-      
-      try {
-        localStorage.setItem(`shadowing-progress-${videoId}`, JSON.stringify(next));
-      } catch (e) {
-        console.error(e);
-      }
-      
-      return next;
-    });
-  }, [videoId]);
-
-  // ✅ REMOVED: useEffect for syncing progress to history
 
   // Restore progress on load
   useEffect(() => {
@@ -219,15 +228,14 @@ export default function ShadowingView() {
     }
     
     if (isCorrect) {
-      updateProgress(lineIndex);
+      setProgress(prev => Array.from(new Set([...prev, lineIndex])).sort((a,b) => a-b));
       setCorrectlyCompletedLines(prev => new Set(prev).add(lineIndex));
       setCompletedLinesCount(prev => Math.max(prev, lineIndex + 1));
     }
     
     setOpenBoxIndex(isCorrect ? lineIndex + 1 : lineIndex);
-  }, [tracking, updateProgress]);
+  }, [tracking]);
 
-  // ✅ REMOVED: handleHistoryItemClick and handleClearHistory
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -455,7 +463,6 @@ export default function ShadowingView() {
     );
   };
   
-  // ✅ REFACTORED: Right column now only shows analysis
   const renderRightColumn = () => (
     <div className="flex flex-col gap-4 h-full">
       <div className="flex-1 min-h-0">
