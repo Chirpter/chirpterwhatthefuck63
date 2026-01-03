@@ -13,19 +13,6 @@ const TOTAL_MOLES = 8;
 const MAX_ACTIVE_MOLES = 3;
 const MOLE_SPAWN_INTERVAL = 300;
 
-// ✅ NEW: Sound effect for whacking a mole
-const playWhackSound = () => {
-    try {
-        // Simple, free pop sound from a reliable source
-        const audio = new Audio('https://cdn.pixabay.com/audio/2021/08/04/audio_c6cc1ee972.mp3');
-        audio.volume = 0.5; // Adjust volume to not be too loud
-        audio.play().catch(e => console.error("Audio playback failed:", e));
-    } catch (error) {
-        console.error("Could not play sound:", error);
-    }
-};
-
-
 export const MoleGameIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <div className="relative w-full h-full">
         <Hole className="w-full h-full absolute top-0 left-0" />
@@ -239,7 +226,6 @@ export default function WhackAMoleGame() {
     const whackMole = useCallback((index: number) => {
         if (!activeMoles.includes(index)) return;
         
-        playWhackSound(); // ✅ Play sound on successful whack
         setScore(prev => prev + 1);
         setActiveMoles(prev => prev.filter(h => h !== index));
         
