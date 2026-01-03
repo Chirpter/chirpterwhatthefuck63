@@ -19,7 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Logo } from '../ui/Logo';
 import { CreditIcon } from '../ui/CreditIcon';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from 'next-themes';
 import { updateUserProfile } from '@/services/server/user-service';
 import { useToast } from '@/hooks/useToast';
 
@@ -29,7 +29,7 @@ export default function AppHeader() {
   const { authUser, logout } = useAuth();
   const { user, reloadUser } = useUser();
   const { toast } = useToast();
-  const { isDarkMode, toggleDarkMode } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   // ✅ NEW: Synchronize UI language with user's primary language on load
   useEffect(() => {
@@ -202,8 +202,8 @@ export default function AppHeader() {
               </Label>
               <Switch
                   id="darkMode"
-                  checked={isDarkMode}
-                  onCheckedChange={toggleDarkMode}
+                  checked={theme === 'dark'}
+                  onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
                   className="ml-auto"
               />
             </DropdownMenuItem>
