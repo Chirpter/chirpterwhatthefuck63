@@ -25,10 +25,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/contexts/user-context';
 import { ActivitiesPanel } from '../activities/ActivitiesPanel';
-import { ShadowingHistory } from './ShadowingHistory';
 import { ShadowingAnalysis } from './ShadowingAnalysis';
 import { useShadowingTracking } from '@/features/learning/hooks/useShadowingTracking';
-import { useVideoHistory } from '@/features/learning/hooks/useVideoHistory';
 import { useShadowingSettings } from '@/features/learning/hooks/useShadowingSettings';
 import { ShadowingPlayer, type ShadowingPlayerHandle } from './ShadowingPlayer';
 import { VideoBasedLayout } from '../layout/VideoBasedLayout';
@@ -60,17 +58,7 @@ export default function ShadowingView() {
   const { toast } = useToast();
   const { user } = useUser();
   
-  const { 
-    history, 
-    currentVideo, 
-    addOrUpdateHistory, 
-    updateHistoryProgress, 
-    clearHistory,
-    getTranscriptFromCache,
-    saveTranscriptToCache,
-  } = useVideoHistory();
-
-  // ✅ OPTIMIZED: Unified settings
+  // ✅ REMOVED: useVideoHistory hook and related state
   const { hideMode, checkMode, setHideMode, setCheckMode } = useShadowingSettings();
 
   const [urlInput, setUrlInput] = useState('');
@@ -91,11 +79,8 @@ export default function ShadowingView() {
   const tracking = useShadowingTracking(videoId);
   const [progress, setProgress] = useState<number[]>([]);
   
-  // ✅ OPTIMIZED: Single load function với clear intent
-  const loadVideo = useCallback(async (
-    url: string, 
-    source: 'user_input' | 'history' | 'mount'
-  ) => {
+  // ✅ REFACTORED: Simplified loadVideo without history or caching
+  const loadVideo = useCallback(async (url: string) => {
     if (!user) return;
     
     const newVideoId = getVideoIdFromUrl(url);
@@ -104,7 +89,7 @@ export default function ShadowingView() {
       return;
     }
 
-    // Reset state
+    // Reset state for new video
     setIsLoading(true);
     setError(null);
     setTranscriptResult(null);
@@ -115,26 +100,6 @@ export default function ShadowingView() {
     setCorrectlyCompletedLines(new Set());
     setOpenBoxIndex(0);
 
-    // ✅ Cache strategy: Chỉ dùng cache khi KHÔNG phải user input
-    const shouldUseCache = source !== 'user_input';
-    
-    if (shouldUseCache) {
-      const cachedTranscript = getTranscriptFromCache(newVideoId);
-      if (cachedTranscript) {
-        setTranscriptResult(cachedTranscript);
-        addOrUpdateHistory({
-          videoId: newVideoId,
-          url: url,
-          title: cachedTranscript.title,
-          thumbnail: cachedTranscript.thumbnail,
-          totalLines: cachedTranscript.transcript.length,
-        });
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    // Fetch from API
     try {
       const result = await getTranscriptFromUrl(url, user.uid);
       if (!result || !result.transcript || result.transcript.length === 0) {
@@ -142,14 +107,6 @@ export default function ShadowingView() {
       }
       
       setTranscriptResult(result);
-      saveTranscriptToCache(newVideoId, result);
-      addOrUpdateHistory({
-        videoId: newVideoId,
-        url: url,
-        title: result.title,
-        thumbnail: result.thumbnail,
-        totalLines: result.transcript.length,
-      });
       
       toast({ 
         title: 'Transcript Loaded', 
@@ -163,9 +120,9 @@ export default function ShadowingView() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast, addOrUpdateHistory, getTranscriptFromCache, saveTranscriptToCache]);
+  }, [user, toast]);
 
-  // ✅ Handle form submit - always force reload
+  // ✅ REFACTORED: Simplified fetch handler
   const handleFetchTranscript = useCallback(() => {
     const url = urlInput.trim();
     if (!url) return;
@@ -176,18 +133,10 @@ export default function ShadowingView() {
       return;
     }
 
-    loadVideo(url, 'user_input');
+    loadVideo(url);
   }, [urlInput, loadVideo]);
 
-  // ✅ Initialize from history (only once)
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (!initializedRef.current && currentVideo && !transcriptResult) {
-      initializedRef.current = true;
-      setUrlInput(currentVideo.url);
-      loadVideo(currentVideo.url, 'mount');
-    }
-  }, [currentVideo, transcriptResult, loadVideo]);
+  // ✅ REMOVED: useEffect for loading from history on mount
 
   // ✅ OPTIMIZED: Load progress from localStorage
   useEffect(() => {
@@ -213,7 +162,6 @@ export default function ShadowingView() {
       
       const next = Array.from(new Set([...prev, lineIndex])).sort((a, b) => a - b);
       
-      // Save to localStorage
       try {
         localStorage.setItem(`shadowing-progress-${videoId}`, JSON.stringify(next));
       } catch (e) {
@@ -224,16 +172,7 @@ export default function ShadowingView() {
     });
   }, [videoId]);
 
-  // ✅ Auto-sync to history (debounced)
-  useEffect(() => {
-    if (!videoId || progress.length === 0) return;
-    
-    const timer = setTimeout(() => {
-      updateHistoryProgress(videoId, progress);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [videoId, progress, updateHistoryProgress]);
+  // ✅ REMOVED: useEffect for syncing progress to history
 
   // Restore progress on load
   useEffect(() => {
@@ -288,28 +227,8 @@ export default function ShadowingView() {
     setOpenBoxIndex(isCorrect ? lineIndex + 1 : lineIndex);
   }, [tracking, updateProgress]);
 
-  const handleHistoryItemClick = useCallback((item: any) => {
-    setUrlInput(item.url);
-    loadVideo(item.url, 'history');
-  }, [loadVideo]);
+  // ✅ REMOVED: handleHistoryItemClick and handleClearHistory
 
-  const handleClearHistory = useCallback(() => {
-    clearHistory();
-    
-    // Reset all state
-    setUrlInput('');
-    setTranscriptResult(null);
-    setError(null);
-    setIsShadowingMode(false);
-    setProgress([]);
-    initializedRef.current = false;
-    
-    toast({ 
-      title: 'History Cleared', 
-      description: 'All video history has been removed.' 
-    });
-  }, [clearHistory, toast]);
-  
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleFetchTranscript();
@@ -536,9 +455,10 @@ export default function ShadowingView() {
     );
   };
   
+  // ✅ REFACTORED: Right column now only shows analysis
   const renderRightColumn = () => (
     <div className="flex flex-col gap-4 h-full">
-      <div className="h-[45vh] min-h-[350px] max-h-[500px]">
+      <div className="flex-1 min-h-0">
         <ShadowingAnalysis 
           errorStats={tracking.errorStats} 
           wordsNeedingAttention={wordsToDisplay} 
@@ -548,14 +468,6 @@ export default function ShadowingView() {
           completedLinesCount={completedLinesCount} 
           totalLines={transcriptResult?.transcript.length || 0} 
           isShadowingMode={isShadowingMode} 
-        />
-      </div>
-      <div className="h-[25vh] min-h-[200px] max-h-[300px]">
-        <ShadowingHistory 
-          history={history} 
-          currentVideoId={videoId} 
-          onItemClick={handleHistoryItemClick} 
-          onClearHistory={handleClearHistory} 
         />
       </div>
     </div>
