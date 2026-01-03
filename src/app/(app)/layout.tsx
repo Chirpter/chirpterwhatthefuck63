@@ -13,6 +13,7 @@ import { Logo } from '@/components/ui/Logo';
 import { usePathname } from 'next/navigation';
 
 const LevelUpDialog = dynamic(() => import('@/features/user/components/LevelUpDialog'), { ssr: false });
+const LanguageSurveyDialog = dynamic(() => import('@/features/user/components/LanguageSurveyDialog'), { ssr: false });
 
 const InitialLoader = ({ message = "Loading..." }: { message?: string }) => (
   <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -110,6 +111,13 @@ const AuthenticatedContent: React.FC<{ children: React.ReactNode }> = ({ childre
             onClose={clearLevelUpInfo}
             levelUpInfo={levelUpInfo}
           />
+        )}
+      </Suspense>
+
+      {/* Language Survey Dialog for new users */}
+      <Suspense fallback={null}>
+        {user && !user.hasCompletedLanguageSurvey && (
+          <LanguageSurveyDialog />
         )}
       </Suspense>
     </>

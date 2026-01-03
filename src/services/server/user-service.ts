@@ -78,6 +78,9 @@ export async function createOrFetchUserProfile(userId: string): Promise<{ user: 
                     role: 'user',
                     level: 1,
                     lastLoginDate: todayUtcString,
+                    primaryLanguage: 'en',
+                    secondaryLanguage: 'none',
+                    hasCompletedLanguageSurvey: false,
                     stats: { booksCreated: 0, piecesCreated: 0, vocabSaved: 0, flashcardsMastered: 0, coversGeneratedByAI: 0, bilingualBooksCreated: 0, vocabAddedToPlaylist: 0, level: 1 },
                     achievements: [],
                     purchasedBookIds: [],
@@ -111,14 +114,17 @@ export async function updateUserProfile(
     displayName?: string;
     profilePictureFile?: File;
     profileCoverFile?: File;
+    primaryLanguage?: string;
+    secondaryLanguage?: string;
+    hasCompletedLanguageSurvey?: boolean;
   }
 ): Promise<{ photoURL?: string; coverPhotoURL?: string }> {
-  const { displayName, profilePictureFile, profileCoverFile } = data;
+  const { displayName, profilePictureFile, profileCoverFile, ...otherUpdates } = data;
   const adminDb = getAdminDb();
   const userDocRef = adminDb.collection(USERS_COLLECTION).doc(userId);
   const auth = (await import('firebase-admin/auth')).getAuth();
 
-  const updates: any = {};
+  const updates: any = {...otherUpdates};
   const authUpdates: any = {};
   const returnedUrls: { photoURL?: string; coverPhotoURL?: string } = {};
 

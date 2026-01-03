@@ -14,11 +14,20 @@ import { LANGUAGES, BOOK_LENGTH_OPTIONS, MAX_PROMPT_LENGTH } from '@/lib/constan
 import { useLibraryItems } from '@/features/library/hooks/useLibraryItems';
 
 // ✅ MOVED OUTSIDE: Prevent closure issues
-const getInitialFormData = (primaryLang: string, getSuggestion: () => string): Partial<CreationFormValues> => {
+const getInitialFormData = (
+    primaryLang: string, 
+    secondaryLang: string | undefined, 
+    getSuggestion: () => string
+): Partial<CreationFormValues> => {
+  const availableLanguages = [primaryLang];
+  if (secondaryLang && secondaryLang !== 'none') {
+    availableLanguages.push(secondaryLang);
+  }
+
   return {
     type: 'book',
     primaryLanguage: primaryLang,
-    availableLanguages: [primaryLang],
+    availableLanguages: availableLanguages,
     aiPrompt: getSuggestion(),
     tags: [],
     origin: primaryLang,
@@ -93,7 +102,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   }, [t]);
 
   const [formData, setFormData] = useState<Partial<CreationFormValues>>(() => 
-    getInitialFormData('en', getSuggestion)
+    getInitialFormData(user?.primaryLanguage || 'en', user?.secondaryLanguage, getSuggestion)
   );
   
   const [isPromptDefault, setIsPromptDefault] = useState(true);
@@ -215,7 +224,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         
         switch(key) {
             case 'isBilingual':
-                newFormData.availableLanguages = value ? [newFormData.primaryLanguage!, 'vi'] : [newFormData.primaryLanguage!];
+                newFormData.availableLanguages = value ? [newFormData.primaryLanguage!, user?.secondaryLanguage || 'vi'] : [newFormData.primaryLanguage!];
                 break;
             case 'isPhraseMode':
                  newFormData.unit = value ? 'phrase' : 'sentence';
@@ -246,7 +255,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
 
         return newFormData;
     });
-  }, [isPromptDefault]);
+  }, [isPromptDefault, user?.secondaryLanguage]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, coverImageFile: e.target.files?.[0] || null }));
@@ -277,7 +286,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
   
   // ✅ FIX 1: Only clear storage if no active job
   const reset = useCallback((newType: 'book' | 'piece') => {
-    const defaultData = getInitialFormData('en', getSuggestion);
+    const defaultData = getInitialFormData(user?.primaryLanguage || 'en', user?.secondaryLanguage, getSuggestion);
     let newFormData: Partial<CreationFormValues> = { ...defaultData, type: newType };
 
     if (newType === 'piece') {
@@ -315,7 +324,7 @@ export function useCreationJob({ type }: UseCreationJobParams) {
         sessionStorage.removeItem(`finalizedJobId_${user.uid}`);
       }
     }
-  }, [user?.uid, getSuggestion, isBusy, activeId]);
+  }, [user?.uid, user?.primaryLanguage, user?.secondaryLanguage, getSuggestion, isBusy, activeId]);
 
   // ✅ FIX: Prevent reset during processing
   useEffect(() => {

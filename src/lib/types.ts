@@ -80,6 +80,11 @@ export interface User {
   credits: number;
   level: number;
   lastLoginDate: string;
+  // NEW: Language preferences
+  primaryLanguage?: string;
+  secondaryLanguage?: string;
+  hasCompletedLanguageSurvey?: boolean;
+  // END NEW
   stats?: UserStats;
   achievements?: UserAchievement[];
   purchasedBookIds?: string[];
