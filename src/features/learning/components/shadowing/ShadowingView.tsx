@@ -438,7 +438,7 @@ export default function ShadowingView() {
                       key={index} 
                       className={cn(
                         'transition-all duration-200 bg-card',
-                        currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-red-500 ring-opacity-50',
+                        currentPlayingLine === index && isVideoPlaying && 'ring-2 ring-primary ring-opacity-50',
                         correctlyCompletedLines.has(index) && 'border-green-300/50 dark:border-green-700/50'
                       )}
                     >

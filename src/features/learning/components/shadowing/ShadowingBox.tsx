@@ -198,8 +198,8 @@ export function ShadowingBox({
                         className={cn(
                             "h-7 w-7 transition-colors",
                             isPlaying 
-                                ? "text-red-600 bg-red-50" 
-                                : "text-foreground hover:text-red-600"
+                                ? "text-primary bg-primary/20" 
+                                : "text-foreground hover:text-primary"
                         )}
                     >
                         <Icon name={isPlaying ? "Pause" : "Play"} className="h-4 w-4" />
@@ -229,8 +229,8 @@ export function ShadowingBox({
                         className={cn(
                             "h-7 w-7 transition-colors",
                             isPlaying 
-                                ? "text-red-600 bg-red-50" 
-                                : "text-foreground hover:text-red-600",
+                                ? "text-primary bg-primary/20" 
+                                : "text-foreground hover:text-primary",
                             disabled && "opacity-50"
                         )}
                     >
@@ -302,8 +302,8 @@ export function ShadowingBox({
                                         className={cn(
                                             "h-7 w-7 transition-colors",
                                             isListening 
-                                                ? "text-red-600 bg-red-50 animate-pulse" 
-                                                : "text-foreground hover:text-red-600"
+                                                ? "text-primary bg-primary/20 animate-pulse" 
+                                                : "text-foreground hover:text-primary"
                                         )}
                                         title={!isSupported ? "Speech recognition not supported" : isListening ? "Stop listening" : "Start speaking"}
                                     >
@@ -316,7 +316,7 @@ export function ShadowingBox({
                                         className={cn(
                                             "h-7 w-7 transition-colors",
                                             userInput.trim() && !isChecking 
-                                                ? "text-foreground hover:text-red-600" 
+                                                ? "text-foreground hover:text-primary" 
                                                 : "text-muted-foreground opacity-50 cursor-not-allowed"
                                         )}
                                         disabled={!userInput.trim() || isChecking}
@@ -334,7 +334,7 @@ export function ShadowingBox({
                                     variant="ghost" 
                                     size="icon" 
                                     onClick={handleEdit}
-                                    className="h-7 w-7 text-foreground hover:text-red-600 transition-colors"
+                                    className="h-7 w-7 text-foreground hover:text-primary transition-colors"
                                     title="Edit your answer (Esc)"
                                 >
                                     <Icon name="Edit" className="h-4 w-4" />
@@ -354,7 +354,6 @@ export function ShadowingBox({
                                             diff={diffResult.user} 
                                             hideMode="block" 
                                             isRevealed={true}
-                                            showCorrect={diffResult.errorTypes.length === 0}
                                         />
                                     </div>
                                 </div>
