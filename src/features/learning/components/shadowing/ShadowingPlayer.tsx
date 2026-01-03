@@ -1,4 +1,4 @@
-
+// src/features/learning/components/shadowing/ShadowingPlayer.tsx
 "use client";
 
 import React, {
@@ -44,9 +44,8 @@ export const ShadowingPlayer = forwardRef<
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const currentSnippetRef = useRef({ start: 0, end: 0 });
 
-    // ✅ OPTIMIZED: Dùng timeout thay vì interval
+    // ✅ FIXED: Error handling for getCurrentTime
     const scheduleSnippetEnd = useCallback(() => {
-      // Clear timeout cũ nếu có
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
@@ -58,17 +57,22 @@ export const ShadowingPlayer = forwardRef<
         const currentTime = playerRef.current.getCurrentTime();
         const remaining = currentSnippetRef.current.end - currentTime;
 
-        // Nếu còn thời gian, schedule pause
-        if (remaining > 0) {
+        if (remaining > 0.1) { // Small buffer
           timeoutRef.current = setTimeout(() => {
             if (playerRef.current) {
-              playerRef.current.pauseVideo();
+              try {
+                playerRef.current.pauseVideo();
+              } catch (e) {
+                console.warn('Pause failed:', e);
+              }
               onVideoEnd();
             }
           }, remaining * 1000);
         }
       } catch (error) {
-        console.error('Schedule error:', error);
+        console.warn('getCurrentTime failed:', error);
+        // Fallback: just call onVideoEnd
+        onVideoEnd();
       }
     }, [onVideoEnd]);
 
@@ -79,7 +83,6 @@ export const ShadowingPlayer = forwardRef<
       }
     }, []);
 
-    // Cleanup on unmount
     useEffect(() => {
       return () => {
         stopSchedule();
@@ -90,26 +93,42 @@ export const ShadowingPlayer = forwardRef<
     useImperativeHandle(ref, () => ({
       play: () => {
         if (playerRef.current) {
-          playerRef.current.playVideo();
-          scheduleSnippetEnd();
+          try {
+            playerRef.current.playVideo();
+            scheduleSnippetEnd();
+          } catch (e) {
+            console.error('Play failed:', e);
+          }
         }
       },
       pause: () => {
         if (playerRef.current) {
-          playerRef.current.pauseVideo();
-          stopSchedule();
+          try {
+            playerRef.current.pauseVideo();
+            stopSchedule();
+          } catch (e) {
+            console.error('Pause failed:', e);
+          }
         }
       },
       seekToAndPlay: (seconds: number) => {
         if (playerRef.current) {
-          playerRef.current.seekTo(seconds, true);
-          playerRef.current.playVideo();
+          try {
+            playerRef.current.seekTo(seconds, true);
+            playerRef.current.playVideo();
+          } catch (e) {
+            console.error('Seek failed:', e);
+          }
         }
       },
       loadSnippet: (start: number, end: number) => {
         if (playerRef.current) {
-          currentSnippetRef.current = { start, end };
-          playerRef.current.seekTo(start, true);
+          try {
+            currentSnippetRef.current = { start, end };
+            playerRef.current.seekTo(start, true);
+          } catch (e) {
+            console.error('Load snippet failed:', e);
+          }
         }
       },
     }), [scheduleSnippetEnd, stopSchedule]);
@@ -125,10 +144,10 @@ export const ShadowingPlayer = forwardRef<
     const onPlayerStateChange = useCallback((event: { data: number }) => {
       if (event.data === 1) { // Playing
         onVideoPlay?.();
-        scheduleSnippetEnd(); // ✅ Schedule end khi bắt đầu play
+        scheduleSnippetEnd();
       } else if (event.data === 2) { // Paused
         onVideoPause?.();
-        stopSchedule(); // ✅ Clear schedule khi pause
+        stopSchedule();
       }
     }, [onVideoPlay, onVideoPause, scheduleSnippetEnd, stopSchedule]);
     
@@ -141,7 +160,7 @@ export const ShadowingPlayer = forwardRef<
         iv_load_policy: 3,
         modestbranding: 1,
         playsinline: 1,
-        origin: process.env.NEXT_PUBLIC_APP_URL, // ✅ FIX: Specify origin
+        origin: typeof window !== 'undefined' ? window.location.origin : undefined,
       },
     };
 

@@ -1,5 +1,4 @@
 // src/features/learning/components/shadowing/InteractiveBubblePanel.tsx
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -16,13 +15,12 @@ interface InteractiveBubblePanelProps {
   onConfirm: (word: string) => void;
 }
 
-// Error type colors
 const ERROR_COLORS: Record<string, string> = {
-  omission: '#eab308',      // Yellow
-  substitution: '#ef4444',  // Red
-  insertion: '#3b82f6',     // Blue
-  morphology: '#ec4899',    // Pink
-  spelling: '#f97316',      // Orange
+  omission: '#eab308',
+  substitution: '#ef4444',
+  insertion: '#3b82f6',
+  morphology: '#ec4899',
+  spelling: '#f97316',
 };
 
 export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
@@ -34,36 +32,45 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [dismissedWords, setDismissedWords] = useState<Set<string>>(new Set());
 
-  // Generate stable bubble positions
+  // ✅ FIXED: Deterministic stable positioning
   const bubblePositions = useMemo(() => {
     const positions = new Map<string, { top: number; left: number }>();
-    const usedSpots: { top: number; left: number }[] = [];
+    const visibleWords = words.filter(w => !dismissedWords.has(w.word));
+    
+    if (visibleWords.length === 0) return positions;
 
-    words
-      .filter(w => !dismissedWords.has(w.word))
-      .forEach((item) => {
-        let attempts = 0;
-        let position = { top: 0, left: 0 };
+    // Generate stable hash from word
+    const getStableHash = (word: string): number => {
+      let hash = 0;
+      for (let i = 0; i < word.length; i++) {
+        hash = ((hash << 5) - hash) + word.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return Math.abs(hash);
+    };
 
-        do {
-          position = {
-            top: 15 + Math.random() * 70, // 15% to 85%
-            left: 10 + Math.random() * 80, // 10% to 90%
-          };
-          attempts++;
-
-          const tooClose = usedSpots.some(
-            (spot) =>
-              Math.abs(spot.top - position.top) < 12 &&
-              Math.abs(spot.left - position.left) < 12
-          );
-
-          if (!tooClose || attempts > 50) break;
-        } while (attempts < 50);
-
-        positions.set(item.word, position);
-        usedSpots.push(position);
+    // Grid-based layout with deterministic jitter
+    const gridCols = Math.ceil(Math.sqrt(visibleWords.length));
+    const gridRows = Math.ceil(visibleWords.length / gridCols);
+    
+    visibleWords.forEach((item, index) => {
+      const row = Math.floor(index / gridCols);
+      const col = index % gridCols;
+      
+      // Base grid position
+      const baseTop = 15 + (row / gridRows) * 70;
+      const baseLeft = 10 + (col / gridCols) * 80;
+      
+      // Add stable jitter based on word hash
+      const hash = getStableHash(item.word);
+      const jitterTop = ((hash % 100) / 100) * 10 - 5; // ±5%
+      const jitterLeft = (((hash >> 8) % 100) / 100) * 10 - 5;
+      
+      positions.set(item.word, {
+        top: Math.max(15, Math.min(85, baseTop + jitterTop)),
+        left: Math.max(10, Math.min(90, baseLeft + jitterLeft)),
       });
+    });
 
     return positions;
   }, [words, dismissedWords]);
@@ -76,6 +83,14 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
     if (types.includes('morphology')) return 'morphology';
     if (types.includes('insertion')) return 'insertion';
     return 'substitution';
+  };
+
+  // ✅ IMPROVED: Better size scaling
+  const getSize = (score: number): number => {
+    // Exponential scaling for clear visual distinction
+    const normalized = Math.max(0, Math.min(100, score)) / 100;
+    const curved = Math.pow(normalized, 1.5);
+    return 40 + curved * 100; // 40-140px
   };
 
   const handlePlayPronunciation = (word: string) => {
@@ -112,9 +127,7 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
       <div className="h-full flex items-center justify-center text-center p-4">
         <div>
           <Icon name="BrainCircuit" className="h-10 w-10 mx-auto mb-2 opacity-50" />
-          <p className="text-muted-foreground">
-            No difficult words detected yet.
-          </p>
+          <p className="text-muted-foreground">No difficult words detected yet.</p>
           <p className="text-xs text-muted-foreground mt-1">
             Keep practicing - words will appear here as patterns emerge!
           </p>
@@ -134,14 +147,14 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
 
             const primaryError = getPrimaryErrorType(item.errorBreakdown);
             const color = ERROR_COLORS[primaryError] || '#64748b';
-            const size = Math.min(50 + item.difficultyScore * 0.5, 120);
+            const size = getSize(item.difficultyScore);
 
             return (
               <button
                 key={item.word}
                 onClick={() => setSelectedWord(item.word)}
                 className={cn(
-                  "absolute flex items-center justify-center rounded-full font-semibold shadow-lg transition-all duration-200 hover:scale-110 cursor-pointer border-2",
+                  "absolute flex items-center justify-center rounded-full font-semibold shadow-lg transition-all duration-200 hover:scale-110 cursor-pointer border-2 focus:outline-none focus:ring-2 focus:ring-primary/50",
                   selectedWord === item.word && "ring-4 ring-primary/30 scale-110"
                 )}
                 style={{
@@ -153,8 +166,9 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
                   borderColor: color,
                   color: color,
                   transform: 'translate(-50%, -50%)',
-                  fontSize: `${Math.max(12, size / 8)}px`,
+                  fontSize: `${Math.max(11, size / 8)}px`,
                 }}
+                aria-label={`Word: ${item.word}, difficulty score: ${item.difficultyScore}`}
                 title={`Click for details (Score: ${item.difficultyScore})`}
               >
                 {item.word}
@@ -240,11 +254,13 @@ export const InteractiveBubblePanel: React.FC<InteractiveBubblePanelProps> = ({
         </Card>
       )}
 
-      {/* Dismissed Words (Collapsible) */}
+      {/* Dismissed Words */}
       {dismissed.length > 0 && (
         <Card className="bg-muted/30">
           <CardContent className="p-3">
-            <p className="text-xs font-semibold mb-2 text-muted-foreground">Dismissed Words ({dismissed.length})</p>
+            <p className="text-xs font-semibold mb-2 text-muted-foreground">
+              Dismissed Words ({dismissed.length})
+            </p>
             <div className="flex flex-wrap gap-2">
               {dismissed.map((item) => (
                 <button

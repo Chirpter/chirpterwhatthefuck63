@@ -10,36 +10,54 @@ interface DiffOptions {
   checkMode?: 'strict' | 'gentle';
 }
 
+/**
+ * ✅ FIXED: Gentle mode bỏ qua punctuation-only differences
+ */
 const processWord = (word: string, mode: 'strict' | 'gentle'): string => {
   if (mode === 'gentle') {
-    // Gentle: remove all punctuation and lowercase
+    // Remove all punctuation and lowercase
     return word.toLowerCase().replace(/[.,!?;:'"\-—"""''`]/g, '');
   }
-  // Strict: only remove special dashes that are problematic
+  // Strict: only remove problematic dashes
   return word.replace(/[—]/g, '');
 };
 
 /**
- * Compares two strings of text and returns a detailed diff and match status
- * Uses Longest Common Subsequence (LCS) algorithm for word-level comparison
- * @param originalText The source text to compare against
- * @param userText The text entered by the user
- * @param options Configuration for comparison strictness
- * @returns Object containing diff arrays, match status, and identified error types
+ * ✅ NEW: Check if a word is punctuation-only
+ */
+const isPunctuationOnly = (word: string): boolean => {
+  return word.replace(/[.,!?;:'"\-—"""''`\s]/g, '').length === 0;
+};
+
+/**
+ * Compares two strings and returns detailed diff
  */
 export const getDiff = (
   originalText: string,
   userText: string,
   options: DiffOptions = { checkMode: 'gentle' }
 ): { original: DiffSegment[]; user: DiffSegment[]; isMatch: boolean; errorTypes: string[] } => {
+  const mode = options.checkMode || 'gentle';
+  
+  // Split into words (preserve whitespace for reconstruction)
   const originalWords = originalText.split(/(\s+)/).filter(Boolean);
   const userWords = userText.split(/(\s+)/).filter(Boolean);
 
-  const processedOriginal = originalWords.map(w => 
-    w.match(/\s+/) ? w : processWord(w, options.checkMode || 'gentle')
+  // ✅ FIXED: In gentle mode, filter out punctuation-only words BEFORE processing
+  const filteredOriginal = mode === 'gentle' 
+    ? originalWords.filter(w => w.match(/\s+/) || !isPunctuationOnly(w))
+    : originalWords;
+    
+  const filteredUser = mode === 'gentle'
+    ? userWords.filter(w => w.match(/\s+/) || !isPunctuationOnly(w))
+    : userWords;
+
+  // Process words (lowercase, remove punctuation in gentle mode)
+  const processedOriginal = filteredOriginal.map(w => 
+    w.match(/\s+/) ? w : processWord(w, mode)
   );
-  const processedUser = userWords.map(w => 
-    w.match(/\s+/) ? w : processWord(w, options.checkMode || 'gentle')
+  const processedUser = filteredUser.map(w => 
+    w.match(/\s+/) ? w : processWord(w, mode)
   );
 
   const n = processedOriginal.length;
@@ -50,15 +68,8 @@ export const getDiff = (
 
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
-      // Don't count whitespace in LCS length
-      if (processedOriginal[i - 1].match(/\s+/) || processedUser[j - 1].match(/\s+/)) {
-        if (processedOriginal[i - 1] === processedUser[j - 1]) {
-            dp[i][j] = 1 + dp[i-1][j-1];
-        } else {
-            dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-        }
-      } else if (processedOriginal[i - 1] === processedUser[j - 1]) {
-        dp[i][j] = 1 + dp[i - 1][j - 1];
+      if (processedOriginal[i - 1] === processedUser[j - 1]) {
+        dp[i][j] = 1 + dp[i-1][j-1];
       } else {
         dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
       }
@@ -76,24 +87,24 @@ export const getDiff = (
     const currentUser = j > 0 ? processedUser[j - 1] : '';
 
     if (i > 0 && j > 0 && currentOriginal === currentUser) {
-      originalDiff.unshift({ text: originalWords[i - 1], type: 'correct' });
-      userDiff.unshift({ text: userWords[j - 1], type: 'correct' });
+      originalDiff.unshift({ text: filteredOriginal[i - 1], type: 'correct' });
+      userDiff.unshift({ text: filteredUser[j - 1], type: 'correct' });
       i--;
       j--;
     } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
       if (!currentUser.match(/\s+/)) {
-        userDiff.unshift({ text: userWords[j - 1], type: 'extra' });
+        userDiff.unshift({ text: filteredUser[j - 1], type: 'extra' });
         errorTypes.add('insertion');
       } else {
-        userDiff.unshift({ text: userWords[j - 1], type: 'correct' });
+        userDiff.unshift({ text: filteredUser[j - 1], type: 'correct' });
       }
       j--;
-    } else if (i > 0 && (j === 0 || dp[i - 1][j] > dp[i][j - 1])) {
+    } else if (i > 0) {
       if (!currentOriginal.match(/\s+/)) {
-        originalDiff.unshift({ text: originalWords[i - 1], type: 'missing' });
+        originalDiff.unshift({ text: filteredOriginal[i - 1], type: 'missing' });
         errorTypes.add('omission');
       } else {
-        originalDiff.unshift({ text: originalWords[i - 1], type: 'correct' });
+        originalDiff.unshift({ text: filteredOriginal[i - 1], type: 'correct' });
       }
       i--;
     }
@@ -112,27 +123,24 @@ export const getDiff = (
       errorTypes.delete('insertion');
       errorTypes.add('wrong_word');
       
-      // Simple spelling check
+      // Spelling/morphology detection
       const origClean = orig.text.toLowerCase().replace(/[.,!?;:'"\-—"""''`]/g, '');
       const userClean = user.text.toLowerCase().replace(/[.,!?;:'"\-—"""''`]/g, '');
       
       if (origClean.length > 3 && userClean.length > 3 && origClean !== userClean) {
-        // Check for similar words (potential spelling errors)
         const similarity = calculateSimilarity(origClean, userClean);
         if (similarity > 0.5) {
           errorTypes.add('spelling');
         }
       }
       
-      // Check for common ending sound errors
+      // Morphology checks
       if (origClean.endsWith('s') && origClean.slice(0, -1) === userClean) {
-        errorTypes.add('ending_sound');
-      }
-      if (origClean.endsWith('ed') && origClean.slice(0, -2) === userClean) {
-        errorTypes.add('ending_sound');
-      }
-      if (origClean.endsWith('ing') && origClean.slice(0, -3) === userClean) {
-        errorTypes.add('ending_sound');
+        errorTypes.add('morphology');
+      } else if (origClean.endsWith('ed') && origClean.slice(0, -2) === userClean) {
+        errorTypes.add('morphology');
+      } else if (origClean.endsWith('ing') && origClean.slice(0, -3) === userClean) {
+        errorTypes.add('morphology');
       }
       
       k++;
@@ -152,7 +160,7 @@ export const getDiff = (
   return { original: originalDiff, user: userDiff, isMatch, errorTypes: Array.from(errorTypes) };
 };
 
-// Helper function to calculate word similarity (Levenshtein distance based)
+// Helper functions
 function calculateSimilarity(str1: string, str2: string): number {
   const longer = str1.length > str2.length ? str1 : str2;
   const shorter = str1.length > str2.length ? str2 : str1;

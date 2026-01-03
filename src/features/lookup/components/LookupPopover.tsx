@@ -127,17 +127,6 @@ const LookupPopoverContent: React.FC<Omit<LookupPopoverProps, 'isOpen' | 'onOpen
             {error && <p className="text-xs text-destructive mt-1">{error}</p>}
         </div>
         <div className="flex flex-col items-center">
-            <VideoSnippetPopover term={text}>
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7 text-muted-foreground" 
-                    onClick={e => e.stopPropagation()} 
-                    aria-label="Find video clips"
-                >
-                    <Icon name="Youtube" className="h-4 w-4" />
-                </Button>
-            </VideoSnippetPopover>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSpeak}>
               <Icon name="Volume2" className={cn("h-4 w-4", (isSpeaking || isPlayerSpeaking) && "text-destructive")} />
             </Button>

@@ -43,16 +43,16 @@ export interface ErrorInstance {
     context?: string;
   }
   
-  // Error detection thresholds
+  // ✅ RELAXED: More forgiving thresholds
   const ERROR_CONFIGS = {
     omission: {
       minOccurrences: 3,
-      confidenceThreshold: 0.8,
+      confidenceThreshold: 0.7, // Was 0.8
       requiresContext: true,
     },
     substitution: {
       minOccurrences: 2,
-      confidenceThreshold: 0.6,
+      confidenceThreshold: 0.5, // Was 0.6
       requiresContext: false,
     },
     insertion: {
@@ -62,11 +62,11 @@ export interface ErrorInstance {
     },
     morphology: {
       minOccurrences: 2,
-      confidenceThreshold: 0.7,
+      confidenceThreshold: 0.6, // Was 0.7
       requiresContext: false,
     },
     spelling: {
-      minOccurrences: 3,
+      minOccurrences: 2, // Was 3
       confidenceThreshold: 0.6,
       similarityRange: [0.7, 0.85],
     },
@@ -80,27 +80,16 @@ export interface ErrorInstance {
     spelling: 1.0,
   } as const;
   
-  /**
-   * SmartErrorTracker - Video-scoped error tracking with intelligent filtering
-   * 
-   * Design principles:
-   * - Video-scoped (not session-based)
-   * - Threshold-based filtering to reduce noise
-   * - User feedback loop (dismiss/confirm)
-   * - Behavior-aware difficulty scoring
-   */
   export class SmartErrorTracker {
     private wordTracking: Map<string, WordTracking> = new Map();
     private videoId: string;
+    private saveTimeout: NodeJS.Timeout | null = null;
   
     constructor(videoId: string) {
       this.videoId = videoId;
       this.load();
     }
   
-    /**
-     * Main entry point: Track a submission with detected errors and behaviors
-     */
     trackSubmission(errors: DetectedError[], behaviors: BehaviorData): void {
       const now = Date.now();
   
@@ -129,11 +118,9 @@ export interface ErrorInstance {
           this.wordTracking.set(word, tracking);
         }
   
-        // Update occurrence count
         tracking.totalOccurrences++;
         tracking.lastSeen = now;
   
-        // Add error instance
         const instance: ErrorInstance = {
           lineIndex: error.lineIndex,
           confidence: error.confidence,
@@ -142,7 +129,6 @@ export interface ErrorInstance {
         };
         tracking.errorInstances.push(instance);
   
-        // Update error breakdown
         if (!tracking.errorBreakdown[error.type]) {
           tracking.errorBreakdown[error.type] = {
             count: 0,
@@ -157,51 +143,53 @@ export interface ErrorInstance {
         breakdown.avgConfidence = 
           breakdown.instances.reduce((sum, i) => sum + i.confidence, 0) / breakdown.count;
   
-        // Accumulate behaviors
         tracking.totalReplays += behaviors.replayCount;
         tracking.totalReveals += behaviors.wasRevealed ? 1 : 0;
         tracking.totalTimeSpent += behaviors.timeSpent;
   
-        // Recalculate difficulty score
         this.updateDifficultyScore(tracking);
-        
-        // Check if needs attention (based on thresholds)
         this.updateNeedsAttention(tracking);
       });
   
-      this.save();
+      this.scheduleSave();
     }
   
-    /**
-     * Calculate difficulty score based on errors + behaviors
-     * Formula: Σ(errorCount × severity × 10) + (avgReplays × 5) + (avgReveals × 10) + (avgTimeSpent × 2)
-     * Capped at 100
-     */
+    // ✅ FIXED: Balanced difficulty formula
     private updateDifficultyScore(tracking: WordTracking): void {
-      let score = 0;
-  
-      // Error contribution
+      const occurrences = Math.max(tracking.totalOccurrences, 1);
+      
+      // 1. Error Score (0-40 points) - Diminishing returns
+      let errorScore = 0;
       Object.entries(tracking.errorBreakdown).forEach(([type, breakdown]) => {
         const severity = ERROR_SEVERITY[type as keyof typeof ERROR_SEVERITY] || 1.0;
-        score += breakdown.count * severity * 10;
+        errorScore += Math.sqrt(breakdown.count) * severity * 8;
       });
+      errorScore = Math.min(errorScore, 40);
   
-      // Behavior contribution (normalized by occurrences)
-      const occurrences = Math.max(tracking.totalOccurrences, 1);
+      // 2. Behavior Score (0-40 points)
       const avgReplays = tracking.totalReplays / occurrences;
       const avgReveals = tracking.totalReveals / occurrences;
       const avgTimeSpent = tracking.totalTimeSpent / occurrences;
+      
+      const behaviorScore = Math.min(
+        (avgReplays * 10) +
+        (avgReveals * 15) +
+        Math.min(avgTimeSpent, 10),
+        40
+      );
   
-      score += avgReplays * 5;
-      score += avgReveals * 10;
-      score += avgTimeSpent * 2;
+      // 3. Confidence Score (0-20 points)
+      const totalErrors = tracking.errorInstances.length;
+      const avgConfidence = totalErrors > 0
+        ? tracking.errorInstances.reduce((sum, e) => sum + e.confidence, 0) / totalErrors
+        : 0;
+      const confidenceScore = avgConfidence * 20;
   
-      tracking.difficultyScore = Math.min(Math.round(score), 100);
+      const totalScore = errorScore + behaviorScore + confidenceScore;
+      tracking.difficultyScore = Math.min(Math.round(totalScore), 100);
     }
   
-    /**
-     * Check if word needs attention based on error type thresholds
-     */
+    // ✅ IMPROVED: More lenient attention logic
     private updateNeedsAttention(tracking: WordTracking): void {
       if (tracking.dismissedByUser) {
         tracking.needsAttention = false;
@@ -213,96 +201,87 @@ export interface ErrorInstance {
         return;
       }
   
-      // Check each error type against its threshold
       let needsAttention = false;
+      let totalWeightedErrors = 0;
   
       for (const [errorType, breakdown] of Object.entries(tracking.errorBreakdown)) {
         const config = ERROR_CONFIGS[errorType as keyof typeof ERROR_CONFIGS];
         if (!config) continue;
   
-        // Check minimum occurrences
-        if (breakdown.count < config.minOccurrences) continue;
-  
-        // Check confidence threshold
-        if (breakdown.avgConfidence < config.confidenceThreshold) continue;
-  
-        // Special case: omission requires context
-        if (errorType === 'omission') {
-          const omissionConfig = config as typeof ERROR_CONFIGS.omission;
-          if (omissionConfig.requiresContext) {
-            const hasContext = breakdown.instances.some(i => i.context);
-            if (!hasContext) continue;
-          }
+        // Individual type check (80% of threshold)
+        if (breakdown.count >= config.minOccurrences && 
+            breakdown.avgConfidence >= config.confidenceThreshold * 0.8) {
+          needsAttention = true;
+          break;
         }
   
-        // Special case: spelling similarity check
-        if (errorType === 'spelling') {
-          // Spelling detection is already handled by pattern-detection-helper
-          // Trust the detection if it passes confidence threshold
-        }
+        // Aggregate weighted score
+        const severity = ERROR_SEVERITY[errorType as keyof typeof ERROR_SEVERITY] || 1.0;
+        totalWeightedErrors += breakdown.count * severity * breakdown.avgConfidence;
+      }
   
+      // Alternative: aggregate threshold
+      if (!needsAttention && totalWeightedErrors >= 3.5) {
         needsAttention = true;
-        break;
+      }
+  
+      // Also consider difficulty score
+      if (!needsAttention && tracking.difficultyScore >= 50) {
+        needsAttention = true;
       }
   
       tracking.needsAttention = needsAttention;
     }
   
-    /**
-     * Get all words that need attention (for bubble panel)
-     */
     getWordsNeedingAttention(): WordTracking[] {
       return Array.from(this.wordTracking.values())
         .filter(w => w.needsAttention && !w.dismissedByUser)
         .sort((a, b) => b.difficultyScore - a.difficultyScore);
     }
   
-    /**
-     * Get all tracked words (for statistics)
-     */
     getAllStats(): WordTracking[] {
       return Array.from(this.wordTracking.values());
     }
   
-    /**
-     * User feedback: Dismiss word (false positive)
-     */
     dismissWord(word: string): void {
       const tracking = this.wordTracking.get(word.toLowerCase());
       if (tracking) {
         tracking.dismissedByUser = true;
         tracking.needsAttention = false;
-        this.save();
+        this.scheduleSave();
       }
     }
   
-    /**
-     * User feedback: Confirm word is difficult
-     */
     confirmWord(word: string): void {
       const tracking = this.wordTracking.get(word.toLowerCase());
       if (tracking) {
         tracking.confirmedByUser = true;
         tracking.needsAttention = true;
-        this.save();
+        this.scheduleSave();
       }
     }
   
-    /**
-     * Restore dismissed word
-     */
     restoreWord(word: string): void {
       const tracking = this.wordTracking.get(word.toLowerCase());
       if (tracking) {
         tracking.dismissedByUser = false;
         this.updateNeedsAttention(tracking);
-        this.save();
+        this.scheduleSave();
       }
     }
   
-    /**
-     * Persist to localStorage
-     */
+    // ✅ OPTIMIZED: Debounced save
+    private scheduleSave(): void {
+      if (this.saveTimeout) {
+        clearTimeout(this.saveTimeout);
+      }
+      
+      this.saveTimeout = setTimeout(() => {
+        this.save();
+        this.saveTimeout = null;
+      }, 1000);
+    }
+  
     private save(): void {
       try {
         const data = Array.from(this.wordTracking.entries());
@@ -315,45 +294,27 @@ export interface ErrorInstance {
       }
     }
   
-    /**
-     * Load from localStorage
-     */
     private load(): void {
       try {
         const saved = localStorage.getItem(`error-tracking-${this.videoId}`);
         if (!saved) return;
   
-        const data = JSON.parse(saved) as [string, Omit<WordTracking, 'errorBreakdown'> & { errorBreakdown: any }][];
-        
-        // Reconstruct Map
-        this.wordTracking = new Map(
-          data.map(([word, tracking]) => [
-            word,
-            {
-              ...tracking,
-              // Ensure errorBreakdown is properly structured
-              errorBreakdown: Object.fromEntries(
-                Object.entries(tracking.errorBreakdown).map(([type, breakdown]: [string, any]) => [
-                  type,
-                  {
-                    count: breakdown.count || 0,
-                    avgConfidence: breakdown.avgConfidence || 0,
-                    instances: breakdown.instances || [],
-                  }
-                ])
-              ),
-            }
-          ])
-        );
+        const data = JSON.parse(saved) as [string, WordTracking][];
+        this.wordTracking = new Map(data);
       } catch (e) {
         console.error('Failed to load error tracking:', e);
         this.wordTracking = new Map();
       }
     }
   
-    /**
-     * Clear all data for this video
-     */
+    // ✅ NEW: Force save before unmount
+    destroy(): void {
+      if (this.saveTimeout) {
+        clearTimeout(this.saveTimeout);
+        this.save();
+      }
+    }
+  
     clear(): void {
       this.wordTracking.clear();
       localStorage.removeItem(`error-tracking-${this.videoId}`);

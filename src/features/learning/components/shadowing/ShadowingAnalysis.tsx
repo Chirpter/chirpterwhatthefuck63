@@ -1,5 +1,4 @@
-// src/features/learning/components/shadowing/ShadowingAnalysis.tsx (UPDATED)
-
+// src/features/learning/components/shadowing/ShadowingAnalysis.tsx
 "use client";
 
 import React, { useMemo } from 'react';
@@ -33,7 +32,6 @@ interface ShadowingAnalysisProps {
   isShadowingMode?: boolean;
 }
 
-// Chart colors
 const COLORS: { [key: string]: string } = {
   correct: '#22c55e',
   wrong_word: '#ef4444',
@@ -88,7 +86,6 @@ export const ShadowingAnalysis: React.FC<ShadowingAnalysisProps> = ({
 
   return (
     <Card className="flex flex-col h-full">
-      {/* Compact Header with Progress */}
       <CardHeader className="pb-3 space-y-3">
         <CardTitle className="font-headline text-lg">
           {t('shadowing.analysisTitle')}
@@ -147,23 +144,87 @@ export const ShadowingAnalysis: React.FC<ShadowingAnalysisProps> = ({
               </PieChart>
             </ResponsiveContainer>
           </div>
-        ) : (
-          /* Interactive Bubble Mode (default) */
+        ) : wordsNeedingAttention.length > 0 ? (
+          /* Interactive Bubble Mode (when words detected) */
           <div className="h-full min-h-[200px]">
-            {wordsNeedingAttention.length > 0 ? (
-              <InteractiveBubblePanel
-                words={wordsNeedingAttention}
-                onDismiss={onDismissWord || (() => {})}
-                onConfirm={onConfirmWord || (() => {})}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center text-center">
-                <div>
-                  <Icon name="BrainCircuit" className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-muted-foreground">{t('shadowing.analysisComingSoon')}</p>
+            <InteractiveBubblePanel
+              words={wordsNeedingAttention}
+              onDismiss={onDismissWord || (() => {})}
+              onConfirm={onConfirmWord || (() => {})}
+            />
+          </div>
+        ) : isShadowingMode && completedLinesCount > 0 ? (
+          /* ✅ FIXED: Show progress when no difficult words yet */
+          <div className="h-full flex items-center justify-center text-center p-6">
+            <div className="space-y-3">
+              <div className="relative inline-block">
+                <Icon name="TrendingUp" className="h-12 w-12 text-green-500 mx-auto" />
+                <div className="absolute inset-0 rounded-full bg-green-500/20 blur-lg -z-10 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-foreground mb-1">Great Progress!</p>
+                <p className="text-sm text-muted-foreground">
+                  No difficult words detected yet.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Keep practicing - patterns will emerge as you continue
+                </p>
+              </div>
+              
+              {/* ✅ Mini stats */}
+              <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{completedLinesCount}</div>
+                  <div className="text-xs text-muted-foreground">Lines Completed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-500">{errorStats.correct}</div>
+                  <div className="text-xs text-muted-foreground">Correct Words</div>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
+        ) : (
+          /* ✅ FIXED: Initial empty state with better guidance */
+          <div className="h-full flex items-center justify-center text-center p-6">
+            <div className="space-y-4">
+              <div className="relative inline-block">
+                <Icon name="BrainCircuit" className="h-16 w-16 mx-auto text-primary/40" />
+                <div className="absolute inset-0 rounded-full bg-primary/10 blur-xl -z-10" />
+              </div>
+              
+              <div>
+                <p className="text-lg font-semibold text-foreground mb-2">
+                  {isShadowingMode ? 'Smart Analysis Ready' : 'Enter Shadowing Mode'}
+                </p>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                  {isShadowingMode 
+                    ? 'Start practicing and this panel will track your difficult words using AI-powered pattern detection'
+                    : 'Click the shadowing button above to begin practicing and see your analysis here'
+                  }
+                </p>
+              </div>
+
+              {/* ✅ Feature preview */}
+              {isShadowingMode && (
+                <div className="grid grid-cols-2 gap-2 mt-4 text-left">
+                  <div className="flex items-start gap-2 p-2 rounded-md bg-muted/30">
+                    <Icon name="Target" className="h-4 w-4 text-primary mt-0.5" />
+                    <div className="text-xs">
+                      <div className="font-medium">Word Tracking</div>
+                      <div className="text-muted-foreground">Auto-detect patterns</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 p-2 rounded-md bg-muted/30">
+                    <Icon name="BarChart3" className="h-4 w-4 text-primary mt-0.5" />
+                    <div className="text-xs">
+                      <div className="font-medium">Progress Stats</div>
+                      <div className="text-muted-foreground">Every 10 lines</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
