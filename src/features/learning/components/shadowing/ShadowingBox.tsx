@@ -152,7 +152,7 @@ export function ShadowingBox({
 
     const renderOriginalText = useMemo(() => {
         const textClasses = cn(
-            "w-full text-body-base leading-relaxed font-light transition-all duration-300",
+            "w-full text-body-base leading-relaxed transition-all duration-300",
             hideMode === 'blur' && !isRevealed && !diffResult && "blur-sm select-none",
             hideMode === 'hidden' && !isRevealed && !diffResult && "invisible",
             // ✨ NEW: Subtle styling for completed boxes
@@ -205,7 +205,7 @@ export function ShadowingBox({
                         <Icon name={isPlaying ? "Pause" : "Play"} className="h-4 w-4" />
                     </Button>
                 </div>
-                <div className="text-body-base leading-relaxed font-light">
+                <div className="text-body-base leading-relaxed">
                     {line}
                 </div>
             </div>
@@ -346,7 +346,7 @@ export function ShadowingBox({
                             {diffResult ? (
                                 <div className="space-y-2">
                                     <div className={cn(
-                                        "min-h-[80px] p-3 text-body-base leading-relaxed font-light border rounded-md bg-background overflow-auto whitespace-pre-wrap break-words transition-colors",
+                                        "min-h-[80px] p-3 text-body-base leading-relaxed border rounded-md bg-background overflow-auto whitespace-pre-wrap break-words transition-colors",
                                         diffResult.errorTypes.length === 0 && "border-green-300 dark:border-green-700 bg-green-50/30 dark:bg-green-950/20"
                                     )}>
                                         <WordBlockRenderer 
@@ -365,7 +365,7 @@ export function ShadowingBox({
                                         rows={3}
                                         placeholder={isListening ? "Listening... Speak now" : "Type or speak your shadowing..."}
                                         disabled={isChecking}
-                                        className="text-body-base leading-relaxed font-light pr-10 transition-colors resize-none"
+                                        className="text-body-base leading-relaxed transition-colors resize-none pr-10"
                                         onKeyDown={(e) => {
                                             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                                                 e.preventDefault();
