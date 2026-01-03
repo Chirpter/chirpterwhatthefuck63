@@ -1,27 +1,32 @@
-
+// src/app/(app)/diary/page.tsx
 'use client';
 
-import dynamic from 'next/dynamic';
-import { Logo } from '@/components/ui/Logo';
+import React from 'react';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
-// ✅ UPDATED: The loader now uses the standardized InitialLoader style with the Logo.
-const DiaryViewLoader = () => (
-    <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="text-center">
-            <Logo className="h-24 w-24 animate-pulse text-primary mx-auto" />
-            <p className="mt-2 text-sm text-muted-foreground">Loading Diary...</p>
-        </div>
-    </div>
-);
-
-// Use dynamic import to lazy-load the entire Diary feature.
-// This ensures that none of the heavy canvas logic is included in the initial
-// JavaScript bundle for other parts of the application, like the library.
-const DiaryView = dynamic(() => import('@/features/diary/components/DiaryView'), {
-  ssr: false, // Diary is a client-only feature and doesn't need server-side rendering.
-  loading: () => <DiaryViewLoader />,
-});
-
+/**
+ * Placeholder page for the Diary feature, indicating it is under development.
+ */
 export default function DiaryPage() {
-  return <DiaryView />;
+  return (
+    <div className="flex h-full items-center justify-center text-center">
+      <Card className="max-w-md p-6">
+        <CardHeader>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <Icon name="BookHeart" className="h-10 w-10 text-primary" />
+          </div>
+          <CardTitle className="text-headline-1">Diary Feature Coming Soon!</CardTitle>
+          <CardDescription className="text-body-base">
+            We are currently refining the diary experience to make it even better. Please check back later.
+          </CardDescription>
+        </CardHeader>
+        <Button asChild>
+          <Link href="/library/book">Go to Library</Link>
+        </Button>
+      </Card>
+    </div>
+  );
 }
