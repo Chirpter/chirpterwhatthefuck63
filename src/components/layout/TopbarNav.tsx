@@ -26,7 +26,7 @@ export function TopbarNav() {
             className={cn(
               "font-body text-sm",
               isActive 
-                ? "font-semibold bg-primary text-primary-foreground hover:bg-primary/90" 
+                ? "font-semibold bg-primary hover:bg-primary/90 text-primary-foreground" 
                 : "text-foreground hover:bg-secondary"
             )}
           >
