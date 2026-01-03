@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // ✅ ADDED: Define environment variables for the application
+  env: {
+    NEXT_PUBLIC_APP_URL: process.env.NODE_ENV === 'production'
+      ? 'https://your-production-app.com' // Replace with your actual production URL
+      : 'https://6000-firebase-studio-1765412736426.cluster-yylgzpipxrar4v4a72liastuqy.cloudworkstations.dev',
+  },
   images: {
     remotePatterns: [
       {

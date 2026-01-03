@@ -1,3 +1,4 @@
+
 // src/features/landing/components/LandingView.tsx
 
 'use client';
@@ -61,6 +62,19 @@ export default function LandingPageV2() {
     { number: "25+", label: "Languages" },
     { number: "4.9★", label: "User Rating" }
   ];
+  
+  const youtubeOpts = {
+      height: '100%',
+      width: '100%',
+      playerVars: {
+        autoplay: 1,
+        start: 1,
+        end: 4,
+        controls: 0,
+        iv_load_policy: 3,
+        origin: process.env.NEXT_PUBLIC_APP_URL, // ✅ FIX: Specify origin
+      },
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
@@ -178,7 +192,7 @@ export default function LandingPageV2() {
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 </div>
                 {showVideo ? (
-                  <YouTube videoId="J1ze549a-OA" opts={{ height: '100%', width: '100%', playerVars: { autoplay: 1, start: 1, end: 4, controls: 0, iv_load_policy: 3 } }} className="w-full h-full" onEnd={() => setShowVideo(false)} />
+                  <YouTube videoId="J1ze549a-OA" opts={youtubeOpts} className="w-full h-full" onEnd={() => setShowVideo(false)} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
                     <Icon name="Youtube" className="w-20 h-20 text-red-500 mb-4" />

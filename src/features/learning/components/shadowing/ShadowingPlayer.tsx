@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, {
@@ -140,6 +141,7 @@ export const ShadowingPlayer = forwardRef<
         iv_load_policy: 3,
         modestbranding: 1,
         playsinline: 1,
+        origin: process.env.NEXT_PUBLIC_APP_URL, // ✅ FIX: Specify origin
       },
     };
 
